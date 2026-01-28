@@ -1,0 +1,67 @@
+{
+  "project_info": {
+    "project_number": "527209708828",
+    "project_id": "church-6eb05",
+    "storage_bucket": "church-6eb05.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:527209708828:android:ed3ed10b7a5aeb6d0b8ed9",
+        "android_client_info": {
+          "package_name": "com.csms.csms"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDrEulD0bfBXgxYJC15zHZ57ZFUp_NwXpI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:527209708828:android:b4f5171968cb13b10b8ed9",
+        "android_client_info": {
+          "package_name": "com.example.church_superapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDrEulD0bfBXgxYJC15zHZ57ZFUp_NwXpI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:527209708828:android:5d6c1108565c94df0b8ed9",
+        "android_client_info": {
+          "package_name": "com.example.myapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDrEulD0bfBXgxYJC15zHZ57ZFUp_NwXpI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
