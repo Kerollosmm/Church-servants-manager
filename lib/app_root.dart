@@ -34,11 +34,6 @@ class AppRoot extends StatelessWidget {
               return ServantDashboardScreen(user: user);
           }
         }
-
-        // Needs verification - show login with dialog trigger
-        // (LoginScreen handles the dialog via BlocListener)
-
-        // Unauthenticated, Initial, NeedsVerification, Error - show login
         return const LoginScreen();
       },
     );
