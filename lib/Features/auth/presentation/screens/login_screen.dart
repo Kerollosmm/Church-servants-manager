@@ -46,6 +46,10 @@ class _LoginScreenState extends State<LoginScreen> {
       backgroundColor: theme.colorScheme.surface,
       body: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {
+          if (state is AuthAuthenticated) {
+            // Pop all routes and go back to AppRoot which will show the correct screen
+            Navigator.of(context).popUntil((route) => route.isFirst);
+          }
           if (state is AuthNeedsVerification) {
             showEmailVerificationDialog(context);
           }

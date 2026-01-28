@@ -53,6 +53,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       backgroundColor: theme.colorScheme.surface,
       body: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {
+          if (state is AuthAuthenticated) {
+            Navigator.of(context).popUntil((route) => route.isFirst);
+          }
           if (state is AuthNeedsVerification) {
             showEmailVerificationDialog(context);
           }
