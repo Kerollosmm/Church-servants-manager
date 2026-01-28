@@ -1,6 +1,7 @@
+import 'package:csms/Features/auth/domain/failures/auth_failures.dart';
 import 'package:csms/core/constants/enums.dart';
 import 'package:csms/core/models/user.dart';
-import 'package:csms/core/services/auth_service.dart';
+import 'package:csms/Features/auth/data/services/auth_service.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 part 'auth_event.dart';
@@ -37,20 +38,19 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   Future<void> _onSignIn(AuthEventSignIn event, Emitter<AuthState> emit) async {
-    print('[AuthBloc] _onSignIn called');
     emit(const AuthLoading());
     try {
       final user = await AuthService.firebase().login(
         email: event.email,
         password: event.password,
       );
-      print('[AuthBloc] Login succeeded, emitting AuthAuthenticated');
+
       emit(AuthAuthenticated(user));
-    } on EmailNotVerifiedException {
-      print('[AuthBloc] EmailNotVerified, emitting AuthNeedsVerification');
+    } on EmailNotVerifiedFailure {
       emit(const AuthNeedsVerification());
+    } on AuthFailure catch (e) {
+      emit(AuthError(e.message));
     } catch (e) {
-      print('[AuthBloc] Error: $e, emitting AuthError');
       emit(AuthError(e.toString()));
     }
   }
@@ -73,6 +73,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       // After registration, user needs to verify email
       emit(const AuthNeedsVerification());
+    } on AuthFailure catch (e) {
+      emit(AuthError(e.message));
     } catch (e) {
       emit(AuthError(e.toString()));
     }
@@ -86,6 +88,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       await AuthService.firebase().logout();
       emit(const AuthUnauthenticated());
+    } on AuthFailure catch (e) {
+      emit(AuthError(e.message));
     } catch (e) {
       emit(AuthError(e.toString()));
     }
@@ -98,6 +102,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       await AuthService.firebase().sendEmailVerification();
       emit(const AuthVerificationSent());
+    } on AuthFailure catch (e) {
+      emit(AuthError(e.message));
     } catch (e) {
       emit(AuthError(e.toString()));
     }

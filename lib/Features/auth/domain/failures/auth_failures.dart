@@ -1,42 +1,58 @@
-/// Sealed class for typed auth failure handling.
-sealed class AuthFailure {
-  const AuthFailure();
-
-  String get message;
-}
-
-class InvalidCredentialsFailure extends AuthFailure {
-  const InvalidCredentialsFailure();
+abstract class AuthFailure implements Exception {
+  final String message;
+  const AuthFailure(this.message);
 
   @override
-  String get message => 'Invalid email or password';
+  String toString() => message;
+}
+
+// Login Failures
+class UserNotFoundFailure extends AuthFailure {
+  const UserNotFoundFailure([
+    super.message = 'User not found. Please register first.',
+  ]);
+}
+
+class WrongPasswordFailure extends AuthFailure {
+  const WrongPasswordFailure([
+    super.message = 'Incorrect password. Please try again.',
+  ]);
+}
+
+// Register Failures
+class WeakPasswordFailure extends AuthFailure {
+  const WeakPasswordFailure([
+    super.message = 'The password provided is too weak.',
+  ]);
 }
 
 class EmailAlreadyInUseFailure extends AuthFailure {
-  const EmailAlreadyInUseFailure();
-
-  @override
-  String get message => 'Email is already in use';
+  const EmailAlreadyInUseFailure([
+    super.message = 'The account already exists for that email.',
+  ]);
 }
 
-class WeakPasswordFailure extends AuthFailure {
-  const WeakPasswordFailure();
-
-  @override
-  String get message => 'Password is too weak';
+class InvalidEmailFailure extends AuthFailure {
+  const InvalidEmailFailure([
+    super.message = 'The email address is improperly formatted.',
+  ]);
 }
 
-class UserNotFoundFailure extends AuthFailure {
-  const UserNotFoundFailure();
-
-  @override
-  String get message => 'User not found';
+// Generic/Other Failures
+class GenericAuthFailure extends AuthFailure {
+  const GenericAuthFailure([
+    super.message = 'An authentication error occurred. Please try again.',
+  ]);
 }
 
-class ServerFailure extends AuthFailure {
-  final String? details;
-  const ServerFailure([this.details]);
+class UserNotLoggedInFailure extends AuthFailure {
+  const UserNotLoggedInFailure([
+    super.message = 'User is not currently signed in.',
+  ]);
+}
 
-  @override
-  String get message => details ?? 'Server error occurred';
+class EmailNotVerifiedFailure extends AuthFailure {
+  const EmailNotVerifiedFailure([
+    super.message = 'Email not verified. Please check your inbox.',
+  ]);
 }

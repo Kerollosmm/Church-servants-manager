@@ -1,5 +1,6 @@
 import 'package:csms/Features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:csms/app_root.dart';
+import 'package:csms/core/routing/app_router.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -41,6 +42,7 @@ class MyApp extends StatelessWidget {
           ),
           useMaterial3: true,
         ),
+        onGenerateRoute: AppRouter.onGenerateRoute,
         home: const AppRoot(),
       ),
     );

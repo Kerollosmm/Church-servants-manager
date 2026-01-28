@@ -3,27 +3,32 @@ import 'package:csms/Features/auth/presentation/widgets/auth_header.dart';
 import 'package:csms/Features/auth/presentation/widgets/auth_submit_button.dart';
 import 'package:csms/Features/auth/presentation/widgets/auth_text_field.dart';
 import 'package:csms/Features/auth/presentation/widgets/email_verification_dialog.dart';
+import 'package:csms/core/constants/enums.dart';
 import 'package:csms/core/routing/app_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class RegisterScreen extends StatefulWidget {
+  const RegisterScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _nameController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+
   bool _obscurePassword = true;
+  UserRole _selectedRole = UserRole.student;
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _nameController.dispose();
     super.dispose();
   }
 
@@ -31,9 +36,11 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     context.read<AuthBloc>().add(
-      AuthEventSignIn(
+      AuthEventSignUp(
         email: _emailController.text.trim(),
         password: _passwordController.text,
+        name: _nameController.text.trim(),
+        role: _selectedRole.name,
       ),
     );
   }
@@ -84,10 +91,24 @@ class _LoginScreenState extends State<LoginScreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         const AuthHeader(
-                          title: 'Welcome Back',
-                          subtitle: 'Sign in to continue',
+                          title: 'Create Account',
+                          subtitle: 'Sign up to get started',
                         ),
                         const SizedBox(height: 32),
+
+                        // Name
+                        AuthTextField(
+                          controller: _nameController,
+                          label: 'Full Name',
+                          prefixIcon: Icons.person_outline,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Name is required';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
 
                         // Email
                         AuthTextField(
@@ -135,28 +156,56 @@ class _LoginScreenState extends State<LoginScreen> {
                             return null;
                           },
                         ),
+                        const SizedBox(height: 16),
+
+                        // Role Dropdown
+                        DropdownButtonFormField<UserRole>(
+                          initialValue: _selectedRole,
+                          decoration: InputDecoration(
+                            labelText: 'Role',
+                            prefixIcon: const Icon(Icons.badge_outlined),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          items: const [
+                            DropdownMenuItem(
+                              value: UserRole.student,
+                              child: Text('Student'),
+                            ),
+                            DropdownMenuItem(
+                              value: UserRole.servant,
+                              child: Text('Servant'),
+                            ),
+                          ],
+                          onChanged: (role) {
+                            if (role != null) {
+                              setState(() => _selectedRole = role);
+                            }
+                          },
+                        ),
                         const SizedBox(height: 24),
 
                         // Submit
-                        AuthSubmitButton(text: 'Login', onPressed: _submit),
+                        AuthSubmitButton(text: 'Sign Up', onPressed: _submit),
                         const SizedBox(height: 24),
 
-                        // Navigate to Register
+                        // Navigate to Login
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              "Don't have an account?",
+                              'Already have an account?',
                               style: theme.textTheme.bodyMedium,
                             ),
                             TextButton(
                               onPressed: () {
                                 Navigator.pushReplacementNamed(
                                   context,
-                                  AppRouter.register,
+                                  AppRouter.login,
                                 );
                               },
-                              child: const Text('Sign Up'),
+                              child: const Text('Login'),
                             ),
                           ],
                         ),
