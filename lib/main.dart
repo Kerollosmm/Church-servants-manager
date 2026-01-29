@@ -11,11 +11,11 @@ void main() async {
   // Initialize Firebase
   await Firebase.initializeApp();
 
-  runApp(const MyApp());
+  runApp(const ChurchApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class ChurchApp extends StatelessWidget {
+  const ChurchApp({super.key});
 
   @override
   Widget build(BuildContext context) {

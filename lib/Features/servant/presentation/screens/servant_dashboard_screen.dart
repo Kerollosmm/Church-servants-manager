@@ -1,12 +1,18 @@
 import 'package:csms/Features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:csms/core/models/user.dart';
+import 'package:csms/core/models/auth_user.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class ServantDashboardScreen extends StatelessWidget {
-  final AppUser user;
+  final AuthUser user;
 
   const ServantDashboardScreen({super.key, required this.user});
+
+  Future<void> _onRefresh(BuildContext context) async {
+    context.read<AuthBloc>().add(const AuthEventRefreshUser());
+    // Wait a bit for the state to update
+    await Future.delayed(const Duration(milliseconds: 500));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,39 +32,53 @@ class ServantDashboardScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.church, size: 80, color: Colors.teal.shade700),
-            const SizedBox(height: 24),
-            Text(
-              'Welcome Servant',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Colors.teal.shade800,
+      body: RefreshIndicator(
+        onRefresh: () => _onRefresh(context),
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: SizedBox(
+            height: MediaQuery.of(context).size.height - 100,
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.church, size: 80, color: Colors.teal.shade700),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Welcome Servant',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.teal.shade800,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    user.name,
+                    style: TextStyle(fontSize: 22, color: Colors.teal.shade600),
+                  ),
+                  const SizedBox(height: 32),
+                  Card(
+                    margin: const EdgeInsets.symmetric(horizontal: 32),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        children: [
+                          _infoRow('Email', user.email),
+                          _infoRow('Role', user.role.name.toUpperCase()),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Pull down to refresh your role',
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              user.name,
-              style: TextStyle(fontSize: 22, color: Colors.teal.shade600),
-            ),
-            const SizedBox(height: 32),
-            Card(
-              margin: const EdgeInsets.symmetric(horizontal: 32),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    _infoRow('Email', user.email),
-                    _infoRow('Role', user.role.name.toUpperCase()),
-                  ],
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

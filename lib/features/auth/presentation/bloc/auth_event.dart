@@ -38,3 +38,12 @@ class AuthEventSignOut extends AuthEvent {
 class AuthEventSendVerification extends AuthEvent {
   const AuthEventSendVerification();
 }
+
+class AuthEventForgotPassword extends AuthEvent {
+  final String email;
+  const AuthEventForgotPassword({required this.email});
+}
+
+class AuthEventRefreshUser extends AuthEvent {
+  const AuthEventRefreshUser();
+}

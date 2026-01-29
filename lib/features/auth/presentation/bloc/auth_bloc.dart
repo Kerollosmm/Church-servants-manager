@@ -1,7 +1,8 @@
 import 'package:csms/Features/auth/domain/failures/auth_failures.dart';
-import 'package:csms/core/constants/enums.dart';
-import 'package:csms/core/models/user.dart';
 import 'package:csms/Features/auth/data/services/auth_service.dart';
+import 'package:csms/core/constants/enums.dart';
+import 'package:csms/core/models/auth_user.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 part 'auth_event.dart';
@@ -14,6 +15,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthEventSignUp>(_onSignUp);
     on<AuthEventSignOut>(_onSignOut);
     on<AuthEventSendVerification>(_onSendVerification);
+    on<AuthEventForgotPassword>(_onForgotPassword);
+    on<AuthEventRefreshUser>(_onRefreshUser);
   }
 
   Future<void> _onCheckStatus(
@@ -25,9 +28,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       final user = await AuthService.firebase().getCurrentAppUser();
       final firebaseUser = AuthService.firebase().currentUser;
 
-      if (user != null && firebaseUser != null && firebaseUser.emailVerified) {
+      if (user != null &&
+          firebaseUser != null &&
+          firebaseUser.isEmailVerified) {
         emit(AuthAuthenticated(user));
-      } else if (firebaseUser != null && !firebaseUser.emailVerified) {
+      } else if (firebaseUser != null && !firebaseUser.isEmailVerified) {
         emit(const AuthNeedsVerification());
       } else {
         emit(const AuthUnauthenticated());
@@ -50,7 +55,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       emit(const AuthNeedsVerification());
     } on AuthFailure catch (e) {
       emit(AuthError(e.message));
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('Login error: $e');
+      debugPrint('Stack trace: $stackTrace');
       emit(AuthError(e.toString()));
     }
   }
@@ -104,6 +111,37 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       emit(const AuthVerificationSent());
     } on AuthFailure catch (e) {
       emit(AuthError(e.message));
+    } catch (e) {
+      emit(AuthError(e.toString()));
+    }
+  }
+
+  Future<void> _onForgotPassword(
+    AuthEventForgotPassword event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(const AuthLoading());
+    try {
+      await AuthService.firebase().sendPasswordResetEmail(event.email);
+      emit(const AuthPasswordResetSent());
+    } on AuthFailure catch (e) {
+      emit(AuthError(e.message));
+    } catch (e) {
+      emit(AuthError(e.toString()));
+    }
+  }
+
+  Future<void> _onRefreshUser(
+    AuthEventRefreshUser event,
+    Emitter<AuthState> emit,
+  ) async {
+    try {
+      final user = await AuthService.firebase().getCurrentAppUser();
+      if (user != null) {
+        emit(AuthAuthenticated(user));
+      } else {
+        emit(const AuthUnauthenticated());
+      }
     } catch (e) {
       emit(AuthError(e.toString()));
     }

@@ -5,6 +5,7 @@ import 'package:csms/Features/auth/presentation/widgets/auth_text_field.dart';
 import 'package:csms/Features/auth/presentation/widgets/email_verification_dialog.dart';
 import 'package:csms/core/constants/enums.dart';
 import 'package:csms/core/routing/app_router.dart';
+import 'package:csms/core/utilities/dialog/error_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -68,12 +69,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             );
           }
           if (state is AuthError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: Colors.red,
-              ),
-            );
+            showErrorDialog(context, state.message);
           }
         },
         child: SafeArea(

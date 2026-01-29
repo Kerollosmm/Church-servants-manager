@@ -1,15 +1,12 @@
 import 'package:csms/core/constants/enums.dart';
-import 'package:csms/core/models/user.dart';
+import 'package:csms/core/models/auth_user.dart';
 
-/// Abstract repository interface for authentication operations.
-/// This follows Clean Architecture principles - domain layer doesn't
-/// depend on external frameworks.
 abstract class AuthRepository {
   /// Signs in user with email and password.
-  Future<AppUser> signIn({required String email, required String password});
+  Future<AuthUser> signIn({required String email, required String password});
 
   /// Creates a new user account.
-  Future<AppUser> signUp({
+  Future<AuthUser> signUp({
     required String email,
     required String password,
     required String name,
@@ -21,5 +18,5 @@ abstract class AuthRepository {
   Future<void> signOut();
 
   /// Gets the currently authenticated user, if any.
-  Future<AppUser?> getCurrentUser();
+  Future<AuthUser?> getCurrentUser();
 }

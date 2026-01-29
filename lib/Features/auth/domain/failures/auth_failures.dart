@@ -56,3 +56,9 @@ class EmailNotVerifiedFailure extends AuthFailure {
     super.message = 'Email not verified. Please check your inbox.',
   ]);
 }
+
+class PasswordResetFailure extends AuthFailure {
+  const PasswordResetFailure([
+    super.message = 'Failed to send password reset email. Please try again.',
+  ]);
+}

@@ -139,7 +139,22 @@ class _LoginScreenState extends State<LoginScreen> {
                             return null;
                           },
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 8),
+
+                        // Forgot Password
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: () {
+                              Navigator.pushNamed(
+                                context,
+                                AppRouter.forgotPassword,
+                              );
+                            },
+                            child: const Text('Forgot Password?'),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
 
                         // Submit
                         AuthSubmitButton(text: 'Login', onPressed: _submit),

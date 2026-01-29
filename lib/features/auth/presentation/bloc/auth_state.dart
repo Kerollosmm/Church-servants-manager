@@ -13,7 +13,7 @@ class AuthLoading extends AuthState {
 }
 
 class AuthAuthenticated extends AuthState {
-  final AppUser user;
+  final AuthUser user;
   const AuthAuthenticated(this.user);
 }
 
@@ -32,4 +32,8 @@ class AuthVerificationSent extends AuthState {
 class AuthError extends AuthState {
   final String message;
   const AuthError(this.message);
+}
+
+class AuthPasswordResetSent extends AuthState {
+  const AuthPasswordResetSent();
 }
