@@ -11,11 +11,13 @@ void main() async {
   // Initialize Firebase
   await Firebase.initializeApp();
 
-  runApp(const ChurchApp());
+  runApp(ChurchApp(appRoutes: AppRouter()));
 }
 
 class ChurchApp extends StatelessWidget {
-  const ChurchApp({super.key});
+  const ChurchApp({super.key, required this.appRoutes});
+
+  final AppRouter appRoutes;
 
   @override
   Widget build(BuildContext context) {
@@ -24,25 +26,7 @@ class ChurchApp extends StatelessWidget {
       child: MaterialApp(
         title: 'CSMS',
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.teal,
-            brightness: Brightness.light,
-          ),
-          useMaterial3: true,
-          inputDecorationTheme: InputDecorationTheme(
-            filled: true,
-            fillColor: Colors.grey.shade50,
-          ),
-        ),
-        darkTheme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.teal,
-            brightness: Brightness.dark,
-          ),
-          useMaterial3: true,
-        ),
-        onGenerateRoute: AppRouter.onGenerateRoute,
+        onGenerateRoute: appRoutes.onGenerateRoute,
         home: const AppRoot(),
       ),
     );

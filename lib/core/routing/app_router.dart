@@ -8,7 +8,7 @@ class AppRouter {
   static const String register = '/register';
   static const String forgotPassword = '/forgot-password';
 
-  static Route<dynamic> onGenerateRoute(RouteSettings settings) {
+   Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
       case login:
         return MaterialPageRoute(

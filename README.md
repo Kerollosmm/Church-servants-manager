@@ -10,3 +10,4 @@ CSMS provides a centralized platform for:
 - **Real-time Updates**: Instant role refresh and profile management.
 
 Built with Flutter and Firebase, following a clean architecture with Bloc for state management.
+    

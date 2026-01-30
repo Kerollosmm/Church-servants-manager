@@ -53,3 +53,10 @@ Gemini.md
 lib/features/notifications/domain/entities/admin_alert.dart
 docs/
 
+# Agent and Skill rules
+.agent/
+.kilocodemodes
+.kilocode
+csms_knowledge_base.md
+
+
