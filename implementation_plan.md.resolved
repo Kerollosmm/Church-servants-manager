@@ -1,0 +1,51 @@
+# Student Data BLoC Layer (Refined)
+
+## Proposed Changes
+
+### 1. [MODIFY] [auth_user.dart](file:///c:/Users/KimoStore/church_managment_system/lib/core/models/auth_user.dart)
+Add `groupId` field (nullable `Group?` for servant group assignment).
+
+---
+
+### 2. [NEW] RoleCubit (Global State)
+**Location:** `lib/core/bloc/role_cubit/`
+
+> [!IMPORTANT]
+> Role is app-wide state, not feature-specific. Accessible from anywhere.
+
+- `RoleState` with `AuthUser?`, `isAdmin`, `isServant`, `groupId` getters
+
+---
+
+### 3. [NEW] StudentDataBloc
+**Location:** `lib/features/student/presentation/bloc/student_data/`
+
+Events accept filter params (decoupled from RoleCubit):
+```dart
+LoadStudents({Group? filterByGroup})  // UI passes groupId from RoleCubit
+CreateStudent(StudentModel)
+UpdateStudent(StudentModel)
+DeleteStudent(String docId)
+```
+
+---
+
+### 4. [NEW] Firestore Seed Integration Test
+**Location:** `integration_test/seed_data_test.dart`
+
+> [!WARNING]
+> Uses `flutter test` not `dart run` - cloud_firestore requires Flutter engine.
+
+Creates: 20 students, 3 servants, 1 admin, 5 attendance records each.
+
+---
+
+### 5. [NEW] BLoC Tests
+- `test/core/bloc/role_cubit_test.dart`
+- `test/features/student/bloc/student_data_bloc_test.dart`
+
+## Verification
+```bash
+flutter test test/core/bloc/ test/features/student/bloc/
+flutter test integration_test/seed_data_test.dart
+```
