@@ -6,36 +6,48 @@ sealed class StudentDataEvent {
 }
 
 /// Load students with optional group filter.
-/// UI passes filterGroupId from RoleCubit - decoupled design.
 final class StudentsLoadRequested extends StudentDataEvent {
-  final String? filterGroupId;
+  final AuthUser actor;
   final int limit;
 
-  const StudentsLoadRequested({this.filterGroupId, this.limit = 50});
+  const StudentsLoadRequested({required this.actor, this.limit = 50});
+}
+
+/// Search students by name (BLoC-managed, no direct repository calls in UI).
+final class StudentsSearchRequested extends StudentDataEvent {
+  final AuthUser actor;
+  final String query;
+
+  const StudentsSearchRequested({required this.actor, required this.query});
 }
 
 /// Create a new student.
 final class StudentCreated extends StudentDataEvent {
+  final AuthUser actor;
   final StudentModel student;
 
-  const StudentCreated(this.student);
+  const StudentCreated({required this.actor, required this.student});
 }
 
 /// Update an existing student.
 final class StudentUpdated extends StudentDataEvent {
+  final AuthUser actor;
   final StudentModel student;
 
-  const StudentUpdated(this.student);
+  const StudentUpdated({required this.actor, required this.student});
 }
 
 /// Delete a student by document ID.
 final class StudentDeleted extends StudentDataEvent {
+  final AuthUser actor;
   final String docId;
 
-  const StudentDeleted(this.docId);
+  const StudentDeleted({required this.actor, required this.docId});
 }
 
 /// Refresh students (re-fetch with current filter).
 final class StudentsRefreshRequested extends StudentDataEvent {
-  const StudentsRefreshRequested();
+  final AuthUser actor;
+
+  const StudentsRefreshRequested({required this.actor});
 }

@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:church_managment_system/core/constants/firestore_collections.dart';
 import '../models/student_model.dart';
 
 class StudentDataRepository {
@@ -7,22 +8,34 @@ class StudentDataRepository {
   StudentDataRepository({FirebaseFirestore? firestore})
     : _firestore = firestore ?? FirebaseFirestore.instance;
 
-  CollectionReference<Map<String, dynamic>> get _usersCollection =>
-      _firestore.collection('Users');
+  CollectionReference<Map<String, dynamic>> get _studentsCollection =>
+      _firestore.collection(FirestoreCollections.students);
 
   /// Get a single student by document ID
   Future<StudentModel?> getStudentById(String docId) async {
     try {
-      final doc = await _usersCollection.doc(docId).get();
+      final doc = await _studentsCollection.doc(docId).get();
       if (doc.exists && doc.data() != null) {
-        final data = doc.data()!;
-        if (data['role'] == 'student') {
-          return StudentModel.fromMap(data, doc.id);
-        }
+        return StudentModel.fromMap(doc.data()!, doc.id);
       }
       return null;
     } catch (e) {
       throw Exception('Failed to fetch student: $e');
+    }
+  }
+
+  /// Get a student by Firebase Auth UID (or app UID).
+  Future<StudentModel?> getStudentByUid(String uid) async {
+    try {
+      final snapshot = await _studentsCollection
+          .where('uid', isEqualTo: uid)
+          .limit(1)
+          .get();
+      if (snapshot.docs.isEmpty) return null;
+      final doc = snapshot.docs.first;
+      return StudentModel.fromMap(doc.data(), doc.id);
+    } catch (e) {
+      throw Exception('Failed to fetch student by uid: $e');
     }
   }
 
@@ -34,8 +47,8 @@ class StudentDataRepository {
     DocumentSnapshot? lastDocument,
   }) async {
     try {
-      Query<Map<String, dynamic>> query = _usersCollection
-          .where('role', isEqualTo: 'student')
+      Query<Map<String, dynamic>> query = _studentsCollection
+          .orderBy('name')
           .limit(limit);
 
       if (lastDocument != null) {
@@ -57,9 +70,8 @@ class StudentDataRepository {
   Future<List<StudentModel>> getStudentsByClass(String classId) async {
     try {
       // Primary approach: Single query using classId field (most efficient)
-      final snapshot = await _usersCollection
+      final snapshot = await _studentsCollection
           .where('classId', isEqualTo: classId)
-          .where('role', isEqualTo: 'student')
           .get();
 
       if (snapshot.docs.isNotEmpty) {
@@ -70,7 +82,7 @@ class StudentDataRepository {
 
       // Fallback: If classId field not populated, use whereIn with chunking
       final classDoc = await _firestore
-          .collection('Classes')
+          .collection(FirestoreCollections.classes)
           .doc(classId)
           .get();
       if (!classDoc.exists) return [];
@@ -85,15 +97,12 @@ class StudentDataRepository {
       final chunks = _chunkList(studentIds, 10);
 
       for (final chunk in chunks) {
-        final chunkSnapshot = await _usersCollection
+        final chunkSnapshot = await _studentsCollection
             .where(FieldPath.documentId, whereIn: chunk)
             .get();
 
         for (final doc in chunkSnapshot.docs) {
-          final data = doc.data();
-          if (data['role'] == 'student') {
-            students.add(StudentModel.fromMap(data, doc.id));
-          }
+          students.add(StudentModel.fromMap(doc.data(), doc.id));
         }
       }
 
@@ -116,8 +125,7 @@ class StudentDataRepository {
   /// Get students by grade
   Future<List<StudentModel>> getStudentsByGrade(int grade) async {
     try {
-      final snapshot = await _usersCollection
-          .where('role', isEqualTo: 'student')
+      final snapshot = await _studentsCollection
           .where('grade', isEqualTo: grade)
           .get();
 
@@ -138,7 +146,7 @@ class StudentDataRepository {
 
     for (final chunk in chunks) {
       final snapshot = await _firestore
-          .collection('Classes')
+          .collection(FirestoreCollections.classes)
           .where(FieldPath.documentId, whereIn: chunk)
           .get();
 
@@ -159,8 +167,7 @@ class StudentDataRepository {
     try {
       if (query.isEmpty) return getAllStudents(limit: limit);
 
-      final snapshot = await _usersCollection
-          .where('role', isEqualTo: 'student')
+      final snapshot = await _studentsCollection
           .orderBy('name')
           .startAt([query])
           .endAt(['$query\uf8ff'])
@@ -178,13 +185,24 @@ class StudentDataRepository {
   /// Create a new student
   Future<String> createStudent(StudentModel student) async {
     try {
-      final data = student.toMap();
-      data['role'] = 'student'; // Ensure role is set
-      final docRef = await _usersCollection.add(data);
-
+      final docRef = _studentsCollection.doc();
+      final data = student.copyWith(docID: docRef.id).toMap();
+      await docRef.set(data);
       return docRef.id;
     } catch (e) {
       throw Exception('Failed to create student: $e');
+    }
+  }
+
+  /// Upsert a student document (merge).
+  Future<void> upsertStudent(StudentModel student) async {
+    try {
+      await _studentsCollection.doc(student.docID).set(
+            student.toMap(),
+            SetOptions(merge: true),
+          );
+    } catch (e) {
+      throw Exception('Failed to upsert student: $e');
     }
   }
 
@@ -192,7 +210,7 @@ class StudentDataRepository {
   Future<void> updateStudent(StudentModel student) async {
     try {
       final data = student.toMap();
-      await _usersCollection.doc(student.docID).update(data);
+      await _studentsCollection.doc(student.docID).update(data);
     } catch (e) {
       throw Exception('Failed to update student: $e');
     }
@@ -204,7 +222,7 @@ class StudentDataRepository {
     Map<String, dynamic> fields,
   ) async {
     try {
-      await _usersCollection.doc(docId).update(fields);
+      await _studentsCollection.doc(docId).update(fields);
     } catch (e) {
       throw Exception('Failed to update student fields: $e');
     }
@@ -213,7 +231,7 @@ class StudentDataRepository {
   /// Delete a student by document ID
   Future<void> deleteStudent(String docId) async {
     try {
-      await _usersCollection.doc(docId).delete();
+      await _studentsCollection.doc(docId).delete();
     } catch (e) {
       throw Exception('Failed to delete student: $e');
     }

@@ -1,4 +1,5 @@
 import 'package:church_managment_system/core/constants/enums.dart';
+import 'package:church_managment_system/core/constants/firestore_collections.dart';
 import 'package:church_managment_system/core/models/auth_user.dart';
 import 'package:church_managment_system/features/auth/data/services/auth_exceptions.dart';
 import 'package:church_managment_system/features/auth/data/services/auth_provider.dart';
@@ -189,7 +190,7 @@ class FirebaseAuthProvider implements AuthProvider {
     try {
       // Force fetch from server to get latest data
       final doc = await _db
-          .collection('users')
+          .collection(FirestoreCollections.users)
           .doc(uid)
           .get(const GetOptions(source: Source.server));
       if (doc.exists) {
@@ -221,7 +222,10 @@ class FirebaseAuthProvider implements AuthProvider {
 
   Future<void> _saveUserToFirestore(AuthUser appUser) async {
     try {
-      await _db.collection('users').doc(appUser.uid).set(appUser.toJson());
+      await _db
+          .collection(FirestoreCollections.users)
+          .doc(appUser.uid)
+          .set(appUser.toJson());
     } catch (e) {
       throw GenericAuthException('Failed to save user data: $e');
     }

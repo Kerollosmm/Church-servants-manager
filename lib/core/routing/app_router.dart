@@ -2,7 +2,11 @@ import 'package:church_managment_system/features/auth/presentation/screens/forgo
 import 'package:church_managment_system/features/auth/presentation/screens/login_screen.dart';
 import 'package:church_managment_system/features/auth/presentation/screens/register_screen.dart';
 
-import 'package:church_managment_system/features/student/presentation/screens/student_list_screen.dart';
+import 'package:church_managment_system/core/routing/route_args.dart';
+import 'package:church_managment_system/features/devtools/presentation/dev_tools_screen.dart';
+import 'package:church_managment_system/features/student/presentation/screens/student_detail_screen.dart';
+import 'package:church_managment_system/features/student/presentation/screens/student_edit_screen.dart';
+import 'package:church_managment_system/features/student/presentation/screens/student_management_screen.dart';
 import 'package:flutter/material.dart';
 
 class AppRouter {
@@ -10,6 +14,9 @@ class AppRouter {
   static const String register = '/register';
   static const String forgotPassword = '/forgot-password';
   static const String studentList = '/students';
+  static const String studentDetail = '/students/detail';
+  static const String studentEdit = '/students/edit';
+  static const String devTools = '/dev-tools';
 
   Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -31,7 +38,38 @@ class AppRouter {
 
       case studentList:
         return MaterialPageRoute(
-          builder: (_) => const StudentListScreen(),
+          builder: (_) => const StudentManagementScreen(),
+          settings: settings,
+        );
+      case studentDetail:
+        final args = settings.arguments;
+        if (args is StudentDetailArgs) {
+          return MaterialPageRoute(
+            builder: (_) => StudentDetailScreen(args: args),
+            settings: settings,
+          );
+        }
+        return MaterialPageRoute(
+          builder: (_) =>
+              const Scaffold(body: Center(child: Text('Invalid student data'))),
+          settings: settings,
+        );
+      case studentEdit:
+        final args = settings.arguments;
+        if (args is StudentEditArgs) {
+          return MaterialPageRoute(
+            builder: (_) => StudentEditScreen(args: args),
+            settings: settings,
+          );
+        }
+        return MaterialPageRoute(
+          builder: (_) =>
+              const Scaffold(body: Center(child: Text('Invalid student data'))),
+          settings: settings,
+        );
+      case devTools:
+        return MaterialPageRoute(
+          builder: (_) => const DevToolsScreen(),
           settings: settings,
         );
 

@@ -2,6 +2,7 @@ import 'package:church_managment_system/core/constants/enums.dart';
 import 'package:church_managment_system/core/models/auth_user.dart';
 import 'package:church_managment_system/core/routing/app_router.dart';
 import 'package:church_managment_system/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -21,10 +22,12 @@ class ServantDashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final isAdmin = user.role == UserRole.admin;
+    final roleLabel = isAdmin ? 'Admin' : 'Teacher';
 
     return Scaffold(
-      backgroundColor: Colors.teal.shade50,
       appBar: _buildAppBar(context, isAdmin),
       body: RefreshIndicator(
         onRefresh: () => _onRefresh(context),
@@ -36,44 +39,50 @@ class ServantDashboardScreen extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.church, size: 80, color: Colors.teal.shade700),
+                  Icon(Icons.church, size: 80, color: colorScheme.primary),
                   const SizedBox(height: 24),
                   Text(
-                    isAdmin ? 'Welcome Admin' : 'Welcome Servant',
-                    style: TextStyle(
-                      fontSize: 28,
+                    'Welcome $roleLabel',
+                    style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: Colors.teal.shade800,
+                      color: colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     user.name,
-                    style: TextStyle(fontSize: 22, color: Colors.teal.shade600),
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      color: colorScheme.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const SizedBox(height: 32),
                   _UserStatsCard(user: user),
                   const SizedBox(height: 24),
-                  // View Students button for admins and servants
-                  ElevatedButton.icon(
+                  // Manage Students button for admins and teachers
+                  FilledButton.icon(
                     onPressed: () {
                       Navigator.pushNamed(context, AppRouter.studentList);
                     },
                     icon: const Icon(Icons.people),
-                    label: const Text('View Students'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.teal,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 12,
-                      ),
-                    ),
+                    label: Text(isAdmin ? 'Manage Students' : 'Manage My Group'),
                   ),
+                  if (kDebugMode) ...[
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pushNamed(context, AppRouter.devTools);
+                      },
+                      icon: const Icon(Icons.build_outlined),
+                      label: const Text('Dev Tools'),
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   Text(
                     'Pull down to refresh your role',
-                    style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ),
@@ -85,10 +94,12 @@ class ServantDashboardScreen extends StatelessWidget {
   }
 
   AppBar _buildAppBar(BuildContext context, bool isAdmin) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     return AppBar(
-      title: Text(isAdmin ? 'Admin Dashboard' : 'Servant Dashboard'),
-      backgroundColor: Colors.teal,
-      foregroundColor: Colors.white,
+      title: Text(isAdmin ? 'Admin Dashboard' : 'Teacher Dashboard'),
+      backgroundColor: colorScheme.primary,
+      foregroundColor: colorScheme.onPrimary,
       actions: [
         IconButton(
           icon: const Icon(Icons.logout),
@@ -109,6 +120,7 @@ class _UserStatsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final roleLabel = user.role == UserRole.servant ? 'TEACHER' : user.role.name.toUpperCase();
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 32),
       child: Padding(
@@ -116,7 +128,9 @@ class _UserStatsCard extends StatelessWidget {
         child: Column(
           children: [
             _infoRow('Email', user.email),
-            _infoRow('Role', user.role.name.toUpperCase()),
+            _infoRow('Role', roleLabel),
+            if (user.role == UserRole.servant)
+              _infoRow('Group', user.groupId ?? '--'),
           ],
         ),
       ),

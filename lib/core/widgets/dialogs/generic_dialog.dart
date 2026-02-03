@@ -7,7 +7,7 @@ Future<T?> showGenericDialog<T>({
   required BuildContext context,
   required String title,
   required String content,
-  required DialogOptionBuilder optionBuilder,
+  required DialogOptionBuilder<T> optionBuilder,
 }) {
   final options = optionBuilder();
   return showDialog<T?>(
@@ -29,15 +29,11 @@ Future<T?> showGenericDialog<T>({
           ),
         ),
         actions: options.keys.map((optionTitle) {
-          final T value = options[optionTitle];
+          final T? value = options[optionTitle];
           return CupertinoDialogAction(
             isDefaultAction: true,
             onPressed: () {
-              if (value != null) {
-                Navigator.of(context).pop(value);
-              } else {
-                Navigator.of(context).pop();
-              }
+              Navigator.of(context).pop(value);
             },
             child: Text(
               optionTitle,

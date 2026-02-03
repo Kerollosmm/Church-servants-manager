@@ -19,8 +19,13 @@ final class StudentDataLoading extends StudentDataState {
 final class StudentDataLoaded extends StudentDataState {
   final List<StudentModel> students;
   final String? currentFilterGroupId;
+  final String? currentQuery;
 
-  const StudentDataLoaded({required this.students, this.currentFilterGroupId});
+  const StudentDataLoaded({
+    required this.students,
+    this.currentFilterGroupId,
+    this.currentQuery,
+  });
 
   /// Get student count.
   int get count => students.length;
@@ -34,10 +39,15 @@ final class StudentDataLoaded extends StudentDataState {
       other is StudentDataLoaded &&
           runtimeType == other.runtimeType &&
           currentFilterGroupId == other.currentFilterGroupId &&
-          students.length == other.students.length;
+          currentQuery == other.currentQuery &&
+          const ListEquality<StudentModel>().equals(students, other.students);
 
   @override
-  int get hashCode => Object.hash(students.length, currentFilterGroupId);
+  int get hashCode => Object.hash(
+        const ListEquality<StudentModel>().hash(students),
+        currentFilterGroupId,
+        currentQuery,
+      );
 }
 
 /// Error state - operation failed.
