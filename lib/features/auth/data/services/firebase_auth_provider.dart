@@ -1,7 +1,7 @@
 import 'package:church_managment_system/core/constants/enums.dart';
 import 'package:church_managment_system/core/constants/firestore_collections.dart';
 import 'package:church_managment_system/core/models/auth_user.dart';
-import 'package:church_managment_system/features/auth/data/services/auth_exceptions.dart';
+import 'package:church_managment_system/features/auth/domain/failures/auth_exceptions.dart';
 import 'package:church_managment_system/features/auth/data/services/auth_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
