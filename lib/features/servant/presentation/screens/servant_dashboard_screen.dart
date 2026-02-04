@@ -1,6 +1,8 @@
 import 'package:church_managment_system/core/constants/enums.dart';
+import 'package:church_managment_system/core/constants/routes.dart';
 import 'package:church_managment_system/core/models/auth_user.dart';
-import 'package:church_managment_system/core/routing/app_router.dart';
+import 'package:church_managment_system/core/theme/app_colors.dart';
+import 'package:church_managment_system/core/theme/app_spacing.dart';
 import 'package:church_managment_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -23,7 +25,6 @@ class ServantDashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
     final isAdmin = user.role == UserRole.admin;
     final roleLabel = isAdmin ? 'Admin' : 'Teacher';
 
@@ -39,49 +40,62 @@ class ServantDashboardScreen extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.church, size: 80, color: colorScheme.primary),
-                  const SizedBox(height: 24),
+                  Icon(Icons.church, size: 80, color: AppColors.primary),
+                  AppSpacing.gapLg,
                   Text(
                     'Welcome $roleLabel',
                     style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: colorScheme.onSurface,
+                      color: AppColors.textPrimary,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  AppSpacing.gapSm,
                   Text(
                     user.name,
                     style: theme.textTheme.titleLarge?.copyWith(
-                      color: colorScheme.primary,
+                      color: AppColors.primary,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  AppSpacing.gapXl,
                   _UserStatsCard(user: user),
-                  const SizedBox(height: 24),
+                  AppSpacing.gapLg,
                   // Manage Students button for admins and teachers
                   FilledButton.icon(
                     onPressed: () {
-                      Navigator.pushNamed(context, AppRouter.studentList);
+                      Navigator.pushNamed(context, studentList);
                     },
                     icon: const Icon(Icons.people),
-                    label: Text(isAdmin ? 'Manage Students' : 'Manage My Group'),
+                    label: Text(
+                      isAdmin ? 'Manage Students' : 'Manage My Group',
+                    ),
                   ),
+                  // Manage Servants button for admins only
+                  if (isAdmin) ...[
+                    AppSpacing.gapMd,
+                    FilledButton.icon(
+                      onPressed: () {
+                        Navigator.pushNamed(context, servantList);
+                      },
+                      icon: const Icon(Icons.supervisor_account),
+                      label: const Text('Manage Servants'),
+                    ),
+                  ],
                   if (kDebugMode) ...[
-                    const SizedBox(height: 12),
+                    AppSpacing.gapMd,
                     OutlinedButton.icon(
                       onPressed: () {
-                        Navigator.pushNamed(context, AppRouter.devTools);
+                        Navigator.pushNamed(context, devTools);
                       },
                       icon: const Icon(Icons.build_outlined),
                       label: const Text('Dev Tools'),
                     ),
                   ],
-                  const SizedBox(height: 16),
+                  AppSpacing.gapMd,
                   Text(
                     'Pull down to refresh your role',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
+                      color: AppColors.textSecondary,
                     ),
                   ),
                 ],
@@ -94,12 +108,10 @@ class ServantDashboardScreen extends StatelessWidget {
   }
 
   AppBar _buildAppBar(BuildContext context, bool isAdmin) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
     return AppBar(
       title: Text(isAdmin ? 'Admin Dashboard' : 'Teacher Dashboard'),
-      backgroundColor: colorScheme.primary,
-      foregroundColor: colorScheme.onPrimary,
+      backgroundColor: AppColors.primary,
+      foregroundColor: AppColors.white,
       actions: [
         IconButton(
           icon: const Icon(Icons.logout),
@@ -120,11 +132,14 @@ class _UserStatsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final roleLabel = user.role == UserRole.servant ? 'TEACHER' : user.role.name.toUpperCase();
+    final roleLabel = user.role == UserRole.servant
+        ? 'TEACHER'
+        : user.role.name.toUpperCase();
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 32),
+      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+      shape: RoundedRectangleBorder(borderRadius: AppRadius.lgRadius),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           children: [
             _infoRow('Email', user.email),
@@ -143,8 +158,14 @@ class _UserStatsCard extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
-          Text(value),
+          Text(
+            label,
+            style: const TextStyle(
+              fontWeight: FontWeight.w500,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          Text(value, style: const TextStyle(color: AppColors.textSecondary)),
         ],
       ),
     );

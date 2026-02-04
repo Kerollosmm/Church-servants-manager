@@ -8,22 +8,34 @@ part of 'servant_models.dart';
 
 _$ServantModelImpl _$$ServantModelImplFromJson(Map<String, dynamic> json) =>
     _$ServantModelImpl(
-      id: json['id'] as String,
+      uid: json['uid'] as String?,
+      docID: json['docID'] as String,
       name: json['name'] as String,
-      phone: json['phone'] as String,
-      email: json['email'] as String,
-      image: json['image'] as String,
-      teamName: json['team_name'] as String,
-      role: json['role'] as String,
+      role: json['role'] == null
+          ? UserRole.servant
+          : const _RoleConverter().fromJson(json['role'] as String?),
+      email: json['email'] as String?,
+      phone: json['phone'] as String?,
+      imageUrl: json['imageUrl'] as String?,
+      teamName: json['groupId'] as String?,
+      isEmailVerified: json['isEmailVerified'] as bool? ?? false,
+      fatherOfConfession: json['father_of_confession'] as String?,
+      birthdate: const _TimestampConverter().fromJson(json['birthdate']),
+      notes: json['notes'] as String?,
     );
 
 Map<String, dynamic> _$$ServantModelImplToJson(_$ServantModelImpl instance) =>
     <String, dynamic>{
-      'id': instance.id,
+      'uid': instance.uid,
+      'docID': instance.docID,
       'name': instance.name,
-      'phone': instance.phone,
+      'role': const _RoleConverter().toJson(instance.role),
       'email': instance.email,
-      'image': instance.image,
-      'team_name': instance.teamName,
-      'role': instance.role,
+      'phone': instance.phone,
+      'imageUrl': instance.imageUrl,
+      'groupId': instance.teamName,
+      'isEmailVerified': instance.isEmailVerified,
+      'father_of_confession': instance.fatherOfConfession,
+      'birthdate': const _TimestampConverter().toJson(instance.birthdate),
+      'notes': instance.notes,
     };
