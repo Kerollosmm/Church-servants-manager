@@ -47,7 +47,9 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   Widget build(BuildContext context) {
     if (!kDebugMode) {
       return const Scaffold(
-        body: Center(child: Text('Dev Tools are only available in debug mode.')),
+        body: Center(
+          child: Text('Dev Tools are only available in debug mode.'),
+        ),
       );
     }
 
@@ -76,9 +78,9 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                     onPressed: _busy
                         ? null
                         : () => _run(
-                              () => _seeder.seedClasses(),
-                              'Classes seeded.',
-                            ),
+                            () => _seeder.seedClasses(),
+                            'Classes seeded.',
+                          ),
                     icon: const Icon(Icons.school_outlined),
                     label: const Text('Seed Classes (year1/year2/year3)'),
                   ),
@@ -100,7 +102,8 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                         onPressed: _busy
                             ? null
                             : () {
-                                final count = int.tryParse(_countController.text) ?? 20;
+                                final count =
+                                    int.tryParse(_countController.text) ?? 20;
                                 _run(
                                   () => _seeder.seedStudents(count: count),
                                   'Seeded $count students.',
@@ -132,9 +135,9 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                     onPressed: _busy
                         ? null
                         : () => _run(
-                              () => _seeder.assignMeAsAdmin(),
-                              'You are now Admin. Pull-to-refresh role.',
-                            ),
+                            () => _seeder.assignMeAsAdmin(),
+                            'You are now Admin. Pull-to-refresh role.',
+                          ),
                     icon: const Icon(Icons.admin_panel_settings_outlined),
                     label: const Text('Assign Me as Admin'),
                   ),
@@ -157,9 +160,11 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                     onPressed: _busy
                         ? null
                         : () => _run(
-                              () => _seeder.assignMeAsTeacher(group: _selectedGroup),
-                              'You are now Teacher for ${_selectedGroup.name}. Pull-to-refresh role.',
+                            () => _seeder.assignMeAsTeacher(
+                              group: _selectedGroup,
                             ),
+                            'You are now Teacher for ${_selectedGroup.name}. Pull-to-refresh role.',
+                          ),
                     icon: const Icon(Icons.badge_outlined),
                     label: const Text('Assign Me as Teacher'),
                   ),
@@ -168,9 +173,9 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                     onPressed: _busy
                         ? null
                         : () => _run(
-                              () => _seeder.assignMeAsStudentAndCreateProfile(),
-                              'You are now Student. Pull-to-refresh role.',
-                            ),
+                            () => _seeder.assignMeAsStudentAndCreateProfile(),
+                            'You are now Student. Pull-to-refresh role.',
+                          ),
                     icon: const Icon(Icons.person_outline),
                     label: const Text('Assign Me as Student + Create Profile'),
                   ),

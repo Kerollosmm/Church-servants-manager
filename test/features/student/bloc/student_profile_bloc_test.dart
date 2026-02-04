@@ -59,21 +59,23 @@ void main() {
       );
       return StudentProfileBloc(studentRepository: repo);
     },
-    act: (bloc) => bloc.add(const StudentProfileLoadRequested(actor: studentActor)),
-    expect: () => [
-      isA<StudentProfileLoading>(),
-      isA<StudentProfileLoaded>(),
-    ],
+    act: (bloc) =>
+        bloc.add(const StudentProfileLoadRequested(actor: studentActor)),
+    expect: () => [isA<StudentProfileLoading>(), isA<StudentProfileLoaded>()],
   );
 
   blocTest<StudentProfileBloc, StudentProfileState>(
     'blocks non-student actor',
     build: () => StudentProfileBloc(studentRepository: repo),
-    act: (bloc) => bloc.add(const StudentProfileLoadRequested(actor: adminActor)),
+    act: (bloc) =>
+        bloc.add(const StudentProfileLoadRequested(actor: adminActor)),
     expect: () => [
       isA<StudentProfileLoading>(),
-      isA<StudentProfileError>().having((e) => e.message, 'message', 'Not allowed.'),
+      isA<StudentProfileError>().having(
+        (e) => e.message,
+        'message',
+        'Not allowed.',
+      ),
     ],
   );
 }
-

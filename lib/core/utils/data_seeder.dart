@@ -19,10 +19,10 @@ class DataSeeder {
     FirebaseAuth? auth,
     Uuid? uuid,
     Random? random,
-  })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance,
-        _uuid = uuid ?? const Uuid(),
-        _random = random ?? Random();
+  }) : _firestore = firestore ?? FirebaseFirestore.instance,
+       _auth = auth ?? FirebaseAuth.instance,
+       _uuid = uuid ?? const Uuid(),
+       _random = random ?? Random();
 
   CollectionReference<Map<String, dynamic>> get _users =>
       _firestore.collection(FirestoreCollections.users);
@@ -37,14 +37,11 @@ class DataSeeder {
   Future<void> seedClasses() async {
     final now = Timestamp.now();
     for (final group in Group.values) {
-      await _classes.doc(group.name).set(
-        {
-          'name': group.name,
-          'group': group.name,
-          'createdAt': now,
-        },
-        SetOptions(merge: true),
-      );
+      await _classes.doc(group.name).set({
+        'name': group.name,
+        'group': group.name,
+        'createdAt': now,
+      }, SetOptions(merge: true));
     }
     debugPrint('DataSeeder: Classes seeded.');
   }
@@ -177,27 +174,21 @@ class DataSeeder {
   /// Sets current user role to admin.
   Future<void> assignMeAsAdmin() async {
     final uid = _currentUid();
-    await _users.doc(uid).set(
-      {
-        'uid': uid,
-        'role': UserRole.admin.name,
-      },
-      SetOptions(merge: true),
-    );
+    await _users.doc(uid).set({
+      'uid': uid,
+      'role': UserRole.admin.name,
+    }, SetOptions(merge: true));
     debugPrint('DataSeeder: Set current user as admin.');
   }
 
   /// Sets current user role to teacher (servant) and assigns a groupId: year1/year2/year3.
   Future<void> assignMeAsTeacher({required Group group}) async {
     final uid = _currentUid();
-    await _users.doc(uid).set(
-      {
-        'uid': uid,
-        'role': UserRole.servant.name,
-        'groupId': group.name,
-      },
-      SetOptions(merge: true),
-    );
+    await _users.doc(uid).set({
+      'uid': uid,
+      'role': UserRole.servant.name,
+      'groupId': group.name,
+    }, SetOptions(merge: true));
     debugPrint('DataSeeder: Set current user as teacher for ${group.name}.');
   }
 
@@ -208,19 +199,17 @@ class DataSeeder {
     if (user == null) throw StateError('Not signed in.');
 
     final uid = user.uid;
-    final displayName = user.displayName ?? user.email?.split('@').first ?? 'Student';
+    final displayName =
+        user.displayName ?? user.email?.split('@').first ?? 'Student';
 
-    await _users.doc(uid).set(
-      {
-        'uid': uid,
-        'email': user.email ?? '',
-        'name': displayName,
-        'role': UserRole.student.name,
-        'isEmailVerified': user.emailVerified,
-        'groupId': null,
-      },
-      SetOptions(merge: true),
-    );
+    await _users.doc(uid).set({
+      'uid': uid,
+      'email': user.email ?? '',
+      'name': displayName,
+      'role': UserRole.student.name,
+      'isEmailVerified': user.emailVerified,
+      'groupId': null,
+    }, SetOptions(merge: true));
 
     final group = Group.year1;
     final student = StudentModel(
@@ -263,4 +252,3 @@ class DataSeeder {
     return '$prefix$number';
   }
 }
-

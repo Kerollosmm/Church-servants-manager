@@ -72,5 +72,4 @@ class DefaultFirebaseOptions {
     storageBucket: 'church-6eb05.firebasestorage.app',
     iosBundleId: 'com.example.churchManagmentSystem',
   );
-
 }

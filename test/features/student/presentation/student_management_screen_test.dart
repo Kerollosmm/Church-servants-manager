@@ -12,8 +12,7 @@ import 'package:mocktail/mocktail.dart';
 
 class MockAuthBloc extends MockBloc<AuthEvent, AuthState> implements AuthBloc {}
 
-class MockStudentDataBloc
-    extends MockBloc<StudentDataEvent, StudentDataState>
+class MockStudentDataBloc extends MockBloc<StudentDataEvent, StudentDataState>
     implements StudentDataBloc {}
 
 void main() {
@@ -21,12 +20,19 @@ void main() {
     registerFallbackValue(const AuthEventCheckStatus());
     registerFallbackValue(
       StudentsLoadRequested(
-        actor: AuthUser(uid: 'a', email: 'a@a.com', name: 'A', role: UserRole.admin),
+        actor: AuthUser(
+          uid: 'a',
+          email: 'a@a.com',
+          name: 'A',
+          role: UserRole.admin,
+        ),
       ),
     );
   });
 
-  testWidgets('admin sees manage students title and list items', (tester) async {
+  testWidgets('admin sees manage students title and list items', (
+    tester,
+  ) async {
     final authBloc = MockAuthBloc();
     final studentBloc = MockStudentDataBloc();
 
@@ -91,4 +97,3 @@ void main() {
     expect(find.text('Test Student'), findsOneWidget);
   });
 }
-

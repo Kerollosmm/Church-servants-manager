@@ -1,5 +1,6 @@
 import 'package:church_managment_system/core/models/auth_user.dart';
 import 'package:church_managment_system/features/student/data/models/student_model.dart';
+import 'package:church_managment_system/features/servant/data/models/servant_models.dart';
 
 class StudentDetailArgs {
   final AuthUser actor;
@@ -17,3 +18,18 @@ class StudentEditArgs {
   bool get isEditing => student != null;
 }
 
+class ServantDetailArgs {
+  final AuthUser actor;
+  final ServantModel servant;
+
+  const ServantDetailArgs({required this.actor, required this.servant});
+}
+
+class ServantEditArgs {
+  final AuthUser actor;
+  final ServantModel? servant;
+
+  const ServantEditArgs({required this.actor, this.servant});
+
+  bool get isEditing => servant != null;
+}

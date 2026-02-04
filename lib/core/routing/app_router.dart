@@ -1,3 +1,4 @@
+import 'package:church_managment_system/core/constants/routes.dart';
 import 'package:church_managment_system/features/auth/presentation/screens/forgot_password_screen.dart';
 import 'package:church_managment_system/features/auth/presentation/screens/login_screen.dart';
 import 'package:church_managment_system/features/auth/presentation/screens/register_screen.dart';
@@ -7,17 +8,12 @@ import 'package:church_managment_system/features/devtools/presentation/dev_tools
 import 'package:church_managment_system/features/student/presentation/screens/student_detail_screen.dart';
 import 'package:church_managment_system/features/student/presentation/screens/student_edit_screen.dart';
 import 'package:church_managment_system/features/student/presentation/screens/student_management_screen.dart';
+import 'package:church_managment_system/features/servant/presentation/screens/servant_list_screen.dart';
+import 'package:church_managment_system/features/servant/presentation/screens/servant_detail_screen.dart';
+import 'package:church_managment_system/features/servant/presentation/screens/add_edit_servant_screen.dart';
 import 'package:flutter/material.dart';
 
 class AppRouter {
-  static const String login = '/login';
-  static const String register = '/register';
-  static const String forgotPassword = '/forgot-password';
-  static const String studentList = '/students';
-  static const String studentDetail = '/students/detail';
-  static const String studentEdit = '/students/edit';
-  static const String devTools = '/dev-tools';
-
   Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
       case login:
@@ -67,6 +63,40 @@ class AppRouter {
               const Scaffold(body: Center(child: Text('Invalid student data'))),
           settings: settings,
         );
+
+      // Servant Routes
+      case servantList:
+        return MaterialPageRoute(
+          builder: (_) => const ServantListScreen(),
+          settings: settings,
+        );
+      case servantDetail:
+        final args = settings.arguments;
+        if (args is ServantDetailArgs) {
+          return MaterialPageRoute(
+            builder: (_) => ServantDetailScreen(args: args),
+            settings: settings,
+          );
+        }
+        return MaterialPageRoute(
+          builder: (_) =>
+              const Scaffold(body: Center(child: Text('Invalid servant data'))),
+          settings: settings,
+        );
+      case servantEdit:
+        final args = settings.arguments;
+        if (args is ServantEditArgs) {
+          return MaterialPageRoute(
+            builder: (_) => AddEditServantScreen(args: args),
+            settings: settings,
+          );
+        }
+        return MaterialPageRoute(
+          builder: (_) =>
+              const Scaffold(body: Center(child: Text('Invalid servant data'))),
+          settings: settings,
+        );
+
       case devTools:
         return MaterialPageRoute(
           builder: (_) => const DevToolsScreen(),

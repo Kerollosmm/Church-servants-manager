@@ -3,7 +3,7 @@
 ## Phase 1: Domain & Data Layer Setup
 *Focus: Define models, entities, and repositories for attendance.*
 
-- [ ] Task: Define `AttendanceStatus` enum and `AttendanceRecord` entity in Domain layer
+- [~] Task: Define `AttendanceStatus` enum and `AttendanceRecord` entity in Domain layer
 - [ ] Task: Create `AttendanceRepository` abstract class in Domain layer
 - [ ] Task: Implement `AttendanceModel` (Data layer) with Hive and Firestore serialization (`json_serializable`, `hive_generator`)
 - [ ] Task: Implement `AttendanceLocalDataSource` using Hive
