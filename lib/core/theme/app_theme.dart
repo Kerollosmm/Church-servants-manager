@@ -1,102 +1,100 @@
+import 'package:church_managment_system/core/theme/app_colors.dart';
+import 'package:church_managment_system/core/theme/app_spacing.dart';
+import 'package:church_managment_system/core/theme/app_typography.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   static ThemeData light() {
     final colorScheme = ColorScheme.fromSeed(
-      seedColor: const Color(0xFF0F766E),
+      seedColor: AppColors.primary,
       brightness: Brightness.light,
-      surface: Colors.white,
-    ).copyWith(
-      primary: const Color(0xFF0F766E),
-      onPrimary: Colors.white,
-      secondary: const Color(0xFF14B8A6),
-      onSecondary: Colors.white,
-      tertiary: const Color(0xFF334155),
-      onTertiary: Colors.white,
-      error: const Color(0xFFB42318),
-      onError: Colors.white,
-      surface: Colors.white,
-      surfaceContainerHighest: const Color(0xFFE2E8F0),
-      outline: const Color(0xFF94A3B8),
+      surface: AppColors.surface,
+      primary: AppColors.primary,
+      onPrimary: AppColors.white,
+      secondary: AppColors.secondary,
+      onSecondary: AppColors.white,
+      tertiary: AppColors.tertiary,
+      onTertiary: AppColors.white,
+      error: AppColors.error,
+      onError: AppColors.textInverse,
+      surfaceContainerHighest: AppColors.surfaceContainer,
+      outline: AppColors.outline,
     );
 
     final base = ThemeData(useMaterial3: true, colorScheme: colorScheme);
-    final bodyTextTheme = GoogleFonts.sourceSans3TextTheme(base.textTheme);
-    final headingTextTheme = GoogleFonts.merriweatherTextTheme(base.textTheme);
+    final textTheme = AppTypography.getMainTextTheme(base.textTheme);
 
     return base.copyWith(
-      scaffoldBackgroundColor: const Color(0xFFF8FAFC),
-      textTheme: bodyTextTheme.copyWith(
-        displayLarge: headingTextTheme.displayLarge,
-        displayMedium: headingTextTheme.displayMedium,
-        displaySmall: headingTextTheme.displaySmall,
-        headlineLarge: headingTextTheme.headlineLarge,
-        headlineMedium: headingTextTheme.headlineMedium,
-        headlineSmall: headingTextTheme.headlineSmall,
-        titleLarge: headingTextTheme.titleLarge,
-      ),
+      scaffoldBackgroundColor: AppColors.background,
+      textTheme: textTheme,
       appBarTheme: AppBarTheme(
-        backgroundColor: colorScheme.primary,
-        foregroundColor: colorScheme.onPrimary,
+        backgroundColor: AppColors.primary,
+        foregroundColor: AppColors.white,
         elevation: 0,
         centerTitle: false,
-        titleTextStyle: headingTextTheme.titleLarge?.copyWith(
-          color: colorScheme.onPrimary,
+        titleTextStyle: textTheme.titleLarge?.copyWith(
+          color: AppColors.white,
           fontWeight: FontWeight.w700,
         ),
       ),
       cardTheme: CardThemeData(
-        color: colorScheme.surface,
+        color: AppColors.surface,
         elevation: 2,
         margin: EdgeInsets.zero,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: AppRadius.lgRadius),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: colorScheme.surface,
+        fillColor: AppColors.surface,
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
+          horizontal: AppSpacing.md,
           vertical: 14,
         ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: colorScheme.outline),
+          borderRadius: AppRadius.mdRadius,
+          borderSide: const BorderSide(color: AppColors.outline),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: colorScheme.outline),
+          borderRadius: AppRadius.mdRadius,
+          borderSide: const BorderSide(color: AppColors.outline),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: colorScheme.primary, width: 1.5),
+          borderRadius: AppRadius.mdRadius,
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: AppRadius.mdRadius,
+          borderSide: const BorderSide(color: AppColors.error),
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: colorScheme.primary,
-          foregroundColor: colorScheme.onPrimary,
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+          backgroundColor: AppColors.primary,
+          foregroundColor: AppColors.white,
+          padding: const EdgeInsets.symmetric(
+            vertical: 14,
+            horizontal: AppSpacing.lg,
           ),
-          textStyle: bodyTextTheme.titleMedium?.copyWith(
+          shape: RoundedRectangleBorder(borderRadius: AppRadius.mdRadius),
+          textStyle: textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w600,
           ),
         ),
       ),
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: colorScheme.onSurface,
-        contentTextStyle: bodyTextTheme.bodyMedium?.copyWith(
-          color: colorScheme.surface,
+        backgroundColor: AppColors.tertiary,
+        contentTextStyle: textTheme.bodyMedium?.copyWith(
+          color: AppColors.white,
         ),
+        shape: RoundedRectangleBorder(borderRadius: AppRadius.smRadius),
+        behavior: SnackBarBehavior.floating,
       ),
-      listTileTheme: ListTileThemeData(
-        iconColor: colorScheme.primary,
-        textColor: colorScheme.onSurface,
+      listTileTheme: const ListTileThemeData(
+        iconColor: AppColors.primary,
+        textColor: AppColors.textPrimary,
       ),
-      dividerTheme: DividerThemeData(
-        color: colorScheme.surfaceContainerHighest,
+      dividerTheme: const DividerThemeData(
+        color: AppColors.surfaceContainer,
         thickness: 1,
       ),
     );
