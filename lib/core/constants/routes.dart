@@ -1,0 +1,10 @@
+const String login = '/login';
+const String register = '/register';
+const String forgotPassword = '/forgot-password';
+const String studentList = '/students';
+const String studentDetail = '/students/detail';
+const String studentEdit = '/students/edit';
+const String servantList = '/servants';
+const String servantDetail = '/servants/detail';
+const String servantEdit = '/servants/edit';
+const String devTools = '/dev-tools';
