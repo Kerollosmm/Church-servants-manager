@@ -1,4 +1,3 @@
-
 import 'package:church_managment_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_managment_system/features/auth/presentation/widgets/auth_header.dart';
 import 'package:church_managment_system/features/auth/presentation/widgets/auth_submit_button.dart';

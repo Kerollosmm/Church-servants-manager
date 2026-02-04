@@ -1,3 +1,5 @@
+import 'package:church_managment_system/core/theme/app_colors.dart';
+import 'package:church_managment_system/core/theme/app_spacing.dart';
 import 'package:flutter/material.dart';
 
 /// Reusable auth header with icon and title/subtitle
@@ -19,21 +21,21 @@ class AuthHeader extends StatelessWidget {
 
     return Column(
       children: [
-        Icon(icon, size: 64, color: theme.colorScheme.primary),
-        const SizedBox(height: 16),
+        Icon(icon, size: 64, color: AppColors.primary),
+        AppSpacing.gapMd,
         Text(
           title,
           style: theme.textTheme.headlineMedium?.copyWith(
             fontWeight: FontWeight.bold,
-            color: theme.colorScheme.onSurface,
+            color: AppColors.textPrimary,
           ),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 8),
+        AppSpacing.gapSm,
         Text(
           subtitle,
           style: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
+            color: AppColors.textSecondary,
           ),
           textAlign: TextAlign.center,
         ),

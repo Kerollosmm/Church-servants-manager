@@ -1,10 +1,12 @@
-import 'package:church_managment_system/core/routing/app_router.dart';
+import 'package:church_managment_system/core/constants/routes.dart';
+import 'package:church_managment_system/core/theme/app_colors.dart';
+import 'package:church_managment_system/core/theme/app_spacing.dart';
 import 'package:church_managment_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_managment_system/features/auth/presentation/widgets/auth_header.dart';
 import 'package:church_managment_system/features/auth/presentation/widgets/auth_submit_button.dart';
 import 'package:church_managment_system/features/auth/presentation/widgets/auth_text_field.dart';
 import 'package:church_managment_system/features/auth/presentation/widgets/email_verification_dialog.dart';
-import 'package:church_managment_system/core/widgets/dialogs/error_dialog.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -46,10 +48,6 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       body: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {
-          if (state is AuthAuthenticated) {
-            // Pop all routes and go back to AppRoot which will show the correct screen
-            Navigator.of(context).popUntil((route) => route.isFirst);
-          }
           if (state is AuthNeedsVerification) {
             showEmailVerificationDialog(context);
           }
@@ -57,26 +55,20 @@ class _LoginScreenState extends State<LoginScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Verification email sent! Check your inbox.'),
-                backgroundColor: Colors.green,
+                backgroundColor: AppColors.success,
               ),
             );
-          }
-          if (state is AuthError) {
-            debugPrint('LoginScreen: AuthError received - ${state.message}');
-            showErrorDialog(context, state.message);
           }
         },
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(AppSpacing.lg),
               child: Card(
                 elevation: 8,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
+                shape: RoundedRectangleBorder(borderRadius: AppRadius.lgRadius),
                 child: Padding(
-                  padding: const EdgeInsets.all(32),
+                  padding: const EdgeInsets.all(AppSpacing.xl),
                   child: Form(
                     key: _formKey,
                     child: Column(
@@ -87,7 +79,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           title: 'Welcome Back',
                           subtitle: 'Sign in to continue',
                         ),
-                        const SizedBox(height: 32),
+                        AppSpacing.gapXl,
 
                         // Email
                         AuthTextField(
@@ -105,7 +97,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             return null;
                           },
                         ),
-                        const SizedBox(height: 16),
+                        AppSpacing.gapMd,
 
                         // Password
                         AuthTextField(
@@ -135,26 +127,23 @@ class _LoginScreenState extends State<LoginScreen> {
                             return null;
                           },
                         ),
-                        const SizedBox(height: 8),
+                        AppSpacing.gapSm,
 
                         // Forgot Password
                         Align(
                           alignment: Alignment.centerRight,
                           child: TextButton(
                             onPressed: () {
-                              Navigator.pushNamed(
-                                context,
-                                AppRouter.forgotPassword,
-                              );
+                              Navigator.pushNamed(context, forgotPassword);
                             },
                             child: const Text('Forgot Password?'),
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        AppSpacing.gapMd,
 
                         // Submit
                         AuthSubmitButton(text: 'Login', onPressed: _submit),
-                        const SizedBox(height: 24),
+                        AppSpacing.gapLg,
 
                         // Navigate to Register
                         Row(
@@ -168,7 +157,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               onPressed: () {
                                 Navigator.pushReplacementNamed(
                                   context,
-                                  AppRouter.register,
+                                  register,
                                 );
                               },
                               child: const Text('Sign Up'),
