@@ -52,10 +52,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     return false;
   }
 
-  List<StudentModel> _filterByName(
-    List<StudentModel> students,
-    String query,
-  ) {
+  List<StudentModel> _filterByName(List<StudentModel> students, String query) {
     final normalized = query.toLowerCase();
     return students
         .where((s) => s.name.toLowerCase().contains(normalized))
@@ -130,7 +127,9 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
             students = _filterByName(filtered, query);
             break;
           case UserRole.student:
-            throw StateError('Students are not allowed to search student lists.');
+            throw StateError(
+              'Students are not allowed to search student lists.',
+            );
         }
       }
 
@@ -171,7 +170,9 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     emit(const StudentDataLoading());
     try {
       // Stronger check: validate against stored record so doc/class can't be spoofed.
-      final existing = await _studentRepository.getStudentById(event.student.docID);
+      final existing = await _studentRepository.getStudentById(
+        event.student.docID,
+      );
       if (existing == null) {
         emit(const StudentDataError('Student not found.'));
         return;
@@ -225,12 +226,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     if (actor == null) return;
 
     if (_lastQuery != null && _lastQuery!.isNotEmpty) {
-      add(
-        StudentsSearchRequested(
-          query: _lastQuery!,
-          actor: actor,
-        ),
-      );
+      add(StudentsSearchRequested(query: _lastQuery!, actor: actor));
       return;
     }
     add(StudentsLoadRequested(actor: actor));

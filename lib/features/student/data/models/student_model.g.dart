@@ -19,8 +19,10 @@ _$StudentModelImpl _$$StudentModelImplFromJson(Map<String, dynamic> json) =>
       motherPhone: json['mother_number'] as String,
       fatherPhone: json['father_number'] as String,
       grade: (json['grade'] as num).toInt(),
-      educationStage:
-          $enumDecode(_$EducationStageEnumMap, json['education_stage']),
+      educationStage: $enumDecode(
+        _$EducationStageEnumMap,
+        json['education_stage'],
+      ),
       school: json['school_college'] as String?,
       address: json['address'] as String?,
       birthdate: const _TimestampConverter().fromJson(json['birthdate']),

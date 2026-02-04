@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import 'package:church_managment_system/core/constants/enums.dart';
-import 'package:church_managment_system/core/routing/app_router.dart';
-import 'package:church_managment_system/core/routing/route_args.dart';
+import 'package:church_managment_system/core/constants/routes.dart';
 import 'package:church_managment_system/core/models/auth_user.dart';
+import 'package:church_managment_system/core/routing/route_args.dart';
+import 'package:church_managment_system/core/theme/app_colors.dart';
+import 'package:church_managment_system/core/theme/app_spacing.dart';
 import 'package:church_managment_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_managment_system/features/student/data/models/student_model.dart';
 import 'package:church_managment_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
@@ -14,7 +16,8 @@ class StudentManagementScreen extends StatefulWidget {
   const StudentManagementScreen({super.key});
 
   @override
-  State<StudentManagementScreen> createState() => _StudentManagementScreenState();
+  State<StudentManagementScreen> createState() =>
+      _StudentManagementScreenState();
 }
 
 class _StudentManagementScreenState extends State<StudentManagementScreen> {
@@ -26,9 +29,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
     super.initState();
     final actor = _currentActorOrNull();
     if (actor != null) {
-      context.read<StudentDataBloc>().add(
-            StudentsLoadRequested(actor: actor),
-          );
+      context.read<StudentDataBloc>().add(StudentsLoadRequested(actor: actor));
     }
   }
 
@@ -49,8 +50,8 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
     _searchDebounce?.cancel();
     _searchDebounce = Timer(const Duration(milliseconds: 350), () {
       context.read<StudentDataBloc>().add(
-            StudentsSearchRequested(actor: actor, query: value),
-          );
+        StudentsSearchRequested(actor: actor, query: value),
+      );
     });
   }
 
@@ -58,8 +59,8 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
     _searchController.clear();
     setState(() {});
     context.read<StudentDataBloc>().add(
-          StudentsSearchRequested(actor: actor, query: ''),
-        );
+      StudentsSearchRequested(actor: actor, query: ''),
+    );
   }
 
   Future<void> _refresh(AuthUser actor) async {
@@ -75,7 +76,6 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
 
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, authState) {
@@ -95,9 +95,9 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                 icon: const Icon(Icons.refresh),
                 tooltip: 'Refresh',
                 onPressed: () {
-                  context
-                      .read<StudentDataBloc>()
-                      .add(StudentsRefreshRequested(actor: actor));
+                  context.read<StudentDataBloc>().add(
+                    StudentsRefreshRequested(actor: actor),
+                  );
                 },
               ),
             ],
@@ -107,7 +107,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                   onPressed: () {
                     Navigator.pushNamed(
                       context,
-                      AppRouter.studentEdit,
+                      studentEdit,
                       arguments: StudentEditArgs(actor: actor),
                     );
                   },
@@ -118,15 +118,15 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
           body: BlocConsumer<StudentDataBloc, StudentDataState>(
             listener: (context, state) {
               if (state is StudentDataError) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(state.message)),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text(state.message)));
               }
               if (state is StudentDataOperationSuccess) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(state.message),
-                    backgroundColor: colorScheme.secondary,
+                    backgroundColor: AppColors.secondary,
                   ),
                 );
               }
@@ -144,7 +144,12 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                   slivers: [
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.md,
+                          AppSpacing.md,
+                          AppSpacing.md,
+                          AppSpacing.sm,
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -156,7 +161,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                                     vertical: 6,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: colorScheme.surfaceContainerHighest,
+                                    color: AppColors.surfaceContainer,
                                     borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: Row(
@@ -164,13 +169,13 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                                       Icon(
                                         Icons.cloud_done,
                                         size: 16,
-                                        color: colorScheme.primary,
+                                        color: AppColors.primary,
                                       ),
                                       const SizedBox(width: 6),
                                       Text(
                                         'Live Firestore',
                                         style: TextStyle(
-                                          color: colorScheme.onSurfaceVariant,
+                                          color: AppColors.textSecondary,
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
@@ -188,25 +193,25 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                                   ),
                               ],
                             ),
-                            const SizedBox(height: 12),
+                            AppSpacing.gapMd,
                             Text(
                               'Search students',
                               style: theme.textTheme.titleSmall?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
+                                color: AppColors.textSecondary,
                               ),
                             ),
-                            const SizedBox(height: 8),
+                            AppSpacing.gapSm,
                             TextField(
                               controller: _searchController,
                               textInputAction: TextInputAction.search,
                               onChanged: (v) => _onSearchChanged(actor, v),
                               onSubmitted: (v) {
                                 context.read<StudentDataBloc>().add(
-                                      StudentsSearchRequested(
-                                        actor: actor,
-                                        query: v,
-                                      ),
-                                    );
+                                  StudentsSearchRequested(
+                                    actor: actor,
+                                    query: v,
+                                  ),
+                                );
                               },
                               decoration: InputDecoration(
                                 hintText: 'Search by name',
@@ -220,14 +225,14 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                                       ),
                               ),
                             ),
-                            const SizedBox(height: 8),
+                            AppSpacing.gapSm,
                             if (actor.role == UserRole.servant)
                               Text(
                                 actor.groupId == null
                                     ? 'Teacher scope: not assigned'
                                     : 'Teacher scope: ${actor.groupId}',
                                 style: theme.textTheme.bodySmall?.copyWith(
-                                  color: colorScheme.onSurfaceVariant,
+                                  color: AppColors.textSecondary,
                                 ),
                               ),
                           ],
@@ -242,26 +247,22 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                     else if (state is StudentDataLoaded && students.isEmpty)
                       SliverFillRemaining(
                         hasScrollBody: false,
-                        child: _EmptyState(
-                          onRefresh: () => _refresh(actor),
-                        ),
+                        child: _EmptyState(onRefresh: () => _refresh(actor)),
                       )
                     else
                       SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            final student = students[index];
-                            return Padding(
-                              padding:
-                                  const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                              child: _StudentCard(
-                                actor: actor,
-                                student: student,
-                              ),
-                            );
-                          },
-                          childCount: students.length,
-                        ),
+                        delegate: SliverChildBuilderDelegate((context, index) {
+                          final student = students[index];
+                          return Padding(
+                            padding: const EdgeInsets.fromLTRB(
+                              AppSpacing.md,
+                              0,
+                              AppSpacing.md,
+                              AppSpacing.md,
+                            ),
+                            child: _StudentCard(actor: actor, student: student),
+                          );
+                        }, childCount: students.length),
                       ),
                   ],
                 ),
@@ -282,26 +283,25 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
 
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.people_outline, size: 64, color: colorScheme.outline),
-            const SizedBox(height: 16),
+            Icon(Icons.people_outline, size: 64, color: AppColors.outline),
+            AppSpacing.gapMd,
             Text('No students found', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 8),
+            AppSpacing.gapSm,
             Text(
               'Try a different search or refresh the list.',
               style: theme.textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
+                color: AppColors.textSecondary,
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 16),
+            AppSpacing.gapMd,
             FilledButton.icon(
               onPressed: () => onRefresh(),
               icon: const Icon(Icons.refresh),
@@ -323,40 +323,41 @@ class _StudentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
 
     return Card(
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: AppRadius.lgRadius,
         onTap: () {
           Navigator.pushNamed(
             context,
-            AppRouter.studentDetail,
+            studentDetail,
             arguments: StudentDetailArgs(actor: actor, student: student),
           );
         },
         child: ListTile(
           leading: CircleAvatar(
-            backgroundColor: colorScheme.primary.withValues(alpha: 0.12),
+            backgroundColor: AppColors.primary.withValues(alpha: 0.12),
             child: Text(
               student.name.isNotEmpty ? student.name[0].toUpperCase() : '?',
               style: TextStyle(
-                color: colorScheme.primary,
+                color: AppColors.primary,
                 fontWeight: FontWeight.w700,
               ),
             ),
           ),
-          title: Text(student.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+          title: Text(
+            student.name,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
           subtitle: Text(
             'Group ${student.group.name} • Grade ${student.grade}',
             style: theme.textTheme.bodySmall?.copyWith(
-              color: colorScheme.onSurfaceVariant,
+              color: AppColors.textSecondary,
             ),
           ),
-          trailing: Icon(Icons.chevron_right, color: colorScheme.outline),
+          trailing: Icon(Icons.chevron_right, color: AppColors.outline),
         ),
       ),
     );
   }
 }
-

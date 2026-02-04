@@ -1,5 +1,7 @@
 import 'package:church_managment_system/core/constants/enums.dart';
 import 'package:church_managment_system/core/routing/route_args.dart';
+import 'package:church_managment_system/core/theme/app_colors.dart';
+import 'package:church_managment_system/core/theme/app_spacing.dart';
 import 'package:church_managment_system/features/student/data/models/student_model.dart';
 import 'package:church_managment_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
 import 'package:flutter/material.dart';
@@ -150,21 +152,18 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
     final isEditing = widget.args.isEditing;
 
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(isEditing ? 'Edit Student' : 'Add Student'),
-      ),
+      appBar: AppBar(title: Text(isEditing ? 'Edit Student' : 'Add Student')),
       body: SafeArea(
         child: Form(
           key: _formKey,
           child: ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.md),
             children: [
               Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(AppSpacing.md),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -172,9 +171,10 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
                         'Student Info',
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w800,
+                          color: AppColors.primary,
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      AppSpacing.gapMd,
                       TextFormField(
                         controller: _name,
                         decoration: const InputDecoration(
@@ -184,7 +184,7 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
                         validator: (v) =>
                             v == null || v.trim().isEmpty ? 'Required' : null,
                       ),
-                      const SizedBox(height: 12),
+                      AppSpacing.gapMd,
                       TextFormField(
                         controller: _mobile,
                         decoration: const InputDecoration(
@@ -194,7 +194,7 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
                         validator: (v) =>
                             v == null || v.trim().isEmpty ? 'Required' : null,
                       ),
-                      const SizedBox(height: 12),
+                      AppSpacing.gapMd,
                       TextFormField(
                         controller: _teamName,
                         decoration: const InputDecoration(
@@ -204,16 +204,13 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
                         validator: (v) =>
                             v == null || v.trim().isEmpty ? 'Required' : null,
                       ),
-                      const SizedBox(height: 12),
+                      AppSpacing.gapMd,
                       DropdownMenu<Group>(
                         initialSelection: _group,
                         enabled: !isTeacher,
                         dropdownMenuEntries: Group.values
                             .map(
-                              (g) => DropdownMenuEntry(
-                                value: g,
-                                label: g.name,
-                              ),
+                              (g) => DropdownMenuEntry(value: g, label: g.name),
                             )
                             .toList(),
                         onSelected: (g) {
@@ -223,15 +220,12 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
                         label: Text(isTeacher ? 'Group (Assigned)' : 'Group'),
                         leadingIcon: const Icon(Icons.school_outlined),
                       ),
-                      const SizedBox(height: 12),
+                      AppSpacing.gapMd,
                       DropdownMenu<EducationStage>(
                         initialSelection: _educationStage,
                         dropdownMenuEntries: EducationStage.values
                             .map(
-                              (s) => DropdownMenuEntry(
-                                value: s,
-                                label: s.name,
-                              ),
+                              (s) => DropdownMenuEntry(value: s, label: s.name),
                             )
                             .toList(),
                         onSelected: (s) {
@@ -241,7 +235,7 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
                         label: const Text('Education Stage'),
                         leadingIcon: const Icon(Icons.badge_outlined),
                       ),
-                      const SizedBox(height: 12),
+                      AppSpacing.gapMd,
                       DropdownMenu<int>(
                         initialSelection: _grade,
                         dropdownMenuEntries: List.generate(
@@ -262,10 +256,10 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              AppSpacing.gapMd,
               Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(AppSpacing.md),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -273,9 +267,10 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
                         'Family Contacts',
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w800,
+                          color: AppColors.primary,
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      AppSpacing.gapMd,
                       TextFormField(
                         controller: _motherPhone,
                         decoration: const InputDecoration(
@@ -285,7 +280,7 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
                         validator: (v) =>
                             v == null || v.trim().isEmpty ? 'Required' : null,
                       ),
-                      const SizedBox(height: 12),
+                      AppSpacing.gapMd,
                       TextFormField(
                         controller: _fatherPhone,
                         decoration: const InputDecoration(
@@ -299,10 +294,10 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              AppSpacing.gapMd,
               Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(AppSpacing.md),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -310,9 +305,10 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
                         'Other Details',
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w800,
+                          color: AppColors.primary,
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      AppSpacing.gapMd,
                       TextFormField(
                         controller: _fatherOfConfession,
                         decoration: const InputDecoration(
@@ -322,7 +318,7 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
                         validator: (v) =>
                             v == null || v.trim().isEmpty ? 'Required' : null,
                       ),
-                      const SizedBox(height: 12),
+                      AppSpacing.gapMd,
                       TextFormField(
                         controller: _school,
                         decoration: const InputDecoration(
@@ -330,7 +326,7 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
                           prefixIcon: Icon(Icons.school_outlined),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      AppSpacing.gapMd,
                       TextFormField(
                         controller: _address,
                         decoration: const InputDecoration(
@@ -338,7 +334,7 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
                           prefixIcon: Icon(Icons.location_on_outlined),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      AppSpacing.gapMd,
                       Row(
                         children: [
                           Expanded(
@@ -353,18 +349,19 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
                                     : '${_birthdate!.year}-${_birthdate!.month.toString().padLeft(2, '0')}-${_birthdate!.day.toString().padLeft(2, '0')}',
                                 style: theme.textTheme.bodyMedium?.copyWith(
                                   fontWeight: FontWeight.w600,
+                                  color: AppColors.textPrimary,
                                 ),
                               ),
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          AppSpacing.gapSm,
                           FilledButton(
                             onPressed: _pickBirthdate,
                             child: const Text('Pick'),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
+                      AppSpacing.gapMd,
                       TextFormField(
                         controller: _notes,
                         decoration: const InputDecoration(
@@ -373,7 +370,7 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
                         ),
                         maxLines: 2,
                       ),
-                      const SizedBox(height: 12),
+                      AppSpacing.gapMd,
                       TextFormField(
                         controller: _imageUrl,
                         decoration: const InputDecoration(
@@ -381,24 +378,24 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
                           prefixIcon: Icon(Icons.image_outlined),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      AppSpacing.gapMd,
                       Container(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(AppSpacing.md),
                         decoration: BoxDecoration(
-                          color: colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(12),
+                          color: AppColors.surfaceContainer,
+                          borderRadius: AppRadius.mdRadius,
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.lock_outline, color: colorScheme.primary),
-                            const SizedBox(width: 8),
+                            Icon(Icons.lock_outline, color: AppColors.primary),
+                            AppSpacing.gapSm,
                             Expanded(
                               child: Text(
                                 isTeacher
                                     ? 'Teacher scope enforced: ${actor.groupId ?? 'not assigned'}'
                                     : 'Admin access: full CRUD',
                                 style: theme.textTheme.bodySmall?.copyWith(
-                                  color: colorScheme.onSurfaceVariant,
+                                  color: AppColors.textSecondary,
                                 ),
                               ),
                             ),
@@ -409,7 +406,7 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              AppSpacing.gapMd,
               FilledButton.icon(
                 onPressed: _submit,
                 icon: Icon(isEditing ? Icons.save_outlined : Icons.add),

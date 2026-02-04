@@ -23,4 +23,3 @@ final class StudentProfileError extends StudentProfileState {
 
   const StudentProfileError(this.message);
 }
-

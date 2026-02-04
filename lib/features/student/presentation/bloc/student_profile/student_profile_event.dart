@@ -9,4 +9,3 @@ final class StudentProfileLoadRequested extends StudentProfileEvent {
 
   const StudentProfileLoadRequested({required this.actor});
 }
-

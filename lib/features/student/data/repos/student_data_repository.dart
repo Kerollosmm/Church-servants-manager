@@ -213,10 +213,9 @@ class StudentDataRepository {
   /// Upsert a student document (merge).
   Future<void> upsertStudent(StudentModel student) async {
     try {
-      await _studentsCollection.doc(student.docID).set(
-            student.toMap(),
-            SetOptions(merge: true),
-          );
+      await _studentsCollection
+          .doc(student.docID)
+          .set(student.toMap(), SetOptions(merge: true));
     } catch (e) {
       throw Exception('Failed to upsert student: $e');
     }

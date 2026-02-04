@@ -44,10 +44,10 @@ final class StudentDataLoaded extends StudentDataState {
 
   @override
   int get hashCode => Object.hash(
-        const ListEquality<StudentModel>().hash(students),
-        currentFilterGroupId,
-        currentQuery,
-      );
+    const ListEquality<StudentModel>().hash(students),
+    currentFilterGroupId,
+    currentQuery,
+  );
 }
 
 /// Error state - operation failed.

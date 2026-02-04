@@ -1,4 +1,6 @@
 import 'package:church_managment_system/core/models/auth_user.dart';
+import 'package:church_managment_system/core/theme/app_colors.dart';
+import 'package:church_managment_system/core/theme/app_spacing.dart';
 import 'package:church_managment_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_managment_system/features/student/presentation/bloc/student_profile/student_profile_bloc.dart';
 import 'package:flutter/material.dart';
@@ -18,14 +20,13 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
   void initState() {
     super.initState();
     context.read<StudentProfileBloc>().add(
-          StudentProfileLoadRequested(actor: widget.user),
-        );
+      StudentProfileLoadRequested(actor: widget.user),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
 
     return Scaffold(
       appBar: AppBar(
@@ -36,8 +37,8 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
             tooltip: 'Refresh',
             onPressed: () {
               context.read<StudentProfileBloc>().add(
-                    StudentProfileLoadRequested(actor: widget.user),
-                  );
+                StudentProfileLoadRequested(actor: widget.user),
+              );
             },
           ),
           IconButton(
@@ -51,7 +52,8 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
       ),
       body: BlocBuilder<StudentProfileBloc, StudentProfileState>(
         builder: (context, state) {
-          if (state is StudentProfileLoading || state is StudentProfileInitial) {
+          if (state is StudentProfileLoading ||
+              state is StudentProfileInitial) {
             return const Center(child: CircularProgressIndicator());
           }
           if (state is StudentProfileError) {
@@ -59,24 +61,24 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
               message: state.message,
               onRetry: () {
                 context.read<StudentProfileBloc>().add(
-                      StudentProfileLoadRequested(actor: widget.user),
-                    );
+                  StudentProfileLoadRequested(actor: widget.user),
+                );
               },
             );
           }
           final student = (state as StudentProfileLoaded).student;
 
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.md),
             children: [
               Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(AppSpacing.md),
                   child: Row(
                     children: [
                       CircleAvatar(
                         radius: 28,
-                        backgroundColor: colorScheme.primary.withValues(
+                        backgroundColor: AppColors.primary.withValues(
                           alpha: 0.12,
                         ),
                         child: Text(
@@ -84,12 +86,12 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
                               ? student.name[0].toUpperCase()
                               : '?',
                           style: theme.textTheme.titleLarge?.copyWith(
-                            color: colorScheme.primary,
+                            color: AppColors.primary,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
                       ),
-                      const SizedBox(width: 16),
+                      AppSpacing.gapMd,
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -98,13 +100,14 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
                               student.name,
                               style: theme.textTheme.titleLarge?.copyWith(
                                 fontWeight: FontWeight.w800,
+                                color: AppColors.textPrimary,
                               ),
                             ),
-                            const SizedBox(height: 4),
+                            AppSpacing.gapXs,
                             Text(
                               'Group ${student.group.name} • Grade ${student.grade}',
                               style: theme.textTheme.bodyMedium?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
+                                color: AppColors.textSecondary,
                               ),
                             ),
                           ],
@@ -114,7 +117,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              AppSpacing.gapMd,
               _Section(
                 title: 'Contact',
                 children: [
@@ -123,7 +126,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
                   _Row(label: 'Father Phone', value: student.fatherPhone),
                 ],
               ),
-              const SizedBox(height: 16),
+              AppSpacing.gapMd,
               _Section(
                 title: 'School',
                 children: [
@@ -131,31 +134,37 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
                   _Row(label: 'Address', value: _opt(student.address)),
                 ],
               ),
-              const SizedBox(height: 16),
+              AppSpacing.gapMd,
               _Section(
                 title: 'Other',
                 children: [
-                  _Row(label: 'Education Stage', value: student.educationStage.name),
-                  _Row(label: 'Father of Confession', value: student.fatherOfConfession),
+                  _Row(
+                    label: 'Education Stage',
+                    value: student.educationStage.name,
+                  ),
+                  _Row(
+                    label: 'Father of Confession',
+                    value: student.fatherOfConfession,
+                  ),
                   _Row(label: 'Notes', value: _opt(student.notes)),
                 ],
               ),
-              const SizedBox(height: 16),
+              AppSpacing.gapMd,
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(AppSpacing.md),
                 decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(12),
+                  color: AppColors.surfaceContainer,
+                  borderRadius: AppRadius.mdRadius,
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.verified_user, color: colorScheme.primary),
-                    const SizedBox(width: 8),
+                    Icon(Icons.verified_user, color: AppColors.primary),
+                    AppSpacing.gapSm,
                     Expanded(
                       child: Text(
                         'Read-only access: Student',
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                     ),
@@ -184,7 +193,7 @@ class _Section extends StatelessWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -192,9 +201,10 @@ class _Section extends StatelessWidget {
               title,
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w800,
+                color: AppColors.primary,
               ),
             ),
-            const SizedBox(height: 12),
+            AppSpacing.gapMd,
             ...children,
           ],
         ),
@@ -212,7 +222,6 @@ class _Row extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -224,7 +233,7 @@ class _Row extends StatelessWidget {
             child: Text(
               label,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant,
+                color: AppColors.textSecondary,
               ),
             ),
           ),
@@ -233,6 +242,7 @@ class _Row extends StatelessWidget {
               value,
               style: theme.textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
               ),
             ),
           ),
@@ -251,26 +261,25 @@ class _ErrorState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
 
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 64, color: colorScheme.error),
-            const SizedBox(height: 16),
+            Icon(Icons.error_outline, size: 64, color: AppColors.error),
+            AppSpacing.gapMd,
             Text('Unable to load profile', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 8),
+            AppSpacing.gapSm,
             Text(
               message,
               style: theme.textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
+                color: AppColors.textSecondary,
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 16),
+            AppSpacing.gapMd,
             FilledButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh),
@@ -282,4 +291,3 @@ class _ErrorState extends StatelessWidget {
     );
   }
 }
-

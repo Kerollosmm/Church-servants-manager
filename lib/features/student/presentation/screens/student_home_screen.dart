@@ -1,4 +1,6 @@
 import 'package:church_managment_system/core/models/auth_user.dart';
+import 'package:church_managment_system/core/theme/app_colors.dart';
+import 'package:church_managment_system/core/theme/app_spacing.dart';
 import 'package:church_managment_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -20,11 +22,10 @@ class StudentHomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: colorScheme.surface,
+      backgroundColor: AppColors.surface,
       appBar: AppBar(
         title: const Text('Student Home'),
         actions: [
@@ -47,29 +48,29 @@ class StudentHomeScreen extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.school, size: 80, color: colorScheme.primary),
-                  const SizedBox(height: 24),
+                  Icon(Icons.school, size: 80, color: AppColors.primary),
+                  AppSpacing.gapLg,
                   Text(
                     'Welcome Student',
-                    style: textTheme.headlineMedium?.copyWith(
+                    style: theme.textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: colorScheme.onSurface,
+                      color: AppColors.textPrimary,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  AppSpacing.gapSm,
                   Text(
                     user.name,
-                    style: textTheme.titleLarge?.copyWith(
-                      color: colorScheme.primary,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      color: AppColors.primary,
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  AppSpacing.gapXl,
                   _UserInfoCard(user: user),
-                  const SizedBox(height: 24),
+                  AppSpacing.gapLg,
                   Text(
                     'Pull down to refresh your role',
-                    style: textTheme.bodySmall?.copyWith(
-                      color: colorScheme.outline,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
                     ),
                   ),
                 ],
@@ -91,9 +92,10 @@ class _UserInfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 32),
+      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+      shape: RoundedRectangleBorder(borderRadius: AppRadius.lgRadius),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           children: [
             _InfoRow(label: 'Email', value: user.email),
@@ -119,8 +121,14 @@ class _InfoRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
-          Text(value),
+          Text(
+            label,
+            style: const TextStyle(
+              fontWeight: FontWeight.w500,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          Text(value, style: const TextStyle(color: AppColors.textSecondary)),
         ],
       ),
     );
