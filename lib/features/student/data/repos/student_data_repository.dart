@@ -137,6 +137,21 @@ class StudentDataRepository {
     }
   }
 
+  /// Get students by group (Server-side filtering)
+  Future<List<StudentModel>> getStudentsByGroup(String groupName) async {
+    try {
+      final snapshot = await _studentsCollection
+          .where('group', isEqualTo: groupName)
+          .get();
+
+      return snapshot.docs
+          .map((doc) => StudentModel.fromMap(doc.data(), doc.id))
+          .toList();
+    } catch (e) {
+      throw Exception('Failed to fetch students by group: $e');
+    }
+  }
+
   /// Get student IDs for given class IDs (batch query)
   Future<List<String>> getStudentIdsByClasses(List<String> classIds) async {
     if (classIds.isEmpty) return [];
@@ -151,7 +166,8 @@ class StudentDataRepository {
           .get();
 
       for (final doc in snapshot.docs) {
-        final ids = List<String>.from(doc.data()['student_ids'] ?? []);
+        final data = doc.data();
+        final ids = List<String>.from(data['student_ids'] ?? []);
         studentIds.addAll(ids);
       }
     }

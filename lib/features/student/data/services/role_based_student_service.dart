@@ -35,8 +35,7 @@ class RoleBasedStudentService {
 
   /// Filters students by group.
   Future<List<StudentModel>> _getStudentsByGroup(Group group) async {
-    final allStudents = await _studentDataService.getAllStudents(limit: 100);
-    return allStudents.where((s) => s.group == group).toList();
+    return _studentDataService.getStudentsByGroup(group.name);
   }
 
   /// Checks if a user can access a specific student.

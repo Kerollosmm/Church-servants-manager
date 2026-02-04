@@ -75,8 +75,10 @@ class AuthUser {
       other is AuthUser &&
           runtimeType == other.runtimeType &&
           uid == other.uid &&
-          email == other.email;
+          email == other.email &&
+          role == other.role &&
+          groupId == other.groupId;
 
   @override
-  int get hashCode => uid.hashCode ^ email.hashCode;
+  int get hashCode => Object.hash(uid, email, role, groupId);
 }
