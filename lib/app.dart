@@ -17,6 +17,12 @@ class AppRoot extends StatelessWidget {
       listener: (context, state) {
         if (state is AuthError) {
           showErrorDialog(context, state.message);
+        } else if (state is AuthAuthenticated) {
+          // This ensures that when we become authenticated (e.g. from login),
+          // we clear any existing navigation stack (like the login screen)
+          // and let the BlocBuilder below rebuild with the correct Dashboard.
+          // This effectively acts like a "hot restart" for the UI.
+          Navigator.of(context).popUntil((route) => route.isFirst);
         }
       },
       child: BlocBuilder<AuthBloc, AuthState>(
@@ -31,7 +37,6 @@ class AppRoot extends StatelessWidget {
           // Authenticated - route based on role
           if (state is AuthAuthenticated) {
             final user = state.user;
-
             switch (user.role) {
               case UserRole.servant:
                 return ServantDashboardScreen(user: user);

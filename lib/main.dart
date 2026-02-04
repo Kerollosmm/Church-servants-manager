@@ -3,6 +3,8 @@ import 'package:church_managment_system/core/routing/app_router.dart';
 import 'package:church_managment_system/core/theme/app_theme.dart';
 import 'package:church_managment_system/features/auth/data/services/auth_service.dart';
 import 'package:church_managment_system/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:church_managment_system/features/servant/data/repo/servant_data_repository.dart';
+import 'package:church_managment_system/features/servant/presentation/bloc/servant_data/servant_data_bloc.dart';
 import 'package:church_managment_system/features/student/data/repos/student_data_repository.dart';
 import 'package:church_managment_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
 import 'package:church_managment_system/features/student/presentation/bloc/student_profile/student_profile_bloc.dart';
@@ -29,8 +31,15 @@ void main() async {
   await _initializeFirebase();
 
   final studentService = StudentDataRepository();
+  final servantService = ServantDataRepository();
 
-  runApp(ChurchApp(appRoutes: AppRouter(), studentService: studentService));
+  runApp(
+    ChurchApp(
+      appRoutes: AppRouter(),
+      studentService: studentService,
+      servantService: servantService,
+    ),
+  );
 }
 
 class ChurchApp extends StatelessWidget {
@@ -38,10 +47,12 @@ class ChurchApp extends StatelessWidget {
     super.key,
     required this.appRoutes,
     required this.studentService,
+    required this.servantService,
   });
 
   final AppRouter appRoutes;
   final StudentDataRepository studentService;
+  final ServantDataRepository servantService;
 
   @override
   Widget build(BuildContext context) {
@@ -57,6 +68,9 @@ class ChurchApp extends StatelessWidget {
         ),
         BlocProvider(
           create: (_) => StudentProfileBloc(studentRepository: studentService),
+        ),
+        BlocProvider(
+          create: (_) => ServantDataBloc(repository: servantService),
         ),
       ],
       child: MaterialApp(
