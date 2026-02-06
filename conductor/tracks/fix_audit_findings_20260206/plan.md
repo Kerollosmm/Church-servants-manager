@@ -9,9 +9,9 @@ Establish the local storage infrastructure and fix critical authentication gaps.
 - [x] Task: Centralize Auth Error Mapping (TDD) (8b2fd07)
     - [x] Write tests for mapping specific `FirebaseAuthException` codes to domain `AuthFailure`.
     - [x] Update `FirebaseAuthProvider` to propagate rich error information.
-- [ ] Task: Auth Caching & Session Hardening (TDD)
-    - [ ] Implement local caching for `AuthUser` in `FirebaseAuthProvider`.
-    - [ ] Fix N+1 issue in `authStateChanges` by checking cache before fetching from Firestore.
+- [x] Task: Auth Caching & Session Hardening (TDD) (58725db)
+    - [x] Implement local caching for `AuthUser` in `FirebaseAuthProvider`.
+    - [x] Fix N+1 issue in `authStateChanges` by checking cache before fetching from Firestore.
 - [ ] Task: Domain-Level Input Validation (TDD)
     - [ ] Create reusable `Validator` classes in `lib/core/utils/`.
     - [ ] Implement business-rule validation for Registration and Student forms.
