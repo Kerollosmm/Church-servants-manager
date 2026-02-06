@@ -1,6 +1,6 @@
 import 'package:church_managment_system/core/constants/enums.dart';
 import 'package:church_managment_system/core/constants/firestore_collections.dart';
-import 'package:church_managment_system/core/models/auth_user.dart';
+import 'package:church_managment_system/features/auth/data/models/auth_user.dart';
 import 'package:church_managment_system/features/auth/domain/failures/auth_exceptions.dart';
 import 'package:church_managment_system/features/auth/data/services/auth_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -65,11 +65,14 @@ class FirebaseAuthProvider implements AuthProvider {
         case 'user-disabled':
           throw const GenericAuthException('This account has been disabled');
         default:
-          throw GenericAuthException(e.message ?? e.code);
+          rethrow;
       }
     } on EmailNotVerifiedAuthException {
       rethrow;
     } catch (e) {
+      if (e is AuthFailure || e is Exception) {
+        rethrow;
+      }
       throw GenericAuthException('Login failed: $e');
     }
   }
@@ -114,16 +117,17 @@ class FirebaseAuthProvider implements AuthProvider {
         case 'invalid-email':
           throw InvalidEmailAuthException();
         default:
-          throw GenericAuthException(e.message ?? e.toString());
+          rethrow;
       }
     } catch (e) {
       if (e is WeakPasswordAuthException ||
           e is EmailAlreadyInUseAuthException ||
           e is InvalidEmailAuthException ||
-          e is UserNotLoggedInAuthException) {
+          e is UserNotLoggedInAuthException ||
+          e is FirebaseAuthException) {
         rethrow;
       }
-      throw const GenericAuthException();
+      throw GenericAuthException(e.toString());
     }
   }
 
@@ -160,9 +164,10 @@ class FirebaseAuthProvider implements AuthProvider {
         case 'firebase_auth/user-not-found':
           throw UserNotFoundAuthException();
         default:
-          throw PasswordResetAuthException(e.message);
+          rethrow;
       }
-    } catch (_) {
+    } catch (e) {
+      if (e is FirebaseAuthException) rethrow;
       throw const PasswordResetAuthException();
     }
   }

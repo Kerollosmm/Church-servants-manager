@@ -1,6 +1,6 @@
 import 'package:church_managment_system/core/constants/enums.dart';
-import 'package:church_managment_system/core/models/auth_user.dart';
-import 'package:church_managment_system/features/auth/domain/failures/auth_exceptions.dart';
+import 'package:church_managment_system/features/auth/data/models/auth_user.dart';
+import 'package:church_managment_system/features/auth/data/utils/auth_error_mapper.dart';
 import 'package:church_managment_system/features/auth/data/services/firebase_auth_provider.dart';
 import 'package:church_managment_system/features/auth/domain/failures/auth_failures.dart';
 
@@ -41,18 +41,8 @@ class AuthService {
   }) async {
     try {
       return await _provider.logIn(email: email, password: password);
-    } on EmailNotVerifiedAuthException {
-      throw const EmailNotVerifiedFailure();
-    } on UserNotFoundAuthException {
-      throw const UserNotFoundFailure();
-    } on WrongPasswordAuthException {
-      throw const WrongPasswordFailure();
-    } on InvalidEmailAuthException {
-      throw const InvalidEmailFailure();
-    } on GenericAuthException catch (e) {
-      throw GenericAuthFailure(e.message ?? 'Authentication failed');
-    } catch (_) {
-      throw const GenericAuthFailure('An unexpected error occurred');
+    } catch (e) {
+      throw AuthErrorMapper.mapException(e);
     }
   }
 
@@ -72,16 +62,8 @@ class AuthService {
         role: role,
         grade: grade,
       );
-    } on WeakPasswordAuthException {
-      throw const WeakPasswordFailure();
-    } on EmailAlreadyInUseAuthException {
-      throw const EmailAlreadyInUseFailure();
-    } on InvalidEmailAuthException {
-      throw const InvalidEmailFailure();
-    } on GenericAuthException catch (e) {
-      throw GenericAuthFailure(e.message ?? 'Registration failed');
-    } catch (_) {
-      throw const GenericAuthFailure('An unexpected error occurred');
+    } catch (e) {
+      throw AuthErrorMapper.mapException(e);
     }
   }
 
@@ -89,10 +71,8 @@ class AuthService {
   Future<void> logout() async {
     try {
       await _provider.logOut();
-    } on UserNotLoggedInAuthException {
-      throw const UserNotLoggedInFailure();
-    } catch (_) {
-      throw const GenericAuthFailure('Logout failed');
+    } catch (e) {
+      throw AuthErrorMapper.mapException(e);
     }
   }
 
@@ -100,10 +80,8 @@ class AuthService {
   Future<void> sendEmailVerification() async {
     try {
       await _provider.sendEmailVerification();
-    } on UserNotLoggedInAuthException {
-      throw const UserNotLoggedInFailure();
-    } catch (_) {
-      throw const GenericAuthFailure('Failed to send verification email');
+    } catch (e) {
+      throw AuthErrorMapper.mapException(e);
     }
   }
 
@@ -111,14 +89,8 @@ class AuthService {
   Future<void> sendPasswordResetEmail(String email) async {
     try {
       await _provider.sendPasswordReset(toEmail: email);
-    } on InvalidEmailAuthException {
-      throw const InvalidEmailFailure();
-    } on UserNotFoundAuthException {
-      throw const UserNotFoundFailure();
-    } on PasswordResetAuthException catch (e) {
-      throw PasswordResetFailure(e.message ?? 'Password reset failed');
-    } catch (_) {
-      throw const GenericAuthFailure('Failed to send password reset email');
+    } catch (e) {
+      throw AuthErrorMapper.mapException(e);
     }
   }
 
