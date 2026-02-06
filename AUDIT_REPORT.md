@@ -1,7 +1,7 @@
 # Elite Senior Audit Report - Church Servants Manager (CSMS)
 
-**Date:** 2026-02-06  
-**Auditor:** Elite Senior AI Agent  
+**Date:** 2026-02-06
+**Auditor:** Elite Senior AI Agent
 **Status:** Needs Improvement (Significant Architectural and Sync Gaps)
 
 ---
@@ -19,7 +19,8 @@
 | Issue | Severity | Description |
 | :--- | :--- | :--- |
 | **N+1 Potential in Auth** | Medium | `authStateChanges` uses `asyncMap` to fetch user data for every auth state change. This could lead to redundant network calls if not cached. |
-| **Lack of Pagination UI** | Major | `StudentDataRepository` supports pagination, but `StudentDataBloc` and the UI (`StudentManagementScreen`) load all students (or a fixed limit) at once, which will bottleneck as the database grows. |
+| **Lack of Pagination UI** | Major | `StudentDataRepository` supports pagination, but `StudentDataBloc` and the UI (`StudentManagementScreen`) load all students (or a fixed limit) at once. No infinite scroll implemented. |
+| **Search Result Cap** | Medium | Search results are hardcapped at 20 in `StudentDataRepository.searchStudents`, with no way to load more. |
 | **Missing Image Caching** | Medium | `StudentModel` uses `imageUrl`, but the project doesn't use `cached_network_image`, causing repeated downloads of profile pictures. |
 | **Expensive Firestore IN Queries** | Low | `getStudentsByClass` uses chunks of 10 for `whereIn`. While implemented correctly, this is a fallback that should ideally be replaced by the `classId` index in all records. |
 
@@ -29,7 +30,8 @@
 | Issue | Severity | Description |
 | :--- | :--- | :--- |
 | **Hive Initialization Missing** | **Critical** | `pubspec.yaml` includes Hive, but `main.dart` does not initialize it, and no repository uses it. **Offline support is currently non-existent.** |
-| **Dual-Write Fragility** | Major | `StudentDataRepository` uses Firestore batches for dual-writing to `students` and `users`. While safe for Firestore, there is no logic to handle partial failures or eventual consistency with a local cache. |
+| **No Versioning for Sync** | Major | `StudentModel` lacks `updatedAt` or `version` fields, making it impossible to perform meaningful "Last Write Wins" or conflict resolution during future sync implementation. |
+| **Dual-Write Fragility** | Major | `StudentDataRepository` uses Firestore batches for dual-writing. While safe for Firestore, there is no logic to handle eventual consistency with a local cache. |
 | **Lack of Conflict Resolution** | Major | When offline support is added, the current architecture lacks a "last-write-wins" or "versioning" strategy for syncing local Hive data with Firestore. |
 
 ---
