@@ -1,6 +1,7 @@
 import 'package:church_managment_system/core/constants/enums.dart';
 import 'package:church_managment_system/core/constants/firestore_collections.dart';
 import 'package:church_managment_system/features/auth/data/models/auth_user.dart';
+import 'package:church_managment_system/features/auth/domain/failures/auth_failures.dart';
 import 'package:church_managment_system/features/auth/domain/failures/auth_exceptions.dart';
 import 'package:church_managment_system/features/auth/data/services/auth_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -10,8 +11,15 @@ import 'package:firebase_auth/firebase_auth.dart'
 import 'package:firebase_core/firebase_core.dart';
 
 class FirebaseAuthProvider implements AuthProvider {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final FirebaseAuth _auth;
+  final FirebaseFirestore _db;
+
+  // In-memory cache for user data
+  final Map<String, AuthUser> _userCache = {};
+
+  FirebaseAuthProvider({FirebaseAuth? auth, FirebaseFirestore? db})
+    : _auth = auth ?? FirebaseAuth.instance,
+      _db = db ?? FirebaseFirestore.instance;
 
   @override
   Future<void> initialize() async {
@@ -22,6 +30,10 @@ class FirebaseAuthProvider implements AuthProvider {
   AuthUser? get currentUser {
     final user = _auth.currentUser;
     if (user != null) {
+      // Check if we have cached data with role info
+      if (_userCache.containsKey(user.uid)) {
+        return _userCache[user.uid];
+      }
       return AuthUser.fromFirebase(user);
     }
     return null;
@@ -30,7 +42,10 @@ class FirebaseAuthProvider implements AuthProvider {
   @override
   Stream<AuthUser?> get authStateChanges {
     return _auth.authStateChanges().asyncMap((user) async {
-      if (user == null) return null;
+      if (user == null) {
+        _userCache.clear();
+        return null;
+      }
       return await getUserData(user.uid);
     });
   }
@@ -104,6 +119,7 @@ class FirebaseAuthProvider implements AuthProvider {
         );
 
         await _saveUserToFirestore(appUser);
+        _userCache[appUser.uid] = appUser;
         return appUser;
       } else {
         throw UserNotLoggedInAuthException();
@@ -135,6 +151,7 @@ class FirebaseAuthProvider implements AuthProvider {
   Future<void> logOut() async {
     final user = _auth.currentUser;
     if (user != null) {
+      _userCache.remove(user.uid);
       await _auth.signOut();
     } else {
       throw UserNotLoggedInAuthException();
@@ -177,7 +194,14 @@ class FirebaseAuthProvider implements AuthProvider {
     final user = _auth.currentUser;
     if (user != null) {
       await user.reload();
-      return user.emailVerified;
+      final verified = user.emailVerified;
+      // Update cache
+      if (_userCache.containsKey(user.uid)) {
+        _userCache[user.uid] = _userCache[user.uid]!.copyWith(
+          isEmailVerified: verified,
+        );
+      }
+      return verified;
     }
     return false;
   }
@@ -187,11 +211,18 @@ class FirebaseAuthProvider implements AuthProvider {
     final user = _auth.currentUser;
     if (user != null) {
       await user.reload();
+      // Invalidate cache to force fetch on next access
+      _userCache.remove(user.uid);
     }
   }
 
   /// Get user data from Firestore
   Future<AuthUser> getUserData(String uid) async {
+    // Check cache first
+    if (_userCache.containsKey(uid)) {
+      return _userCache[uid]!;
+    }
+
     try {
       // Force fetch from server to get latest data
       final doc = await _db
@@ -199,7 +230,9 @@ class FirebaseAuthProvider implements AuthProvider {
           .doc(uid)
           .get(const GetOptions(source: Source.server));
       if (doc.exists) {
-        return AuthUser.fromJson(doc.data()!);
+        final user = AuthUser.fromJson(doc.data()!);
+        _userCache[uid] = user;
+        return user;
       } else {
         // Create user record if exists in Auth but not Firestore
         final firebaseUser = _auth.currentUser;
@@ -215,6 +248,7 @@ class FirebaseAuthProvider implements AuthProvider {
             isEmailVerified: firebaseUser.emailVerified,
           );
           await _saveUserToFirestore(newUser);
+          _userCache[uid] = newUser;
           return newUser;
         }
         throw UserNotFoundAuthException();
