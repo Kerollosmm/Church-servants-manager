@@ -31,7 +31,6 @@ class AppRouter {
           builder: (_) => const ForgotPasswordScreen(),
           settings: settings,
         );
-
       case studentList:
         return MaterialPageRoute(
           builder: (_) => const StudentManagementScreen(),
@@ -63,7 +62,6 @@ class AppRouter {
               const Scaffold(body: Center(child: Text('Invalid student data'))),
           settings: settings,
         );
-
       // Servant Routes
       case servantList:
         return MaterialPageRoute(

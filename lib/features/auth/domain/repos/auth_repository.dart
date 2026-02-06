@@ -1,5 +1,5 @@
 import 'package:church_managment_system/core/constants/enums.dart';
-import 'package:church_managment_system/core/models/auth_user.dart';
+import 'package:church_managment_system/features/auth/data/models/auth_user.dart';
 
 abstract class AuthRepository {
   /// Signs in user with email and password.

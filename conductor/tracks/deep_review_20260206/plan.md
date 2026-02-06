@@ -8,12 +8,12 @@ Focus on identifying issues across the codebase and documenting them for targete
     - [x] Audit `lib/core/` for theme consistency and architectural leaks.
     - [x] Audit `lib/features/auth/` for security and session robustness.
     - [x] Audit `lib/features/student/` for sync logic and model integrity.
-- [ ] Task: Performance & Sync Profiling
-    - [ ] Profile startup time and list scrolling in the Student Directory.
-    - [ ] Analyze Hive/Firestore synchronization edge cases (e.g., conflicting updates).
-- [ ] Task: Generate `AUDIT_REPORT.md`
-    - [ ] Document all findings categorized by Security, Performance, Logic, and Architecture.
-    - [ ] Prioritize issues (Critical, Major, Minor).
+- [x] Task: Performance & Sync Profiling (c804636)
+    - [x] Profile startup time and list scrolling in the Student Directory.
+    - [x] Analyze Hive/Firestore synchronization edge cases (e.g., conflicting updates).
+- [x] Task: Generate `AUDIT_REPORT.md` (aafdf52)
+    - [x] Document all findings categorized by Security, Performance, Logic, and Architecture.
+    - [x] Prioritize issues (Critical, Major, Minor).
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Discovery' (Protocol in workflow.md)
 
 ## Phase 2: Infrastructure & Auth Hardening

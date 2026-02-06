@@ -403,6 +403,7 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
               ),
               AppSpacing.gapMd,
               FilledButton.icon(
+                key: const Key('submit_student_button'),
                 onPressed: _submit,
                 icon: Icon(isEditing ? Icons.save_outlined : Icons.add),
                 label: Text(isEditing ? 'Save Changes' : 'Create Student'),

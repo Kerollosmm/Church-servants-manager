@@ -1,0 +1,46 @@
+import 'package:church_managment_system/features/student/data/models/student_model.dart';
+import 'package:church_managment_system/features/student/domain/failures/student_failures.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+/// Interface for Student Repository.
+/// Defines the contract for interacting with student data.
+abstract class IStudentRepository {
+  /// Get a single student by document ID
+  Future<StudentModel?> getStudentById(String docId);
+
+  /// Get a student by Firebase Auth UID (or app UID).
+  Future<StudentModel?> getStudentByUid(String uid);
+
+  /// Get all students with pagination support.
+  Future<List<StudentModel>> getAllStudents({
+    int limit = 10,
+    DocumentSnapshot? lastDocument,
+  });
+
+  /// Get students by class ID.
+  Future<List<StudentModel>> getStudentsByClass(String classId);
+
+  /// Get students by grade.
+  Future<List<StudentModel>> getStudentsByGrade(int grade);
+
+  /// Get students by group (Server-side filtering).
+  Future<List<StudentModel>> getStudentsByGroup(String groupName);
+
+  /// Search students by name.
+  Future<List<StudentModel>> searchStudents(String query, {int limit = 20});
+
+  /// Create a new student.
+  /// Throws [StudentFailure] on error.
+  Future<String> createStudent(StudentModel student);
+
+  /// Update an existing student.
+  /// Throws [StudentFailure] on error.
+  Future<void> updateStudent(StudentModel student);
+
+  /// Delete a student by document ID.
+  /// Throws [StudentFailure] on error.
+  Future<void> deleteStudent(String docId);
+
+  /// Upsert a student (create or update).
+  Future<void> upsertStudent(StudentModel student);
+}

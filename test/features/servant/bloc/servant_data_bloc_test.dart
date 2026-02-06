@@ -1,6 +1,6 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:church_managment_system/core/constants/enums.dart';
-import 'package:church_managment_system/core/models/auth_user.dart';
+import 'package:church_managment_system/features/auth/data/models/auth_user.dart';
 import 'package:church_managment_system/features/servant/data/models/servant_models.dart';
 import 'package:church_managment_system/features/servant/data/repo/servant_data_repository.dart';
 import 'package:church_managment_system/features/servant/presentation/bloc/servant_data/servant_data_bloc.dart';

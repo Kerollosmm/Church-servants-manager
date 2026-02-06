@@ -1,7 +1,8 @@
 import 'package:collection/collection.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import 'package:church_managment_system/core/models/auth_user.dart';
+import 'package:church_managment_system/core/constants/enums.dart'; // Added for UserRole
+import 'package:church_managment_system/features/auth/data/models/auth_user.dart';
 import 'package:church_managment_system/features/servant/data/models/servant_models.dart';
 import 'package:church_managment_system/features/servant/data/repo/servant_data_repository.dart';
 
@@ -45,6 +46,16 @@ class ServantDataBloc extends Bloc<ServantDataEvent, ServantDataState> {
     ServantsSearchRequested event,
     Emitter<ServantDataState> emit,
   ) async {
+    // Security Check: Only admins can search the global servant directory
+    if (event.actor.role != UserRole.admin) {
+      emit(
+        const ServantDataError(
+          'Permission denied: Only admins can search servants.',
+        ),
+      );
+      return;
+    }
+
     emit(const ServantDataLoading());
     try {
       _lastQuery = event.query;
