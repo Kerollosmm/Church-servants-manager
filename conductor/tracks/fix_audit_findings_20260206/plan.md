@@ -12,9 +12,9 @@ Establish the local storage infrastructure and fix critical authentication gaps.
 - [x] Task: Auth Caching & Session Hardening (TDD) (58725db)
     - [x] Implement local caching for `AuthUser` in `FirebaseAuthProvider`.
     - [x] Fix N+1 issue in `authStateChanges` by checking cache before fetching from Firestore.
-- [ ] Task: Domain-Level Input Validation (TDD)
-    - [ ] Create reusable `Validator` classes in `lib/core/utils/`.
-    - [ ] Implement business-rule validation for Registration and Student forms.
+- [x] Task: Domain-Level Input Validation (TDD) (12dba48)
+    - [x] Create reusable `Validator` classes in `lib/core/utils/`.
+    - [x] Implement business-rule validation for Registration and Student forms.
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Foundation' (Protocol in workflow.md)
 
 ## Phase 2: Data Models & Versioning
