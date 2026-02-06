@@ -3,11 +3,11 @@
 ## Phase 1: Deep Discovery & Audit Reporting
 Focus on identifying issues across the codebase and documenting them for targeted fixes.
 
-- [~] Task: Project-Wide Contextual Audit
-    - [ ] Run `dart analyze` and record all current warnings/errors.
-    - [ ] Audit `lib/core/` for theme consistency and architectural leaks.
-    - [ ] Audit `lib/features/auth/` for security and session robustness.
-    - [ ] Audit `lib/features/student/` for sync logic and model integrity.
+- [x] Task: Project-Wide Contextual Audit (d4b422e)
+    - [x] Run `dart analyze` and record all current warnings/errors.
+    - [x] Audit `lib/core/` for theme consistency and architectural leaks.
+    - [x] Audit `lib/features/auth/` for security and session robustness.
+    - [x] Audit `lib/features/student/` for sync logic and model integrity.
 - [ ] Task: Performance & Sync Profiling
     - [ ] Profile startup time and list scrolling in the Student Directory.
     - [ ] Analyze Hive/Firestore synchronization edge cases (e.g., conflicting updates).
