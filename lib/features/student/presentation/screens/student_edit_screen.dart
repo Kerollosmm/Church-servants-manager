@@ -2,6 +2,7 @@ import 'package:church_managment_system/core/constants/enums.dart';
 import 'package:church_managment_system/core/routing/route_args.dart';
 import 'package:church_managment_system/core/theme/app_colors.dart';
 import 'package:church_managment_system/core/theme/app_spacing.dart';
+import 'package:church_managment_system/core/utils/validators.dart';
 import 'package:church_managment_system/features/student/data/models/student_model.dart';
 import 'package:church_managment_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
 import 'package:flutter/material.dart';
@@ -181,8 +182,7 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
                           labelText: 'Full Name',
                           prefixIcon: Icon(Icons.person_outline),
                         ),
-                        validator: (v) =>
-                            v == null || v.trim().isEmpty ? 'Required' : null,
+                        validator: Validators.validateName,
                       ),
                       AppSpacing.gapMd,
                       TextFormField(
@@ -191,8 +191,7 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
                           labelText: 'Mobile',
                           prefixIcon: Icon(Icons.phone_outlined),
                         ),
-                        validator: (v) =>
-                            v == null || v.trim().isEmpty ? 'Required' : null,
+                        validator: Validators.validatePhone,
                       ),
                       AppSpacing.gapMd,
                       TextFormField(
@@ -201,8 +200,7 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
                           labelText: 'Team Name',
                           prefixIcon: Icon(Icons.groups_outlined),
                         ),
-                        validator: (v) =>
-                            v == null || v.trim().isEmpty ? 'Required' : null,
+                        validator: Validators.validateName,
                       ),
                       AppSpacing.gapMd,
                       DropdownMenu<Group>(
@@ -277,8 +275,7 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
                           labelText: 'Mother Phone',
                           prefixIcon: Icon(Icons.phone_outlined),
                         ),
-                        validator: (v) =>
-                            v == null || v.trim().isEmpty ? 'Required' : null,
+                        validator: Validators.validatePhone,
                       ),
                       AppSpacing.gapMd,
                       TextFormField(
@@ -287,8 +284,7 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
                           labelText: 'Father Phone',
                           prefixIcon: Icon(Icons.phone_outlined),
                         ),
-                        validator: (v) =>
-                            v == null || v.trim().isEmpty ? 'Required' : null,
+                        validator: Validators.validatePhone,
                       ),
                     ],
                   ),
@@ -315,8 +311,7 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
                           labelText: 'Father of Confession',
                           prefixIcon: Icon(Icons.church_outlined),
                         ),
-                        validator: (v) =>
-                            v == null || v.trim().isEmpty ? 'Required' : null,
+                        validator: Validators.validateName,
                       ),
                       AppSpacing.gapMd,
                       TextFormField(
