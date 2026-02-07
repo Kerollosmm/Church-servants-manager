@@ -11,6 +11,17 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ## [~] Track: Implement Servant Management UI (CRUD)
 *Link: [./conductor/tracks/servant_mgmt_20260204/](./conductor/tracks/servant_mgmt_20260204/)*
+
+---
+
+- [~] **Track: Elite Senior Code Review and Refactor of the entire project**
+*Link: [./conductor/tracks/deep_review_20260206/](./conductor/tracks/deep_review_20260206/)*  
+
+---
+
+- [~] **Track: Resolve all findings from AUDIT_REPORT.md (Security, Performance, Sync, Architecture)**
+*Link: [./conductor/tracks/fix_audit_findings_20260206/](./conductor/tracks/fix_audit_findings_20260206/)*
+
 ---
 
 - [~] **Track: Comprehensive Deep-Dive Bug & Architecture Audit (Auth, Student, Core)**

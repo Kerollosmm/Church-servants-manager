@@ -1,8 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:church_managment_system/core/constants/firestore_collections.dart';
+import 'package:church_managment_system/features/student/domain/failures/student_failures.dart';
+import 'package:church_managment_system/features/student/domain/repos/i_student_repository.dart';
 import '../models/student_model.dart';
 
-class StudentDataRepository {
+class StudentDataRepository implements IStudentRepository {
   final FirebaseFirestore _firestore;
 
   StudentDataRepository({FirebaseFirestore? firestore})
@@ -11,7 +13,10 @@ class StudentDataRepository {
   CollectionReference<Map<String, dynamic>> get _studentsCollection =>
       _firestore.collection(FirestoreCollections.students);
 
-  /// Get a single student by document ID
+  CollectionReference<Map<String, dynamic>> get _usersCollection =>
+      _firestore.collection(FirestoreCollections.users);
+
+  @override
   Future<StudentModel?> getStudentById(String docId) async {
     try {
       final doc = await _studentsCollection.doc(docId).get();
@@ -20,11 +25,11 @@ class StudentDataRepository {
       }
       return null;
     } catch (e) {
-      throw Exception('Failed to fetch student: $e');
+      throw mapExceptionToStudentFailure(e);
     }
   }
 
-  /// Get a student by Firebase Auth UID (or app UID).
+  @override
   Future<StudentModel?> getStudentByUid(String uid) async {
     try {
       final snapshot = await _studentsCollection
@@ -35,13 +40,11 @@ class StudentDataRepository {
       final doc = snapshot.docs.first;
       return StudentModel.fromMap(doc.data(), doc.id);
     } catch (e) {
-      throw Exception('Failed to fetch student by uid: $e');
+      throw mapExceptionToStudentFailure(e);
     }
   }
 
-  /// Get all students with pagination support.
-  /// [limit] - Maximum number of students to fetch (default: 10).
-  /// [lastDocument] - Last document snapshot for cursor-based pagination.
+  @override
   Future<List<StudentModel>> getAllStudents({
     int limit = 10,
     DocumentSnapshot? lastDocument,
@@ -61,12 +64,11 @@ class StudentDataRepository {
           .map((doc) => StudentModel.fromMap(doc.data(), doc.id))
           .toList();
     } catch (e) {
-      throw Exception('Failed to fetch students: $e');
+      throw mapExceptionToStudentFailure(e);
     }
   }
 
-  /// Get students by class ID using efficient single query.
-  /// CRITICAL FIX: Uses classId field instead of N+1 loop.
+  @override
   Future<List<StudentModel>> getStudentsByClass(String classId) async {
     try {
       // Primary approach: Single query using classId field (most efficient)
@@ -80,7 +82,7 @@ class StudentDataRepository {
             .toList();
       }
 
-      // Fallback: If classId field not populated, use whereIn with chunking
+      // Fallback: If classId field not populated, use whereIn with concurrent chunking
       final classDoc = await _firestore
           .collection(FirestoreCollections.classes)
           .doc(classId)
@@ -92,23 +94,28 @@ class StudentDataRepository {
       );
       if (studentIds.isEmpty) return [];
 
-      // Firestore whereIn limit is 10, so chunk the IDs
-      final students = <StudentModel>[];
+      // Firestore whereIn limit is 30 in this context (actually 10 for OR, 30 for IN sometimes, sticking to 30 as optimized default)
+      // Actually Firestore whereIn 'IN' limit is 10. Let's verify.
+      // Wait, standard IN limit is 10. we should stick to 10 to be safe, but run in parallel.
+      // Correction: Firestore 'in' operator supports up to 10 comparison values.
+      // However, we can run multiple futures in parallel.
+
       final chunks = _chunkList(studentIds, 10);
 
-      for (final chunk in chunks) {
-        final chunkSnapshot = await _studentsCollection
+      final futures = chunks.map(
+        (chunk) => _studentsCollection
             .where(FieldPath.documentId, whereIn: chunk)
-            .get();
+            .get(),
+      );
 
-        for (final doc in chunkSnapshot.docs) {
-          students.add(StudentModel.fromMap(doc.data(), doc.id));
-        }
-      }
+      final results = await Future.wait(futures);
 
-      return students;
+      return results
+          .expand((snap) => snap.docs)
+          .map((doc) => StudentModel.fromMap(doc.data(), doc.id))
+          .toList();
     } catch (e) {
-      throw Exception('Failed to fetch students by class: $e');
+      throw mapExceptionToStudentFailure(e);
     }
   }
 
@@ -122,7 +129,7 @@ class StudentDataRepository {
     return chunks;
   }
 
-  /// Get students by grade
+  @override
   Future<List<StudentModel>> getStudentsByGrade(int grade) async {
     try {
       final snapshot = await _studentsCollection
@@ -133,11 +140,11 @@ class StudentDataRepository {
           .map((doc) => StudentModel.fromMap(doc.data(), doc.id))
           .toList();
     } catch (e) {
-      throw Exception('Failed to fetch students by grade: $e');
+      throw mapExceptionToStudentFailure(e);
     }
   }
 
-  /// Get students by group (Server-side filtering)
+  @override
   Future<List<StudentModel>> getStudentsByGroup(String groupName) async {
     try {
       final snapshot = await _studentsCollection
@@ -148,34 +155,11 @@ class StudentDataRepository {
           .map((doc) => StudentModel.fromMap(doc.data(), doc.id))
           .toList();
     } catch (e) {
-      throw Exception('Failed to fetch students by group: $e');
+      throw mapExceptionToStudentFailure(e);
     }
   }
 
-  /// Get student IDs for given class IDs (batch query)
-  Future<List<String>> getStudentIdsByClasses(List<String> classIds) async {
-    if (classIds.isEmpty) return [];
-
-    final studentIds = <String>[];
-    final chunks = _chunkList(classIds, 10);
-
-    for (final chunk in chunks) {
-      final snapshot = await _firestore
-          .collection(FirestoreCollections.classes)
-          .where(FieldPath.documentId, whereIn: chunk)
-          .get();
-
-      for (final doc in snapshot.docs) {
-        final data = doc.data();
-        final ids = List<String>.from(data['student_ids'] ?? []);
-        studentIds.addAll(ids);
-      }
-    }
-
-    return studentIds;
-  }
-
-  /// Search students by name (case-insensitive prefix search)
+  @override
   Future<List<StudentModel>> searchStudents(
     String query, {
     int limit = 20,
@@ -194,61 +178,130 @@ class StudentDataRepository {
           .map((doc) => StudentModel.fromMap(doc.data(), doc.id))
           .toList();
     } catch (e) {
-      throw Exception('Failed to search students: $e');
+      throw mapExceptionToStudentFailure(e);
     }
   }
 
-  /// Create a new student
+  @override
   Future<String> createStudent(StudentModel student) async {
     try {
+      final batch = _firestore.batch();
+
+      // 1. Create Student Document
       final docRef = _studentsCollection.doc();
-      final data = student.copyWith(docID: docRef.id).toMap();
-      await docRef.set(data);
+      final finalStudent = student.copyWith(docID: docRef.id);
+      batch.set(docRef, finalStudent.toMap());
+
+      // 2. Dual-Write: Ensure User record is consistent if UID exists
+      if (student.uid.isNotEmpty) {
+        final userRef = _usersCollection.doc(student.uid);
+        // Merging to avoid overwriting auth data if it exists,
+        // but enforcing role and name sync.
+        batch.set(userRef, {
+          'role': 'student', // Enforce role
+          'name': student.name, // Sync name
+          'studentProfileId': docRef.id, // Link back
+          'classId': student.classId,
+          'grade': student.grade,
+        }, SetOptions(merge: true));
+      }
+
+      await batch.commit();
       return docRef.id;
     } catch (e) {
-      throw Exception('Failed to create student: $e');
+      throw mapExceptionToStudentFailure(e);
     }
   }
 
-  /// Upsert a student document (merge).
-  Future<void> upsertStudent(StudentModel student) async {
-    try {
-      await _studentsCollection
-          .doc(student.docID)
-          .set(student.toMap(), SetOptions(merge: true));
-    } catch (e) {
-      throw Exception('Failed to upsert student: $e');
-    }
-  }
-
-  /// Update an existing student
+  @override
   Future<void> updateStudent(StudentModel student) async {
     try {
-      final data = student.toMap();
-      await _studentsCollection.doc(student.docID).update(data);
+      final batch = _firestore.batch();
+
+      // 1. Update Student Document
+      final docRef = _studentsCollection.doc(student.docID);
+      batch.update(docRef, student.toMap());
+
+      // 2. Dual-Write: Sync changes to User record if UID exists
+      if (student.uid.isNotEmpty) {
+        final userRef = _usersCollection.doc(student.uid);
+        batch.set(userRef, {
+          'name': student.name,
+          'classId': student.classId,
+          'grade': student.grade,
+        }, SetOptions(merge: true));
+      }
+
+      await batch.commit();
     } catch (e) {
-      throw Exception('Failed to update student: $e');
+      throw mapExceptionToStudentFailure(e);
     }
   }
 
-  /// Update specific fields of a student
-  Future<void> updateStudentFields(
-    String docId,
-    Map<String, dynamic> fields,
-  ) async {
+  @override
+  Future<void> upsertStudent(StudentModel student) async {
     try {
-      await _studentsCollection.doc(docId).update(fields);
+      final batch = _firestore.batch();
+
+      // 1. Upsert Student Document
+      final docRef = _studentsCollection.doc(student.docID);
+      batch.set(docRef, student.toMap(), SetOptions(merge: true));
+
+      // 2. Dual-Write: Sync to User record
+      if (student.uid.isNotEmpty) {
+        final userRef = _usersCollection.doc(student.uid);
+        batch.set(userRef, {
+          'name': student.name,
+          'classId': student.classId,
+          'grade': student.grade,
+          'role': 'student', // Ensure role if creating/repairing
+          'studentProfileId':
+              student.docID, // Ensure link if creating/repairing
+        }, SetOptions(merge: true));
+      }
+
+      await batch.commit();
     } catch (e) {
-      throw Exception('Failed to update student fields: $e');
+      throw mapExceptionToStudentFailure(e);
     }
   }
 
-  /// Delete a student by document ID
+  @override
   Future<void> deleteStudent(String docId) async {
     try {
+      // Note: We are not deleting the associated User record here automatically
+      // as that might delete a valid user account. We just delete the student profile.
       await _studentsCollection.doc(docId).delete();
     } catch (e) {
-      throw Exception('Failed to delete student: $e');
+      throw mapExceptionToStudentFailure(e);
     }
+  }
+
+  /// Helper to get student IDs for given class IDs (batch query)
+  Future<List<String>> getStudentIdsByClasses(List<String> classIds) async {
+    if (classIds.isEmpty) return [];
+
+    final studentIds = <String>[];
+    final chunks = _chunkList(classIds, 10);
+
+    // Parallel execution
+    final futures = chunks.map(
+      (chunk) => _firestore
+          .collection(FirestoreCollections.classes)
+          .where(FieldPath.documentId, whereIn: chunk)
+          .get(),
+    );
+
+    final results = await Future.wait(futures);
+
+    for (final snapshot in results) {
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final ids = List<String>.from(data['student_ids'] ?? []);
+        studentIds.addAll(ids);
+      }
+    }
+
+    return studentIds;
   }
 }

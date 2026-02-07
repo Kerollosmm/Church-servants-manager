@@ -1,4 +1,4 @@
-import 'package:church_managment_system/core/models/auth_user.dart';
+import 'package:church_managment_system/features/auth/data/models/auth_user.dart';
 import 'package:church_managment_system/core/theme/app_colors.dart';
 import 'package:church_managment_system/core/theme/app_spacing.dart';
 import 'package:church_managment_system/features/auth/presentation/bloc/auth_bloc.dart';

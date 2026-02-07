@@ -1,9 +1,8 @@
 import 'dart:async';
 import 'package:church_managment_system/core/constants/enums.dart';
-import 'package:church_managment_system/core/models/auth_user.dart';
+import 'package:church_managment_system/features/auth/data/models/auth_user.dart';
 import 'package:church_managment_system/features/auth/data/services/auth_service.dart';
 import 'package:church_managment_system/features/auth/domain/failures/auth_failures.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 part 'auth_event.dart';
@@ -77,19 +76,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         password: event.password,
       );
 
-      debugPrint(
-        'AuthBloc: Login successful, emitting AuthAuthenticated for ${user.email}',
-      );
       emit(AuthAuthenticated(user));
     } on EmailNotVerifiedFailure {
       emit(const AuthNeedsVerification());
     } on AuthFailure catch (e) {
-      debugPrint('AuthBloc: AuthFailure caught - ${e.message}');
       emit(AuthError(e.message));
-    } catch (e, stackTrace) {
-      debugPrint('Login error: $e');
-      debugPrint('Stack trace: $stackTrace');
-      debugPrint('AuthBloc: Generic error caught - ${e.toString()}');
+    } catch (e) {
+      // Use efficient logging in production
       emit(AuthError(e.toString()));
     }
   }

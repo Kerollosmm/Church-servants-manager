@@ -1,5 +1,6 @@
 import 'package:church_managment_system/core/constants/enums.dart';
 import 'package:church_managment_system/core/constants/routes.dart';
+import 'package:church_managment_system/core/utils/validators.dart';
 import 'package:church_managment_system/core/widgets/dialogs/error_dialog.dart';
 import 'package:church_managment_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_managment_system/features/auth/presentation/widgets/auth_header.dart';
@@ -99,12 +100,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           controller: _nameController,
                           label: 'Full Name',
                           prefixIcon: Icons.person_outline,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Name is required';
-                            }
-                            return null;
-                          },
+                          validator: Validators.validateName,
                         ),
                         const SizedBox(height: 16),
 
@@ -114,15 +110,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           label: 'Email',
                           prefixIcon: Icons.email_outlined,
                           keyboardType: TextInputType.emailAddress,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Email is required';
-                            }
-                            if (!value.contains('@')) {
-                              return 'Enter a valid email';
-                            }
-                            return null;
-                          },
+                          validator: Validators.validateEmail,
                         ),
                         const SizedBox(height: 16),
 
@@ -144,15 +132,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               });
                             },
                           ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Password is required';
-                            }
-                            if (value.length < 6) {
-                              return 'Password must be at least 6 characters';
-                            }
-                            return null;
-                          },
+                          validator: Validators.validatePassword,
                         ),
                         const SizedBox(height: 16),
 
