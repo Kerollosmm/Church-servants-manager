@@ -9,10 +9,10 @@ This plan outlines the systematic audit of the `church_managment_system` focusin
     - [x] Audit `lib/features/auth/` for session management and token handling flaws using `vulnerability-scanner`.
     - [x] Evaluate Role-Based Access Control (RBAC) logic for bypass opportunities using `red-team-tactics`.
     - [x] Check for hardcoded secrets or insecure Firebase configurations using `firebase`.
-- [ ] **Task: Student Directory Data Layer Audit**
-    - [ ] Review Firestore data modeling in `lib/features/student/` for potential data leakage or N+1 query patterns.
-    - [ ] Audit `firestore.rules` (if accessible) against `vulnerability-scanner` standards.
-    - [ ] Inspect Freezed models for lack of validation or unsafe deserialization using `flutter-data-handling`.
+- [x] **Task: Student Directory Data Layer Audit** 43d1445
+    - [x] Review Firestore data modeling in `lib/features/student/` for potential data leakage or N+1 query patterns.
+    - [x] Audit `firestore.rules` (if accessible) against `vulnerability-scanner` standards.
+    - [x] Inspect Freezed models for lack of validation or unsafe deserialization using `flutter-data-handling`.
 - [ ] **Task: Conductor - User Manual Verification 'Security Audit' (Protocol in workflow.md)**
 
 ## Phase 2: Architectural Integrity & Clean Code Audit
