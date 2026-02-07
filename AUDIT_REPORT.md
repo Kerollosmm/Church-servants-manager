@@ -10,6 +10,7 @@
 | Issue | Severity | Description |
 | :--- | :--- | :--- |
 | **User Role Spoofing** | **Critical** | Users can choose their own role (`servant`) in `RegisterScreen.dart`, and the Firestore rules allow setting the `role` field during creation if `auth.uid == userId`. An attacker can spoof `admin` role by tampering with the request. |
+| **Mass Data Exposure (Students)** | **Critical** | `firestore.rules` allows any authenticated user to read all documents in the `students` collection. This exposes PII (phone numbers, addresses, birthdates) of all students to any logged-in user. |
 | **Insecure Firestore Rules (Users)** | **Major** | `allow read: if isAuthenticated();` in `firestore.rules` allows any logged-in user to read the full profile of every other user, including roles and potentially sensitive info. |
 | **Compromised RBAC** | **Major** | Since roles can be spoofed at registration, the `isServantOrAdmin()` check in Firestore rules for `students`, `classes`, and `attendance` is effectively bypassed. |
 | **Silent Login Failures** | Major | `FirebaseAuthProvider` catches exceptions and throws `GenericAuthException` without specific error codes in many places, losing the underlying cause for the UI. |
