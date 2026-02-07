@@ -2,6 +2,7 @@ import 'package:church_managment_system/core/constants/enums.dart';
 import 'package:church_managment_system/core/widgets/dialogs/error_dialog.dart';
 import 'package:church_managment_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_managment_system/features/auth/presentation/screens/login_screen.dart';
+import 'package:church_managment_system/features/auth/presentation/screens/verify_email_screen.dart';
 import 'package:church_managment_system/features/servant/presentation/screens/servant_dashboard_screen.dart';
 import 'package:church_managment_system/features/student/presentation/screens/student_profile_screen.dart';
 import 'package:flutter/material.dart';
@@ -16,12 +17,11 @@ class AppRoot extends StatelessWidget {
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is AuthError) {
+          // Only show global error dialog if we're not on a specific auth screen
+          // Or if it's a critical initialization error.
+          // For now, we'll keep it but ensure local screens also handle it.
           showErrorDialog(context, state.message);
         } else if (state is AuthAuthenticated) {
-          // This ensures that when we become authenticated (e.g. from login),
-          // we clear any existing navigation stack (like the login screen)
-          // and let the BlocBuilder below rebuild with the correct Dashboard.
-          // This effectively acts like a "hot restart" for the UI.
           Navigator.of(context).popUntil((route) => route.isFirst);
         }
       },
@@ -46,6 +46,12 @@ class AppRoot extends StatelessWidget {
                 return ServantDashboardScreen(user: user);
             }
           }
+
+          // Needs verification
+          if (state is AuthNeedsVerification) {
+            return const VerifyEmailScreen();
+          }
+
           return const LoginScreen();
         },
       ),

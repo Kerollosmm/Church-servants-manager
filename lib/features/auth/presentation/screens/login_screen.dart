@@ -1,6 +1,7 @@
 import 'package:church_managment_system/core/constants/routes.dart';
 import 'package:church_managment_system/core/theme/app_colors.dart';
 import 'package:church_managment_system/core/theme/app_spacing.dart';
+import 'package:church_managment_system/core/widgets/dialogs/error_dialog.dart';
 import 'package:church_managment_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_managment_system/features/auth/presentation/widgets/auth_header.dart';
 import 'package:church_managment_system/features/auth/presentation/widgets/auth_submit_button.dart';
@@ -48,6 +49,9 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       body: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {
+          if (state is AuthError) {
+            showErrorDialog(context, state.message);
+          }
           if (state is AuthNeedsVerification) {
             showEmailVerificationDialog(context);
           }

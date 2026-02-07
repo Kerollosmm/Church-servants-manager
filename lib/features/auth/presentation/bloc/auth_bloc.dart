@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:church_managment_system/core/constants/enums.dart';
 import 'package:church_managment_system/core/models/auth_user.dart';
 import 'package:church_managment_system/features/auth/data/services/auth_service.dart';
@@ -29,20 +30,42 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(const AuthLoading());
     try {
-      final user = await _authService.getCurrentAppUser();
-      final firebaseUser = _authService.currentUser;
+      // Wait for the first auth state change to ensure session is restored
+      final initialUser = await _authService.authStateChanges.first.timeout(
+        const Duration(seconds: 2),
+        onTimeout: () => null,
+      );
 
-      if (user != null &&
-          firebaseUser != null &&
-          firebaseUser.isEmailVerified) {
-        emit(AuthAuthenticated(user));
-      } else if (firebaseUser != null && !firebaseUser.isEmailVerified) {
+      // Reload user to get latest email verification status if we have a user
+      if (initialUser != null) {
+        await _authService.reloadUser();
+      }
+
+      final firebaseUser = _authService.currentUser;
+      if (firebaseUser == null) {
+        emit(const AuthUnauthenticated());
+        return;
+      }
+
+      if (!firebaseUser.isEmailVerified) {
         emit(const AuthNeedsVerification());
+        return;
+      }
+
+      final user = await _authService.getCurrentAppUser();
+      if (user != null) {
+        emit(AuthAuthenticated(user));
       } else {
         emit(const AuthUnauthenticated());
       }
     } catch (e) {
-      emit(AuthError(e.toString()));
+      // If error occurs or timeout, try to fall back to current user
+      final user = await _authService.getCurrentAppUser();
+      if (user != null && user.isEmailVerified) {
+        emit(AuthAuthenticated(user));
+      } else {
+        emit(const AuthUnauthenticated());
+      }
     }
   }
 

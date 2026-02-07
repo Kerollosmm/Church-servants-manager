@@ -188,11 +188,21 @@ class FirebaseAuthProvider implements AuthProvider {
   /// Get user data from Firestore
   Future<AuthUser> getUserData(String uid) async {
     try {
-      // Force fetch from server to get latest data
-      final doc = await _db
-          .collection(FirestoreCollections.users)
-          .doc(uid)
-          .get(const GetOptions(source: Source.server));
+      // Try to fetch from server first to get latest data
+      DocumentSnapshot<Map<String, dynamic>> doc;
+      try {
+        doc = await _db
+            .collection(FirestoreCollections.users)
+            .doc(uid)
+            .get(const GetOptions(source: Source.server));
+      } catch (e) {
+        // Fallback to cache if server is unavailable
+        doc = await _db
+            .collection(FirestoreCollections.users)
+            .doc(uid)
+            .get(const GetOptions(source: Source.cache));
+      }
+
       if (doc.exists) {
         return AuthUser.fromJson(doc.data()!);
       } else {
