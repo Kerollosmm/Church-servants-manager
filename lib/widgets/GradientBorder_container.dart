@@ -27,7 +27,7 @@ class GradientBorderContainer extends StatelessWidget {
             padding: const EdgeInsets.all(3), // border thickness
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [ Mycolors.ocur, Colors.brown],
+                colors: [ MyColors.ocur, Colors.brown],
               ),
               borderRadius: BorderRadius.circular(16),
             ),

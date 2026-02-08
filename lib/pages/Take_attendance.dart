@@ -1,24 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutterbhz/widgets/MyColors.dart';
-
-
-class Student {
-  final String id;
-  final String name;
-  final String studentId;
-  bool isPresent;
-
-  Student({
-    required this.id,
-    required this.name,
-    required this.studentId,
-    this.isPresent = false,
-  });
-}
-
+import 'package:flutterbhz/models/Student_Model.dart';
 
 class AttendancePage extends StatefulWidget {
-  const AttendancePage({super.key});
+   const AttendancePage({super.key});
 
   @override
   State<AttendancePage> createState() => _AttendancePageState();
@@ -26,6 +11,7 @@ class AttendancePage extends StatefulWidget {
 
 class _AttendancePageState extends State<AttendancePage> {
   String selectedFilter = 'الكل';
+  String searchQuery = ''; // Added search state
 
   List<Student> students = [
     Student(id: '1', name: 'مينا مجدي', studentId: '2023001'),
@@ -33,30 +19,29 @@ class _AttendancePageState extends State<AttendancePage> {
     Student(id: '3', name: 'يشوعى عادل', studentId: '2023042'),
   ];
 
-  // 🔥 Firebase (بعد كده)
-  // Stream<QuerySnapshot> getStudents() { }
-
   void markAttendance(Student student, bool value) {
     setState(() {
       student.isPresent = value;
     });
-
-    // 🔥 Firestore update
-    // FirebaseFirestore.instance
-    //   .collection('attendance')
-    //   .doc(student.id)
-    //   .set({...});
   }
 
   @override
   Widget build(BuildContext context) {
-    return  Scaffold(
-        backgroundColor: Mycolors.paige,
-        appBar: _buildAppBar(),
-        body: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Directionality(
-            textDirection: TextDirection.rtl,
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Scaffold(
+          backgroundColor: MyColors.paige,
+          appBar: AppBar(
+            title: const Text('أخذ الحضور', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            centerTitle: true,
+            backgroundColor: MyColors.lightBrown,
+            elevation: 0,
+            iconTheme: const IconThemeData(color: Colors.white),
+          ),
+          body: Padding(
+            padding: const EdgeInsets.all(16),
             child: Column(
               children: [
                 _buildClassAndDate(),
@@ -70,21 +55,9 @@ class _AttendancePageState extends State<AttendancePage> {
             ),
           ),
         ),
-      );
-
-  }
-
-
-  AppBar _buildAppBar() {
-    return AppBar(
-      title: const Text('أخذ الحضور'),
-      centerTitle: true,
-      backgroundColor: Colors.white,
-      foregroundColor: Colors.black,
-      elevation: 0,
+      ),
     );
   }
-
 
   Widget _buildClassAndDate() {
     return Container(
@@ -92,85 +65,73 @@ class _AttendancePageState extends State<AttendancePage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 8,
-          )
-        ],
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8)],
       ),
       child: const Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text('الصف الثالث - أ',
-              style: TextStyle(fontWeight: FontWeight.bold)),
-          Text('السبت، 21 أكتوبر',
-              style: TextStyle(color:Mycolors.lightBrown,)),
+          Text('الصف الثالث - أ', style: TextStyle(fontWeight: FontWeight.bold)),
+          Text('السبت، 21 أكتوبر', style: TextStyle(color: MyColors.lightBrown)),
         ],
       ),
     );
   }
 
-
   Widget _buildSearchBar() {
     return TextField(
+      onChanged: (value) => setState(() => searchQuery = value), // Handle search
       decoration: InputDecoration(
         hintText: 'ابحث عن طالب...',
         prefixIcon: const Icon(Icons.search),
         filled: true,
         fillColor: Colors.grey.shade100,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
       ),
     );
   }
 
-
   Widget _buildFilters() {
-    List<String> filters = ['الكل', 'حاضر', 'غائب', 'متأخر'];
-
+    List<String> filters = ['الكل', 'حاضر', 'غائب'];
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: filters.map((filter) {
         bool isSelected = selectedFilter == filter;
-        return ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor:
-            isSelected ? Mycolors.ocur : Colors.grey.shade200,
-            foregroundColor: Colors.black,
-            elevation: 0,
+        return Padding(
+          padding: const EdgeInsets.only(left: 8.0),
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isSelected ? MyColors.ocur : Colors.grey.shade200,
+              foregroundColor: Colors.black,
+              elevation: 0,
+            ),
+            onPressed: () => setState(() => selectedFilter = filter),
+            child: Text(filter),
           ),
-          onPressed: () {
-            setState(() => selectedFilter = filter);
-          },
-          child: Text(filter),
         );
       }).toList(),
     );
   }
 
-
   Widget _buildStudentsList() {
+    // Combined Filter and Search logic
+    List<Student> filteredStudents = students.where((s) {
+      final matchesSearch = s.name.contains(searchQuery);
+      final matchesFilter = (selectedFilter == 'الكل') ||
+          (selectedFilter == 'حاضر' && s.isPresent) ||
+          (selectedFilter == 'غائب' && !s.isPresent);
+      return matchesSearch && matchesFilter;
+    }).toList();
+
     return ListView.builder(
-      itemCount: students.length,
-      itemBuilder: (context, index) {
-        final student = students[index];
-        return _buildStudentItem(student);
-      },
+      itemCount: filteredStudents.length,
+      itemBuilder: (context, index) => _buildStudentItem(filteredStudents[index]),
     );
   }
-
 
   Widget _buildStudentItem(Student student) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
       child: Row(
         children: [
           CircleAvatar(child: Text(student.name[0])),
@@ -179,27 +140,21 @@ class _AttendancePageState extends State<AttendancePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(student.name,
-                    style: const TextStyle(fontWeight: FontWeight.bold)),
-                Text('ID: ${student.studentId}',
-                    style: const TextStyle(color: Colors.grey)),
+                Text(student.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text('ID: ${student.studentId}', style: const TextStyle(color: Colors.grey)),
               ],
             ),
           ),
           IconButton(
-            icon: Icon(Icons.close,
-                color: student.isPresent ? Colors.grey : Colors.red),
+            icon: Icon(Icons.close, color: student.isPresent ? Colors.grey : Colors.red),
             onPressed: () => markAttendance(student, false),
           ),
           IconButton(
-            icon: Icon(Icons.check,
-                color: student.isPresent ? Colors.green : Colors.grey),
+            icon: Icon(Icons.check, color: student.isPresent ? Colors.green : Colors.grey),
             onPressed: () => markAttendance(student, true),
           ),
         ],
       ),
     );
   }
-
-
 }

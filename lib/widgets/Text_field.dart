@@ -1,60 +1,66 @@
 import 'package:flutter/material.dart';
 import 'package:flutterbhz/widgets/MyColors.dart';
 
-class CustomTextForm extends StatelessWidget {
-  const CustomTextForm({
+class MyTextField extends StatelessWidget {
+  const MyTextField({
     super.key,
-    required this.hintText,
+    required this.label,
     required this.icon,
     required this.errorText,
+    this.isPassword = false,
+    this.obscureText = false,
+    this.suffixIcon,
+    this.controller,
   });
 
-   final String hintText;
-   final String errorText;
+  final String label;
+  final IconData icon;
+  final String errorText;
+  final bool isPassword;
+  final bool obscureText;
+  final Widget? suffixIcon;
+  final TextEditingController? controller;
 
-   final IconData icon;
   @override
   Widget build(BuildContext context) {
-    return   Directionality(
-          textDirection: TextDirection.rtl,
-          child: TextFormField(
-            validator: (value){
-              if(value == null || value.isEmpty){
-                return errorText;
-              }
-              return null;
-            },
-            decoration: InputDecoration(
-                label:Row(
-                  children: [
-                    Icon(icon ,color: Mycolors.lightBrown,),
-                     Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Text(
-                        hintText,
-                        style: const TextStyle(
-                          color:   Mycolors.lightBrown
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-
-                enabledBorder:const OutlineInputBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(10)),
-                    borderSide: BorderSide(color:  Mycolors.lightBrown )) ,
-                focusedBorder:const OutlineInputBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(10)),
-                    borderSide: BorderSide(color: Mycolors.lightBrown ))
-
-
-
-
-
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Directionality(
+        textDirection: TextDirection.rtl,
+        child: TextFormField(
+          controller: controller,
+          obscureText: obscureText,
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return errorText;
+            }
+            return null;
+          },
+          decoration: InputDecoration(
+            labelText: label,
+            labelStyle: const TextStyle(color: MyColors.lightBrown),
+            prefixIcon: Icon(icon),
+            prefixIconColor: MyColors.lightBrown,
+            suffixIcon: suffixIcon,
+            enabledBorder: const OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(10)),
+              borderSide: BorderSide(color: MyColors.lightBrown),
+            ),
+            focusedBorder: const OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(10)),
+              borderSide: BorderSide(color: MyColors.lightBrown),
+            ),
+            errorBorder: const OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(10)),
+              borderSide: BorderSide(color: Colors.red),
+            ),
+            focusedErrorBorder: const OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(10)),
+              borderSide: BorderSide(color: Colors.red),
             ),
           ),
-        );
-
-
+        ),
+      ),
+    );
   }
 }
