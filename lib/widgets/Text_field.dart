@@ -23,9 +23,7 @@ class MyTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: Directionality(
+    return Directionality(
         textDirection: TextDirection.rtl,
         child: TextFormField(
           controller: controller,
@@ -60,7 +58,7 @@ class MyTextField extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
+      );
+
   }
 }

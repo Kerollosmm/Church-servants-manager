@@ -8,9 +8,7 @@ class ShowDataPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: Directionality(
+    return  Directionality(
         textDirection: TextDirection.rtl, // Right-to-Left for Arabic
         child: Scaffold(
           backgroundColor: MyColors.paige,
@@ -70,8 +68,8 @@ class ShowDataPage extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
+      );
+
   }
 
   Widget _buildHeaderCard() {

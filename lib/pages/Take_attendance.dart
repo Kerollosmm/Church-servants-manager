@@ -27,9 +27,7 @@ class _AttendancePageState extends State<AttendancePage> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: Directionality(
+    return Directionality(
         textDirection: TextDirection.rtl,
         child: Scaffold(
           backgroundColor: MyColors.paige,
@@ -55,8 +53,8 @@ class _AttendancePageState extends State<AttendancePage> {
             ),
           ),
         ),
-      ),
-    );
+      );
+
   }
 
   Widget _buildClassAndDate() {

@@ -32,9 +32,7 @@ class _AddStudentPageState extends State<AddStudentPage> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: Directionality(
+    return Directionality(
         textDirection: ui.TextDirection.rtl,
         child: Scaffold(
             backgroundColor: MyColors.paige,
@@ -111,8 +109,7 @@ class _AddStudentPageState extends State<AddStudentPage> {
               ),
             ),
           ),
-      ),
-    );
+      );
 
   }
 

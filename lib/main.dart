@@ -20,13 +20,6 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'مدرسة الكاروز',
-      locale: const Locale('ar', 'EG'), // Force Arabic
-      supportedLocales: const [Locale('ar', 'EG')],
-      localizationsDelegates: const [
-        DefaultMaterialLocalizations.delegate,
-        DefaultWidgetsLocalizations.delegate,
-        DefaultCupertinoLocalizations.delegate,
-      ],
       initialRoute: '/',
       routes: {
         '/': (context) => AnimatedSplashScreen(
