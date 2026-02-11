@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:church_managment_system/role_user_route.dart';
 import 'package:church_managment_system/core/routing/app_router.dart';
 import 'package:church_managment_system/core/theme/app_theme.dart';
@@ -32,13 +33,18 @@ void main() async {
   // Initialize Firebase
   await _initializeFirebase();
 
-  final studentService = StudentDataRepository();
-  final servantService = ServantDataRepository();
-  final teamRepository = TeamRepository();
+  // -- Composition Root: Create all dependencies here --
+  final firestore = FirebaseFirestore.instance;
+  final authService = AuthService.firebase();
+
+  final studentService = StudentDataRepository(firestore: firestore);
+  final servantService = ServantDataRepository(firestore: firestore);
+  final teamRepository = TeamRepository(firestore: firestore);
 
   runApp(
     ChurchApp(
       appRoutes: AppRouter(),
+      authService: authService,
       studentService: studentService,
       servantService: servantService,
       teamRepository: teamRepository,
@@ -50,12 +56,14 @@ class ChurchApp extends StatelessWidget {
   const ChurchApp({
     super.key,
     required this.appRoutes,
+    required this.authService,
     required this.studentService,
     required this.servantService,
     required this.teamRepository,
   });
 
   final AppRouter appRoutes;
+  final AuthService authService;
   final StudentDataRepository studentService;
   final ServantDataRepository servantService;
   final TeamRepository teamRepository;
@@ -68,7 +76,7 @@ class ChurchApp extends StatelessWidget {
         providers: [
           BlocProvider(
             create: (_) =>
-                AuthBloc(authService: AuthService.firebase())
+                AuthBloc(authService: authService)
                   ..add(const AuthEventCheckStatus()),
           ),
           BlocProvider(

@@ -11,8 +11,8 @@ part 'auth_state.dart';
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final AuthService _authService;
 
-  AuthBloc({AuthService? authService})
-    : _authService = authService ?? AuthService.firebase(),
+  AuthBloc({required AuthService authService})
+    : _authService = authService,
       super(const AuthInitial()) {
     on<AuthEventCheckStatus>(_onCheckStatus);
     on<AuthEventSignIn>(_onSignIn);
