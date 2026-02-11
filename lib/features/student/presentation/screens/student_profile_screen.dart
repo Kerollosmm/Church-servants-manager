@@ -2,7 +2,7 @@ import 'package:church_managment_system/features/auth/data/models/auth_user.dart
 import 'package:church_managment_system/core/theme/app_colors.dart';
 import 'package:church_managment_system/core/theme/app_spacing.dart';
 import 'package:church_managment_system/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:church_managment_system/features/student/presentation/bloc/student_profile/student_profile_bloc.dart';
+import 'package:church_managment_system/features/student/presentation/bloc/student_profile/student_profile_cubit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -19,9 +19,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
   @override
   void initState() {
     super.initState();
-    context.read<StudentProfileBloc>().add(
-      StudentProfileLoadRequested(actor: widget.user),
-    );
+    context.read<StudentProfileCubit>().loadProfile(widget.user);
   }
 
   @override
@@ -36,9 +34,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh',
             onPressed: () {
-              context.read<StudentProfileBloc>().add(
-                StudentProfileLoadRequested(actor: widget.user),
-              );
+              context.read<StudentProfileCubit>().loadProfile(widget.user);
             },
           ),
           IconButton(
@@ -50,7 +46,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
           ),
         ],
       ),
-      body: BlocBuilder<StudentProfileBloc, StudentProfileState>(
+      body: BlocBuilder<StudentProfileCubit, StudentProfileState>(
         builder: (context, state) {
           if (state is StudentProfileLoading ||
               state is StudentProfileInitial) {
@@ -60,9 +56,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
             return _ErrorState(
               message: state.message,
               onRetry: () {
-                context.read<StudentProfileBloc>().add(
-                  StudentProfileLoadRequested(actor: widget.user),
-                );
+                context.read<StudentProfileCubit>().loadProfile(widget.user);
               },
             );
           }

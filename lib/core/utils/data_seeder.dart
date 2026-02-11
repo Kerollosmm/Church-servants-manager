@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:church_managment_system/core/constants/enums.dart';
 import 'package:church_managment_system/core/constants/firestore_collections.dart';
 import 'package:church_managment_system/features/student/data/models/student_model.dart';
+import 'package:church_managment_system/features/team/data/models/team_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -33,17 +34,27 @@ class DataSeeder {
   CollectionReference<Map<String, dynamic>> get _classes =>
       _firestore.collection(FirestoreCollections.classes);
 
-  /// Creates class documents for year1/year2/year3.
-  Future<void> seedClasses() async {
-    final now = Timestamp.now();
+  /// Creates sample teams (Team A, Team B, etc.) for each Group.
+  Future<void> seedTeams() async {
+    final teamsData = [
+      'St. Mark',
+      'St. George',
+      'St. Mary',
+      'St. Mina',
+      'St. Bishoy',
+    ];
+
     for (final group in Group.values) {
-      await _classes.doc(group.name).set({
-        'name': group.name,
-        'group': group.name,
-        'createdAt': now,
-      }, SetOptions(merge: true));
+      for (int i = 0; i < 3; i++) {
+        final teamName = '${teamsData[i]} (${group.name})';
+        final teamId = _uuid.v4();
+
+        final team = TeamModel(id: teamId, name: teamName, groupId: group.name);
+
+        await _classes.doc(teamId).set(team.toJson());
+      }
     }
-    debugPrint('DataSeeder: Classes seeded.');
+    debugPrint('DataSeeder: Teams seeded.');
   }
 
   /// Seeds demo student documents (not tied to Firebase Auth accounts).
@@ -139,6 +150,34 @@ class DataSeeder {
         Group.year3 => 3,
       };
 
+      // Fetch a random team for this group to ensure valid linking
+      // For performance in seeding, we'll just query 1 or pick a random one if we had them cached.
+      // To keep it simple and somewhat performant, let's just create a consistent ID based on the group
+      // or just query. Querying inside a loop is slow but safe for a seeder.
+      // Optimization: Fetch all teams once at start of method.
+
+      // FALLBACK: If we haven't run seedTeams, we might not have teams.
+      // So let's just make sure we run seedTeams first or handle it.
+      // For this implementation, I will assume we might just query a random one or generate a placeholder
+      // that matches the seedTeams pattern if strictly needed.
+      // Better: Let's fetch teams for the group.
+
+      final teamsSnapshot = await _classes
+          .where('groupId', isEqualTo: group.name)
+          .limit(5)
+          .get();
+
+      String teamId = 'temp_team_id';
+      String teamName = 'Team A';
+
+      if (teamsSnapshot.docs.isNotEmpty) {
+        final randomTeamDoc =
+            teamsSnapshot.docs[_random.nextInt(teamsSnapshot.docs.length)];
+        final randomTeam = TeamModel.fromJson(randomTeamDoc.data());
+        teamId = randomTeam.id;
+        teamName = randomTeam.name;
+      }
+
       final student = StudentModel(
         uid: uid,
         docID: docId,
@@ -147,7 +186,7 @@ class DataSeeder {
         role: UserRole.student,
         mobile: _randomPhone(),
         group: group,
-        teamName: 'Team ${String.fromCharCode(65 + _random.nextInt(5))}',
+        teamName: teamName,
         motherPhone: _randomPhone(),
         fatherPhone: _randomPhone(),
         grade: grade,
@@ -161,7 +200,7 @@ class DataSeeder {
         fatherOfConfession:
             fathersOfConfession[_random.nextInt(fathersOfConfession.length)],
         notes: _random.nextBool() ? 'Active student' : null,
-        classId: group.name, // year1/year2/year3
+        classId: teamId, // Now correctly linking to a Team ID
       );
 
       await docRef.set(student.toMap());
@@ -183,13 +222,29 @@ class DataSeeder {
 
   /// Sets current user role to teacher (servant) and assigns a groupId: year1/year2/year3.
   Future<void> assignMeAsTeacher({required Group group}) async {
+    // Assign to a random team in that group
+    final teamsSnapshot = await _classes
+        .where('groupId', isEqualTo: group.name)
+        .limit(1)
+        .get();
+
+    String? assignedTeamId;
+    if (teamsSnapshot.docs.isNotEmpty) {
+      assignedTeamId = teamsSnapshot.docs.first.id;
+    }
+
     final uid = _currentUid();
     await _users.doc(uid).set({
       'uid': uid,
       'role': UserRole.servant.name,
+      'group': group.name, // Legacy field
       'groupId': group.name,
+      if (assignedTeamId != null) 'assignedTeamId': assignedTeamId,
     }, SetOptions(merge: true));
-    debugPrint('DataSeeder: Set current user as teacher for ${group.name}.');
+
+    debugPrint(
+      'DataSeeder: Set current user as teacher for ${group.name} (Team: $assignedTeamId).',
+    );
   }
 
   /// Sets current user role to student and creates/updates a StudentModel profile for them.
@@ -212,6 +267,22 @@ class DataSeeder {
     }, SetOptions(merge: true));
 
     final group = Group.year1;
+
+    // Fetch a valid team for Year 1
+    final teamsSnapshot = await _classes
+        .where('groupId', isEqualTo: group.name)
+        .limit(1)
+        .get();
+
+    String teamId = 'temp_team_id';
+    String teamName = 'Team A';
+
+    if (teamsSnapshot.docs.isNotEmpty) {
+      final teamData = TeamModel.fromJson(teamsSnapshot.docs.first.data());
+      teamId = teamData.id;
+      teamName = teamData.name;
+    }
+
     final student = StudentModel(
       uid: uid,
       docID: uid, // stable ID for self profile
@@ -220,7 +291,7 @@ class DataSeeder {
       role: UserRole.student,
       mobile: _randomPhone(),
       group: group,
-      teamName: 'Team A',
+      teamName: teamName,
       motherPhone: _randomPhone(),
       fatherPhone: _randomPhone(),
       grade: 1,
@@ -230,7 +301,7 @@ class DataSeeder {
       birthdate: null,
       fatherOfConfession: 'Fr. (unset)',
       notes: null,
-      classId: group.name,
+      classId: teamId,
     );
 
     await _students.doc(uid).set(student.toMap(), SetOptions(merge: true));

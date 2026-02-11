@@ -77,12 +77,10 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                   FilledButton.icon(
                     onPressed: _busy
                         ? null
-                        : () => _run(
-                            () => _seeder.seedClasses(),
-                            'Classes seeded.',
-                          ),
+                        : () =>
+                              _run(() => _seeder.seedTeams(), 'Teams seeded.'),
                     icon: const Icon(Icons.school_outlined),
-                    label: const Text('Seed Classes (year1/year2/year3)'),
+                    label: const Text('Seed Teams (3 per Group)'),
                   ),
                   const SizedBox(height: 12),
                   Row(

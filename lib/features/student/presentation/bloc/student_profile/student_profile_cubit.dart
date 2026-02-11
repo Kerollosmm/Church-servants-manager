@@ -5,44 +5,37 @@ import 'package:church_managment_system/features/student/data/repos/student_data
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-part 'student_profile_event.dart';
 part 'student_profile_state.dart';
 
-class StudentProfileBloc
-    extends Bloc<StudentProfileEvent, StudentProfileState> {
+class StudentProfileCubit extends Cubit<StudentProfileState> {
   final StudentDataRepository _studentRepository;
 
-  StudentProfileBloc({required StudentDataRepository studentRepository})
+  StudentProfileCubit({required StudentDataRepository studentRepository})
     : _studentRepository = studentRepository,
-      super(const StudentProfileInitial()) {
-    on<StudentProfileLoadRequested>(_onLoadRequested);
-  }
+      super(const StudentProfileInitial());
 
-  Future<void> _onLoadRequested(
-    StudentProfileLoadRequested event,
-    Emitter<StudentProfileState> emit,
-  ) async {
+  Future<void> loadProfile(AuthUser actor) async {
     emit(const StudentProfileLoading());
     try {
-      if (event.actor.role != UserRole.student) {
+      if (actor.role != UserRole.student) {
         emit(const StudentProfileError('Not allowed.'));
         return;
       }
 
-      var profile = await _studentRepository.getStudentByUid(event.actor.uid);
+      var profile = await _studentRepository.getStudentByUid(actor.uid);
 
       // Auto-create profile if student user doesn't have one yet
       if (profile == null) {
         debugPrint(
-          'StudentProfileBloc: No profile found, creating default profile for ${event.actor.uid}',
+          'StudentProfileCubit: No profile found, creating default profile for ${actor.uid}',
         );
-        profile = _createDefaultProfile(event.actor);
+        profile = _createDefaultProfile(actor);
         await _studentRepository.upsertStudent(profile);
       }
 
       emit(StudentProfileLoaded(profile));
     } catch (e) {
-      debugPrint('StudentProfileBloc: Unable to load profile - $e');
+      debugPrint('StudentProfileCubit: Unable to load profile - $e');
       emit(
         const StudentProfileError('Unable to load profile. Please try again.'),
       );

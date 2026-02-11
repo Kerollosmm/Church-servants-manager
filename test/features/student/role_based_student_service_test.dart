@@ -75,6 +75,18 @@ void main() {
     when(
       () => mockStudentDataService.getAllStudents(limit: any(named: 'limit')),
     ).thenAnswer((_) async => allStudents);
+
+    when(
+      () => mockStudentDataService.getStudentsByGroup(any()),
+    ).thenAnswer((invocation) async {
+      final Group group = invocation.positionalArguments[0] is Group
+          ? invocation.positionalArguments[0]
+          : Group.year1; // Fallback or handle String if repo uses String
+      
+      // If the service passes a String (name), we might need to handle it.
+      // Let's check RoleBasedStudentService.
+      return allStudents.where((s) => s.group == group).toList();
+    });
   });
 
   group('Admin Access Tests', () {

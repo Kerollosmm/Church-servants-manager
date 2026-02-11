@@ -5,6 +5,7 @@ import 'package:church_managment_system/core/theme/app_spacing.dart';
 import 'package:church_managment_system/core/utils/validators.dart';
 import 'package:church_managment_system/features/student/data/models/student_model.dart';
 import 'package:church_managment_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
+import 'package:church_managment_system/features/team/presentation/widgets/team_dropdown.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:uuid/uuid.dart';
@@ -24,7 +25,6 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
 
   late final TextEditingController _name;
   late final TextEditingController _mobile;
-  late final TextEditingController _teamName;
   late final TextEditingController _motherPhone;
   late final TextEditingController _fatherPhone;
   late final TextEditingController _school;
@@ -37,6 +37,7 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
   late EducationStage _educationStage;
   late int _grade;
   DateTime? _birthdate;
+  String? _selectedClassId;
 
   @override
   void initState() {
@@ -45,7 +46,6 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
 
     _name = TextEditingController(text: student?.name ?? '');
     _mobile = TextEditingController(text: student?.mobile ?? '');
-    _teamName = TextEditingController(text: student?.teamName ?? 'Team A');
     _motherPhone = TextEditingController(text: student?.motherPhone ?? '');
     _fatherPhone = TextEditingController(text: student?.fatherPhone ?? '');
     _school = TextEditingController(text: student?.school ?? '');
@@ -70,13 +70,13 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
     _educationStage = student?.educationStage ?? EducationStage.preparatory;
     _grade = student?.grade ?? 1;
     _birthdate = student?.birthdate;
+    _selectedClassId = student?.classId;
   }
 
   @override
   void dispose() {
     _name.dispose();
     _mobile.dispose();
-    _teamName.dispose();
     _motherPhone.dispose();
     _fatherPhone.dispose();
     _school.dispose();
@@ -113,7 +113,7 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
     final uid = existing?.uid ?? _uuid.v4();
     final docId = existing?.docID ?? 'temp';
 
-    final classId = _classIdForGroup(_group);
+    final classId = _selectedClassId ?? _classIdForGroup(_group);
 
     final student = StudentModel(
       uid: uid,
@@ -123,7 +123,7 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
       role: UserRole.student,
       mobile: _mobile.text.trim(),
       group: _group,
-      teamName: _teamName.text.trim(),
+      teamName: '',
       motherPhone: _motherPhone.text.trim(),
       fatherPhone: _fatherPhone.text.trim(),
       grade: _grade,
@@ -194,13 +194,15 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
                         validator: Validators.validatePhone,
                       ),
                       AppSpacing.gapMd,
-                      TextFormField(
-                        controller: _teamName,
-                        decoration: const InputDecoration(
-                          labelText: 'Team Name',
-                          prefixIcon: Icon(Icons.groups_outlined),
-                        ),
-                        validator: Validators.validateName,
+                      // Team assignment dropdown
+                      TeamDropdown(
+                        groupId: _group.name,
+                        defaultTeamId: _selectedClassId,
+                        showAllOption: false,
+                        label: 'Assign to Team',
+                        onChanged: (teamId) {
+                          setState(() => _selectedClassId = teamId);
+                        },
                       ),
                       AppSpacing.gapMd,
                       DropdownMenu<Group>(
@@ -213,7 +215,10 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
                             .toList(),
                         onSelected: (g) {
                           if (g == null) return;
-                          setState(() => _group = g);
+                          setState(() {
+                            _group = g;
+                            _selectedClassId = null;
+                          });
                         },
                         label: Text(isTeacher ? 'Group (Assigned)' : 'Group'),
                         leadingIcon: const Icon(Icons.school_outlined),

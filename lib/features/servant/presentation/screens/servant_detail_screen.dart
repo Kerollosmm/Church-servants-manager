@@ -4,7 +4,7 @@ import 'package:church_managment_system/core/routing/route_args.dart';
 import 'package:church_managment_system/core/theme/app_colors.dart';
 import 'package:church_managment_system/core/theme/app_spacing.dart';
 import 'package:church_managment_system/core/widgets/dialogs/generic_dialog.dart';
-import 'package:church_managment_system/features/servant/presentation/bloc/servant_data/servant_data_bloc.dart';
+import 'package:church_managment_system/features/servant/presentation/bloc/servant_data/servant_data_cubit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -62,8 +62,9 @@ class ServantDetailScreen extends StatelessWidget {
                 if (shouldDelete != true) return;
                 if (!context.mounted) return;
 
-                context.read<ServantDataBloc>().add(
-                  ServantDeleted(actor: args.actor, docId: servant.docID),
+                context.read<ServantDataCubit>().deleteServant(
+                  actor: args.actor,
+                  docId: servant.docID,
                 );
                 Navigator.pop(context);
               },

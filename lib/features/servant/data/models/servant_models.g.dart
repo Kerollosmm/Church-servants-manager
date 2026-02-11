@@ -22,6 +22,7 @@ _$ServantModelImpl _$$ServantModelImplFromJson(Map<String, dynamic> json) =>
       fatherOfConfession: json['father_of_confession'] as String?,
       birthdate: const _TimestampConverter().fromJson(json['birthdate']),
       notes: json['notes'] as String?,
+      assignedTeamId: json['assignedTeamId'] as String?,
     );
 
 Map<String, dynamic> _$$ServantModelImplToJson(_$ServantModelImpl instance) =>
@@ -38,4 +39,5 @@ Map<String, dynamic> _$$ServantModelImplToJson(_$ServantModelImpl instance) =>
       'father_of_confession': instance.fatherOfConfession,
       'birthdate': const _TimestampConverter().toJson(instance.birthdate),
       'notes': instance.notes,
+      'assignedTeamId': instance.assignedTeamId,
     };

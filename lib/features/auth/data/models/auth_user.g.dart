@@ -14,6 +14,7 @@ _$AuthUserImpl _$$AuthUserImplFromJson(Map<String, dynamic> json) =>
       role: $enumDecode(_$UserRoleEnumMap, json['role']),
       isEmailVerified: json['isEmailVerified'] as bool? ?? false,
       groupId: json['groupId'] as String?,
+      assignedTeamId: json['assignedTeamId'] as String?,
     );
 
 Map<String, dynamic> _$$AuthUserImplToJson(_$AuthUserImpl instance) =>
@@ -24,6 +25,7 @@ Map<String, dynamic> _$$AuthUserImplToJson(_$AuthUserImpl instance) =>
       'role': _$UserRoleEnumMap[instance.role]!,
       'isEmailVerified': instance.isEmailVerified,
       'groupId': instance.groupId,
+      'assignedTeamId': instance.assignedTeamId,
     };
 
 const _$UserRoleEnumMap = {

@@ -16,6 +16,7 @@ class AuthUser with _$AuthUser {
     required UserRole role,
     @Default(false) bool isEmailVerified,
     String? groupId,
+    String? assignedTeamId,
   }) = _AuthUser;
 
   /// Create AuthUser from Firebase User (basic info only)

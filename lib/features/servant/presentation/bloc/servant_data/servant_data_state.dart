@@ -1,8 +1,13 @@
-part of 'servant_data_bloc.dart';
+import 'package:church_managment_system/features/servant/data/models/servant_models.dart';
+import 'package:church_managment_system/features/servant/domain/failures/servant_failures.dart';
+import 'package:equatable/equatable.dart';
 
-/// Sealed states for ServantDataBloc with exhaustive switch support.
-sealed class ServantDataState {
+/// Sealed states for ServantDataCubit with exhaustive switch support.
+sealed class ServantDataState extends Equatable {
   const ServantDataState();
+
+  @override
+  List<Object?> get props => [];
 }
 
 /// Initial state - no data loaded yet.
@@ -34,37 +39,20 @@ final class ServantDataLoaded extends ServantDataState {
   bool get isEmpty => servants.isEmpty;
 
   @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is ServantDataLoaded &&
-          runtimeType == other.runtimeType &&
-          currentFilterTeamName == other.currentFilterTeamName &&
-          currentQuery == other.currentQuery &&
-          const ListEquality<ServantModel>().equals(servants, other.servants);
-
-  @override
-  int get hashCode => Object.hash(
-    const ListEquality<ServantModel>().hash(servants),
-    currentFilterTeamName,
-    currentQuery,
-  );
+  List<Object?> get props => [servants, currentFilterTeamName, currentQuery];
 }
 
 /// Error state - operation failed.
 final class ServantDataError extends ServantDataState {
-  final String message;
+  final ServantFailure failure;
 
-  const ServantDataError(this.message);
+  const ServantDataError(this.failure);
 
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is ServantDataError &&
-          runtimeType == other.runtimeType &&
-          message == other.message;
+  /// Helper to get the failure message.
+  String get message => failure.message;
 
   @override
-  int get hashCode => message.hashCode;
+  List<Object?> get props => [failure];
 }
 
 /// Success state for CRUD operations.
@@ -74,12 +62,5 @@ final class ServantDataOperationSuccess extends ServantDataState {
   const ServantDataOperationSuccess(this.message);
 
   @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is ServantDataOperationSuccess &&
-          runtimeType == other.runtimeType &&
-          message == other.message;
-
-  @override
-  int get hashCode => message.hashCode;
+  List<Object?> get props => [message];
 }

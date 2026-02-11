@@ -59,6 +59,9 @@ mixin _$ServantModel {
   /// Optional notes about the servant.
   String? get notes => throw _privateConstructorUsedError;
 
+  /// Assigned team/class ID within the servant's group.
+  String? get assignedTeamId => throw _privateConstructorUsedError;
+
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
   @JsonKey(ignore: true)
   $ServantModelCopyWith<ServantModel> get copyWith =>
@@ -83,7 +86,8 @@ abstract class $ServantModelCopyWith<$Res> {
       @JsonKey(name: 'isEmailVerified') bool isEmailVerified,
       @JsonKey(name: 'father_of_confession') String? fatherOfConfession,
       @_TimestampConverter() DateTime? birthdate,
-      String? notes});
+      String? notes,
+      String? assignedTeamId});
 }
 
 /// @nodoc
@@ -111,6 +115,7 @@ class _$ServantModelCopyWithImpl<$Res, $Val extends ServantModel>
     Object? fatherOfConfession = freezed,
     Object? birthdate = freezed,
     Object? notes = freezed,
+    Object? assignedTeamId = freezed,
   }) {
     return _then(_value.copyWith(
       uid: freezed == uid
@@ -161,6 +166,10 @@ class _$ServantModelCopyWithImpl<$Res, $Val extends ServantModel>
           ? _value.notes
           : notes // ignore: cast_nullable_to_non_nullable
               as String?,
+      assignedTeamId: freezed == assignedTeamId
+          ? _value.assignedTeamId
+          : assignedTeamId // ignore: cast_nullable_to_non_nullable
+              as String?,
     ) as $Val);
   }
 }
@@ -185,7 +194,8 @@ abstract class _$$ServantModelImplCopyWith<$Res>
       @JsonKey(name: 'isEmailVerified') bool isEmailVerified,
       @JsonKey(name: 'father_of_confession') String? fatherOfConfession,
       @_TimestampConverter() DateTime? birthdate,
-      String? notes});
+      String? notes,
+      String? assignedTeamId});
 }
 
 /// @nodoc
@@ -211,6 +221,7 @@ class __$$ServantModelImplCopyWithImpl<$Res>
     Object? fatherOfConfession = freezed,
     Object? birthdate = freezed,
     Object? notes = freezed,
+    Object? assignedTeamId = freezed,
   }) {
     return _then(_$ServantModelImpl(
       uid: freezed == uid
@@ -261,6 +272,10 @@ class __$$ServantModelImplCopyWithImpl<$Res>
           ? _value.notes
           : notes // ignore: cast_nullable_to_non_nullable
               as String?,
+      assignedTeamId: freezed == assignedTeamId
+          ? _value.assignedTeamId
+          : assignedTeamId // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }
@@ -280,7 +295,8 @@ class _$ServantModelImpl extends _ServantModel {
       @JsonKey(name: 'isEmailVerified') this.isEmailVerified = false,
       @JsonKey(name: 'father_of_confession') this.fatherOfConfession,
       @_TimestampConverter() this.birthdate,
-      this.notes})
+      this.notes,
+      this.assignedTeamId})
       : super._();
 
   factory _$ServantModelImpl.fromJson(Map<String, dynamic> json) =>
@@ -338,9 +354,13 @@ class _$ServantModelImpl extends _ServantModel {
   @override
   final String? notes;
 
+  /// Assigned team/class ID within the servant's group.
+  @override
+  final String? assignedTeamId;
+
   @override
   String toString() {
-    return 'ServantModel(uid: $uid, docID: $docID, name: $name, role: $role, email: $email, phone: $phone, imageUrl: $imageUrl, teamName: $teamName, isEmailVerified: $isEmailVerified, fatherOfConfession: $fatherOfConfession, birthdate: $birthdate, notes: $notes)';
+    return 'ServantModel(uid: $uid, docID: $docID, name: $name, role: $role, email: $email, phone: $phone, imageUrl: $imageUrl, teamName: $teamName, isEmailVerified: $isEmailVerified, fatherOfConfession: $fatherOfConfession, birthdate: $birthdate, notes: $notes, assignedTeamId: $assignedTeamId)';
   }
 
   @override
@@ -364,7 +384,9 @@ class _$ServantModelImpl extends _ServantModel {
                 other.fatherOfConfession == fatherOfConfession) &&
             (identical(other.birthdate, birthdate) ||
                 other.birthdate == birthdate) &&
-            (identical(other.notes, notes) || other.notes == notes));
+            (identical(other.notes, notes) || other.notes == notes) &&
+            (identical(other.assignedTeamId, assignedTeamId) ||
+                other.assignedTeamId == assignedTeamId));
   }
 
   @JsonKey(ignore: true)
@@ -382,7 +404,8 @@ class _$ServantModelImpl extends _ServantModel {
       isEmailVerified,
       fatherOfConfession,
       birthdate,
-      notes);
+      notes,
+      assignedTeamId);
 
   @JsonKey(ignore: true)
   @override
@@ -411,7 +434,8 @@ abstract class _ServantModel extends ServantModel {
       @JsonKey(name: 'isEmailVerified') final bool isEmailVerified,
       @JsonKey(name: 'father_of_confession') final String? fatherOfConfession,
       @_TimestampConverter() final DateTime? birthdate,
-      final String? notes}) = _$ServantModelImpl;
+      final String? notes,
+      final String? assignedTeamId}) = _$ServantModelImpl;
   const _ServantModel._() : super._();
 
   factory _ServantModel.fromJson(Map<String, dynamic> json) =
@@ -468,6 +492,10 @@ abstract class _ServantModel extends ServantModel {
 
   /// Optional notes about the servant.
   String? get notes;
+  @override
+
+  /// Assigned team/class ID within the servant's group.
+  String? get assignedTeamId;
   @override
   @JsonKey(ignore: true)
   _$$ServantModelImplCopyWith<_$ServantModelImpl> get copyWith =>

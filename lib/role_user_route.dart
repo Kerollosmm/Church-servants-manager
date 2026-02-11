@@ -9,8 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 /// Root dispatcher widget that handles role-based navigation.
-class AppRoot extends StatelessWidget {
-  const AppRoot({super.key});
+class RoleUserRoute extends StatelessWidget {
+  const RoleUserRoute({super.key});
 
   @override
   Widget build(BuildContext context) {

@@ -19,7 +19,7 @@ class StudentDetailScreen extends StatelessWidget {
 
     if (actor.role == UserRole.admin) return true;
     if (actor.role == UserRole.servant) {
-      return actor.groupId != null && student.classId == actor.groupId;
+      return actor.groupId != null && student.group.name == actor.groupId;
     }
     return false;
   }

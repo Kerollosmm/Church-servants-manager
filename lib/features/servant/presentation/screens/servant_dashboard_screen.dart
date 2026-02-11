@@ -70,8 +70,16 @@ class ServantDashboardScreen extends StatelessWidget {
                       isAdmin ? 'Manage Students' : 'Manage My Group',
                     ),
                   ),
-                  // Manage Servants button for admins only
+                  // Admin-only management buttons
                   if (isAdmin) ...[
+                    AppSpacing.gapMd,
+                    FilledButton.icon(
+                      onPressed: () {
+                        Navigator.pushNamed(context, teamManagement);
+                      },
+                      icon: const Icon(Icons.class_),
+                      label: const Text('Manage Teams'),
+                    ),
                     AppSpacing.gapMd,
                     FilledButton.icon(
                       onPressed: () {
@@ -144,8 +152,10 @@ class _UserStatsCard extends StatelessWidget {
           children: [
             _infoRow('Email', user.email),
             _infoRow('Role', roleLabel),
-            if (user.role == UserRole.servant)
+            if (user.role == UserRole.servant) ...[
               _infoRow('Group', user.groupId ?? '--'),
+              _infoRow('Assigned Team', user.assignedTeamId ?? 'Not assigned'),
+            ],
           ],
         ),
       ),

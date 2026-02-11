@@ -3,7 +3,8 @@ import 'package:church_managment_system/core/routing/route_args.dart';
 import 'package:church_managment_system/core/theme/app_colors.dart';
 import 'package:church_managment_system/core/theme/app_spacing.dart';
 import 'package:church_managment_system/features/servant/data/models/servant_models.dart';
-import 'package:church_managment_system/features/servant/presentation/bloc/servant_data/servant_data_bloc.dart';
+import 'package:church_managment_system/features/servant/presentation/bloc/servant_data/servant_data_cubit.dart';
+import 'package:church_managment_system/features/team/presentation/widgets/team_dropdown.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:uuid/uuid.dart';
@@ -24,12 +25,13 @@ class _AddEditServantScreenState extends State<AddEditServantScreen> {
   late final TextEditingController _name;
   late final TextEditingController _phone;
   late final TextEditingController _email;
-  late final TextEditingController _teamName;
   late final TextEditingController _fatherOfConfession;
   late final TextEditingController _notes;
   late final TextEditingController _imageUrl;
 
   DateTime? _birthdate;
+  late Group _selectedGroup;
+  String? _assignedTeamId;
 
   @override
   void initState() {
@@ -39,13 +41,19 @@ class _AddEditServantScreenState extends State<AddEditServantScreen> {
     _name = TextEditingController(text: servant?.name ?? '');
     _phone = TextEditingController(text: servant?.phone ?? '');
     _email = TextEditingController(text: servant?.email ?? '');
-    _teamName = TextEditingController(text: servant?.teamName ?? 'Team A');
     _fatherOfConfession = TextEditingController(
       text: servant?.fatherOfConfession ?? '',
     );
     _notes = TextEditingController(text: servant?.notes ?? '');
     _imageUrl = TextEditingController(text: servant?.imageUrl ?? '');
     _birthdate = servant?.birthdate;
+
+    // Determine group from teamName or default
+    _selectedGroup = Group.values.firstWhere(
+      (g) => g.name == servant?.teamName,
+      orElse: () => Group.year1,
+    );
+    _assignedTeamId = servant?.assignedTeamId;
   }
 
   @override
@@ -53,7 +61,6 @@ class _AddEditServantScreenState extends State<AddEditServantScreen> {
     _name.dispose();
     _phone.dispose();
     _email.dispose();
-    _teamName.dispose();
     _fatherOfConfession.dispose();
     _notes.dispose();
     _imageUrl.dispose();
@@ -92,7 +99,8 @@ class _AddEditServantScreenState extends State<AddEditServantScreen> {
       email: _email.text.trim().isEmpty ? null : _email.text.trim(),
       imageUrl: _imageUrl.text.trim().isEmpty ? null : _imageUrl.text.trim(),
       role: UserRole.servant,
-      teamName: _teamName.text.trim(),
+      teamName: _selectedGroup.name,
+      assignedTeamId: _assignedTeamId,
       fatherOfConfession: _fatherOfConfession.text.trim().isEmpty
           ? null
           : _fatherOfConfession.text.trim(),
@@ -100,11 +108,11 @@ class _AddEditServantScreenState extends State<AddEditServantScreen> {
       notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
     );
 
-    final bloc = context.read<ServantDataBloc>();
+    final cubit = context.read<ServantDataCubit>();
     if (isEditing) {
-      bloc.add(ServantUpdated(actor: actor, servant: servant));
+      cubit.updateServant(actor: actor, servant: servant);
     } else {
-      bloc.add(ServantCreated(actor: actor, servant: servant));
+      cubit.createServant(actor: actor, servant: servant);
     }
   }
 
@@ -113,7 +121,7 @@ class _AddEditServantScreenState extends State<AddEditServantScreen> {
     final isEditing = widget.args.isEditing;
     final theme = Theme.of(context);
 
-    return BlocListener<ServantDataBloc, ServantDataState>(
+    return BlocListener<ServantDataCubit, ServantDataState>(
       listener: (context, state) {
         if (state is ServantDataOperationSuccess) {
           Navigator.pop(context);
@@ -175,14 +183,35 @@ class _AddEditServantScreenState extends State<AddEditServantScreen> {
                           ),
                         ),
                         AppSpacing.gapMd,
-                        TextFormField(
-                          controller: _teamName,
+                        DropdownButtonFormField<Group>(
+                          initialValue: _selectedGroup,
                           decoration: const InputDecoration(
-                            labelText: 'المجموعة', // Team
-                            prefixIcon: Icon(Icons.groups_outlined),
+                            labelText: 'السنة الدراسية', // Year/Group
+                            prefixIcon: Icon(Icons.school_outlined),
                           ),
-                          validator: (v) =>
-                              v == null || v.trim().isEmpty ? 'مطلوب' : null,
+                          items: Group.values.map((g) {
+                            return DropdownMenuItem(
+                              value: g,
+                              child: Text(g.name),
+                            );
+                          }).toList(),
+                          onChanged: (g) {
+                            if (g == null) return;
+                            setState(() {
+                              _selectedGroup = g;
+                              _assignedTeamId = null;
+                            });
+                          },
+                        ),
+                        AppSpacing.gapMd,
+                        TeamDropdown(
+                          groupId: _selectedGroup.name,
+                          defaultTeamId: _assignedTeamId,
+                          showAllOption: false,
+                          label: 'الفريق المُعيّن', // Assigned Team
+                          onChanged: (teamId) {
+                            setState(() => _assignedTeamId = teamId);
+                          },
                         ),
                       ],
                     ),

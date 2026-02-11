@@ -14,6 +14,7 @@ part 'student_data_state.dart';
 class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
   final StudentDataRepository _studentRepository;
   String? _lastFilterGroupId;
+  String? _lastFilterTeamId;
   String? _lastQuery;
   AuthUser? _lastActor;
 
@@ -31,14 +32,24 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
   Future<List<StudentModel>> _fetchStudentsForActor({
     required AuthUser actor,
     required int limit,
+    String? teamId,
   }) async {
     switch (actor.role) {
       case UserRole.admin:
+        if (teamId != null && teamId.isNotEmpty) {
+          // Admin filtering by a specific team
+          return _studentRepository.getStudentsByClass(teamId);
+        }
         return _studentRepository.getAllStudents(limit: limit);
       case UserRole.servant:
+        if (teamId != null && teamId.isNotEmpty) {
+          // Servant filtering by a specific team within their group
+          return _studentRepository.getStudentsByClass(teamId);
+        }
+        // Fallback: show students in servant's assigned group
         final classId = actor.groupId;
         if (classId == null || classId.isEmpty) return [];
-        return _studentRepository.getStudentsByClass(classId);
+        return _studentRepository.getStudentsByGroup(classId);
       case UserRole.student:
         throw StateError('Students are not allowed to load student lists.');
     }
@@ -47,7 +58,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
   bool _canMutateStudent(AuthUser actor, StudentModel student) {
     if (actor.role == UserRole.admin) return true;
     if (actor.role == UserRole.servant) {
-      return actor.groupId != null && student.classId == actor.groupId;
+      return actor.groupId != null && student.group.name == actor.groupId;
     }
     return false;
   }
@@ -76,17 +87,20 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     try {
       _lastActor = event.actor;
       _lastFilterGroupId = event.actor.groupId;
+      _lastFilterTeamId = event.teamId;
       _lastQuery = null;
 
       final students = await _fetchStudentsForActor(
         actor: event.actor,
         limit: event.limit,
+        teamId: event.teamId,
       );
 
       emit(
         StudentDataLoaded(
           students: students,
           currentFilterGroupId: _lastFilterGroupId,
+          currentFilterTeamId: _lastFilterTeamId,
           currentQuery: null,
         ),
       );
@@ -104,26 +118,43 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
       _lastActor = event.actor;
       final query = event.query.trim();
       _lastFilterGroupId = event.actor.groupId;
+      _lastFilterTeamId = event.teamId;
       _lastQuery = query;
 
       List<StudentModel> students;
 
       if (query.isEmpty) {
-        students = await _fetchStudentsForActor(actor: event.actor, limit: 50);
+        students = await _fetchStudentsForActor(
+          actor: event.actor,
+          limit: 50,
+          teamId: event.teamId,
+        );
       } else {
         switch (event.actor.role) {
           case UserRole.admin:
-            students = await _studentRepository.searchStudents(query);
+            if (event.teamId != null && event.teamId!.isNotEmpty) {
+              final filtered = await _studentRepository.getStudentsByClass(
+                event.teamId!,
+              );
+              students = _filterByName(filtered, query);
+            } else {
+              students = await _studentRepository.searchStudents(query);
+            }
             break;
           case UserRole.servant:
-            final classId = event.actor.groupId;
-            if (classId == null || classId.isEmpty) {
-              students = [];
-              break;
+            List<StudentModel> filtered;
+            if (event.teamId != null && event.teamId!.isNotEmpty) {
+              filtered = await _studentRepository.getStudentsByClass(
+                event.teamId!,
+              );
+            } else {
+              final classId = event.actor.groupId;
+              if (classId == null || classId.isEmpty) {
+                students = [];
+                break;
+              }
+              filtered = await _studentRepository.getStudentsByGroup(classId);
             }
-            final filtered = await _studentRepository.getStudentsByClass(
-              classId,
-            );
             students = _filterByName(filtered, query);
             break;
           case UserRole.student:
@@ -137,6 +168,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
         StudentDataLoaded(
           students: students,
           currentFilterGroupId: _lastFilterGroupId,
+          currentFilterTeamId: _lastFilterTeamId,
           currentQuery: query.isEmpty ? null : query,
         ),
       );
@@ -226,9 +258,15 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     if (actor == null) return;
 
     if (_lastQuery != null && _lastQuery!.isNotEmpty) {
-      add(StudentsSearchRequested(query: _lastQuery!, actor: actor));
+      add(
+        StudentsSearchRequested(
+          query: _lastQuery!,
+          actor: actor,
+          teamId: _lastFilterTeamId,
+        ),
+      );
       return;
     }
-    add(StudentsLoadRequested(actor: actor));
+    add(StudentsLoadRequested(actor: actor, teamId: _lastFilterTeamId));
   }
 }

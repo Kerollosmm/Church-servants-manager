@@ -11,6 +11,7 @@ import 'package:church_managment_system/features/student/presentation/screens/st
 import 'package:church_managment_system/features/servant/presentation/screens/servant_list_screen.dart';
 import 'package:church_managment_system/features/servant/presentation/screens/servant_detail_screen.dart';
 import 'package:church_managment_system/features/servant/presentation/screens/add_edit_servant_screen.dart';
+import 'package:church_managment_system/features/team/presentation/screens/team_management_screen.dart';
 import 'package:flutter/material.dart';
 
 class AppRouter {
@@ -98,6 +99,12 @@ class AppRouter {
       case devTools:
         return MaterialPageRoute(
           builder: (_) => const DevToolsScreen(),
+          settings: settings,
+        );
+
+      case teamManagement:
+        return MaterialPageRoute(
+          builder: (_) => const TeamManagementScreen(),
           settings: settings,
         );
 

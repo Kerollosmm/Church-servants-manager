@@ -1,4 +1,4 @@
-part of 'student_profile_bloc.dart';
+part of 'student_profile_cubit.dart';
 
 sealed class StudentProfileState {
   const StudentProfileState();

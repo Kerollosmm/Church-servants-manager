@@ -5,20 +5,30 @@ sealed class StudentDataEvent {
   const StudentDataEvent();
 }
 
-/// Load students with optional group filter.
+/// Load students with optional team filter.
 final class StudentsLoadRequested extends StudentDataEvent {
   final AuthUser actor;
   final int limit;
+  final String? teamId;
 
-  const StudentsLoadRequested({required this.actor, this.limit = 50});
+  const StudentsLoadRequested({
+    required this.actor,
+    this.limit = 50,
+    this.teamId,
+  });
 }
 
 /// Search students by name (BLoC-managed, no direct repository calls in UI).
 final class StudentsSearchRequested extends StudentDataEvent {
   final AuthUser actor;
   final String query;
+  final String? teamId;
 
-  const StudentsSearchRequested({required this.actor, required this.query});
+  const StudentsSearchRequested({
+    required this.actor,
+    required this.query,
+    this.teamId,
+  });
 }
 
 /// Create a new student.

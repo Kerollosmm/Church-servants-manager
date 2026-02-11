@@ -19,11 +19,13 @@ final class StudentDataLoading extends StudentDataState {
 final class StudentDataLoaded extends StudentDataState {
   final List<StudentModel> students;
   final String? currentFilterGroupId;
+  final String? currentFilterTeamId;
   final String? currentQuery;
 
   const StudentDataLoaded({
     required this.students,
     this.currentFilterGroupId,
+    this.currentFilterTeamId,
     this.currentQuery,
   });
 
@@ -39,6 +41,7 @@ final class StudentDataLoaded extends StudentDataState {
       other is StudentDataLoaded &&
           runtimeType == other.runtimeType &&
           currentFilterGroupId == other.currentFilterGroupId &&
+          currentFilterTeamId == other.currentFilterTeamId &&
           currentQuery == other.currentQuery &&
           const ListEquality<StudentModel>().equals(students, other.students);
 
@@ -46,6 +49,7 @@ final class StudentDataLoaded extends StudentDataState {
   int get hashCode => Object.hash(
     const ListEquality<StudentModel>().hash(students),
     currentFilterGroupId,
+    currentFilterTeamId,
     currentQuery,
   );
 }

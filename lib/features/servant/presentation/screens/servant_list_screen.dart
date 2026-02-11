@@ -8,7 +8,7 @@ import 'package:church_managment_system/core/theme/app_colors.dart';
 import 'package:church_managment_system/core/theme/app_spacing.dart';
 import 'package:church_managment_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_managment_system/features/servant/data/models/servant_models.dart';
-import 'package:church_managment_system/features/servant/presentation/bloc/servant_data/servant_data_bloc.dart';
+import 'package:church_managment_system/features/servant/presentation/bloc/servant_data/servant_data_cubit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -29,7 +29,7 @@ class _ServantListScreenState extends State<ServantListScreen> {
     super.initState();
     final actor = _currentActorOrNull();
     if (actor != null) {
-      context.read<ServantDataBloc>().add(ServantsLoadRequested(actor: actor));
+      context.read<ServantDataCubit>().loadServants(actor: actor);
     }
   }
 
@@ -49,8 +49,9 @@ class _ServantListScreenState extends State<ServantListScreen> {
     setState(() {});
     _searchDebounce?.cancel();
     _searchDebounce = Timer(const Duration(milliseconds: 350), () {
-      context.read<ServantDataBloc>().add(
-        ServantsSearchRequested(actor: actor, query: value),
+      context.read<ServantDataCubit>().searchServants(
+        actor: actor,
+        query: value,
       );
     });
   }
@@ -58,15 +59,13 @@ class _ServantListScreenState extends State<ServantListScreen> {
   void _clearSearch(AuthUser actor) {
     _searchController.clear();
     setState(() {});
-    context.read<ServantDataBloc>().add(
-      ServantsSearchRequested(actor: actor, query: ''),
-    );
+    context.read<ServantDataCubit>().searchServants(actor: actor, query: '');
   }
 
   Future<void> _refresh(AuthUser actor) async {
-    final bloc = context.read<ServantDataBloc>();
-    final future = bloc.stream.firstWhere((s) => s is! ServantDataLoading);
-    bloc.add(ServantsRefreshRequested(actor: actor));
+    final cubit = context.read<ServantDataCubit>();
+    final future = cubit.stream.firstWhere((s) => s is! ServantDataLoading);
+    cubit.refreshServants(actor: actor);
     await future;
   }
 
@@ -92,8 +91,8 @@ class _ServantListScreenState extends State<ServantListScreen> {
                 icon: const Icon(Icons.refresh),
                 tooltip: 'تحديث', // Refresh
                 onPressed: () {
-                  context.read<ServantDataBloc>().add(
-                    ServantsRefreshRequested(actor: actor),
+                  context.read<ServantDataCubit>().refreshServants(
+                    actor: actor,
                   );
                 },
               ),
@@ -112,7 +111,7 @@ class _ServantListScreenState extends State<ServantListScreen> {
                   label: const Text('إضافة خادم'), // Add Servant
                 )
               : null,
-          body: BlocConsumer<ServantDataBloc, ServantDataState>(
+          body: BlocConsumer<ServantDataCubit, ServantDataState>(
             listener: (context, state) {
               if (state is ServantDataError) {
                 ScaffoldMessenger.of(
@@ -203,11 +202,9 @@ class _ServantListScreenState extends State<ServantListScreen> {
                               textInputAction: TextInputAction.search,
                               onChanged: (v) => _onSearchChanged(actor, v),
                               onSubmitted: (v) {
-                                context.read<ServantDataBloc>().add(
-                                  ServantsSearchRequested(
-                                    actor: actor,
-                                    query: v,
-                                  ),
+                                context.read<ServantDataCubit>().searchServants(
+                                  actor: actor,
+                                  query: v,
                                 );
                               },
                               decoration: InputDecoration(

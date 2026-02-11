@@ -88,6 +88,9 @@ class ServantModel with _$ServantModel {
 
     /// Optional notes about the servant.
     String? notes,
+
+    /// Assigned team/class ID within the servant's group.
+    String? assignedTeamId,
   }) = _ServantModel;
 
   /// Creates a ServantModel from JSON.

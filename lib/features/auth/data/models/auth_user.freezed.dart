@@ -26,6 +26,7 @@ mixin _$AuthUser {
   UserRole get role => throw _privateConstructorUsedError;
   bool get isEmailVerified => throw _privateConstructorUsedError;
   String? get groupId => throw _privateConstructorUsedError;
+  String? get assignedTeamId => throw _privateConstructorUsedError;
 
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
   @JsonKey(ignore: true)
@@ -44,7 +45,8 @@ abstract class $AuthUserCopyWith<$Res> {
       String name,
       UserRole role,
       bool isEmailVerified,
-      String? groupId});
+      String? groupId,
+      String? assignedTeamId});
 }
 
 /// @nodoc
@@ -66,6 +68,7 @@ class _$AuthUserCopyWithImpl<$Res, $Val extends AuthUser>
     Object? role = null,
     Object? isEmailVerified = null,
     Object? groupId = freezed,
+    Object? assignedTeamId = freezed,
   }) {
     return _then(_value.copyWith(
       uid: null == uid
@@ -92,6 +95,10 @@ class _$AuthUserCopyWithImpl<$Res, $Val extends AuthUser>
           ? _value.groupId
           : groupId // ignore: cast_nullable_to_non_nullable
               as String?,
+      assignedTeamId: freezed == assignedTeamId
+          ? _value.assignedTeamId
+          : assignedTeamId // ignore: cast_nullable_to_non_nullable
+              as String?,
     ) as $Val);
   }
 }
@@ -110,7 +117,8 @@ abstract class _$$AuthUserImplCopyWith<$Res>
       String name,
       UserRole role,
       bool isEmailVerified,
-      String? groupId});
+      String? groupId,
+      String? assignedTeamId});
 }
 
 /// @nodoc
@@ -130,6 +138,7 @@ class __$$AuthUserImplCopyWithImpl<$Res>
     Object? role = null,
     Object? isEmailVerified = null,
     Object? groupId = freezed,
+    Object? assignedTeamId = freezed,
   }) {
     return _then(_$AuthUserImpl(
       uid: null == uid
@@ -156,6 +165,10 @@ class __$$AuthUserImplCopyWithImpl<$Res>
           ? _value.groupId
           : groupId // ignore: cast_nullable_to_non_nullable
               as String?,
+      assignedTeamId: freezed == assignedTeamId
+          ? _value.assignedTeamId
+          : assignedTeamId // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }
@@ -169,7 +182,8 @@ class _$AuthUserImpl extends _AuthUser {
       required this.name,
       required this.role,
       this.isEmailVerified = false,
-      this.groupId})
+      this.groupId,
+      this.assignedTeamId})
       : super._();
 
   factory _$AuthUserImpl.fromJson(Map<String, dynamic> json) =>
@@ -188,10 +202,12 @@ class _$AuthUserImpl extends _AuthUser {
   final bool isEmailVerified;
   @override
   final String? groupId;
+  @override
+  final String? assignedTeamId;
 
   @override
   String toString() {
-    return 'AuthUser(uid: $uid, email: $email, name: $name, role: $role, isEmailVerified: $isEmailVerified, groupId: $groupId)';
+    return 'AuthUser(uid: $uid, email: $email, name: $name, role: $role, isEmailVerified: $isEmailVerified, groupId: $groupId, assignedTeamId: $assignedTeamId)';
   }
 
   @override
@@ -205,13 +221,15 @@ class _$AuthUserImpl extends _AuthUser {
             (identical(other.role, role) || other.role == role) &&
             (identical(other.isEmailVerified, isEmailVerified) ||
                 other.isEmailVerified == isEmailVerified) &&
-            (identical(other.groupId, groupId) || other.groupId == groupId));
+            (identical(other.groupId, groupId) || other.groupId == groupId) &&
+            (identical(other.assignedTeamId, assignedTeamId) ||
+                other.assignedTeamId == assignedTeamId));
   }
 
   @JsonKey(ignore: true)
   @override
-  int get hashCode => Object.hash(
-      runtimeType, uid, email, name, role, isEmailVerified, groupId);
+  int get hashCode => Object.hash(runtimeType, uid, email, name, role,
+      isEmailVerified, groupId, assignedTeamId);
 
   @JsonKey(ignore: true)
   @override
@@ -234,7 +252,8 @@ abstract class _AuthUser extends AuthUser {
       required final String name,
       required final UserRole role,
       final bool isEmailVerified,
-      final String? groupId}) = _$AuthUserImpl;
+      final String? groupId,
+      final String? assignedTeamId}) = _$AuthUserImpl;
   const _AuthUser._() : super._();
 
   factory _AuthUser.fromJson(Map<String, dynamic> json) =
@@ -252,6 +271,8 @@ abstract class _AuthUser extends AuthUser {
   bool get isEmailVerified;
   @override
   String? get groupId;
+  @override
+  String? get assignedTeamId;
   @override
   @JsonKey(ignore: true)
   _$$AuthUserImplCopyWith<_$AuthUserImpl> get copyWith =>

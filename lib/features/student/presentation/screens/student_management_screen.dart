@@ -9,6 +9,7 @@ import 'package:church_managment_system/core/theme/app_spacing.dart';
 import 'package:church_managment_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_managment_system/features/student/data/models/student_model.dart';
 import 'package:church_managment_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
+import 'package:church_managment_system/features/team/presentation/widgets/team_dropdown.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -23,6 +24,7 @@ class StudentManagementScreen extends StatefulWidget {
 class _StudentManagementScreenState extends State<StudentManagementScreen> {
   final TextEditingController _searchController = TextEditingController();
   Timer? _searchDebounce;
+  String? _selectedTeamId;
 
   @override
   void initState() {
@@ -50,7 +52,11 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
     _searchDebounce?.cancel();
     _searchDebounce = Timer(const Duration(milliseconds: 350), () {
       context.read<StudentDataBloc>().add(
-        StudentsSearchRequested(actor: actor, query: value),
+        StudentsSearchRequested(
+          actor: actor,
+          query: value,
+          teamId: _selectedTeamId,
+        ),
       );
     });
   }
@@ -59,8 +65,22 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
     _searchController.clear();
     setState(() {});
     context.read<StudentDataBloc>().add(
-      StudentsSearchRequested(actor: actor, query: ''),
+      StudentsSearchRequested(actor: actor, query: '', teamId: _selectedTeamId),
     );
+  }
+
+  void _onTeamFilterChanged(AuthUser actor, String? teamId) {
+    setState(() => _selectedTeamId = teamId);
+    final query = _searchController.text.trim();
+    if (query.isNotEmpty) {
+      context.read<StudentDataBloc>().add(
+        StudentsSearchRequested(actor: actor, query: query, teamId: teamId),
+      );
+    } else {
+      context.read<StudentDataBloc>().add(
+        StudentsLoadRequested(actor: actor, teamId: teamId),
+      );
+    }
   }
 
   Future<void> _refresh(AuthUser actor) async {
@@ -235,6 +255,16 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                                   color: AppColors.textSecondary,
                                 ),
                               ),
+                            AppSpacing.gapSm,
+                            // Team filter dropdown
+                            TeamDropdown(
+                              groupId: actor.groupId ?? 'year1',
+                              showAllOption: actor.role == UserRole.admin,
+                              defaultTeamId: actor.assignedTeamId,
+                              label: 'Filter by Team',
+                              onChanged: (teamId) =>
+                                  _onTeamFilterChanged(actor, teamId),
+                            ),
                           ],
                         ),
                       ),

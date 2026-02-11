@@ -3,7 +3,7 @@ import 'package:church_managment_system/core/constants/enums.dart';
 import 'package:church_managment_system/features/auth/data/models/auth_user.dart';
 import 'package:church_managment_system/features/servant/data/models/servant_models.dart';
 import 'package:church_managment_system/features/servant/data/repo/servant_data_repository.dart';
-import 'package:church_managment_system/features/servant/presentation/bloc/servant_data/servant_data_bloc.dart';
+import 'package:church_managment_system/features/servant/presentation/bloc/servant_data/servant_data_cubit.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -76,11 +76,11 @@ void main() {
     ).thenAnswer((_) async => [allServants[1]]);
   });
 
-  group('ServantDataBloc', () {
-    blocTest<ServantDataBloc, ServantDataState>(
+  group('ServantDataCubit', () {
+    blocTest<ServantDataCubit, ServantDataState>(
       'admin can load all servants',
-      build: () => ServantDataBloc(repository: mockRepository),
-      act: (bloc) => bloc.add(const ServantsLoadRequested(actor: admin)),
+      build: () => ServantDataCubit(repository: mockRepository),
+      act: (cubit) => cubit.loadServants(actor: admin),
       expect: () => [
         isA<ServantDataLoading>(),
         isA<ServantDataLoaded>()
@@ -92,11 +92,12 @@ void main() {
       },
     );
 
-    blocTest<ServantDataBloc, ServantDataState>(
+    blocTest<ServantDataCubit, ServantDataState>(
       'admin search uses repository search',
-      build: () => ServantDataBloc(repository: mockRepository),
-      act: (bloc) => bloc.add(
-        const ServantsSearchRequested(actor: admin, query: 'Servant 1'),
+      build: () => ServantDataCubit(repository: mockRepository),
+      act: (cubit) => cubit.searchServants(
+        actor: admin,
+        query: 'Servant 1',
       ),
       expect: () => [
         isA<ServantDataLoading>(),
@@ -109,15 +110,15 @@ void main() {
       },
     );
 
-    blocTest<ServantDataBloc, ServantDataState>(
+    blocTest<ServantDataCubit, ServantDataState>(
       'admin create emits success',
       build: () {
         when(
           () => mockRepository.createServant(any()),
         ).thenAnswer((_) async => 'new-doc');
-        return ServantDataBloc(repository: mockRepository);
+        return ServantDataCubit(repository: mockRepository);
       },
-      act: (bloc) {
+      act: (cubit) {
         final newServant = ServantModel(
           uid: 'new-uid',
           docID: 'temp',
@@ -131,7 +132,7 @@ void main() {
           birthdate: null,
           notes: null,
         );
-        bloc.add(ServantCreated(actor: admin, servant: newServant));
+        cubit.createServant(actor: admin, servant: newServant);
       },
       expect: () => [
         isA<ServantDataLoading>(),
@@ -145,17 +146,17 @@ void main() {
       },
     );
 
-    blocTest<ServantDataBloc, ServantDataState>(
+    blocTest<ServantDataCubit, ServantDataState>(
       'admin update emits success',
       build: () {
         when(
           () => mockRepository.updateServant(any()),
         ).thenAnswer((_) async {});
-        return ServantDataBloc(repository: mockRepository);
+        return ServantDataCubit(repository: mockRepository);
       },
-      act: (bloc) {
+      act: (cubit) {
         final existingServant = allServants.first;
-        bloc.add(ServantUpdated(actor: admin, servant: existingServant));
+        cubit.updateServant(actor: admin, servant: existingServant);
       },
       expect: () => [
         isA<ServantDataLoading>(),
@@ -168,16 +169,16 @@ void main() {
       },
     );
 
-    blocTest<ServantDataBloc, ServantDataState>(
+    blocTest<ServantDataCubit, ServantDataState>(
       'admin delete emits success',
       build: () {
         when(
           () => mockRepository.deleteServant(any()),
         ).thenAnswer((_) async {});
-        return ServantDataBloc(repository: mockRepository);
+        return ServantDataCubit(repository: mockRepository);
       },
-      act: (bloc) {
-        bloc.add(const ServantDeleted(actor: admin, docId: 'doc-0'));
+      act: (cubit) {
+        cubit.deleteServant(actor: admin, docId: 'doc-0');
       },
       expect: () => [
         isA<ServantDataLoading>(),
@@ -190,15 +191,15 @@ void main() {
       },
     );
 
-    blocTest<ServantDataBloc, ServantDataState>(
+    blocTest<ServantDataCubit, ServantDataState>(
       'emits error on repository exception',
       build: () {
         when(
           () => mockRepository.getAllServants(limit: any(named: 'limit')),
         ).thenThrow(Exception('Network error'));
-        return ServantDataBloc(repository: mockRepository);
+        return ServantDataCubit(repository: mockRepository);
       },
-      act: (bloc) => bloc.add(const ServantsLoadRequested(actor: admin)),
+      act: (cubit) => cubit.loadServants(actor: admin),
       expect: () => [isA<ServantDataLoading>(), isA<ServantDataError>()],
     );
   });

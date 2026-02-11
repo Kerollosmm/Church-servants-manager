@@ -8,3 +8,4 @@ const String servantList = '/servants';
 const String servantDetail = '/servants/detail';
 const String servantEdit = '/servants/edit';
 const String devTools = '/dev-tools';
+const String teamManagement = '/teams';

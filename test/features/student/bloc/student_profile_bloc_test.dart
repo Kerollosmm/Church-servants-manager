@@ -3,7 +3,7 @@ import 'package:church_managment_system/core/constants/enums.dart';
 import 'package:church_managment_system/features/auth/data/models/auth_user.dart';
 import 'package:church_managment_system/features/student/data/models/student_model.dart';
 import 'package:church_managment_system/features/student/data/repos/student_data_repository.dart';
-import 'package:church_managment_system/features/student/presentation/bloc/student_profile/student_profile_bloc.dart';
+import 'package:church_managment_system/features/student/presentation/bloc/student_profile/student_profile_cubit.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -32,7 +32,7 @@ void main() {
     repo = MockStudentDataRepository();
   });
 
-  blocTest<StudentProfileBloc, StudentProfileState>(
+  blocTest<StudentProfileCubit, StudentProfileState>(
     'loads profile for student actor',
     build: () {
       when(() => repo.getStudentByUid('student-1')).thenAnswer(
@@ -57,18 +57,16 @@ void main() {
           classId: 'year1',
         ),
       );
-      return StudentProfileBloc(studentRepository: repo);
+      return StudentProfileCubit(studentRepository: repo);
     },
-    act: (bloc) =>
-        bloc.add(const StudentProfileLoadRequested(actor: studentActor)),
+    act: (cubit) => cubit.loadProfile(studentActor),
     expect: () => [isA<StudentProfileLoading>(), isA<StudentProfileLoaded>()],
   );
 
-  blocTest<StudentProfileBloc, StudentProfileState>(
+  blocTest<StudentProfileCubit, StudentProfileState>(
     'blocks non-student actor',
-    build: () => StudentProfileBloc(studentRepository: repo),
-    act: (bloc) =>
-        bloc.add(const StudentProfileLoadRequested(actor: adminActor)),
+    build: () => StudentProfileCubit(studentRepository: repo),
+    act: (cubit) => cubit.loadProfile(adminActor),
     expect: () => [
       isA<StudentProfileLoading>(),
       isA<StudentProfileError>().having(
