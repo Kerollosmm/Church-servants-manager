@@ -82,7 +82,7 @@ class StudentDataRepository implements IStudentRepository {
             .toList();
       }
 
-      // Fallback: If classId field not populated, use whereIn with concurrent chunking
+      // If classId field not populated, use whereIn with concurrent chunking
       final classDoc = await _firestore
           .collection(FirestoreCollections.classes)
           .doc(classId)
@@ -93,12 +93,6 @@ class StudentDataRepository implements IStudentRepository {
         classDoc.data()?['student_ids'] ?? [],
       );
       if (studentIds.isEmpty) return [];
-
-      // Firestore whereIn limit is 30 in this context (actually 10 for OR, 30 for IN sometimes, sticking to 30 as optimized default)
-      // Actually Firestore whereIn 'IN' limit is 10. Let's verify.
-      // Wait, standard IN limit is 10. we should stick to 10 to be safe, but run in parallel.
-      // Correction: Firestore 'in' operator supports up to 10 comparison values.
-      // However, we can run multiple futures in parallel.
 
       final chunks = _chunkList(studentIds, 10);
 

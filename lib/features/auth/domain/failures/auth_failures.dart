@@ -15,7 +15,7 @@ class UserNotFoundFailure extends AuthFailure {
 
 class WrongPasswordFailure extends AuthFailure {
   const WrongPasswordFailure([
-    super.message = 'Incorrect password. Please try again.',
+    super.message = 'Incorrect Credential. Please try again.',
   ]);
 }
 

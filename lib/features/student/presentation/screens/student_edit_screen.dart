@@ -94,7 +94,7 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
     final initial = _birthdate ?? DateTime(now.year - 14, now.month, now.day);
     final selected = await showDatePicker(
       context: context,
-      firstDate: DateTime(1990),
+      firstDate: DateTime(2012),
       lastDate: now,
       initialDate: initial,
     );

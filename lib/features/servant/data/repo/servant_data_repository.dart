@@ -54,7 +54,7 @@ class ServantDataRepository implements IServantRepository {
 
   @override
   Future<List<ServantModel>> getAllServants({
-    int limit = 10,
+    int limit = 20,
     DocumentSnapshot? lastDocument,
   }) async {
     try {
