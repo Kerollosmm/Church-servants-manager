@@ -71,6 +71,15 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
     _grade = student?.grade ?? 1;
     _birthdate = student?.birthdate;
     _selectedClassId = student?.classId;
+
+    if (actor.role == UserRole.servant) {
+      final assignedTeamIds = actor.effectiveAssignedTeamIds;
+      if (assignedTeamIds.isNotEmpty &&
+          (_selectedClassId == null ||
+              !assignedTeamIds.contains(_selectedClassId))) {
+        _selectedClassId = assignedTeamIds.first;
+      }
+    }
   }
 
   @override
@@ -151,6 +160,7 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
     final actor = widget.args.actor;
     final isTeacher = actor.role == UserRole.servant;
     final isEditing = widget.args.isEditing;
+    final assignedTeamIds = actor.effectiveAssignedTeamIds;
 
     final theme = Theme.of(context);
 
@@ -199,6 +209,10 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
                         groupId: _group.name,
                         defaultTeamId: _selectedClassId,
                         showAllOption: false,
+                        restrictToTeamIds:
+                            isTeacher && assignedTeamIds.isNotEmpty
+                            ? assignedTeamIds
+                            : null,
                         label: 'Assign to Team',
                         onChanged: (teamId) {
                           setState(() => _selectedClassId = teamId);

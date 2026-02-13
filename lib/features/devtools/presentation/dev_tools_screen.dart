@@ -1,5 +1,4 @@
 import 'package:church_managment_system/core/utils/data_seeder.dart';
-import 'package:church_managment_system/core/constants/enums.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -13,7 +12,6 @@ class DevToolsScreen extends StatefulWidget {
 class _DevToolsScreenState extends State<DevToolsScreen> {
   final _seeder = DataSeeder();
   final _countController = TextEditingController(text: '20');
-  Group _selectedGroup = Group.year1;
   bool _busy = false;
   String? _status;
 
@@ -107,97 +105,12 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                                   'Seeded $count students.',
                                 );
                               },
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size(0, 56),
+                        ),
                         child: const Text('Seed'),
                       ),
                     ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Set My Role',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  FilledButton.icon(
-                    onPressed: _busy
-                        ? null
-                        : () => _run(
-                            () => _seeder.assignMeAsAdmin(),
-                            'You are now Admin. Pull-to-refresh role.',
-                          ),
-                    icon: const Icon(Icons.admin_panel_settings_outlined),
-                    label: const Text('Assign Me as Admin'),
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownMenu<Group>(
-                    initialSelection: _selectedGroup,
-                    enabled: !_busy,
-                    dropdownMenuEntries: Group.values
-                        .map((g) => DropdownMenuEntry(value: g, label: g.name))
-                        .toList(),
-                    onSelected: (g) {
-                      if (g == null) return;
-                      setState(() => _selectedGroup = g);
-                    },
-                    label: const Text('Teacher Group'),
-                    leadingIcon: const Icon(Icons.group_outlined),
-                  ),
-                  const SizedBox(height: 12),
-                  FilledButton.icon(
-                    onPressed: _busy
-                        ? null
-                        : () => _run(
-                            () => _seeder.assignMeAsTeacher(
-                              group: _selectedGroup,
-                            ),
-                            'You are now Teacher for ${_selectedGroup.name}. Pull-to-refresh role.',
-                          ),
-                    icon: const Icon(Icons.badge_outlined),
-                    label: const Text('Assign Me as Teacher'),
-                  ),
-                  const SizedBox(height: 12),
-                  FilledButton.icon(
-                    onPressed: _busy
-                        ? null
-                        : () => _run(
-                            () => _seeder.assignMeAsStudentAndCreateProfile(),
-                            'You are now Student. Pull-to-refresh role.',
-                          ),
-                    icon: const Icon(Icons.person_outline),
-                    label: const Text('Assign Me as Student + Create Profile'),
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.info_outline, color: colorScheme.primary),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Seeder cannot create Firebase Auth accounts. It only writes Firestore docs and updates your current user role.',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
                   ),
                 ],
               ),

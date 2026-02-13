@@ -1,4 +1,6 @@
 import 'package:church_managment_system/core/constants/routes.dart';
+import 'package:church_managment_system/features/admin/presentation/widget/admin_gate.dart';
+import 'package:church_managment_system/features/admin/presentation/screens/admin_dashboard_screen.dart';
 import 'package:church_managment_system/features/auth/presentation/screens/forgot_password_screen.dart';
 import 'package:church_managment_system/features/auth/presentation/screens/login_screen.dart';
 import 'package:church_managment_system/features/auth/presentation/screens/register_screen.dart';
@@ -12,6 +14,7 @@ import 'package:church_managment_system/features/servant/presentation/screens/se
 import 'package:church_managment_system/features/servant/presentation/screens/servant_detail_screen.dart';
 import 'package:church_managment_system/features/servant/presentation/screens/add_edit_servant_screen.dart';
 import 'package:church_managment_system/features/team/presentation/screens/team_management_screen.dart';
+import 'package:church_managment_system/features/team/presentation/screens/team_members_screen.dart';
 import 'package:flutter/material.dart';
 
 class AppRouter {
@@ -66,14 +69,15 @@ class AppRouter {
       // Servant Routes
       case servantList:
         return MaterialPageRoute(
-          builder: (_) => const ServantListScreen(),
+          builder: (_) => const AdminGate(child: ServantListScreen()),
           settings: settings,
         );
       case servantDetail:
         final args = settings.arguments;
         if (args is ServantDetailArgs) {
           return MaterialPageRoute(
-            builder: (_) => ServantDetailScreen(args: args),
+            builder: (_) =>
+                AdminGate(child: ServantDetailScreen(args: args)),
             settings: settings,
           );
         }
@@ -86,7 +90,8 @@ class AppRouter {
         final args = settings.arguments;
         if (args is ServantEditArgs) {
           return MaterialPageRoute(
-            builder: (_) => AddEditServantScreen(args: args),
+            builder: (_) =>
+                AdminGate(child: AddEditServantScreen(args: args)),
             settings: settings,
           );
         }
@@ -98,13 +103,32 @@ class AppRouter {
 
       case devTools:
         return MaterialPageRoute(
-          builder: (_) => const DevToolsScreen(),
+          builder: (_) => const AdminGate(child: DevToolsScreen()),
           settings: settings,
         );
 
       case teamManagement:
         return MaterialPageRoute(
-          builder: (_) => const TeamManagementScreen(),
+          builder: (_) => const AdminGate(child: TeamManagementScreen()),
+          settings: settings,
+        );
+      case teamMembers:
+        final args = settings.arguments;
+        if (args is TeamMembersArgs) {
+          return MaterialPageRoute(
+            builder: (_) => AdminGate(child: TeamMembersScreen(args: args)),
+            settings: settings,
+          );
+        }
+        return MaterialPageRoute(
+          builder: (_) => const Scaffold(
+            body: Center(child: Text('Invalid team member data')),
+          ),
+          settings: settings,
+        );
+      case adminScreen:
+        return MaterialPageRoute(
+          builder: (_) => const AdminGate(child: AdminDashboardScreen()),
           settings: settings,
         );
 

@@ -12,6 +12,7 @@ import 'package:church_managment_system/features/student/presentation/bloc/stude
 import 'package:church_managment_system/features/student/presentation/bloc/student_profile/student_profile_cubit.dart';
 import 'package:church_managment_system/features/team/data/repos/team_repository.dart';
 import 'package:church_managment_system/features/team/presentation/bloc/team_cubit.dart';
+import 'package:church_managment_system/features/admin/data/admin_team_service.dart';
 import 'package:church_managment_system/firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -41,6 +42,7 @@ void main() async {
   final studentService = StudentDataRepository(firestore: firestore);
   final servantService = ServantDataRepository(firestore: firestore);
   final teamRepository = TeamRepository(firestore: firestore);
+  final adminTeamService = AdminTeamService(firestore: firestore);
 
   runApp(
     ChurchApp(
@@ -49,6 +51,7 @@ void main() async {
       studentService: studentService,
       servantService: servantService,
       teamRepository: teamRepository,
+      adminTeamService: adminTeamService,
     ),
   );
 }

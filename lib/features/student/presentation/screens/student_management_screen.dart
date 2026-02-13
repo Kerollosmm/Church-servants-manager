@@ -104,6 +104,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
         }
 
         final actor = authState.user;
+        final assignedTeamIds = actor.effectiveAssignedTeamIds;
 
         return Scaffold(
           appBar: AppBar(
@@ -230,6 +231,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                                   StudentsSearchRequested(
                                     actor: actor,
                                     query: v,
+                                    teamId: _selectedTeamId,
                                   ),
                                 );
                               },
@@ -248,7 +250,9 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                             AppSpacing.gapSm,
                             if (actor.role == UserRole.servant)
                               Text(
-                                actor.groupId == null
+                                assignedTeamIds.isNotEmpty
+                                    ? 'Teacher scope: ${assignedTeamIds.length} team(s)'
+                                    : actor.groupId == null
                                     ? 'Teacher scope: not assigned'
                                     : 'Teacher scope: ${actor.groupId}',
                                 style: theme.textTheme.bodySmall?.copyWith(
@@ -259,8 +263,20 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                             // Team filter dropdown
                             TeamDropdown(
                               groupId: actor.groupId ?? 'year1',
-                              showAllOption: actor.role == UserRole.admin,
-                              defaultTeamId: actor.assignedTeamId,
+                              showAllOption:
+                                  actor.role == UserRole.admin ||
+                                  (actor.role == UserRole.servant &&
+                                      assignedTeamIds.length > 1),
+                              defaultTeamId:
+                                  actor.role == UserRole.servant &&
+                                      assignedTeamIds.length == 1
+                                  ? assignedTeamIds.first
+                                  : null,
+                              restrictToTeamIds:
+                                  actor.role == UserRole.servant &&
+                                      assignedTeamIds.isNotEmpty
+                                  ? assignedTeamIds
+                                  : null,
                               label: 'Filter by Team',
                               onChanged: (teamId) =>
                                   _onTeamFilterChanged(actor, teamId),

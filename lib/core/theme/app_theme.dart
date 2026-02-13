@@ -142,7 +142,7 @@ class AppTheme {
         style: FilledButton.styleFrom(
           backgroundColor: AppColors.primary,
           foregroundColor: AppColors.white,
-          minimumSize: const Size(double.infinity, 56),
+          minimumSize: const Size(64, 56),
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
           shape: RoundedRectangleBorder(borderRadius: AppRadius.lgRadius),
           textStyle: textTheme.labelLarge?.copyWith(
@@ -157,7 +157,7 @@ class AppTheme {
           backgroundColor: AppColors.surface,
           foregroundColor: AppColors.primary,
           surfaceTintColor: AppColors.primary,
-          minimumSize: const Size(double.infinity, 56),
+          minimumSize: const Size(64, 56),
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
           shape: RoundedRectangleBorder(borderRadius: AppRadius.lgRadius),
           textStyle: textTheme.labelLarge?.copyWith(
@@ -170,7 +170,7 @@ class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.primary,
-          minimumSize: const Size(double.infinity, 56),
+          minimumSize: const Size(64, 56),
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
           side: const BorderSide(color: AppColors.primary, width: 1.5),
           shape: RoundedRectangleBorder(borderRadius: AppRadius.lgRadius),

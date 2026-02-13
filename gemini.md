@@ -1,62 +1,89 @@
-# Gemini Project Rules & Design System
+You are a senior Flutter + Firebase engineer working on the project “Church Servants Manager (CSMS)”.
+Your job is to make minimal, safe, production-quality changes.
 
-This file serves as a reference for the design system, architecture, and coding standards of the `church_managment_system` project.
+Non-negotiables:
+- Never add or output secrets or credential files (google-services.json, GoogleService-Info.plist, .env, keystores, tokens).
+- Never weaken Firestore security rules. Prefer deny-by-default.
+- Do not edit generated files (*.g.dart, *.freezed.dart).
+- Do not put Firebase calls in UI screens. Must follow: UI -> Cubit/Bloc -> Repository -> Firebase.
+- Keep existing naming and folder structure unless explicitly requested.
+- Prefer constructor dependency injection for testability (FirebaseAuth/Firestore/services injected).
+- If you add queries with where+orderBy, mention required indexes.
 
-## 1. Design System Tokens
+Project rules:
+- Roles: admin / servant / student.
+- Authorization in Firestore Rules should come from Custom Claims: request.auth.token.role.
+- Group access should be based on membership docs: groups/{groupId}/members/{uid} (doc existence = membership).
+- Attendance schema: groups/{groupId}/sessions/{sessionId}/attendance/{studentId}.
 
-Tokens are centralized in `lib/core/theme/` and should always be used instead of hardcoded values.
+Output format:
+- List files to create/update.
+- Provide code for each file with clear filenames.
+- Keep diffs minimal and explain changes briefly.
+- If uncertain, ask for the specific file(s) needed (but still propose a best-effort solution).
 
-### Colors (`app_colors.dart`)
-- **Primary**: `AppColors.primary` (`#0F766E`) - Teal 700
-- **Secondary**: `AppColors.secondary` (`#14B8A6`) - Teal 500
-- **Background**: `AppColors.background` (`#F8FAFC`) - Slate 50
-- **Surface**: `AppColors.surface` (`#FFFFFF`)
-- **Text Primary**: `AppColors.textPrimary` (`#0F172A`) - Slate 900
-- **Text Secondary**: `AppColors.textSecondary` (`#475569`) - Slate 600
+# CSMS (Church Servants Manager) — Project Context
 
-### Spacing (`app_spacing.dart`)
-- **Scale**: `xs: 4.0`, `sm: 8.0`, `md: 16.0`, `lg: 24.0`, `xl: 32.0`, `xxl: 48.0`
-- **Helpers**: Use `AppSpacing.gapMd` (etc.) for spacing between widgets in Columns/Rows.
+## Purpose
+A Flutter + Firebase app for managing church servants and students.
+Admins manage data, create groups, assign servants.
+Servants manage their groups and take attendance.
+Students (optional) can view their own profile later.
 
-### Radius (`app_spacing.dart`)
-- **Scale**: `sm: 8.0`, `md: 12.0`, `lg: 16.0`, `xl: 24.0`
-- **Usage**: `AppRadius.mdRadius` for buttons/inputs, `AppRadius.lgRadius` for cards.
+## Tech stack
+- Flutter (Material 3)
+- State management: flutter_bloc (Bloc & Cubit)
+- Models: Freezed + json_serializable
+- Firebase: Auth + Cloud Firestore
+- Planned: Hive offline cache + sync, connectivity_plus, cached_network_image
 
-## 2. Typography
+## Roles
+- admin: full access
+- servant: access only within groups they belong to
+- student: optional, access to own profile only
 
-Configured via `GoogleFonts` in `lib/core/theme/app_typography.dart`.
+## Target Security Design (important)
+- Role is read from Firebase Auth custom claims: request.auth.token.role
+- Group membership is stored as Firestore docs:
+  - groups/{groupId}/members/{uid}
+  - existence => membership
 
-- **Headlines (Merriweather)**: Use `Theme.of(context).textTheme.headlineLarge` etc.
-- **Body (Source Sans 3)**: Use `Theme.of(context).textTheme.bodyMedium` etc.
+## Target Firestore schema
+- groups/{groupId}
+  - name, stage?, createdAt, createdBy, updatedAt, updatedBy
+- groups/{groupId}/members/{uid}
+  - roleInGroup ("servant"), addedAt, addedBy
+- groups/{groupId}/sessions/{sessionId}
+  - date, title, createdAt, createdBy
+- groups/{groupId}/sessions/{sessionId}/attendance/{studentId}
+  - status: present/absent/late
+  - note?, markedAt, markedBy
 
-## 3. Project Architecture
+## Architecture rules
+- No Firebase calls in UI screens.
+- UI -> Cubit/Bloc -> Repository -> Firebase.
+- Prefer Cubit for simple function-based features (attendance, profile).
+- Prefer Bloc for complex event workflows (auth is fine as Bloc).
+- Prefer constructor injection for services and Firestore.
 
-The codebase follows a **Feature-First Clean Architecture** pattern.
+## Naming
+- Use groupId for group document ID.
+- Avoid mixing classId/groupId/teamName for the same concept.
+- Keep existing routes and file structure unless asked to change.
 
-### Structure
-- `lib/core/`: Global shared logic, theme, and generic widgets.
-- `lib/features/`: Feature-specific modules divided into `data`, `domain`, and `presentation`.
-- `presentation/`: Further divided into `bloc/`, `screens/`, and `widgets/`.
+Implement “My Groups” for CSMS.
 
-### Routing
-- Uses standard `Navigator` with `onGenerateRoute`.
-- Routes are defined in `lib/core/constants/routes.dart`.
-- Router logic is in `lib/core/routing/app_router.dart`.
+Firestore:
+- groups/{groupId}
+- groups/{groupId}/members/{uid} exists => user belongs to group.
 
-## 4. Coding Standards & Patterns
+Goal:
+- For the current user (uid), show only groups where membership doc exists.
+- Provide: GroupModel (freezed), GroupRepository, MyGroupsCubit, MyGroupsScreen.
+- UI must not call Firestore directly.
+- Minimal diffs, keep naming consistent.
 
-- **State Management**: Always use `flutter_bloc`.
-- **Models**: Use `freezed` for immutable models and `json_serializable` for JSON handling.
-- **UI Components**:
-    - Prefer `StatelessWidget` for UI-only components.
-    - Access theme values via `Theme.of(context)` or direct `AppColors`/`AppSpacing` constants.
-    - Follow Material 3 principles.
-- **Assets**: Reference assets from the `assets/` folder and ensure they are declared in `pubspec.yaml`.
-
-## 5. Figma Integration Guidelines
-
-When implementing Figma designs:
-1. **Identify Tokens**: Match Figma colors and spacing to `AppColors` and `AppSpacing`.
-2. **Use Shared Widgets**: Check `lib/core/widgets/` for existing generic widgets before creating new ones.
-3. **Follow Feature Structure**: Place screen-specific widgets in `lib/features/<feature>/presentation/widgets/`.
-4. **Theming**: Rely on the global `ThemeData` (especially for `InputDecoration` and `Button` styles) to ensure consistency.
+Return:
+1) Files to create/update
+2) Full code for each file
+3) Any needed indexes/rules notes

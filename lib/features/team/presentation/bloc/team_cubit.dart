@@ -1,5 +1,9 @@
 import 'package:church_managment_system/features/team/data/models/team_model.dart';
 import 'package:church_managment_system/features/team/data/repos/team_repository.dart';
+import 'package:church_managment_system/features/admin/data/admin_team_service.dart';
+import 'package:church_managment_system/features/auth/data/models/auth_user.dart';
+import 'package:church_managment_system/features/servant/data/models/servant_models.dart';
+import 'package:church_managment_system/features/student/data/models/student_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -10,10 +14,14 @@ part 'team_state.dart';
 /// - Servant: load teams for their group
 class TeamCubit extends Cubit<TeamState> {
   final TeamRepository _teamRepository;
+  final AdminTeamService _adminTeamService;
 
-  TeamCubit({required TeamRepository teamRepository})
-    : _teamRepository = teamRepository,
-      super(const TeamInitial());
+  TeamCubit({
+    required TeamRepository teamRepository,
+    required AdminTeamService adminTeamService,
+  })  : _teamRepository = teamRepository,
+        _adminTeamService = adminTeamService,
+        super(const TeamInitial());
 
   /// Load teams for a specific group/year.
   Future<void> loadTeamsByGroup(String groupId, {String? defaultTeamId}) async {
@@ -84,6 +92,63 @@ class TeamCubit extends Cubit<TeamState> {
     final currentState = state;
     if (currentState is TeamLoaded) {
       emit(TeamLoaded(teams: currentState.teams, selectedTeamId: teamId));
+    }
+  }
+
+  /// Admin: assign a responsible servant to a team.
+  Future<void> assignServant({
+    required AuthUser actor,
+    required TeamModel team,
+    required ServantModel servant,
+  }) async {
+    emit(const TeamLoading());
+    try {
+      await _adminTeamService.assignServantToTeam(
+        actor: actor,
+        team: team,
+        servant: servant,
+      );
+      emit(const TeamOperationSuccess('Servant assigned successfully'));
+      await loadTeamsByGroup(team.groupId);
+    } catch (e) {
+      debugPrint('TeamCubit: Failed to assign servant - $e');
+      emit(TeamError('Failed to assign servant: $e'));
+    }
+  }
+
+  /// Admin: unassign the responsible servant from a team.
+  Future<void> unassignServant({
+    required AuthUser actor,
+    required TeamModel team,
+  }) async {
+    emit(const TeamLoading());
+    try {
+      await _adminTeamService.unassignServantFromTeam(actor: actor, team: team);
+      emit(const TeamOperationSuccess('Servant unassigned successfully'));
+      await loadTeamsByGroup(team.groupId);
+    } catch (e) {
+      debugPrint('TeamCubit: Failed to unassign servant - $e');
+      emit(TeamError('Failed to unassign servant: $e'));
+    }
+  }
+
+  /// Admin: set the members of a team (students).
+  Future<void> setTeamMembers({
+    required AuthUser actor,
+    required TeamModel team,
+    required List<StudentModel> students,
+  }) async {
+    emit(const TeamLoading());
+    try {
+      await _adminTeamService.setStudentsForTeam(
+        actor: actor,
+        team: team,
+        selectedStudents: students,
+      );
+      emit(const TeamOperationSuccess('Team members updated successfully'));
+    } catch (e) {
+      debugPrint('TeamCubit: Failed to set team members - $e');
+      emit(TeamError('Failed to update team members: $e'));
     }
   }
 }

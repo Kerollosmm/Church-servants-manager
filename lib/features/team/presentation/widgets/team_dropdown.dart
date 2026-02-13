@@ -22,6 +22,14 @@ class TeamDropdown extends StatefulWidget {
   /// Callback when the selected team changes. Null means "All Teams".
   final ValueChanged<String?> onChanged;
 
+  /// If provided, the dropdown will only show this team.
+  /// Useful to lock servants to their assigned team.
+  final String? restrictToTeamId;
+
+  /// If provided, the dropdown will only show teams in this list.
+  /// Useful to lock servants to multiple assigned teams.
+  final List<String>? restrictToTeamIds;
+
   /// Custom label (optional).
   final String? label;
 
@@ -32,6 +40,8 @@ class TeamDropdown extends StatefulWidget {
     this.defaultTeamId,
     this.showAllOption = false,
     this.label,
+    this.restrictToTeamId,
+    this.restrictToTeamIds,
   });
 
   @override
@@ -40,28 +50,35 @@ class TeamDropdown extends StatefulWidget {
 
 class _TeamDropdownState extends State<TeamDropdown> {
   String? _selectedTeamId;
+  late Stream<List<TeamModel>> _teamsStream;
 
   @override
   void initState() {
     super.initState();
     _selectedTeamId = widget.defaultTeamId;
+    _teamsStream = context.read<TeamRepository>().watchTeamsByGroup(
+      widget.groupId,
+    );
   }
 
   @override
   void didUpdateWidget(covariant TeamDropdown oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.groupId != widget.groupId ||
-        oldWidget.defaultTeamId != widget.defaultTeamId) {
+    if (oldWidget.groupId != widget.groupId) {
+      _teamsStream = context.read<TeamRepository>().watchTeamsByGroup(
+        widget.groupId,
+      );
+    }
+    if (oldWidget.defaultTeamId != widget.defaultTeamId ||
+        oldWidget.groupId != widget.groupId) {
       _selectedTeamId = widget.defaultTeamId;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final repository = RepositoryProvider.of<TeamRepository>(context);
-
     return StreamBuilder<List<TeamModel>>(
-      stream: repository.watchTeamsByGroup(widget.groupId),
+      stream: _teamsStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Padding(
@@ -84,8 +101,22 @@ class _TeamDropdownState extends State<TeamDropdown> {
         }
 
         final teams = snapshot.data ?? <TeamModel>[];
+        final restrictedTeamIds = <String>{};
+        if (widget.restrictToTeamId != null &&
+            widget.restrictToTeamId!.isNotEmpty) {
+          restrictedTeamIds.add(widget.restrictToTeamId!);
+        }
+        for (final id in widget.restrictToTeamIds ?? const <String>[]) {
+          if (id.isNotEmpty) {
+            restrictedTeamIds.add(id);
+          }
+        }
 
-        if (teams.isEmpty) {
+        final visibleTeams = restrictedTeamIds.isEmpty
+            ? teams
+            : teams.where((t) => restrictedTeamIds.contains(t.id)).toList();
+
+        if (visibleTeams.isEmpty) {
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Text(
@@ -110,21 +141,29 @@ class _TeamDropdownState extends State<TeamDropdown> {
           );
         }
 
-        for (final team in teams) {
+        for (final team in visibleTeams) {
           items.add(
             DropdownMenuItem<String?>(value: team.id, child: Text(team.name)),
           );
         }
 
         // Ensure selected value is valid
-        final validIds = teams.map((t) => t.id).toSet();
+        final validIds = visibleTeams.map((t) => t.id).toSet();
         final effectiveValue =
             (_selectedTeamId != null && validIds.contains(_selectedTeamId))
             ? _selectedTeamId
-            : (widget.showAllOption ? null : teams.first.id);
+            : (widget.showAllOption ? null : visibleTeams.first.id);
+
+        // Fallback if no visible teams and not showing all option (though handled by isEmpty check above)
+        if (effectiveValue == null &&
+            !widget.showAllOption &&
+            visibleTeams.isNotEmpty) {
+          // rare edge case where selection became invalid but teams exist
+          // Usually covered by effectiveValue logic
+        }
 
         return DropdownButtonFormField<String?>(
-          value: effectiveValue,
+          initialValue: effectiveValue,
           decoration: InputDecoration(
             labelText: widget.label ?? 'Team',
             prefixIcon: const Icon(Icons.group),

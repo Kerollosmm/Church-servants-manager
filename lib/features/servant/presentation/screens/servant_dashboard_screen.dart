@@ -4,7 +4,7 @@ import 'package:church_managment_system/features/auth/data/models/auth_user.dart
 import 'package:church_managment_system/core/theme/app_colors.dart';
 import 'package:church_managment_system/core/theme/app_spacing.dart';
 import 'package:church_managment_system/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:flutter/foundation.dart';
+import 'package:church_managment_system/features/team/data/repos/team_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -25,11 +25,10 @@ class ServantDashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isAdmin = user.role == UserRole.admin;
-    final roleLabel = isAdmin ? 'Admin' : 'Teacher';
+    const roleLabel = 'Teacher';
 
     return Scaffold(
-      appBar: _buildAppBar(context, isAdmin),
+      appBar: _buildAppBar(context),
       body: RefreshIndicator(
         onRefresh: () => _onRefresh(context),
         child: SingleChildScrollView(
@@ -66,39 +65,8 @@ class ServantDashboardScreen extends StatelessWidget {
                       Navigator.pushNamed(context, studentList);
                     },
                     icon: const Icon(Icons.people),
-                    label: Text(
-                      isAdmin ? 'Manage Students' : 'Manage My Group',
-                    ),
+                    label: const Text('Manage My Group'),
                   ),
-                  // Admin-only management buttons
-                  if (isAdmin) ...[
-                    AppSpacing.gapMd,
-                    FilledButton.icon(
-                      onPressed: () {
-                        Navigator.pushNamed(context, teamManagement);
-                      },
-                      icon: const Icon(Icons.class_),
-                      label: const Text('Manage Teams'),
-                    ),
-                    AppSpacing.gapMd,
-                    FilledButton.icon(
-                      onPressed: () {
-                        Navigator.pushNamed(context, servantList);
-                      },
-                      icon: const Icon(Icons.supervisor_account),
-                      label: const Text('Manage Servants'),
-                    ),
-                  ],
-                  if (kDebugMode) ...[
-                    AppSpacing.gapMd,
-                    OutlinedButton.icon(
-                      onPressed: () {
-                        Navigator.pushNamed(context, devTools);
-                      },
-                      icon: const Icon(Icons.build_outlined),
-                      label: const Text('Dev Tools'),
-                    ),
-                  ],
                   AppSpacing.gapMd,
                   Text(
                     'Pull down to refresh your role',
@@ -115,9 +83,9 @@ class ServantDashboardScreen extends StatelessWidget {
     );
   }
 
-  AppBar _buildAppBar(BuildContext context, bool isAdmin) {
+  AppBar _buildAppBar(BuildContext context) {
     return AppBar(
-      title: Text(isAdmin ? 'Admin Dashboard' : 'Teacher Dashboard'),
+      title: const Text('Teacher Dashboard'),
       backgroundColor: AppColors.primary,
       foregroundColor: AppColors.white,
       actions: [
@@ -154,7 +122,7 @@ class _UserStatsCard extends StatelessWidget {
             _infoRow('Role', roleLabel),
             if (user.role == UserRole.servant) ...[
               _infoRow('Group', user.groupId ?? '--'),
-              _infoRow('Assigned Team', user.assignedTeamId ?? 'Not assigned'),
+              _assignedTeamRow(context),
             ],
           ],
         ),
@@ -162,20 +130,69 @@ class _UserStatsCard extends StatelessWidget {
     );
   }
 
+  Widget _assignedTeamRow(BuildContext context) {
+    final assignedTeamIds = user.effectiveAssignedTeamIds;
+    if (assignedTeamIds.isEmpty) {
+      return _infoRow('Assigned Teams', 'Not assigned');
+    }
+
+    return FutureBuilder<List<String>>(
+      future: () async {
+        final repo = context.read<TeamRepository>();
+        final teams = await Future.wait(
+          assignedTeamIds.map((teamId) => repo.getTeamById(teamId)),
+        );
+        final names = <String>[];
+        for (var i = 0; i < teams.length; i++) {
+          final name = teams[i]?.name.trim();
+          if (name != null && name.isNotEmpty) {
+            names.add(name);
+          } else {
+            names.add('Unknown team');
+          }
+        }
+        return names;
+      }(),
+      builder: (context, snapshot) {
+        final teamNames = switch (snapshot.connectionState) {
+          ConnectionState.waiting => 'Loading...',
+          _ => (snapshot.data ?? const <String>['Unknown team']).join(', '),
+        };
+        final label = assignedTeamIds.length > 1
+            ? 'Assigned Teams'
+            : 'Assigned Team';
+        return _infoRow(label, teamNames);
+      },
+    );
+  }
+
   Widget _infoRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontWeight: FontWeight.w500,
-              color: AppColors.textPrimary,
+          Expanded(
+            flex: 3,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontWeight: FontWeight.w500,
+                color: AppColors.textPrimary,
+              ),
             ),
           ),
-          Text(value, style: const TextStyle(color: AppColors.textSecondary)),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            flex: 5,
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
         ],
       ),
     );

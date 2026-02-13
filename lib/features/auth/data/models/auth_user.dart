@@ -16,6 +16,7 @@ class AuthUser with _$AuthUser {
     required UserRole role,
     @Default(false) bool isEmailVerified,
     String? groupId,
+    @Default(<String>[]) List<String> assignedTeamIds,
     String? assignedTeamId,
   }) = _AuthUser;
 
@@ -31,6 +32,24 @@ class AuthUser with _$AuthUser {
 
   factory AuthUser.fromJson(Map<String, dynamic> json) =>
       _$AuthUserFromJson(json);
+
+  List<String> get effectiveAssignedTeamIds {
+    final ids = <String>{};
+    for (final id in assignedTeamIds) {
+      final trimmed = id.trim();
+      if (trimmed.isNotEmpty) {
+        ids.add(trimmed);
+      }
+    }
+    final legacyAssignedTeamId = assignedTeamId?.trim();
+    if (legacyAssignedTeamId != null && legacyAssignedTeamId.isNotEmpty) {
+      ids.add(legacyAssignedTeamId);
+    }
+    return ids.toList(growable: false);
+  }
+
+  String? get primaryAssignedTeamId =>
+      effectiveAssignedTeamIds.isEmpty ? null : effectiveAssignedTeamIds.first;
 
   /// Convert to JSON for Firestore (wrapper to match existing usage if needed,
   /// though toJson is automatically generated)

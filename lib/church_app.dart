@@ -11,10 +11,12 @@ import 'package:church_managment_system/features/student/presentation/bloc/stude
 import 'package:church_managment_system/features/student/presentation/bloc/student_profile/student_profile_cubit.dart';
 import 'package:church_managment_system/features/team/data/repos/team_repository.dart';
 import 'package:church_managment_system/features/team/presentation/bloc/team_cubit.dart';
+import 'package:church_managment_system/features/admin/data/admin_team_service.dart';
 import 'package:church_managment_system/firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+
 class ChurchApp extends StatelessWidget {
   const ChurchApp({
     super.key,
@@ -23,6 +25,7 @@ class ChurchApp extends StatelessWidget {
     required this.studentService,
     required this.servantService,
     required this.teamRepository,
+    required this.adminTeamService,
   });
 
   final AppRouter appRoutes;
@@ -30,11 +33,17 @@ class ChurchApp extends StatelessWidget {
   final StudentDataRepository studentService;
   final ServantDataRepository servantService;
   final TeamRepository teamRepository;
+  final AdminTeamService adminTeamService;
 
   @override
   Widget build(BuildContext context) {
-    return RepositoryProvider<TeamRepository>.value(
-      value: teamRepository,
+    return MultiRepositoryProvider(
+      providers: [
+        RepositoryProvider<TeamRepository>.value(value: teamRepository),
+        RepositoryProvider<StudentDataRepository>.value(value: studentService),
+        RepositoryProvider<ServantDataRepository>.value(value: servantService),
+        RepositoryProvider<AdminTeamService>.value(value: adminTeamService),
+      ],
       child: MultiBlocProvider(
         providers: [
           BlocProvider(
@@ -53,11 +62,14 @@ class ChurchApp extends StatelessWidget {
             create: (_) => ServantDataCubit(repository: servantService),
           ),
           BlocProvider(
-            create: (_) => TeamCubit(teamRepository: teamRepository),
+            create: (_) => TeamCubit(
+              teamRepository: teamRepository,
+              adminTeamService: adminTeamService,
+            ),
           ),
         ],
         child: MaterialApp(
-          title: 'CSMS',
+          title: 'اعداد خدام',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.light(),
           onGenerateRoute: appRoutes.onGenerateRoute,

@@ -29,6 +29,27 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     on<StudentsRefreshRequested>(_onRefreshStudents);
   }
 
+  List<String> _assignedTeamIds(AuthUser actor) =>
+      actor.effectiveAssignedTeamIds;
+
+  Future<List<StudentModel>> _getStudentsForTeamIds(
+    List<String> teamIds,
+  ) async {
+    if (teamIds.isEmpty) return [];
+    final result = await Future.wait(
+      teamIds.map((teamId) => _studentRepository.getStudentsByClass(teamId)),
+    );
+    final deduped = <String, StudentModel>{};
+    for (final teamStudents in result) {
+      for (final student in teamStudents) {
+        deduped[student.docID] = student;
+      }
+    }
+    final students = deduped.values.toList();
+    students.sort((a, b) => a.name.compareTo(b.name));
+    return students;
+  }
+
   Future<List<StudentModel>> _fetchStudentsForActor({
     required AuthUser actor,
     required int limit,
@@ -42,14 +63,23 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
         }
         return _studentRepository.getAllStudents(limit: limit);
       case UserRole.servant:
-        if (teamId != null && teamId.isNotEmpty) {
-          // Servant filtering by a specific team within their group
-          return _studentRepository.getStudentsByClass(teamId);
+        // If servant has explicit team assignments, lock access to that set.
+        final assignedTeamIds = _assignedTeamIds(actor);
+        if (assignedTeamIds.isNotEmpty) {
+          if (teamId != null && teamId.isNotEmpty) {
+            if (!assignedTeamIds.contains(teamId)) {
+              // Don't leak other teams.
+              return [];
+            }
+            return _studentRepository.getStudentsByClass(teamId);
+          }
+          return _getStudentsForTeamIds(assignedTeamIds);
         }
-        // Fallback: show students in servant's assigned group
-        final classId = actor.groupId;
-        if (classId == null || classId.isEmpty) return [];
-        return _studentRepository.getStudentsByGroup(classId);
+
+        // No team assignment: fallback to group-level access (legacy behavior).
+        final groupId = actor.groupId;
+        if (groupId == null || groupId.isEmpty) return [];
+        return _studentRepository.getStudentsByGroup(groupId);
       case UserRole.student:
         throw StateError('Students are not allowed to load student lists.');
     }
@@ -58,6 +88,10 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
   bool _canMutateStudent(AuthUser actor, StudentModel student) {
     if (actor.role == UserRole.admin) return true;
     if (actor.role == UserRole.servant) {
+      final assignedTeamIds = _assignedTeamIds(actor);
+      if (assignedTeamIds.isNotEmpty) {
+        return assignedTeamIds.contains(student.classId);
+      }
       return actor.groupId != null && student.group.name == actor.groupId;
     }
     return false;
@@ -142,19 +176,32 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
             }
             break;
           case UserRole.servant:
-            List<StudentModel> filtered;
-            if (event.teamId != null && event.teamId!.isNotEmpty) {
-              filtered = await _studentRepository.getStudentsByClass(
-                event.teamId!,
-              );
-            } else {
-              final classId = event.actor.groupId;
-              if (classId == null || classId.isEmpty) {
+            final assignedTeamIds = _assignedTeamIds(event.actor);
+            if (assignedTeamIds.isNotEmpty) {
+              final requested = event.teamId;
+              if (requested != null &&
+                  requested.isNotEmpty &&
+                  !assignedTeamIds.contains(requested)) {
                 students = [];
                 break;
               }
-              filtered = await _studentRepository.getStudentsByGroup(classId);
+              final scopedStudents = (requested == null || requested.isEmpty)
+                  ? await _getStudentsForTeamIds(assignedTeamIds)
+                  : await _studentRepository.getStudentsByClass(requested);
+              final filtered = scopedStudents;
+              students = _filterByName(filtered, query);
+              break;
             }
+
+            // Legacy: group-level servant access when not assigned to a team.
+            final groupId = event.actor.groupId;
+            if (groupId == null || groupId.isEmpty) {
+              students = [];
+              break;
+            }
+            final filtered = await _studentRepository.getStudentsByGroup(
+              groupId,
+            );
             students = _filterByName(filtered, query);
             break;
           case UserRole.student:

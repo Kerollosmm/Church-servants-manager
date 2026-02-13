@@ -1,8 +1,14 @@
 import 'package:church_managment_system/core/constants/enums.dart';
+import 'package:church_managment_system/core/constants/routes.dart';
+import 'package:church_managment_system/core/routing/route_args.dart';
 import 'package:church_managment_system/core/theme/app_colors.dart';
 import 'package:church_managment_system/core/theme/app_spacing.dart';
+import 'package:church_managment_system/features/auth/data/models/auth_user.dart';
 import 'package:church_managment_system/features/team/data/models/team_model.dart';
 import 'package:church_managment_system/features/team/presentation/bloc/team_cubit.dart';
+import 'package:church_managment_system/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:church_managment_system/features/servant/data/models/servant_models.dart';
+import 'package:church_managment_system/features/servant/data/repo/servant_data_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -18,6 +24,12 @@ class _TeamManagementScreenState extends State<TeamManagementScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
   final _groups = Group.values;
+
+  AuthUser? _currentActor() {
+    final s = context.read<AuthBloc>().state;
+    if (s is AuthAuthenticated) return s.user;
+    return null;
+  }
 
   @override
   void initState() {
@@ -153,6 +165,121 @@ class _TeamManagementScreenState extends State<TeamManagementScreen>
     );
   }
 
+  void _openManageMembers(TeamModel team) {
+    final actor = _currentActor();
+    if (actor == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No authenticated user found.')),
+      );
+      return;
+    }
+    Navigator.pushNamed(
+      context,
+      teamMembers,
+      arguments: TeamMembersArgs(actor: actor, team: team),
+    );
+  }
+
+  void _showAssignServantDialog(TeamModel team) {
+    final actor = _currentActor();
+    if (actor == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No authenticated user found.')),
+      );
+      return;
+    }
+
+    final repo = context.read<ServantDataRepository>();
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return FutureBuilder<List<ServantModel>>(
+          future: repo.getServantsByTeam(team.groupId),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return const AlertDialog(
+                title: Text('Assign Servant'),
+                content: SizedBox(
+                  height: 80,
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+              );
+            }
+
+            final servants = snapshot.data ?? <ServantModel>[];
+            final items = <DropdownMenuItem<String?>>[
+              const DropdownMenuItem<String?>(
+                value: null,
+                child: Text('— Unassigned —'),
+              ),
+              ...servants.map(
+                (s) => DropdownMenuItem<String?>(
+                  value: s.docID,
+                  child: Text(s.name),
+                ),
+              ),
+            ];
+
+            String? selectedId = team.assignedServantId;
+
+            ServantModel? selectedServant() {
+              if (selectedId == null) return null;
+              try {
+                return servants.firstWhere((s) => s.docID == selectedId);
+              } catch (_) {
+                return null;
+              }
+            }
+
+            return StatefulBuilder(
+              builder: (context, setState) {
+                return AlertDialog(
+                  title: Text('Assign Servant • ${team.name}'),
+                  content: DropdownButtonFormField<String?>(
+                    value: selectedId,
+                    isExpanded: true,
+                    items: items,
+                    onChanged: (v) => setState(() => selectedId = v),
+                    decoration: const InputDecoration(
+                      labelText: 'Responsible servant',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      child: const Text('Cancel'),
+                    ),
+                    FilledButton(
+                      onPressed: () {
+                        final s = selectedServant();
+                        if (s == null) {
+                          context.read<TeamCubit>().unassignServant(
+                                actor: actor,
+                                team: team,
+                              );
+                        } else {
+                          context.read<TeamCubit>().assignServant(
+                                actor: actor,
+                                team: team,
+                                servant: s,
+                              );
+                        }
+                        Navigator.pop(dialogContext);
+                      },
+                      child: const Text('Save'),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -235,6 +362,8 @@ class _TeamManagementScreenState extends State<TeamManagementScreen>
                     team: team,
                     onEdit: () => _showEditTeamDialog(team),
                     onDelete: () => _confirmDeleteTeam(team),
+                    onAssignServant: () => _showAssignServantDialog(team),
+                    onManageMembers: () => _openManageMembers(team),
                   );
                 },
               ),
@@ -271,11 +400,15 @@ class _TeamCard extends StatelessWidget {
   final TeamModel team;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback onAssignServant;
+  final VoidCallback onManageMembers;
 
   const _TeamCard({
     required this.team,
     required this.onEdit,
     required this.onDelete,
+    required this.onAssignServant,
+    required this.onManageMembers,
   });
 
   @override
@@ -308,10 +441,14 @@ class _TeamCard extends StatelessWidget {
               ),
         trailing: PopupMenuButton<String>(
           onSelected: (value) {
+            if (value == 'members') onManageMembers();
+            if (value == 'assign') onAssignServant();
             if (value == 'edit') onEdit();
             if (value == 'delete') onDelete();
           },
           itemBuilder: (_) => [
+            const PopupMenuItem(value: 'members', child: Text('Manage Members')),
+            const PopupMenuItem(value: 'assign', child: Text('Assign Servant')),
             const PopupMenuItem(value: 'edit', child: Text('Edit')),
             const PopupMenuItem(value: 'delete', child: Text('Delete')),
           ],

@@ -1,5 +1,4 @@
 import 'package:church_managment_system/core/constants/enums.dart';
-import 'package:church_managment_system/core/constants/routes.dart';
 import 'package:church_managment_system/core/utils/validators.dart';
 import 'package:church_managment_system/core/widgets/dialogs/error_dialog.dart';
 import 'package:church_managment_system/features/auth/presentation/bloc/auth_bloc.dart';
@@ -178,7 +177,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             ),
                             TextButton(
                               onPressed: () {
-                                Navigator.pushReplacementNamed(context, login);
+                                Navigator.pop(context);
                               },
                               child: const Text('Login'),
                             ),

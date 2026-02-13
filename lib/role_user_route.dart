@@ -1,5 +1,6 @@
 import 'package:church_managment_system/core/constants/enums.dart';
 import 'package:church_managment_system/core/widgets/dialogs/error_dialog.dart';
+import 'package:church_managment_system/features/admin/presentation/screens/admin_dashboard_screen.dart';
 import 'package:church_managment_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_managment_system/features/auth/presentation/screens/login_screen.dart';
 import 'package:church_managment_system/features/auth/presentation/screens/verify_email_screen.dart';
@@ -43,7 +44,7 @@ class RoleUserRoute extends StatelessWidget {
               case UserRole.student:
                 return StudentProfileScreen(user: user);
               case UserRole.admin:
-                return ServantDashboardScreen(user: user);
+                return AdminDashboardScreen();
             }
           }
 
