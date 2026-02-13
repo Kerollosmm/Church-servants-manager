@@ -1,3 +1,4 @@
+import 'package:church_managment_system/church_app.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:church_managment_system/role_user_route.dart';
 import 'package:church_managment_system/core/routing/app_router.dart';
@@ -50,57 +51,4 @@ void main() async {
       teamRepository: teamRepository,
     ),
   );
-}
-
-class ChurchApp extends StatelessWidget {
-  const ChurchApp({
-    super.key,
-    required this.appRoutes,
-    required this.authService,
-    required this.studentService,
-    required this.servantService,
-    required this.teamRepository,
-  });
-
-  final AppRouter appRoutes;
-  final AuthService authService;
-  final StudentDataRepository studentService;
-  final ServantDataRepository servantService;
-  final TeamRepository teamRepository;
-
-  @override
-  Widget build(BuildContext context) {
-    return RepositoryProvider<TeamRepository>.value(
-      value: teamRepository,
-      child: MultiBlocProvider(
-        providers: [
-          BlocProvider(
-            create: (_) =>
-                AuthBloc(authService: authService)
-                  ..add(const AuthEventCheckStatus()),
-          ),
-          BlocProvider(
-            create: (_) => StudentDataBloc(studentRepository: studentService),
-          ),
-          BlocProvider(
-            create: (_) =>
-                StudentProfileCubit(studentRepository: studentService),
-          ),
-          BlocProvider(
-            create: (_) => ServantDataCubit(repository: servantService),
-          ),
-          BlocProvider(
-            create: (_) => TeamCubit(teamRepository: teamRepository),
-          ),
-        ],
-        child: MaterialApp(
-          title: 'CSMS',
-          debugShowCheckedModeBanner: false,
-          theme: AppTheme.light(),
-          onGenerateRoute: appRoutes.onGenerateRoute,
-          home: const RoleUserRoute(),
-        ),
-      ),
-    );
-  }
 }
