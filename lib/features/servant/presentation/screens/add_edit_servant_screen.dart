@@ -4,7 +4,6 @@ import 'package:church_managment_system/core/theme/app_colors.dart';
 import 'package:church_managment_system/core/theme/app_spacing.dart';
 import 'package:church_managment_system/features/servant/data/models/servant_models.dart';
 import 'package:church_managment_system/features/servant/presentation/bloc/servant_data/servant_data_cubit.dart';
-import 'package:church_managment_system/features/team/presentation/widgets/team_dropdown.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:uuid/uuid.dart';
@@ -31,7 +30,6 @@ class _AddEditServantScreenState extends State<AddEditServantScreen> {
 
   DateTime? _birthdate;
   late Group _selectedGroup;
-  String? _assignedTeamId;
 
   @override
   void initState() {
@@ -53,7 +51,6 @@ class _AddEditServantScreenState extends State<AddEditServantScreen> {
       (g) => g.name == servant?.teamName,
       orElse: () => Group.year1,
     );
-    _assignedTeamId = servant?.assignedTeamId;
   }
 
   @override
@@ -100,7 +97,6 @@ class _AddEditServantScreenState extends State<AddEditServantScreen> {
       imageUrl: _imageUrl.text.trim().isEmpty ? null : _imageUrl.text.trim(),
       role: UserRole.servant,
       teamName: _selectedGroup.name,
-      assignedTeamId: _assignedTeamId,
       fatherOfConfession: _fatherOfConfession.text.trim().isEmpty
           ? null
           : _fatherOfConfession.text.trim(),
@@ -199,18 +195,7 @@ class _AddEditServantScreenState extends State<AddEditServantScreen> {
                             if (g == null) return;
                             setState(() {
                               _selectedGroup = g;
-                              _assignedTeamId = null;
                             });
-                          },
-                        ),
-                        AppSpacing.gapMd,
-                        TeamDropdown(
-                          groupId: _selectedGroup.name,
-                          defaultTeamId: _assignedTeamId,
-                          showAllOption: false,
-                          label: 'الفريق المُعيّن', // Assigned Team
-                          onChanged: (teamId) {
-                            setState(() => _assignedTeamId = teamId);
                           },
                         ),
                       ],

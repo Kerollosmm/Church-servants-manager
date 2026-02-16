@@ -208,12 +208,39 @@ class _TeamManagementScreenState extends State<TeamManagementScreen>
             }
 
             final servants = snapshot.data ?? <ServantModel>[];
+            final uniqueServants = <ServantModel>[];
+            final seenDocIds = <String>{};
+            for (final servant in servants) {
+              final docId = servant.docID.trim();
+              if (docId.isEmpty || seenDocIds.contains(docId)) continue;
+              seenDocIds.add(docId);
+              uniqueServants.add(servant);
+            }
+
+            String? normalizeToServantDocId(String? rawId) {
+              if (rawId == null) return null;
+              final id = rawId.trim();
+              if (id.isEmpty) return null;
+
+              for (final servant in uniqueServants) {
+                if (servant.docID == id) return servant.docID;
+              }
+              for (final servant in uniqueServants) {
+                if (servant.uid == id) return servant.docID;
+              }
+              return null;
+            }
+
+            String? selectedId = normalizeToServantDocId(
+              team.assignedServantId,
+            );
+
             final items = <DropdownMenuItem<String?>>[
               const DropdownMenuItem<String?>(
                 value: null,
-                child: Text('— Unassigned —'),
+                child: Text('-- Unassigned --'),
               ),
-              ...servants.map(
+              ...uniqueServants.map(
                 (s) => DropdownMenuItem<String?>(
                   value: s.docID,
                   child: Text(s.name),
@@ -221,15 +248,12 @@ class _TeamManagementScreenState extends State<TeamManagementScreen>
               ),
             ];
 
-            String? selectedId = team.assignedServantId;
-
             ServantModel? selectedServant() {
               if (selectedId == null) return null;
-              try {
-                return servants.firstWhere((s) => s.docID == selectedId);
-              } catch (_) {
-                return null;
+              for (final servant in uniqueServants) {
+                if (servant.docID == selectedId) return servant;
               }
+              return null;
             }
 
             return StatefulBuilder(
@@ -237,7 +261,7 @@ class _TeamManagementScreenState extends State<TeamManagementScreen>
                 return AlertDialog(
                   title: Text('Assign Servant • ${team.name}'),
                   content: DropdownButtonFormField<String?>(
-                    value: selectedId,
+                    initialValue: selectedId,
                     isExpanded: true,
                     items: items,
                     onChanged: (v) => setState(() => selectedId = v),
@@ -256,15 +280,15 @@ class _TeamManagementScreenState extends State<TeamManagementScreen>
                         final s = selectedServant();
                         if (s == null) {
                           context.read<TeamCubit>().unassignServant(
-                                actor: actor,
-                                team: team,
-                              );
+                            actor: actor,
+                            team: team,
+                          );
                         } else {
                           context.read<TeamCubit>().assignServant(
-                                actor: actor,
-                                team: team,
-                                servant: s,
-                              );
+                            actor: actor,
+                            team: team,
+                            servant: s,
+                          );
                         }
                         Navigator.pop(dialogContext);
                       },
@@ -447,7 +471,10 @@ class _TeamCard extends StatelessWidget {
             if (value == 'delete') onDelete();
           },
           itemBuilder: (_) => [
-            const PopupMenuItem(value: 'members', child: Text('Manage Members')),
+            const PopupMenuItem(
+              value: 'members',
+              child: Text('Manage Members'),
+            ),
             const PopupMenuItem(value: 'assign', child: Text('Assign Servant')),
             const PopupMenuItem(value: 'edit', child: Text('Edit')),
             const PopupMenuItem(value: 'delete', child: Text('Delete')),

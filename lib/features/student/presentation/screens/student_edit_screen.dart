@@ -5,7 +5,6 @@ import 'package:church_managment_system/core/theme/app_spacing.dart';
 import 'package:church_managment_system/core/utils/validators.dart';
 import 'package:church_managment_system/features/student/data/models/student_model.dart';
 import 'package:church_managment_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
-import 'package:church_managment_system/features/team/presentation/widgets/team_dropdown.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:uuid/uuid.dart';
@@ -37,7 +36,6 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
   late EducationStage _educationStage;
   late int _grade;
   DateTime? _birthdate;
-  String? _selectedClassId;
 
   @override
   void initState() {
@@ -70,16 +68,6 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
     _educationStage = student?.educationStage ?? EducationStage.preparatory;
     _grade = student?.grade ?? 1;
     _birthdate = student?.birthdate;
-    _selectedClassId = student?.classId;
-
-    if (actor.role == UserRole.servant) {
-      final assignedTeamIds = actor.effectiveAssignedTeamIds;
-      if (assignedTeamIds.isNotEmpty &&
-          (_selectedClassId == null ||
-              !assignedTeamIds.contains(_selectedClassId))) {
-        _selectedClassId = assignedTeamIds.first;
-      }
-    }
   }
 
   @override
@@ -95,8 +83,6 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
     _imageUrl.dispose();
     super.dispose();
   }
-
-  String _classIdForGroup(Group group) => group.name; // year1/year2/year3
 
   Future<void> _pickBirthdate() async {
     final now = DateTime.now();
@@ -122,8 +108,6 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
     final uid = existing?.uid ?? _uuid.v4();
     final docId = existing?.docID ?? 'temp';
 
-    final classId = _selectedClassId ?? _classIdForGroup(_group);
-
     final student = StudentModel(
       uid: uid,
       docID: docId,
@@ -142,7 +126,7 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
       birthdate: _birthdate,
       fatherOfConfession: _fatherOfConfession.text.trim(),
       notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
-      classId: classId,
+      classId: _group.name,
     );
 
     final bloc = context.read<StudentDataBloc>();
@@ -160,7 +144,6 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
     final actor = widget.args.actor;
     final isTeacher = actor.role == UserRole.servant;
     final isEditing = widget.args.isEditing;
-    final assignedTeamIds = actor.effectiveAssignedTeamIds;
 
     final theme = Theme.of(context);
 
@@ -204,21 +187,6 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
                         validator: Validators.validatePhone,
                       ),
                       AppSpacing.gapMd,
-                      // Team assignment dropdown
-                      TeamDropdown(
-                        groupId: _group.name,
-                        defaultTeamId: _selectedClassId,
-                        showAllOption: false,
-                        restrictToTeamIds:
-                            isTeacher && assignedTeamIds.isNotEmpty
-                            ? assignedTeamIds
-                            : null,
-                        label: 'Assign to Team',
-                        onChanged: (teamId) {
-                          setState(() => _selectedClassId = teamId);
-                        },
-                      ),
-                      AppSpacing.gapMd,
                       DropdownMenu<Group>(
                         initialSelection: _group,
                         enabled: !isTeacher,
@@ -231,7 +199,6 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
                           if (g == null) return;
                           setState(() {
                             _group = g;
-                            _selectedClassId = null;
                           });
                         },
                         label: Text(isTeacher ? 'Group (Assigned)' : 'Group'),
