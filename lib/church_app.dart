@@ -1,4 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:church_managment_system/core/di/injection.dart';
 import 'package:church_managment_system/role_user_route.dart';
 import 'package:church_managment_system/core/routing/app_router.dart';
 import 'package:church_managment_system/core/theme/app_theme.dart';
@@ -7,64 +7,63 @@ import 'package:church_managment_system/features/auth/presentation/bloc/auth_blo
 import 'package:church_managment_system/features/servant/data/repo/servant_data_repository.dart';
 import 'package:church_managment_system/features/servant/presentation/bloc/servant_data/servant_data_cubit.dart';
 import 'package:church_managment_system/features/student/data/repos/student_data_repository.dart';
+import 'package:church_managment_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
+import 'package:church_managment_system/features/student/domain/usecases/get_students_stream_usecase.dart';
 import 'package:church_managment_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
 import 'package:church_managment_system/features/student/presentation/bloc/student_profile/student_profile_cubit.dart';
 import 'package:church_managment_system/features/team/data/repos/team_repository.dart';
 import 'package:church_managment_system/features/team/presentation/bloc/team_cubit.dart';
 import 'package:church_managment_system/features/admin/data/admin_team_service.dart';
-import 'package:church_managment_system/firebase_options.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class ChurchApp extends StatelessWidget {
-  const ChurchApp({
-    super.key,
-    required this.appRoutes,
-    required this.authService,
-    required this.studentService,
-    required this.servantService,
-    required this.teamRepository,
-    required this.adminTeamService,
-  });
-
-  final AppRouter appRoutes;
-  final AuthService authService;
-  final StudentDataRepository studentService;
-  final ServantDataRepository servantService;
-  final TeamRepository teamRepository;
-  final AdminTeamService adminTeamService;
+  const ChurchApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MultiRepositoryProvider(
       providers: [
-        RepositoryProvider<TeamRepository>.value(value: teamRepository),
-        RepositoryProvider<StudentDataRepository>.value(value: studentService),
-        RepositoryProvider<ServantDataRepository>.value(value: servantService),
-        RepositoryProvider<AdminTeamService>.value(value: adminTeamService),
+        RepositoryProvider<TeamRepository>.value(
+          value: getIt<TeamRepository>(),
+        ),
+        RepositoryProvider<StudentDataRepository>.value(
+          value: getIt<StudentDataRepository>(),
+        ),
+        RepositoryProvider<ServantDataRepository>.value(
+          value: getIt<ServantDataRepository>(),
+        ),
+        RepositoryProvider<AdminTeamService>.value(
+          value: getIt<AdminTeamService>(),
+        ),
       ],
       child: MultiBlocProvider(
         providers: [
           BlocProvider(
             create: (_) =>
-                AuthBloc(authService: authService)
+                AuthBloc(authService: getIt<AuthService>())
                   ..add(const AuthEventCheckStatus()),
           ),
           BlocProvider(
-            create: (_) => StudentDataBloc(studentRepository: studentService),
+            create: (_) => StudentDataBloc(
+              studentRepository: getIt<StudentDataRepository>(),
+              getStudentsStream: getIt<GetStudentsStreamUseCase>(),
+              canMutateStudent: getIt<CanMutateStudentUseCase>(),
+            ),
+          ),
+          BlocProvider(
+            create: (_) => StudentProfileCubit(
+              studentRepository: getIt<StudentDataRepository>(),
+            ),
           ),
           BlocProvider(
             create: (_) =>
-                StudentProfileCubit(studentRepository: studentService),
-          ),
-          BlocProvider(
-            create: (_) => ServantDataCubit(repository: servantService),
+                ServantDataCubit(repository: getIt<ServantDataRepository>()),
           ),
           BlocProvider(
             create: (_) => TeamCubit(
-              teamRepository: teamRepository,
-              adminTeamService: adminTeamService,
+              teamRepository: getIt<TeamRepository>(),
+              adminTeamService: getIt<AdminTeamService>(),
             ),
           ),
         ],
@@ -72,7 +71,7 @@ class ChurchApp extends StatelessWidget {
           title: 'اعداد خدام',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.light(),
-          onGenerateRoute: appRoutes.onGenerateRoute,
+          onGenerateRoute: getIt<AppRouter>().onGenerateRoute,
           home: const RoleUserRoute(),
         ),
       ),

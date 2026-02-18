@@ -52,6 +52,18 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
               state is StudentProfileInitial) {
             return const Center(child: CircularProgressIndicator());
           }
+          if (state is StudentProfileProvisioning) {
+            return const Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: AppSpacing.md),
+                  Text('Setting up your profile...'),
+                ],
+              ),
+            );
+          }
           if (state is StudentProfileError) {
             return _ErrorState(
               message: state.message,

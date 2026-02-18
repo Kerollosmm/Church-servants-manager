@@ -21,7 +21,6 @@ void main() {
     isEmailVerified: true,
   );
 
-  // ignore: unused_local_variable
   const servant = AuthUser(
     uid: 'servant-1',
     email: 's@test.com',
@@ -78,6 +77,24 @@ void main() {
 
   group('ServantDataCubit', () {
     blocTest<ServantDataCubit, ServantDataState>(
+      'non-admin is blocked from loading servants',
+      build: () => ServantDataCubit(repository: mockRepository),
+      act: (cubit) => cubit.loadServants(actor: servant),
+      expect: () => [
+        isA<ServantDataError>().having(
+          (s) => s.message,
+          'message',
+          'Permission denied: Only admins can manage servants.',
+        ),
+      ],
+      verify: (_) {
+        verifyNever(
+          () => mockRepository.getAllServants(limit: any(named: 'limit')),
+        );
+      },
+    );
+
+    blocTest<ServantDataCubit, ServantDataState>(
       'admin can load all servants',
       build: () => ServantDataCubit(repository: mockRepository),
       act: (cubit) => cubit.loadServants(actor: admin),
@@ -95,10 +112,7 @@ void main() {
     blocTest<ServantDataCubit, ServantDataState>(
       'admin search uses repository search',
       build: () => ServantDataCubit(repository: mockRepository),
-      act: (cubit) => cubit.searchServants(
-        actor: admin,
-        query: 'Servant 1',
-      ),
+      act: (cubit) => cubit.searchServants(actor: admin, query: 'Servant 1'),
       expect: () => [
         isA<ServantDataLoading>(),
         isA<ServantDataLoaded>()

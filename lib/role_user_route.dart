@@ -1,5 +1,4 @@
 import 'package:church_managment_system/core/constants/enums.dart';
-import 'package:church_managment_system/core/widgets/dialogs/error_dialog.dart';
 import 'package:church_managment_system/features/admin/presentation/screens/admin_dashboard_screen.dart';
 import 'package:church_managment_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_managment_system/features/auth/presentation/screens/login_screen.dart';
@@ -13,19 +12,44 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 class RoleUserRoute extends StatelessWidget {
   const RoleUserRoute({super.key});
 
+  bool _isAuthenticatedState(AuthState state) =>
+      state is AuthAuthenticated || state is AuthDegraded;
+
   @override
   Widget build(BuildContext context) {
-    return BlocListener<AuthBloc, AuthState>(
-      listener: (context, state) {
-        if (state is AuthError) {
-          // Only show global error dialog if we're not on a specific auth screen
-          // Or if it's a critical initialization error.
-          // For now, we'll keep it but ensure local screens also handle it.
-          showErrorDialog(context, state.message);
-        } else if (state is AuthAuthenticated) {
-          Navigator.of(context).popUntil((route) => route.isFirst);
-        }
-      },
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<AuthBloc, AuthState>(
+          listenWhen: (previous, current) =>
+              !_isAuthenticatedState(previous) &&
+              _isAuthenticatedState(current),
+          listener: (context, state) {
+            Navigator.of(context).popUntil((route) => route.isFirst);
+            if (state is AuthDegraded) {
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text(state.message)));
+            }
+          },
+        ),
+        BlocListener<AuthBloc, AuthState>(
+          listenWhen: (previous, current) {
+            if (current is! AuthDegraded) return false;
+            if (!_isAuthenticatedState(previous)) return false;
+            if (previous is AuthDegraded) {
+              return previous.message != current.message;
+            }
+            return true;
+          },
+          listener: (context, state) {
+            if (state is AuthDegraded) {
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text(state.message)));
+            }
+          },
+        ),
+      ],
       child: BlocBuilder<AuthBloc, AuthState>(
         builder: (context, state) {
           // Loading state
@@ -36,8 +60,10 @@ class RoleUserRoute extends StatelessWidget {
           }
 
           // Authenticated - route based on role
-          if (state is AuthAuthenticated) {
-            final user = state.user;
+          if (state is AuthAuthenticated || state is AuthDegraded) {
+            final user = state is AuthAuthenticated
+                ? state.user
+                : (state as AuthDegraded).user;
             switch (user.role) {
               case UserRole.servant:
                 return ServantDashboardScreen(user: user);

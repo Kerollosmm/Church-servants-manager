@@ -234,13 +234,16 @@ class DataSeeder {
     }
 
     final uid = _currentUid();
-    await _users.doc(uid).set({
+    final payload = <String, dynamic>{
       'uid': uid,
       'role': UserRole.servant.name,
       'group': group.name, // Legacy field
       'groupId': group.name,
-      if (assignedTeamId != null) 'assignedTeamId': assignedTeamId,
-    }, SetOptions(merge: true));
+    };
+    if (assignedTeamId != null) {
+      payload['assignedTeamId'] = assignedTeamId;
+    }
+    await _users.doc(uid).set(payload, SetOptions(merge: true));
 
     debugPrint(
       'DataSeeder: Set current user as teacher for ${group.name} (Team: $assignedTeamId).',
@@ -248,7 +251,6 @@ class DataSeeder {
   }
 
   /// Sets current user role to student and creates/updates a StudentModel profile for them.
-  /// Also mirrors the StudentModel snapshot into Users/{uid} (merge).
   Future<void> assignMeAsStudentAndCreateProfile() async {
     final user = _auth.currentUser;
     if (user == null) throw StateError('Not signed in.');
@@ -305,7 +307,6 @@ class DataSeeder {
     );
 
     await _students.doc(uid).set(student.toMap(), SetOptions(merge: true));
-    await _users.doc(uid).set(student.toMap(), SetOptions(merge: true));
 
     debugPrint('DataSeeder: Set current user as student and created profile.');
   }

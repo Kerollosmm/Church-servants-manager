@@ -6,7 +6,6 @@ import 'package:church_managment_system/features/servant/data/models/servant_mod
 import 'package:church_managment_system/features/servant/presentation/bloc/servant_data/servant_data_cubit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:uuid/uuid.dart';
 
 class AddEditServantScreen extends StatefulWidget {
   final ServantEditArgs args;
@@ -19,7 +18,6 @@ class AddEditServantScreen extends StatefulWidget {
 
 class _AddEditServantScreenState extends State<AddEditServantScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _uuid = const Uuid();
 
   late final TextEditingController _name;
   late final TextEditingController _phone;
@@ -85,7 +83,7 @@ class _AddEditServantScreenState extends State<AddEditServantScreen> {
     final isEditing = widget.args.isEditing;
     final existing = widget.args.servant;
 
-    final uid = existing?.uid ?? _uuid.v4();
+    final uid = existing?.uid;
     final docId = existing?.docID ?? 'temp';
 
     final servant = ServantModel(
@@ -121,6 +119,13 @@ class _AddEditServantScreenState extends State<AddEditServantScreen> {
       listener: (context, state) {
         if (state is ServantDataOperationSuccess) {
           Navigator.pop(context);
+        } else if (state is ServantDataError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.message),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
         }
       },
       child: Scaffold(

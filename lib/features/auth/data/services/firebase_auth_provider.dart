@@ -8,7 +8,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:firebase_auth/firebase_auth.dart'
     show FirebaseAuth, FirebaseAuthException;
-import 'package:firebase_core/firebase_core.dart';
 
 class FirebaseAuthProvider implements AuthProvider {
   final FirebaseAuth _auth;
@@ -20,11 +19,6 @@ class FirebaseAuthProvider implements AuthProvider {
   FirebaseAuthProvider({FirebaseAuth? auth, FirebaseFirestore? db})
     : _auth = auth ?? FirebaseAuth.instance,
       _db = db ?? FirebaseFirestore.instance;
-
-  @override
-  Future<void> initialize() async {
-    await Firebase.initializeApp();
-  }
 
   @override
   AuthUser? get currentUser {
@@ -244,23 +238,6 @@ class FirebaseAuthProvider implements AuthProvider {
         _userCache[uid] = user;
         return user;
       } else {
-        // Create user record if exists in Auth but not Firestore
-        final firebaseUser = _auth.currentUser;
-        if (firebaseUser != null) {
-          final newUser = AuthUser(
-            uid: uid,
-            name:
-                firebaseUser.displayName ??
-                firebaseUser.email?.split('@').first ??
-                'User',
-            email: firebaseUser.email ?? '',
-            role: UserRole.student,
-            isEmailVerified: firebaseUser.emailVerified,
-          );
-          await _saveUserToFirestore(newUser);
-          _userCache[uid] = newUser;
-          return newUser;
-        }
         throw UserNotFoundAuthException();
       }
     } catch (e) {
@@ -271,10 +248,18 @@ class FirebaseAuthProvider implements AuthProvider {
 
   Future<void> _saveUserToFirestore(AuthUser appUser) async {
     try {
+      final payload = <String, dynamic>{
+        'uid': appUser.uid,
+        'name': appUser.name,
+        'email': appUser.email,
+        'role': appUser.role.name,
+        'isEmailVerified': appUser.isEmailVerified,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
       await _db
           .collection(FirestoreCollections.users)
           .doc(appUser.uid)
-          .set(appUser.toJson());
+          .set(payload, SetOptions(merge: true));
     } catch (e) {
       throw GenericAuthException('Failed to save user data: $e');
     }

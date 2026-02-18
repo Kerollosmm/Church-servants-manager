@@ -2,6 +2,7 @@ import 'package:church_managment_system/features/auth/presentation/bloc/auth_blo
 import 'package:church_managment_system/features/auth/presentation/widgets/auth_header.dart';
 import 'package:church_managment_system/features/auth/presentation/widgets/auth_submit_button.dart';
 import 'package:church_managment_system/features/auth/presentation/widgets/auth_text_field.dart';
+import 'package:church_managment_system/core/widgets/dialogs/error_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -55,12 +56,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             Navigator.pop(context);
           }
           if (state is AuthError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: Colors.red,
-              ),
-            );
+            showErrorDialog(context, state.message);
           }
         },
         child: SafeArea(

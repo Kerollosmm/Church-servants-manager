@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:church_managment_system/features/student/data/models/student_model.dart';
 import 'package:church_managment_system/features/student/data/repos/student_data_repository.dart';
-import 'package:church_managment_system/core/constants/enums.dart';
+import 'package:church_managment_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
+import 'package:church_managment_system/features/student/domain/usecases/get_students_stream_usecase.dart';
 import 'package:church_managment_system/features/auth/data/models/auth_user.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
@@ -10,91 +13,59 @@ part 'student_data_event.dart';
 part 'student_data_state.dart';
 
 /// BLoC for managing student data with role-based filtering.
-/// Events accept filter parameters - UI passes groupId from RoleCubit.
+///
+/// Delegates stream selection to [GetStudentsStreamUseCase]
+/// and authorization to [CanMutateStudentUseCase].
 class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
   final StudentDataRepository _studentRepository;
+  final GetStudentsStreamUseCase _getStudentsStream;
+  final CanMutateStudentUseCase _canMutateStudent;
+
+  StreamSubscription<List<StudentModel>>? _studentsSubscription;
+  List<StudentModel> _allStudents = [];
   String? _lastFilterGroupId;
   String? _lastFilterTeamId;
   String? _lastQuery;
-  AuthUser? _lastActor;
 
-  StudentDataBloc({required StudentDataRepository studentRepository})
-    : _studentRepository = studentRepository,
-      super(const StudentDataInitial()) {
+  StudentDataBloc({
+    required StudentDataRepository studentRepository,
+    required GetStudentsStreamUseCase getStudentsStream,
+    required CanMutateStudentUseCase canMutateStudent,
+  }) : _studentRepository = studentRepository,
+       _getStudentsStream = getStudentsStream,
+       _canMutateStudent = canMutateStudent,
+       super(const StudentDataInitial()) {
     on<StudentsLoadRequested>(_onLoadStudents);
     on<StudentsSearchRequested>(_onSearchStudents);
     on<StudentCreated>(_onCreateStudent);
     on<StudentUpdated>(_onUpdateStudent);
     on<StudentDeleted>(_onDeleteStudent);
     on<StudentsRefreshRequested>(_onRefreshStudents);
+    on<_StudentsStreamUpdated>(_onStreamUpdated);
+    on<_StreamError>(_onStreamError);
   }
 
-  List<String> _assignedTeamIds(AuthUser actor) =>
-      actor.effectiveAssignedTeamIds;
+  /// Subscribes to the stream returned by the use case.
+  void _subscribeToStudents({required AuthUser actor, String? teamId}) {
+    _studentsSubscription?.cancel();
 
-  Future<List<StudentModel>> _getStudentsForTeamIds(
-    List<String> teamIds,
-  ) async {
-    if (teamIds.isEmpty) return [];
-    final result = await Future.wait(
-      teamIds.map((teamId) => _studentRepository.getStudentsByClass(teamId)),
+    final stream = _getStudentsStream(actor: actor, teamId: teamId);
+
+    if (stream == null) {
+      add(const _StudentsStreamUpdated([]));
+      return;
+    }
+
+    _studentsSubscription = stream.listen(
+      (students) {
+        students.sort((a, b) => a.name.compareTo(b.name));
+        add(_StudentsStreamUpdated(students));
+      },
+      onError: (Object error) {
+        debugPrint('StudentDataBloc: Stream error - $error');
+        add(_StreamError('$error'));
+      },
     );
-    final deduped = <String, StudentModel>{};
-    for (final teamStudents in result) {
-      for (final student in teamStudents) {
-        deduped[student.docID] = student;
-      }
-    }
-    final students = deduped.values.toList();
-    students.sort((a, b) => a.name.compareTo(b.name));
-    return students;
-  }
-
-  Future<List<StudentModel>> _fetchStudentsForActor({
-    required AuthUser actor,
-    required int limit,
-    String? teamId,
-  }) async {
-    switch (actor.role) {
-      case UserRole.admin:
-        if (teamId != null && teamId.isNotEmpty) {
-          // Admin filtering by a specific team
-          return _studentRepository.getStudentsByClass(teamId);
-        }
-        return _studentRepository.getAllStudents(limit: limit);
-      case UserRole.servant:
-        // If servant has explicit team assignments, lock access to that set.
-        final assignedTeamIds = _assignedTeamIds(actor);
-        if (assignedTeamIds.isNotEmpty) {
-          if (teamId != null && teamId.isNotEmpty) {
-            if (!assignedTeamIds.contains(teamId)) {
-              // Don't leak other teams.
-              return [];
-            }
-            return _studentRepository.getStudentsByClass(teamId);
-          }
-          return _getStudentsForTeamIds(assignedTeamIds);
-        }
-
-        // No team assignment: fallback to group-level access (legacy behavior).
-        final groupId = actor.groupId;
-        if (groupId == null || groupId.isEmpty) return [];
-        return _studentRepository.getStudentsByGroup(groupId);
-      case UserRole.student:
-        throw StateError('Students are not allowed to load student lists.');
-    }
-  }
-
-  bool _canMutateStudent(AuthUser actor, StudentModel student) {
-    if (actor.role == UserRole.admin) return true;
-    if (actor.role == UserRole.servant) {
-      final assignedTeamIds = _assignedTeamIds(actor);
-      if (assignedTeamIds.isNotEmpty) {
-        return assignedTeamIds.contains(student.classId);
-      }
-      return actor.groupId != null && student.group.name == actor.groupId;
-    }
-    return false;
   }
 
   List<StudentModel> _filterByName(List<StudentModel> students, String query) {
@@ -118,117 +89,62 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     Emitter<StudentDataState> emit,
   ) async {
     emit(const StudentDataLoading());
-    try {
-      _lastActor = event.actor;
-      _lastFilterGroupId = event.actor.groupId;
-      _lastFilterTeamId = event.teamId;
-      _lastQuery = null;
+    _lastFilterGroupId = event.actor.groupId;
+    _lastFilterTeamId = event.teamId;
+    _lastQuery = null;
 
-      final students = await _fetchStudentsForActor(
-        actor: event.actor,
-        limit: event.limit,
-        teamId: event.teamId,
-      );
+    _subscribeToStudents(actor: event.actor, teamId: event.teamId);
+  }
 
-      emit(
-        StudentDataLoaded(
-          students: students,
-          currentFilterGroupId: _lastFilterGroupId,
-          currentFilterTeamId: _lastFilterTeamId,
-          currentQuery: null,
-        ),
-      );
-    } catch (e) {
-      _emitError(emit, 'Unable to load students', e);
-    }
+  void _onStreamUpdated(
+    _StudentsStreamUpdated event,
+    Emitter<StudentDataState> emit,
+  ) {
+    _allStudents = event.students;
+    final query = _lastQuery;
+    final students = (query != null && query.isNotEmpty)
+        ? _filterByName(_allStudents, query)
+        : _allStudents;
+
+    emit(
+      StudentDataLoaded(
+        students: students,
+        currentFilterGroupId: _lastFilterGroupId,
+        currentFilterTeamId: _lastFilterTeamId,
+        currentQuery: query,
+      ),
+    );
+  }
+
+  void _onStreamError(_StreamError event, Emitter<StudentDataState> emit) {
+    emit(StudentDataError(event.message));
   }
 
   Future<void> _onSearchStudents(
     StudentsSearchRequested event,
     Emitter<StudentDataState> emit,
   ) async {
-    emit(const StudentDataLoading());
-    try {
-      _lastActor = event.actor;
-      final query = event.query.trim();
-      _lastFilterGroupId = event.actor.groupId;
-      _lastFilterTeamId = event.teamId;
-      _lastQuery = query;
+    final query = event.query.trim();
+    _lastQuery = query;
 
-      List<StudentModel> students;
+    final students = (query.isNotEmpty)
+        ? _filterByName(_allStudents, query)
+        : _allStudents;
 
-      if (query.isEmpty) {
-        students = await _fetchStudentsForActor(
-          actor: event.actor,
-          limit: 50,
-          teamId: event.teamId,
-        );
-      } else {
-        switch (event.actor.role) {
-          case UserRole.admin:
-            if (event.teamId != null && event.teamId!.isNotEmpty) {
-              final filtered = await _studentRepository.getStudentsByClass(
-                event.teamId!,
-              );
-              students = _filterByName(filtered, query);
-            } else {
-              students = await _studentRepository.searchStudents(query);
-            }
-            break;
-          case UserRole.servant:
-            final assignedTeamIds = _assignedTeamIds(event.actor);
-            if (assignedTeamIds.isNotEmpty) {
-              final requested = event.teamId;
-              if (requested != null &&
-                  requested.isNotEmpty &&
-                  !assignedTeamIds.contains(requested)) {
-                students = [];
-                break;
-              }
-              final scopedStudents = (requested == null || requested.isEmpty)
-                  ? await _getStudentsForTeamIds(assignedTeamIds)
-                  : await _studentRepository.getStudentsByClass(requested);
-              final filtered = scopedStudents;
-              students = _filterByName(filtered, query);
-              break;
-            }
-
-            // Legacy: group-level servant access when not assigned to a team.
-            final groupId = event.actor.groupId;
-            if (groupId == null || groupId.isEmpty) {
-              students = [];
-              break;
-            }
-            final filtered = await _studentRepository.getStudentsByGroup(
-              groupId,
-            );
-            students = _filterByName(filtered, query);
-            break;
-          case UserRole.student:
-            throw StateError(
-              'Students are not allowed to search student lists.',
-            );
-        }
-      }
-
-      emit(
-        StudentDataLoaded(
-          students: students,
-          currentFilterGroupId: _lastFilterGroupId,
-          currentFilterTeamId: _lastFilterTeamId,
-          currentQuery: query.isEmpty ? null : query,
-        ),
-      );
-    } catch (e) {
-      _emitError(emit, 'Unable to search students', e);
-    }
+    emit(
+      StudentDataLoaded(
+        students: students,
+        currentFilterGroupId: _lastFilterGroupId,
+        currentFilterTeamId: _lastFilterTeamId,
+        currentQuery: query,
+      ),
+    );
   }
 
   Future<void> _onCreateStudent(
     StudentCreated event,
     Emitter<StudentDataState> emit,
   ) async {
-    emit(const StudentDataLoading());
     try {
       if (!_canMutateStudent(event.actor, event.student)) {
         emit(const StudentDataError('Not allowed.'));
@@ -236,7 +152,6 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
       }
       await _studentRepository.createStudent(event.student);
       emit(const StudentDataOperationSuccess('Student created successfully'));
-      _reloadLastView();
     } catch (e) {
       _emitError(emit, 'Unable to create student', e);
     }
@@ -246,9 +161,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     StudentUpdated event,
     Emitter<StudentDataState> emit,
   ) async {
-    emit(const StudentDataLoading());
     try {
-      // Stronger check: validate against stored record so doc/class can't be spoofed.
       final existing = await _studentRepository.getStudentById(
         event.student.docID,
       );
@@ -262,7 +175,6 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
       }
       await _studentRepository.updateStudent(event.student);
       emit(const StudentDataOperationSuccess('Student updated successfully'));
-      _reloadLastView();
     } catch (e) {
       _emitError(emit, 'Unable to update student', e);
     }
@@ -272,7 +184,6 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     StudentDeleted event,
     Emitter<StudentDataState> emit,
   ) async {
-    emit(const StudentDataLoading());
     try {
       final existing = await _studentRepository.getStudentById(event.docId);
       if (existing == null) {
@@ -285,7 +196,6 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
       }
       await _studentRepository.deleteStudent(event.docId);
       emit(const StudentDataOperationSuccess('Student deleted successfully'));
-      _reloadLastView();
     } catch (e) {
       _emitError(emit, 'Unable to delete student', e);
     }
@@ -295,25 +205,13 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     StudentsRefreshRequested event,
     Emitter<StudentDataState> emit,
   ) async {
-    _lastActor = event.actor;
     _lastFilterGroupId = event.actor.groupId;
-    _reloadLastView();
+    _subscribeToStudents(actor: event.actor, teamId: _lastFilterTeamId);
   }
 
-  void _reloadLastView() {
-    final actor = _lastActor;
-    if (actor == null) return;
-
-    if (_lastQuery != null && _lastQuery!.isNotEmpty) {
-      add(
-        StudentsSearchRequested(
-          query: _lastQuery!,
-          actor: actor,
-          teamId: _lastFilterTeamId,
-        ),
-      );
-      return;
-    }
-    add(StudentsLoadRequested(actor: actor, teamId: _lastFilterTeamId));
+  @override
+  Future<void> close() {
+    _studentsSubscription?.cancel();
+    return super.close();
   }
 }

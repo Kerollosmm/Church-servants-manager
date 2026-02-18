@@ -24,10 +24,11 @@ class StudentProfileCubit extends Cubit<StudentProfileState> {
 
       var profile = await _studentRepository.getStudentByUid(actor.uid);
 
-      // Auto-create profile if student user doesn't have one yet
+      // Auto-create profile only for the authenticated student user.
       if (profile == null) {
+        emit(const StudentProfileProvisioning());
         debugPrint(
-          'StudentProfileCubit: No profile found, creating default profile for ${actor.uid}',
+          'StudentProfileCubit: provisioning profile for ${actor.uid}',
         );
         profile = _createDefaultProfile(actor);
         await _studentRepository.upsertStudent(profile);

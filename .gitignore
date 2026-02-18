@@ -46,4 +46,4 @@ app.*.map.json
 
 # Agent and Docs
 docs/
-conductor/
+.agent/

@@ -44,7 +44,9 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
 
   AuthUser? _currentActorOrNull() {
     final state = context.read<AuthBloc>().state;
-    return state is AuthAuthenticated ? state.user : null;
+    if (state is AuthAuthenticated) return state.user;
+    if (state is AuthDegraded) return state.user;
+    return null;
   }
 
   void _onSearchChanged(AuthUser actor, String value) {
@@ -85,7 +87,12 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
 
   Future<void> _refresh(AuthUser actor) async {
     final bloc = context.read<StudentDataBloc>();
-    final future = bloc.stream.firstWhere((s) => s is! StudentDataLoading);
+    final future = bloc.stream
+        .firstWhere((s) => s is! StudentDataLoading)
+        .timeout(
+          const Duration(seconds: 10),
+          onTimeout: () => const StudentDataError('Refresh timed out'),
+        );
     bloc.add(StudentsRefreshRequested(actor: actor));
     await future;
   }
@@ -99,11 +106,15 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
 
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, authState) {
-        if (authState is! AuthAuthenticated) {
+        final actor = switch (authState) {
+          AuthAuthenticated() => authState.user,
+          AuthDegraded() => authState.user,
+          _ => null,
+        };
+
+        if (actor == null) {
           return const Scaffold(body: Center(child: Text('Not signed in.')));
         }
-
-        final actor = authState.user;
         final assignedTeamIds = actor.effectiveAssignedTeamIds;
 
         return Scaffold(
@@ -306,7 +317,11 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                               AppSpacing.md,
                               AppSpacing.md,
                             ),
-                            child: _StudentCard(actor: actor, student: student),
+                            child: _StudentCard(
+                              key: ValueKey(student.docID),
+                              actor: actor,
+                              student: student,
+                            ),
                           );
                         }, childCount: students.length),
                       ),
@@ -364,7 +379,7 @@ class _StudentCard extends StatelessWidget {
   final AuthUser actor;
   final StudentModel student;
 
-  const _StudentCard({required this.actor, required this.student});
+  const _StudentCard({super.key, required this.actor, required this.student});
 
   @override
   Widget build(BuildContext context) {

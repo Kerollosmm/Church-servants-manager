@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:church_managment_system/core/constants/firestore_collections.dart';
 import 'package:church_managment_system/features/student/domain/failures/student_failures.dart';
 import 'package:church_managment_system/features/student/domain/repos/i_student_repository.dart';
+import 'package:rxdart/rxdart.dart';
 import '../models/student_model.dart';
 
 class StudentDataRepository implements IStudentRepository {
@@ -12,9 +13,6 @@ class StudentDataRepository implements IStudentRepository {
 
   CollectionReference<Map<String, dynamic>> get _studentsCollection =>
       _firestore.collection(FirestoreCollections.students);
-
-  CollectionReference<Map<String, dynamic>> get _usersCollection =>
-      _firestore.collection(FirestoreCollections.users);
 
   @override
   Future<StudentModel?> getStudentById(String docId) async {
@@ -153,6 +151,35 @@ class StudentDataRepository implements IStudentRepository {
     }
   }
 
+  Future<({List<StudentModel> students, bool isFromCache})>
+  getStudentsByGroupWithFallback(String groupName) async {
+    try {
+      final serverSnapshot = await _studentsCollection
+          .where('group', isEqualTo: groupName)
+          .get(const GetOptions(source: Source.server));
+      return (
+        students: serverSnapshot.docs
+            .map((doc) => StudentModel.fromMap(doc.data(), doc.id))
+            .toList(growable: false),
+        isFromCache: false,
+      );
+    } catch (_) {
+      try {
+        final cacheSnapshot = await _studentsCollection
+            .where('group', isEqualTo: groupName)
+            .get(const GetOptions(source: Source.cache));
+        return (
+          students: cacheSnapshot.docs
+              .map((doc) => StudentModel.fromMap(doc.data(), doc.id))
+              .toList(growable: false),
+          isFromCache: true,
+        );
+      } catch (e) {
+        throw mapExceptionToStudentFailure(e);
+      }
+    }
+  }
+
   @override
   Future<List<StudentModel>> searchStudents(
     String query, {
@@ -179,28 +206,9 @@ class StudentDataRepository implements IStudentRepository {
   @override
   Future<String> createStudent(StudentModel student) async {
     try {
-      final batch = _firestore.batch();
-
-      // 1. Create Student Document
       final docRef = _studentsCollection.doc();
       final finalStudent = student.copyWith(docID: docRef.id);
-      batch.set(docRef, finalStudent.toMap());
-
-      // 2. Dual-Write: Ensure User record is consistent if UID exists
-      if (student.uid.isNotEmpty) {
-        final userRef = _usersCollection.doc(student.uid);
-        // Merging to avoid overwriting auth data if it exists,
-        // but enforcing role and name sync.
-        batch.set(userRef, {
-          'role': 'student', // Enforce role
-          'name': student.name, // Sync name
-          'studentProfileId': docRef.id, // Link back
-          'classId': student.classId,
-          'grade': student.grade,
-        }, SetOptions(merge: true));
-      }
-
-      await batch.commit();
+      await docRef.set(finalStudent.toMap());
       return docRef.id;
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
@@ -210,23 +218,8 @@ class StudentDataRepository implements IStudentRepository {
   @override
   Future<void> updateStudent(StudentModel student) async {
     try {
-      final batch = _firestore.batch();
-
-      // 1. Update Student Document
       final docRef = _studentsCollection.doc(student.docID);
-      batch.update(docRef, student.toMap());
-
-      // 2. Dual-Write: Sync changes to User record if UID exists
-      if (student.uid.isNotEmpty) {
-        final userRef = _usersCollection.doc(student.uid);
-        batch.set(userRef, {
-          'name': student.name,
-          'classId': student.classId,
-          'grade': student.grade,
-        }, SetOptions(merge: true));
-      }
-
-      await batch.commit();
+      await docRef.update(student.toMap());
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
     }
@@ -235,26 +228,8 @@ class StudentDataRepository implements IStudentRepository {
   @override
   Future<void> upsertStudent(StudentModel student) async {
     try {
-      final batch = _firestore.batch();
-
-      // 1. Upsert Student Document
       final docRef = _studentsCollection.doc(student.docID);
-      batch.set(docRef, student.toMap(), SetOptions(merge: true));
-
-      // 2. Dual-Write: Sync to User record
-      if (student.uid.isNotEmpty) {
-        final userRef = _usersCollection.doc(student.uid);
-        batch.set(userRef, {
-          'name': student.name,
-          'classId': student.classId,
-          'grade': student.grade,
-          'role': 'student', // Ensure role if creating/repairing
-          'studentProfileId':
-              student.docID, // Ensure link if creating/repairing
-        }, SetOptions(merge: true));
-      }
-
-      await batch.commit();
+      await docRef.set(student.toMap(), SetOptions(merge: true));
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
     }
@@ -297,5 +272,88 @@ class StudentDataRepository implements IStudentRepository {
     }
 
     return studentIds;
+  }
+
+  // Stream-based queries (real-time)
+
+  @override
+  Stream<List<StudentModel>> watchAllStudents() {
+    return _studentsCollection
+        .orderBy('name')
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => StudentModel.fromMap(doc.data(), doc.id))
+              .toList(),
+        );
+  }
+
+  @override
+  Stream<List<StudentModel>> watchStudentsByClass(String classId) {
+    return _studentsCollection
+        .where('classId', isEqualTo: classId)
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => StudentModel.fromMap(doc.data(), doc.id))
+              .toList(),
+        );
+  }
+
+  @override
+  Stream<List<StudentModel>> watchStudentsByClasses(List<String> classIds) {
+    final normalizedIds = <String>{};
+    for (final classId in classIds) {
+      final trimmed = classId.trim();
+      if (trimmed.isNotEmpty) {
+        normalizedIds.add(trimmed);
+      }
+    }
+
+    if (normalizedIds.isEmpty) {
+      return Stream.value(const <StudentModel>[]);
+    }
+
+    final chunks = _chunkList(normalizedIds.toList(growable: false), 10);
+    final streams = chunks
+        .map(
+          (chunk) => _studentsCollection
+              .where('classId', whereIn: chunk)
+              .snapshots()
+              .map(
+                (snapshot) => snapshot.docs
+                    .map((doc) => StudentModel.fromMap(doc.data(), doc.id))
+                    .toList(),
+              ),
+        )
+        .toList(growable: false);
+
+    if (streams.length == 1) {
+      return streams.first;
+    }
+
+    return Rx.combineLatestList(streams).map((chunkResults) {
+      final byDocId = <String, StudentModel>{};
+      for (final students in chunkResults) {
+        for (final student in students) {
+          byDocId[student.docID] = student;
+        }
+      }
+      final merged = byDocId.values.toList(growable: false);
+      merged.sort((a, b) => a.name.compareTo(b.name));
+      return merged;
+    });
+  }
+
+  @override
+  Stream<List<StudentModel>> watchStudentsByGroup(String groupName) {
+    return _studentsCollection
+        .where('group', isEqualTo: groupName)
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => StudentModel.fromMap(doc.data(), doc.id))
+              .toList(),
+        );
   }
 }

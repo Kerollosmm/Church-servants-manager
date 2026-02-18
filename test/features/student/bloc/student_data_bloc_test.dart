@@ -1,16 +1,25 @@
+import 'dart:async';
+
 import 'package:bloc_test/bloc_test.dart';
 import 'package:church_managment_system/core/constants/enums.dart';
 import 'package:church_managment_system/features/auth/data/models/auth_user.dart';
 import 'package:church_managment_system/features/student/data/models/student_model.dart';
 import 'package:church_managment_system/features/student/data/repos/student_data_repository.dart';
+import 'package:church_managment_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
+import 'package:church_managment_system/features/student/domain/usecases/get_students_stream_usecase.dart';
 import 'package:church_managment_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockStudentDataRepository extends Mock implements StudentDataRepository {}
 
+class MockGetStudentsStreamUseCase extends Mock
+    implements GetStudentsStreamUseCase {}
+
 void main() {
   late MockStudentDataRepository mockRepository;
+  late MockGetStudentsStreamUseCase mockGetStudentsStream;
+  const canMutateStudent = CanMutateStudentUseCase();
   late List<StudentModel> allStudents;
   late List<StudentModel> year1Students;
 
@@ -62,10 +71,12 @@ void main() {
         classId: 'year1',
       ),
     );
+    registerFallbackValue(admin);
   });
 
   setUp(() {
     mockRepository = MockStudentDataRepository();
+    mockGetStudentsStream = MockGetStudentsStreamUseCase();
 
     allStudents = List.generate(10, (i) {
       final group = i.isEven ? Group.year1 : Group.year2;
@@ -92,85 +103,86 @@ void main() {
     });
 
     year1Students = allStudents.where((s) => s.classId == 'year1').toList();
-
-    when(
-      () => mockRepository.getAllStudents(limit: any(named: 'limit')),
-    ).thenAnswer((_) async => allStudents);
-    when(
-      () => mockRepository.getStudentsByClass('year1'),
-    ).thenAnswer((_) async => year1Students);
-    when(
-      () => mockRepository.searchStudents('Student 1'),
-    ).thenAnswer((_) async => [allStudents[1]]);
   });
+
+  StudentDataBloc buildBloc() => StudentDataBloc(
+    studentRepository: mockRepository,
+    getStudentsStream: mockGetStudentsStream,
+    canMutateStudent: canMutateStudent,
+  );
 
   group('StudentDataBloc', () {
     blocTest<StudentDataBloc, StudentDataState>(
-      'admin can load all students',
-      build: () => StudentDataBloc(studentRepository: mockRepository),
+      'admin can load all students via stream',
+      setUp: () {
+        when(
+          () => mockGetStudentsStream(
+            actor: any(named: 'actor'),
+            teamId: any(named: 'teamId'),
+          ),
+        ).thenAnswer((_) => Stream.value(allStudents));
+      },
+      build: buildBloc,
       act: (bloc) => bloc.add(const StudentsLoadRequested(actor: admin)),
       expect: () => [
         isA<StudentDataLoading>(),
-        isA<StudentDataLoaded>()
-            .having((s) => s.students.length, 'count', 10)
-            .having((s) => s.currentFilterGroupId, 'filter', null),
+        isA<StudentDataLoaded>().having((s) => s.students.length, 'count', 10),
       ],
-      verify: (_) {
-        verify(() => mockRepository.getAllStudents(limit: 50)).called(1);
-      },
     );
 
     blocTest<StudentDataBloc, StudentDataState>(
-      'teacher loads only their group students',
-      build: () => StudentDataBloc(studentRepository: mockRepository),
+      'teacher loads only their group via stream',
+      setUp: () {
+        when(
+          () => mockGetStudentsStream(
+            actor: any(named: 'actor'),
+            teamId: any(named: 'teamId'),
+          ),
+        ).thenAnswer((_) => Stream.value(year1Students));
+      },
+      build: buildBloc,
       act: (bloc) => bloc.add(const StudentsLoadRequested(actor: teacherYear1)),
       expect: () => [
         isA<StudentDataLoading>(),
-        isA<StudentDataLoaded>()
-            .having((s) => s.students.length, 'count', year1Students.length)
-            .having((s) => s.currentFilterGroupId, 'filter', 'year1'),
+        isA<StudentDataLoaded>().having(
+          (s) => s.students.length,
+          'count',
+          year1Students.length,
+        ),
       ],
-      verify: (_) {
-        verify(() => mockRepository.getStudentsByClass('year1')).called(1);
+    );
+
+    blocTest<StudentDataBloc, StudentDataState>(
+      'student gets empty list (null stream)',
+      setUp: () {
+        when(
+          () => mockGetStudentsStream(
+            actor: any(named: 'actor'),
+            teamId: any(named: 'teamId'),
+          ),
+        ).thenAnswer((_) => null);
       },
-    );
-
-    blocTest<StudentDataBloc, StudentDataState>(
-      'student cannot load list',
-      build: () => StudentDataBloc(studentRepository: mockRepository),
+      build: buildBloc,
       act: (bloc) => bloc.add(const StudentsLoadRequested(actor: studentUser)),
-      expect: () => [isA<StudentDataLoading>(), isA<StudentDataError>()],
-    );
-
-    blocTest<StudentDataBloc, StudentDataState>(
-      'admin search uses repository search',
-      build: () => StudentDataBloc(studentRepository: mockRepository),
-      act: (bloc) => bloc.add(
-        const StudentsSearchRequested(actor: admin, query: 'Student 1'),
-      ),
       expect: () => [
         isA<StudentDataLoading>(),
-        isA<StudentDataLoaded>()
-            .having((s) => s.students.length, 'count', 1)
-            .having((s) => s.currentQuery, 'query', 'Student 1'),
+        isA<StudentDataLoaded>().having(
+          (s) => s.students.isEmpty,
+          'empty',
+          true,
+        ),
       ],
-      verify: (_) {
-        verify(() => mockRepository.searchStudents('Student 1')).called(1);
-      },
     );
 
     blocTest<StudentDataBloc, StudentDataState>(
       'teacher update blocked if student not in their class',
-      build: () {
-        final otherClassStudent = allStudents.firstWhere(
-          (s) => s.classId == 'year2',
-        );
-        when(
-          () => mockRepository.getStudentById(otherClassStudent.docID),
-        ).thenAnswer((_) async => otherClassStudent);
-        return StudentDataBloc(studentRepository: mockRepository);
+      setUp: () {
+        when(() => mockRepository.getStudentById(any())).thenAnswer((_) async {
+          return allStudents.firstWhere((s) => s.classId == 'year2');
+        });
       },
-      act: (bloc) async {
+      build: buildBloc,
+      act: (bloc) {
         final otherClassStudent = allStudents.firstWhere(
           (s) => s.classId == 'year2',
         );
@@ -179,7 +191,6 @@ void main() {
         );
       },
       expect: () => [
-        isA<StudentDataLoading>(),
         isA<StudentDataError>().having(
           (s) => s.message,
           'message',
@@ -190,12 +201,12 @@ void main() {
 
     blocTest<StudentDataBloc, StudentDataState>(
       'admin create emits success',
-      build: () {
+      setUp: () {
         when(
           () => mockRepository.createStudent(any()),
         ).thenAnswer((_) async => 'new-doc');
-        return StudentDataBloc(studentRepository: mockRepository);
       },
+      build: buildBloc,
       act: (bloc) {
         final newStudent = StudentModel(
           uid: 'new-uid',
@@ -219,10 +230,7 @@ void main() {
         );
         bloc.add(StudentCreated(actor: admin, student: newStudent));
       },
-      expect: () => [
-        isA<StudentDataLoading>(),
-        isA<StudentDataOperationSuccess>(),
-      ],
+      expect: () => [isA<StudentDataOperationSuccess>()],
       verify: (_) {
         verify(() => mockRepository.createStudent(any())).called(1);
       },

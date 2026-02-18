@@ -29,13 +29,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(const AuthLoading());
     try {
-      // Wait for the first auth state change to ensure session is restored
+      // Wait for the first auth state change to ensure session is restored.
       final initialUser = await _authService.authStateChanges.first.timeout(
         const Duration(seconds: 2),
         onTimeout: () => null,
       );
 
-      // Reload user to get latest email verification status if we have a user
+      // Reload user to get latest email verification status if we have a user.
       if (initialUser != null) {
         await _authService.reloadUser();
       }
@@ -52,19 +52,29 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       }
 
       final user = await _authService.getCurrentAppUser();
-      if (user != null) {
-        emit(AuthAuthenticated(user));
-      } else {
+      if (user == null) {
         emit(const AuthUnauthenticated());
+        return;
       }
+      emit(AuthAuthenticated(user));
     } catch (e) {
-      // If error occurs or timeout, try to fall back to current user
-      final user = await _authService.getCurrentAppUser();
-      if (user != null && user.isEmailVerified) {
-        emit(AuthAuthenticated(user));
-      } else {
+      final firebaseUser = _authService.currentUser;
+      if (firebaseUser == null) {
         emit(const AuthUnauthenticated());
+        return;
       }
+      final cached = _authService.lastKnownAppUser;
+      if (cached != null && cached.uid == firebaseUser.uid) {
+        emit(
+          AuthDegraded(
+            user: cached,
+            message:
+                'Unable to refresh account data. Showing last synced permissions.',
+          ),
+        );
+        return;
+      }
+      emit(AuthError('Unable to load account data. Please try again.'));
     }
   }
 
@@ -82,24 +92,18 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     } on AuthFailure catch (e) {
       emit(AuthError(e.message));
     } catch (e) {
-      // Use efficient logging in production
-      emit(AuthError(e.toString()));
+      emit(const AuthError('Something went wrong. Please try again.'));
     }
   }
 
   Future<void> _onSignUp(AuthEventSignUp event, Emitter<AuthState> emit) async {
     emit(const AuthLoading());
     try {
-      final role = UserRole.values.firstWhere(
-        (r) => r.name == event.role,
-        orElse: () => UserRole.student,
-      );
-
       await _authService.register(
         email: event.email,
         password: event.password,
         name: event.name,
-        role: role,
+        role: UserRole.student,
         grade: event.grade,
       );
 
@@ -108,7 +112,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     } on AuthFailure catch (e) {
       emit(AuthError(e.message));
     } catch (e) {
-      emit(AuthError(e.toString()));
+      emit(const AuthError('Something went wrong. Please try again.'));
     }
   }
 
@@ -123,7 +127,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     } on AuthFailure catch (e) {
       emit(AuthError(e.message));
     } catch (e) {
-      emit(AuthError(e.toString()));
+      emit(const AuthError('Something went wrong. Please try again.'));
     }
   }
 
@@ -137,7 +141,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     } on AuthFailure catch (e) {
       emit(AuthError(e.message));
     } catch (e) {
-      emit(AuthError(e.toString()));
+      emit(const AuthError('Something went wrong. Please try again.'));
     }
   }
 
@@ -152,7 +156,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     } on AuthFailure catch (e) {
       emit(AuthError(e.message));
     } catch (e) {
-      emit(AuthError(e.toString()));
+      emit(const AuthError('Something went wrong. Please try again.'));
     }
   }
 
@@ -168,7 +172,21 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         emit(const AuthUnauthenticated());
       }
     } catch (e) {
-      emit(AuthError(e.toString()));
+      final firebaseUser = _authService.currentUser;
+      final cached = _authService.lastKnownAppUser;
+      if (firebaseUser != null &&
+          cached != null &&
+          cached.uid == firebaseUser.uid) {
+        emit(
+          AuthDegraded(
+            user: cached,
+            message:
+                'Unable to refresh account data. Showing last synced permissions.',
+          ),
+        );
+      } else {
+        emit(const AuthError('Something went wrong. Please try again.'));
+      }
     }
   }
 }

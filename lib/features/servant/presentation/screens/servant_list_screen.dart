@@ -42,7 +42,9 @@ class _ServantListScreenState extends State<ServantListScreen> {
 
   AuthUser? _currentActorOrNull() {
     final state = context.read<AuthBloc>().state;
-    return state is AuthAuthenticated ? state.user : null;
+    if (state is AuthAuthenticated) return state.user;
+    if (state is AuthDegraded) return state.user;
+    return null;
   }
 
   void _onSearchChanged(AuthUser actor, String value) {
@@ -77,11 +79,15 @@ class _ServantListScreenState extends State<ServantListScreen> {
 
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, authState) {
-        if (authState is! AuthAuthenticated) {
+        final actor = switch (authState) {
+          AuthAuthenticated() => authState.user,
+          AuthDegraded() => authState.user,
+          _ => null,
+        };
+
+        if (actor == null) {
           return const Scaffold(body: Center(child: Text('Not signed in.')));
         }
-
-        final actor = authState.user;
 
         return Scaffold(
           appBar: AppBar(

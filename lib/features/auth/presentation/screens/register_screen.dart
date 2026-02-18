@@ -23,7 +23,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
 
   bool _obscurePassword = true;
-  UserRole _selectedRole = UserRole.student;
 
   @override
   void dispose() {
@@ -41,7 +40,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
         name: _nameController.text.trim(),
-        role: _selectedRole.name,
+        role: UserRole.student.name,
       ),
     );
   }
@@ -135,32 +134,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                         const SizedBox(height: 16),
 
-                        // Role Dropdown
-                        DropdownButtonFormField<UserRole>(
-                          initialValue: _selectedRole,
-                          decoration: InputDecoration(
-                            labelText: 'Role',
-                            prefixIcon: const Icon(Icons.badge_outlined),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          items: const [
-                            DropdownMenuItem(
-                              value: UserRole.student,
-                              child: Text('Student'),
-                            ),
-                            DropdownMenuItem(
-                              value: UserRole.servant,
-                              child: Text('Servant'),
-                            ),
-                          ],
-                          onChanged: (role) {
-                            if (role != null) {
-                              setState(() => _selectedRole = role);
-                            }
-                          },
-                        ),
                         const SizedBox(height: 24),
 
                         // Submit

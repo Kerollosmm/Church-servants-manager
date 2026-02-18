@@ -5,9 +5,10 @@ import 'package:church_managment_system/core/theme/app_spacing.dart';
 import 'package:church_managment_system/core/utils/validators.dart';
 import 'package:church_managment_system/features/student/data/models/student_model.dart';
 import 'package:church_managment_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
+import 'package:church_managment_system/features/team/data/models/team_model.dart';
+import 'package:church_managment_system/features/team/data/repos/team_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:uuid/uuid.dart';
 
 class StudentEditScreen extends StatefulWidget {
   final StudentEditArgs args;
@@ -20,7 +21,6 @@ class StudentEditScreen extends StatefulWidget {
 
 class _StudentEditScreenState extends State<StudentEditScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _uuid = const Uuid();
 
   late final TextEditingController _name;
   late final TextEditingController _mobile;
@@ -36,11 +36,16 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
   late EducationStage _educationStage;
   late int _grade;
   DateTime? _birthdate;
+  late final TeamRepository _teamRepository;
+  List<TeamModel> _teams = const <TeamModel>[];
+  String? _selectedTeamId;
+  bool _isLoadingTeams = false;
 
   @override
   void initState() {
     super.initState();
     final student = widget.args.student;
+    final actor = widget.args.actor;
 
     _name = TextEditingController(text: student?.name ?? '');
     _mobile = TextEditingController(text: student?.mobile ?? '');
@@ -54,8 +59,6 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
     _notes = TextEditingController(text: student?.notes ?? '');
     _imageUrl = TextEditingController(text: student?.imageUrl ?? '');
 
-    final actor = widget.args.actor;
-
     if (actor.role == UserRole.servant && actor.groupId != null) {
       _group = Group.values.firstWhere(
         (g) => g.name == actor.groupId,
@@ -68,6 +71,83 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
     _educationStage = student?.educationStage ?? EducationStage.preparatory;
     _grade = student?.grade ?? 1;
     _birthdate = student?.birthdate;
+
+    _teamRepository = context.read<TeamRepository>();
+    _loadTeamsForGroup(
+      _group.name,
+      preferredTeamId: student?.classId,
+      preferredTeamName: student?.teamName,
+      currentSelection: student?.classId,
+    );
+  }
+
+  Future<void> _loadTeamsForGroup(
+    String groupId, {
+    String? preferredTeamId,
+    String? preferredTeamName,
+    String? currentSelection,
+  }) async {
+    setState(() => _isLoadingTeams = true);
+
+    try {
+      final actor = widget.args.actor;
+      final assignedTeamIds = actor.effectiveAssignedTeamIds.toSet();
+      final teamsFromRepo = await _teamRepository.getTeamsByGroup(groupId);
+      var visibleTeams = teamsFromRepo;
+
+      if (actor.role == UserRole.servant && assignedTeamIds.isNotEmpty) {
+        visibleTeams = teamsFromRepo
+            .where((team) => assignedTeamIds.contains(team.id))
+            .toList(growable: false);
+      }
+
+      final validTeamIds = visibleTeams.map((team) => team.id).toSet();
+      String? resolvedTeamId;
+
+      if (preferredTeamId != null && validTeamIds.contains(preferredTeamId)) {
+        resolvedTeamId = preferredTeamId;
+      }
+      if (resolvedTeamId == null &&
+          preferredTeamName != null &&
+          preferredTeamName.isNotEmpty) {
+        for (final team in visibleTeams) {
+          if (team.name.trim() == preferredTeamName.trim()) {
+            resolvedTeamId = team.id;
+            break;
+          }
+        }
+      }
+      if (resolvedTeamId == null &&
+          currentSelection != null &&
+          validTeamIds.contains(currentSelection)) {
+        resolvedTeamId = currentSelection;
+      }
+      if (resolvedTeamId == null &&
+          actor.role == UserRole.servant &&
+          assignedTeamIds.length == 1 &&
+          validTeamIds.contains(actor.effectiveAssignedTeamIds.first)) {
+        resolvedTeamId = actor.effectiveAssignedTeamIds.first;
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _teams = visibleTeams;
+        _selectedTeamId = resolvedTeamId;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _teams = const <TeamModel>[];
+        _selectedTeamId = null;
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Unable to load teams: $error')));
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingTeams = false);
+      }
+    }
   }
 
   @override
@@ -104,9 +184,38 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
     final actor = widget.args.actor;
     final isEditing = widget.args.isEditing;
     final existing = widget.args.student;
+    final selectedTeamId = _selectedTeamId;
 
-    final uid = existing?.uid ?? _uuid.v4();
-    final docId = existing?.docID ?? 'temp';
+    if (selectedTeamId == null || selectedTeamId.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please select a team.')));
+      return;
+    }
+
+    TeamModel? selectedTeam;
+    for (final team in _teams) {
+      if (team.id == selectedTeamId) {
+        selectedTeam = team;
+        break;
+      }
+    }
+    if (selectedTeam == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a valid team.')),
+      );
+      return;
+    }
+    final normalizedSelectedTeam = selectedTeam;
+
+    final mappedGroup = Group.values.firstWhere(
+      (value) => value.name == normalizedSelectedTeam.groupId,
+      orElse: () => _group,
+    );
+
+    // New student profiles are not assumed to have a Firebase Auth identity.
+    final uid = existing?.uid ?? '';
+    final docId = existing?.docID ?? '';
 
     final student = StudentModel(
       uid: uid,
@@ -115,8 +224,8 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
       imageUrl: _imageUrl.text.trim().isEmpty ? null : _imageUrl.text.trim(),
       role: UserRole.student,
       mobile: _mobile.text.trim(),
-      group: _group,
-      teamName: '',
+      group: mappedGroup,
+      teamName: normalizedSelectedTeam.name,
       motherPhone: _motherPhone.text.trim(),
       fatherPhone: _fatherPhone.text.trim(),
       grade: _grade,
@@ -126,7 +235,7 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
       birthdate: _birthdate,
       fatherOfConfession: _fatherOfConfession.text.trim(),
       notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
-      classId: _group.name,
+      classId: normalizedSelectedTeam.id,
     );
 
     final bloc = context.read<StudentDataBloc>();
@@ -135,8 +244,6 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
     } else {
       bloc.add(StudentCreated(actor: actor, student: student));
     }
-
-    Navigator.pop(context);
   }
 
   @override
@@ -147,254 +254,313 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
 
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(title: Text(isEditing ? 'Edit Student' : 'Add Student')),
-      body: SafeArea(
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            children: [
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Student Info',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      AppSpacing.gapMd,
-                      TextFormField(
-                        controller: _name,
-                        decoration: const InputDecoration(
-                          labelText: 'Full Name',
-                          prefixIcon: Icon(Icons.person_outline),
-                        ),
-                        validator: Validators.validateName,
-                      ),
-                      AppSpacing.gapMd,
-                      TextFormField(
-                        controller: _mobile,
-                        decoration: const InputDecoration(
-                          labelText: 'Mobile',
-                          prefixIcon: Icon(Icons.phone_outlined),
-                        ),
-                        validator: Validators.validatePhone,
-                      ),
-                      AppSpacing.gapMd,
-                      DropdownMenu<Group>(
-                        initialSelection: _group,
-                        enabled: !isTeacher,
-                        dropdownMenuEntries: Group.values
-                            .map(
-                              (g) => DropdownMenuEntry(value: g, label: g.name),
-                            )
-                            .toList(),
-                        onSelected: (g) {
-                          if (g == null) return;
-                          setState(() {
-                            _group = g;
-                          });
-                        },
-                        label: Text(isTeacher ? 'Group (Assigned)' : 'Group'),
-                        leadingIcon: const Icon(Icons.school_outlined),
-                      ),
-                      AppSpacing.gapMd,
-                      DropdownMenu<EducationStage>(
-                        initialSelection: _educationStage,
-                        dropdownMenuEntries: EducationStage.values
-                            .map(
-                              (s) => DropdownMenuEntry(value: s, label: s.name),
-                            )
-                            .toList(),
-                        onSelected: (s) {
-                          if (s == null) return;
-                          setState(() => _educationStage = s);
-                        },
-                        label: const Text('Education Stage'),
-                        leadingIcon: const Icon(Icons.badge_outlined),
-                      ),
-                      AppSpacing.gapMd,
-                      DropdownMenu<int>(
-                        initialSelection: _grade,
-                        dropdownMenuEntries: List.generate(
-                          12,
-                          (i) => DropdownMenuEntry(
-                            value: i + 1,
-                            label: 'Grade ${i + 1}',
+    return BlocListener<StudentDataBloc, StudentDataState>(
+      listener: (context, state) {
+        if (state is StudentDataOperationSuccess) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(state.message)));
+          Navigator.pop(context);
+        } else if (state is StudentDataError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(state.message), backgroundColor: Colors.red),
+          );
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(title: Text(isEditing ? 'Edit Student' : 'Add Student')),
+        body: SafeArea(
+          child: Form(
+            key: _formKey,
+            child: ListView(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              children: [
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Student Info',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.primary,
                           ),
                         ),
-                        onSelected: (g) {
-                          if (g == null) return;
-                          setState(() => _grade = g);
-                        },
-                        label: const Text('Grade'),
-                        leadingIcon: const Icon(Icons.numbers_outlined),
-                      ),
-                    ],
+                        AppSpacing.gapMd,
+                        TextFormField(
+                          controller: _name,
+                          decoration: const InputDecoration(
+                            labelText: 'Full Name',
+                            prefixIcon: Icon(Icons.person_outline),
+                          ),
+                          validator: Validators.validateName,
+                        ),
+                        AppSpacing.gapMd,
+                        TextFormField(
+                          controller: _mobile,
+                          decoration: const InputDecoration(
+                            labelText: 'Mobile',
+                            prefixIcon: Icon(Icons.phone_outlined),
+                          ),
+                          validator: Validators.validatePhone,
+                        ),
+                        AppSpacing.gapMd,
+                        DropdownMenu<Group>(
+                          initialSelection: _group,
+                          enabled: !isTeacher,
+                          dropdownMenuEntries: Group.values
+                              .map(
+                                (g) =>
+                                    DropdownMenuEntry(value: g, label: g.name),
+                              )
+                              .toList(),
+                          onSelected: (g) {
+                            if (g == null) return;
+                            setState(() {
+                              _group = g;
+                              _selectedTeamId = null;
+                            });
+                            _loadTeamsForGroup(g.name);
+                          },
+                          label: Text(isTeacher ? 'Group (Assigned)' : 'Group'),
+                          leadingIcon: const Icon(Icons.school_outlined),
+                        ),
+                        AppSpacing.gapMd,
+                        if (_isLoadingTeams) ...[
+                          const LinearProgressIndicator(),
+                          AppSpacing.gapMd,
+                        ],
+                        DropdownButtonFormField<String>(
+                          key: ValueKey(
+                            'team-field-${_group.name}-${_selectedTeamId ?? 'none'}-${_teams.length}',
+                          ),
+                          initialValue: _selectedTeamId,
+                          decoration: const InputDecoration(
+                            labelText: 'Team',
+                            prefixIcon: Icon(Icons.group_outlined),
+                          ),
+                          items: _teams
+                              .map(
+                                (team) => DropdownMenuItem<String>(
+                                  value: team.id,
+                                  child: Text(team.name),
+                                ),
+                              )
+                              .toList(growable: false),
+                          onChanged: _isLoadingTeams || _teams.isEmpty
+                              ? null
+                              : (teamId) {
+                                  setState(() => _selectedTeamId = teamId);
+                                },
+                          validator: (value) {
+                            if (_isLoadingTeams) return null;
+                            if (_teams.isEmpty) {
+                              return 'No teams available for this group';
+                            }
+                            if (value == null || value.isEmpty) {
+                              return 'Team is required';
+                            }
+                            return null;
+                          },
+                        ),
+                        AppSpacing.gapMd,
+                        DropdownMenu<EducationStage>(
+                          initialSelection: _educationStage,
+                          dropdownMenuEntries: EducationStage.values
+                              .map(
+                                (s) =>
+                                    DropdownMenuEntry(value: s, label: s.name),
+                              )
+                              .toList(),
+                          onSelected: (s) {
+                            if (s == null) return;
+                            setState(() => _educationStage = s);
+                          },
+                          label: const Text('Education Stage'),
+                          leadingIcon: const Icon(Icons.badge_outlined),
+                        ),
+                        AppSpacing.gapMd,
+                        DropdownMenu<int>(
+                          initialSelection: _grade,
+                          dropdownMenuEntries: List.generate(
+                            12,
+                            (i) => DropdownMenuEntry(
+                              value: i + 1,
+                              label: 'Grade ${i + 1}',
+                            ),
+                          ),
+                          onSelected: (g) {
+                            if (g == null) return;
+                            setState(() => _grade = g);
+                          },
+                          label: const Text('Grade'),
+                          leadingIcon: const Icon(Icons.numbers_outlined),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              AppSpacing.gapMd,
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Family Contacts',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.primary,
+                AppSpacing.gapMd,
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Family Contacts',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.primary,
+                          ),
                         ),
-                      ),
-                      AppSpacing.gapMd,
-                      TextFormField(
-                        controller: _motherPhone,
-                        decoration: const InputDecoration(
-                          labelText: 'Mother Phone',
-                          prefixIcon: Icon(Icons.phone_outlined),
+                        AppSpacing.gapMd,
+                        TextFormField(
+                          controller: _motherPhone,
+                          decoration: const InputDecoration(
+                            labelText: 'Mother Phone',
+                            prefixIcon: Icon(Icons.phone_outlined),
+                          ),
+                          validator: Validators.validatePhone,
                         ),
-                        validator: Validators.validatePhone,
-                      ),
-                      AppSpacing.gapMd,
-                      TextFormField(
-                        controller: _fatherPhone,
-                        decoration: const InputDecoration(
-                          labelText: 'Father Phone',
-                          prefixIcon: Icon(Icons.phone_outlined),
+                        AppSpacing.gapMd,
+                        TextFormField(
+                          controller: _fatherPhone,
+                          decoration: const InputDecoration(
+                            labelText: 'Father Phone',
+                            prefixIcon: Icon(Icons.phone_outlined),
+                          ),
+                          validator: Validators.validatePhone,
                         ),
-                        validator: Validators.validatePhone,
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              AppSpacing.gapMd,
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Other Details',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.primary,
+                AppSpacing.gapMd,
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Other Details',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.primary,
+                          ),
                         ),
-                      ),
-                      AppSpacing.gapMd,
-                      TextFormField(
-                        controller: _fatherOfConfession,
-                        decoration: const InputDecoration(
-                          labelText: 'Father of Confession',
-                          prefixIcon: Icon(Icons.church_outlined),
+                        AppSpacing.gapMd,
+                        TextFormField(
+                          controller: _fatherOfConfession,
+                          decoration: const InputDecoration(
+                            labelText: 'Father of Confession',
+                            prefixIcon: Icon(Icons.church_outlined),
+                          ),
+                          validator: Validators.validateName,
                         ),
-                        validator: Validators.validateName,
-                      ),
-                      AppSpacing.gapMd,
-                      TextFormField(
-                        controller: _school,
-                        decoration: const InputDecoration(
-                          labelText: 'School / College (optional)',
-                          prefixIcon: Icon(Icons.school_outlined),
+                        AppSpacing.gapMd,
+                        TextFormField(
+                          controller: _school,
+                          decoration: const InputDecoration(
+                            labelText: 'School / College (optional)',
+                            prefixIcon: Icon(Icons.school_outlined),
+                          ),
                         ),
-                      ),
-                      AppSpacing.gapMd,
-                      TextFormField(
-                        controller: _address,
-                        decoration: const InputDecoration(
-                          labelText: 'Address (optional)',
-                          prefixIcon: Icon(Icons.location_on_outlined),
+                        AppSpacing.gapMd,
+                        TextFormField(
+                          controller: _address,
+                          decoration: const InputDecoration(
+                            labelText: 'Address (optional)',
+                            prefixIcon: Icon(Icons.location_on_outlined),
+                          ),
                         ),
-                      ),
-                      AppSpacing.gapMd,
-                      Row(
-                        children: [
-                          Expanded(
-                            child: InputDecorator(
-                              decoration: const InputDecoration(
-                                labelText: 'Birthdate (optional)',
-                                prefixIcon: Icon(Icons.cake_outlined),
-                              ),
-                              child: Text(
-                                _birthdate == null
-                                    ? '—'
-                                    : '${_birthdate!.year}-${_birthdate!.month.toString().padLeft(2, '0')}-${_birthdate!.day.toString().padLeft(2, '0')}',
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.textPrimary,
+                        AppSpacing.gapMd,
+                        Row(
+                          children: [
+                            Expanded(
+                              child: InputDecorator(
+                                decoration: const InputDecoration(
+                                  labelText: 'Birthdate (optional)',
+                                  prefixIcon: Icon(Icons.cake_outlined),
+                                ),
+                                child: Text(
+                                  _birthdate == null
+                                      ? '—'
+                                      : '${_birthdate!.year}-${_birthdate!.month.toString().padLeft(2, '0')}-${_birthdate!.day.toString().padLeft(2, '0')}',
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textPrimary,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                          AppSpacing.gapSm,
-                          FilledButton(
-                            onPressed: _pickBirthdate,
-                            child: const Text('Pick'),
-                          ),
-                        ],
-                      ),
-                      AppSpacing.gapMd,
-                      TextFormField(
-                        controller: _notes,
-                        decoration: const InputDecoration(
-                          labelText: 'Notes (optional)',
-                          prefixIcon: Icon(Icons.notes_outlined),
-                        ),
-                        maxLines: 2,
-                      ),
-                      AppSpacing.gapMd,
-                      TextFormField(
-                        controller: _imageUrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Image URL (optional)',
-                          prefixIcon: Icon(Icons.image_outlined),
-                        ),
-                      ),
-                      AppSpacing.gapMd,
-                      Container(
-                        padding: const EdgeInsets.all(AppSpacing.md),
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceContainer,
-                          borderRadius: AppRadius.mdRadius,
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.lock_outline, color: AppColors.primary),
                             AppSpacing.gapSm,
-                            Expanded(
-                              child: Text(
-                                isTeacher
-                                    ? 'Teacher scope enforced: ${actor.groupId ?? 'not assigned'}'
-                                    : 'Admin access: full CRUD',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
+                            FilledButton(
+                              onPressed: _pickBirthdate,
+                              child: const Text('Pick'),
                             ),
                           ],
                         ),
-                      ),
-                    ],
+                        AppSpacing.gapMd,
+                        TextFormField(
+                          controller: _notes,
+                          decoration: const InputDecoration(
+                            labelText: 'Notes (optional)',
+                            prefixIcon: Icon(Icons.notes_outlined),
+                          ),
+                          maxLines: 2,
+                        ),
+                        AppSpacing.gapMd,
+                        TextFormField(
+                          controller: _imageUrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Image URL (optional)',
+                            prefixIcon: Icon(Icons.image_outlined),
+                          ),
+                        ),
+                        AppSpacing.gapMd,
+                        Container(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceContainer,
+                            borderRadius: AppRadius.mdRadius,
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.lock_outline,
+                                color: AppColors.primary,
+                              ),
+                              AppSpacing.gapSm,
+                              Expanded(
+                                child: Text(
+                                  isTeacher
+                                      ? 'Teacher scope enforced: ${actor.groupId ?? 'not assigned'}'
+                                      : 'Admin access: full CRUD',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              AppSpacing.gapMd,
-              FilledButton.icon(
-                key: const Key('submit_student_button'),
-                onPressed: _submit,
-                icon: Icon(isEditing ? Icons.save_outlined : Icons.add),
-                label: Text(isEditing ? 'Save Changes' : 'Create Student'),
-              ),
-            ],
+                AppSpacing.gapMd,
+                FilledButton.icon(
+                  key: const Key('submit_student_button'),
+                  onPressed: _submit,
+                  icon: Icon(isEditing ? Icons.save_outlined : Icons.add),
+                  label: Text(isEditing ? 'Save Changes' : 'Create Student'),
+                ),
+              ],
+            ),
           ),
         ),
       ),

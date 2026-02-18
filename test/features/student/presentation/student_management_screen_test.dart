@@ -5,6 +5,7 @@ import 'package:church_managment_system/features/auth/presentation/bloc/auth_blo
 import 'package:church_managment_system/features/student/data/models/student_model.dart';
 import 'package:church_managment_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
 import 'package:church_managment_system/features/student/presentation/screens/student_management_screen.dart';
+import 'package:church_managment_system/features/team/data/repos/team_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,6 +15,8 @@ class MockAuthBloc extends MockBloc<AuthEvent, AuthState> implements AuthBloc {}
 
 class MockStudentDataBloc extends MockBloc<StudentDataEvent, StudentDataState>
     implements StudentDataBloc {}
+
+class MockTeamRepository extends Mock implements TeamRepository {}
 
 void main() {
   setUpAll(() {
@@ -35,6 +38,7 @@ void main() {
   ) async {
     final authBloc = MockAuthBloc();
     final studentBloc = MockStudentDataBloc();
+    final teamRepository = MockTeamRepository();
 
     const actor = AuthUser(
       uid: 'admin-1',
@@ -80,14 +84,22 @@ void main() {
       Stream<StudentDataState>.fromIterable([studentsState]),
       initialState: studentsState,
     );
+    when(
+      () => teamRepository.watchTeamsByGroup(any()),
+    ).thenAnswer((_) => const Stream.empty());
 
     await tester.pumpWidget(
-      MultiBlocProvider(
+      MultiRepositoryProvider(
         providers: [
-          BlocProvider<AuthBloc>.value(value: authBloc),
-          BlocProvider<StudentDataBloc>.value(value: studentBloc),
+          RepositoryProvider<TeamRepository>.value(value: teamRepository),
         ],
-        child: const MaterialApp(home: StudentManagementScreen()),
+        child: MultiBlocProvider(
+          providers: [
+            BlocProvider<AuthBloc>.value(value: authBloc),
+            BlocProvider<StudentDataBloc>.value(value: studentBloc),
+          ],
+          child: const MaterialApp(home: StudentManagementScreen()),
+        ),
       ),
     );
 

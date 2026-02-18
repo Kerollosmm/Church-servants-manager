@@ -18,14 +18,27 @@ class ServantDataCubit extends Cubit<ServantDataState> {
     : _repository = repository,
       super(const ServantDataInitial());
 
-  AuthUser? _lastActor;
   String? _lastQuery;
   int _lastLimit = 50;
 
+  bool _ensureAdmin(AuthUser actor) {
+    if (actor.role == UserRole.admin) {
+      return true;
+    }
+    emit(
+      const ServantDataError(
+        GenericServantFailure(
+          'Permission denied: Only admins can manage servants.',
+        ),
+      ),
+    );
+    return false;
+  }
+
   Future<void> loadServants({required AuthUser actor, int limit = 50}) async {
+    if (!_ensureAdmin(actor)) return;
     emit(const ServantDataLoading());
     try {
-      _lastActor = actor;
       _lastLimit = limit;
       _lastQuery = null;
       final servants = await _repository.getAllServants(limit: limit);
@@ -39,20 +52,10 @@ class ServantDataCubit extends Cubit<ServantDataState> {
     required AuthUser actor,
     required String query,
   }) async {
-    if (actor.role != UserRole.admin) {
-      emit(
-        const ServantDataError(
-          GenericServantFailure(
-            'Permission denied: Only admins can search servants.',
-          ),
-        ),
-      );
-      return;
-    }
+    if (!_ensureAdmin(actor)) return;
 
     emit(const ServantDataLoading());
     try {
-      _lastActor = actor;
       _lastQuery = query;
       final servants = await _repository.searchServants(query);
       emit(ServantDataLoaded(servants: servants, currentQuery: query));
@@ -65,12 +68,14 @@ class ServantDataCubit extends Cubit<ServantDataState> {
     required AuthUser actor,
     required ServantModel servant,
   }) async {
+    if (!_ensureAdmin(actor)) return;
     emit(const ServantDataLoading());
     try {
-      _lastActor = actor;
       await _repository.createServant(servant);
-      emit(const ServantDataOperationSuccess('Servant created successfully'));
+      // Reload first so the list is fresh, then emit success last so
+      // BlocListeners (e.g. Navigator.pop) are triggered after data is ready.
       await loadServants(actor: actor, limit: _lastLimit);
+      emit(const ServantDataOperationSuccess('Servant created successfully'));
     } catch (e) {
       emit(ServantDataError(_mapFailure(e)));
     }
@@ -80,12 +85,13 @@ class ServantDataCubit extends Cubit<ServantDataState> {
     required AuthUser actor,
     required ServantModel servant,
   }) async {
+    if (!_ensureAdmin(actor)) return;
     emit(const ServantDataLoading());
     try {
-      _lastActor = actor;
       await _repository.updateServant(servant);
-      emit(const ServantDataOperationSuccess('Servant updated successfully'));
+      // Reload first so the list is fresh, then emit success last.
       await loadServants(actor: actor, limit: _lastLimit);
+      emit(const ServantDataOperationSuccess('Servant updated successfully'));
     } catch (e) {
       emit(ServantDataError(_mapFailure(e)));
     }
@@ -95,9 +101,9 @@ class ServantDataCubit extends Cubit<ServantDataState> {
     required AuthUser actor,
     required String docId,
   }) async {
+    if (!_ensureAdmin(actor)) return;
     emit(const ServantDataLoading());
     try {
-      _lastActor = actor;
       await _repository.deleteServant(docId);
       emit(const ServantDataOperationSuccess('Servant deleted successfully'));
       await loadServants(actor: actor, limit: _lastLimit);
@@ -107,7 +113,7 @@ class ServantDataCubit extends Cubit<ServantDataState> {
   }
 
   Future<void> refreshServants({required AuthUser actor}) async {
-    _lastActor = actor;
+    if (!_ensureAdmin(actor)) return;
     if (_lastQuery != null && _lastQuery!.isNotEmpty) {
       await searchServants(actor: actor, query: _lastQuery!);
     } else {

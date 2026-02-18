@@ -27,6 +27,8 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
   List<StudentModel> _all = [];
   bool _loading = true;
   bool _saving = false;
+  String? _loadError;
+  bool _loadedFromCache = false;
 
   @override
   void initState() {
@@ -41,25 +43,38 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
     super.dispose();
   }
 
+  Future<_StudentsLoadResult> _loadStudentsForGroupWithFallback(
+    String groupId,
+  ) async {
+    final studentRepo = context.read<StudentDataRepository>();
+    final result = await studentRepo.getStudentsByGroupWithFallback(groupId);
+    return _StudentsLoadResult(
+      students: result.students,
+      isFromCache: result.isFromCache,
+    );
+  }
+
   Future<void> _load() async {
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _loadError = null;
+    });
     try {
-      final repo = context.read<StudentDataRepository>();
       final team = widget.args.team;
-      final students = await repo.getStudentsByGroup(team.groupId);
+      final result = await _loadStudentsForGroupWithFallback(team.groupId);
+      final students = result.students;
       students.sort((a, b) => a.name.compareTo(b.name));
 
       _all = students;
+      _loadedFromCache = result.isFromCache;
       _selected.clear();
       for (final s in students) {
         _selected[s.docID] = (s.classId == team.id);
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load students: $e')),
-        );
-      }
+      _all = [];
+      _loadedFromCache = false;
+      _loadError = 'Failed to load students: $e';
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -81,10 +96,10 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
 
     setState(() => _saving = true);
     context.read<TeamCubit>().setTeamMembers(
-          actor: actor,
-          team: team,
-          students: selectedStudents,
-        );
+      actor: actor,
+      team: team,
+      students: selectedStudents,
+    );
   }
 
   @override
@@ -96,14 +111,17 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
       listener: (context, state) {
         if (state is TeamError) {
           setState(() => _saving = false);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.message)),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(state.message)));
         }
         if (state is TeamOperationSuccess) {
           setState(() => _saving = false);
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.message), backgroundColor: AppColors.secondary),
+            SnackBar(
+              content: Text(state.message),
+              backgroundColor: AppColors.secondary,
+            ),
           );
           Navigator.of(context).pop(true);
         }
@@ -133,16 +151,59 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
                     )
                   : const Icon(Icons.save_outlined),
               label: const Text('Save'),
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.white,
-              ),
+              style: TextButton.styleFrom(foregroundColor: AppColors.white),
             ),
           ],
         ),
         body: _loading
             ? const Center(child: CircularProgressIndicator())
+            : _loadError != null
+            ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.error_outline,
+                        size: 48,
+                        color: AppColors.error,
+                      ),
+                      AppSpacing.gapMd,
+                      Text(_loadError!, textAlign: TextAlign.center),
+                      AppSpacing.gapMd,
+                      FilledButton.icon(
+                        onPressed: _load,
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                ),
+              )
             : Column(
                 children: [
+                  if (_loadedFromCache)
+                    Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.fromLTRB(
+                        AppSpacing.md,
+                        AppSpacing.md,
+                        AppSpacing.md,
+                        0,
+                      ),
+                      padding: const EdgeInsets.all(AppSpacing.sm),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceContainer,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        'Offline mode: showing cached students.',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
                   Padding(
                     padding: const EdgeInsets.all(AppSpacing.md),
                     child: TextField(
@@ -159,7 +220,7 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
                   Expanded(
                     child: ListView.separated(
                       itemCount: _filtered.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      separatorBuilder: (_, index) => const Divider(height: 1),
                       itemBuilder: (context, index) {
                         final s = _filtered[index];
                         final isChecked = _selected[s.docID] ?? false;
@@ -185,4 +246,11 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
       ),
     );
   }
+}
+
+class _StudentsLoadResult {
+  final List<StudentModel> students;
+  final bool isFromCache;
+
+  const _StudentsLoadResult({required this.students, this.isFromCache = false});
 }

@@ -1,4 +1,3 @@
-import 'package:church_managment_system/features/auth/data/models/auth_user.dart';
 import 'package:church_managment_system/features/auth/data/services/firebase_auth_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -6,12 +5,20 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockFirebaseAuth extends Mock implements FirebaseAuth {}
+
 class MockFirebaseFirestore extends Mock implements FirebaseFirestore {}
+
 class MockUser extends Mock implements User {}
+
+// ignore: subtype_of_sealed_class
 class MockCollectionReference extends Mock
     implements CollectionReference<Map<String, dynamic>> {}
+
+// ignore: subtype_of_sealed_class
 class MockDocumentReference extends Mock
     implements DocumentReference<Map<String, dynamic>> {}
+
+// ignore: subtype_of_sealed_class
 class MockDocumentSnapshot extends Mock
     implements DocumentSnapshot<Map<String, dynamic>> {
   @override
@@ -27,41 +34,44 @@ void main() {
     mockAuth = MockFirebaseAuth();
     mockDb = MockFirebaseFirestore();
     provider = FirebaseAuthProvider(auth: mockAuth, db: mockDb);
-    
+
     registerFallbackValue(const GetOptions());
   });
 
   group('Auth Caching', () {
-    test('getUserData should fetch from server once and then use cache', () async {
-      final mockUser = MockUser();
-      when(() => mockUser.uid).thenReturn('test-uid');
-      when(() => mockUser.displayName).thenReturn('Test User');
-      when(() => mockUser.email).thenReturn('test@example.com');
-      when(() => mockUser.emailVerified).thenReturn(true);
+    test(
+      'getUserData should fetch from server once and then use cache',
+      () async {
+        final mockUser = MockUser();
+        when(() => mockUser.uid).thenReturn('test-uid');
+        when(() => mockUser.displayName).thenReturn('Test User');
+        when(() => mockUser.email).thenReturn('test@example.com');
+        when(() => mockUser.emailVerified).thenReturn(true);
 
-      final mockCollection = MockCollectionReference();
-      final mockDocRef = MockDocumentReference();
-      final mockSnapshot = MockDocumentSnapshot();
+        final mockCollection = MockCollectionReference();
+        final mockDocRef = MockDocumentReference();
+        final mockSnapshot = MockDocumentSnapshot();
 
-      when(() => mockDb.collection(any())).thenReturn(mockCollection);
-      when(() => mockCollection.doc(any())).thenReturn(mockDocRef);
-      when(() => mockDocRef.get(any())).thenAnswer((_) async => mockSnapshot);
-      
-      final userData = {
-        'uid': 'test-uid',
-        'name': 'Test User',
-        'email': 'test@example.com',
-        'role': 'student',
-        'isEmailVerified': true,
-      };
-      when(() => mockSnapshot.data()).thenReturn(userData);
+        when(() => mockDb.collection(any())).thenReturn(mockCollection);
+        when(() => mockCollection.doc(any())).thenReturn(mockDocRef);
+        when(() => mockDocRef.get(any())).thenAnswer((_) async => mockSnapshot);
 
-      // Call twice
-      await provider.getUserData('test-uid');
-      await provider.getUserData('test-uid');
+        final userData = {
+          'uid': 'test-uid',
+          'name': 'Test User',
+          'email': 'test@example.com',
+          'role': 'student',
+          'isEmailVerified': true,
+        };
+        when(() => mockSnapshot.data()).thenReturn(userData);
 
-      // Should be called exactly once total
-      verify(() => mockDocRef.get(any())).called(1);
-    });
+        // Call twice
+        await provider.getUserData('test-uid');
+        await provider.getUserData('test-uid');
+
+        // Should be called exactly once total
+        verify(() => mockDocRef.get(any())).called(1);
+      },
+    );
   });
 }

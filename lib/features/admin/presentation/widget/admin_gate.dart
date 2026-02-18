@@ -8,11 +8,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 /// Wrap any screen that must be visible to admins only.
 /// NOTE: UI reads AuthBloc state only (no Firebase calls here). :contentReference[oaicite:2]{index=2}
 class AdminGate extends StatelessWidget {
-  const AdminGate({
-    super.key,
-    required this.child,
-    AdminPolicy? policy,
-  }) : _policy = policy ?? const AdminPolicy();
+  const AdminGate({super.key, required this.child, AdminPolicy? policy})
+    : _policy = policy ?? const AdminPolicy();
 
   final Widget child;
   final AdminPolicy _policy;
@@ -27,14 +24,15 @@ class AdminGate extends StatelessWidget {
           );
         }
 
-        if (state is AuthAuthenticated) {
-          if (_policy.canAccessAllData(state.user)) return child;
+        if (state is AuthAuthenticated || state is AuthDegraded) {
+          final user = state is AuthAuthenticated
+              ? state.user
+              : (state as AuthDegraded).user;
+          if (_policy.canAccessAllData(user)) return child;
           return const _AdminAccessDeniedScreen();
         }
 
-        return const Scaffold(
-          body: Center(child: Text('Not signed in')),
-        );
+        return const Scaffold(body: Center(child: Text('Not signed in')));
       },
     );
   }
@@ -67,10 +65,9 @@ class _AdminAccessDeniedScreen extends StatelessWidget {
               Text(
                 'You don\'t have permission to open this screen.',
                 textAlign: TextAlign.center,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyMedium
-                    ?.copyWith(color: AppColors.textSecondary),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
               ),
               AppSpacing.gapLg,
               FilledButton.icon(

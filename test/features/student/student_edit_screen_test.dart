@@ -4,6 +4,7 @@ import 'package:church_managment_system/core/routing/route_args.dart';
 import 'package:church_managment_system/features/auth/data/models/auth_user.dart';
 import 'package:church_managment_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
 import 'package:church_managment_system/features/student/presentation/screens/student_edit_screen.dart';
+import 'package:church_managment_system/features/team/data/models/team_model.dart';
 import 'package:church_managment_system/features/team/data/repos/team_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -21,13 +22,17 @@ void main() {
 
   setUp(() {
     studentBloc = MockStudentDataBloc();
-    when(
-      () => studentBloc.state,
-    ).thenReturn(const StudentDataInitial());
+    when(() => studentBloc.state).thenReturn(const StudentDataInitial());
 
     teamRepository = MockTeamRepository();
-    when(() => teamRepository.watchTeamsByGroup(any()))
-        .thenAnswer((_) => const Stream.empty());
+    when(() => teamRepository.getTeamsByGroup(any())).thenAnswer(
+      (_) async => const [
+        TeamModel(id: 'team-1', name: 'Team 1', groupId: 'year1'),
+      ],
+    );
+    when(
+      () => teamRepository.watchTeamsByGroup(any()),
+    ).thenAnswer((_) => const Stream.empty());
   });
 
   const adminActor = AuthUser(
@@ -52,32 +57,23 @@ void main() {
   }
 
   group('StudentEditScreen', () {
-    testWidgets('should show validation errors when required fields are empty', (tester) async {
-      await tester.pumpWidget(createWidgetUnderTest());
+    testWidgets(
+      'should show validation errors when required fields are empty',
+      (tester) async {
+        await tester.pumpWidget(createWidgetUnderTest());
 
-      // Scroll to bottom to find the button
-      final buttonFinder = find.byKey(const Key('submit_student_button'));
-      
-      await tester.scrollUntilVisible(
-        buttonFinder,
-        500.0,
-        scrollable: find.byType(Scrollable).first, // Find the main scrollable
-      );
-      await tester.pumpAndSettle();
+        final scrollable = find.byType(Scrollable).first;
+        final buttonFinder = find.byKey(const Key('submit_student_button'));
 
-      // Find Create Student button and tap it
-      await tester.tap(buttonFinder);
-      await tester.pump();
+        await tester.drag(scrollable, const Offset(0, -2000));
+        await tester.pumpAndSettle();
 
-      // Check for validation errors
-      // Note: ListView unbuilds items off-screen, so we might need to scroll back up to find "Name is required"
-      final nameErrorFinder = find.text('Name is required');
-      
-      // Fallback: simple drag if scrollUntilVisible fails for 'up'
-      await tester.drag(find.byType(Scrollable).first, const Offset(0, 1000)); 
-      await tester.pumpAndSettle();
+        expect(buttonFinder, findsOneWidget);
+        await tester.tap(buttonFinder);
+        await tester.pumpAndSettle();
 
-      expect(nameErrorFinder, findsOneWidget);
-    });
+        expect(find.text('Name is required'), findsOneWidget);
+      },
+    );
   });
 }

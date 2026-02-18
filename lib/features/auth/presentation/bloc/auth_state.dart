@@ -17,6 +17,13 @@ class AuthAuthenticated extends AuthState {
   const AuthAuthenticated(this.user);
 }
 
+class AuthDegraded extends AuthState {
+  final AuthUser user;
+  final String message;
+
+  const AuthDegraded({required this.user, required this.message});
+}
+
 class AuthUnauthenticated extends AuthState {
   const AuthUnauthenticated();
 }

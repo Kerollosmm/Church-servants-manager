@@ -28,6 +28,31 @@ void main() {
     isEmailVerified: true,
   );
 
+  setUpAll(() {
+    registerFallbackValue(
+      StudentModel(
+        uid: 'fallback',
+        docID: 'fallback',
+        name: 'Fallback',
+        imageUrl: null,
+        role: UserRole.student,
+        mobile: '0',
+        group: Group.year1,
+        teamName: 'Team',
+        motherPhone: '0',
+        fatherPhone: '0',
+        grade: 1,
+        educationStage: EducationStage.preparatory,
+        school: null,
+        address: null,
+        birthdate: null,
+        fatherOfConfession: 'Fr.',
+        notes: null,
+        classId: 'year1',
+      ),
+    );
+  });
+
   setUp(() {
     repo = MockStudentDataRepository();
   });
@@ -61,6 +86,26 @@ void main() {
     },
     act: (cubit) => cubit.loadProfile(studentActor),
     expect: () => [isA<StudentProfileLoading>(), isA<StudentProfileLoaded>()],
+  );
+
+  blocTest<StudentProfileCubit, StudentProfileState>(
+    'provisions missing profile for student actor',
+    build: () {
+      when(
+        () => repo.getStudentByUid('student-1'),
+      ).thenAnswer((_) async => null);
+      when(() => repo.upsertStudent(any())).thenAnswer((_) async {});
+      return StudentProfileCubit(studentRepository: repo);
+    },
+    act: (cubit) => cubit.loadProfile(studentActor),
+    expect: () => [
+      isA<StudentProfileLoading>(),
+      isA<StudentProfileProvisioning>(),
+      isA<StudentProfileLoaded>(),
+    ],
+    verify: (_) {
+      verify(() => repo.upsertStudent(any())).called(1);
+    },
   );
 
   blocTest<StudentProfileCubit, StudentProfileState>(

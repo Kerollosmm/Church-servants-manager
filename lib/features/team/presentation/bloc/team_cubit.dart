@@ -19,9 +19,18 @@ class TeamCubit extends Cubit<TeamState> {
   TeamCubit({
     required TeamRepository teamRepository,
     required AdminTeamService adminTeamService,
-  })  : _teamRepository = teamRepository,
-        _adminTeamService = adminTeamService,
-        super(const TeamInitial());
+  }) : _teamRepository = teamRepository,
+       _adminTeamService = adminTeamService,
+       super(const TeamInitial());
+
+  void _emitUserFacingError(
+    String contextLabel,
+    Object error,
+    String userMessage,
+  ) {
+    debugPrint('TeamCubit: $contextLabel - $error');
+    emit(TeamError(userMessage));
+  }
 
   /// Load teams for a specific group/year.
   Future<void> loadTeamsByGroup(String groupId, {String? defaultTeamId}) async {
@@ -30,8 +39,11 @@ class TeamCubit extends Cubit<TeamState> {
       final teams = await _teamRepository.getTeamsByGroup(groupId);
       emit(TeamLoaded(teams: teams, selectedTeamId: defaultTeamId));
     } catch (e) {
-      debugPrint('TeamCubit: Failed to load teams - $e');
-      emit(TeamError('Failed to load teams: $e'));
+      _emitUserFacingError(
+        'Failed to load teams',
+        e,
+        'Could not load teams. Check internet and try again.',
+      );
     }
   }
 
@@ -42,8 +54,11 @@ class TeamCubit extends Cubit<TeamState> {
       final teams = await _teamRepository.getAllTeams();
       emit(TeamLoaded(teams: teams));
     } catch (e) {
-      debugPrint('TeamCubit: Failed to load all teams - $e');
-      emit(TeamError('Failed to load teams: $e'));
+      _emitUserFacingError(
+        'Failed to load all teams',
+        e,
+        'Could not load teams. Check internet and try again.',
+      );
     }
   }
 
@@ -56,8 +71,11 @@ class TeamCubit extends Cubit<TeamState> {
       // Reload teams for the group this team belongs to.
       await loadTeamsByGroup(team.groupId);
     } catch (e) {
-      debugPrint('TeamCubit: Failed to create team - $e');
-      emit(TeamError('Failed to create team: $e'));
+      _emitUserFacingError(
+        'Failed to create team',
+        e,
+        'Could not create team. Please try again.',
+      );
     }
   }
 
@@ -69,8 +87,11 @@ class TeamCubit extends Cubit<TeamState> {
       emit(const TeamOperationSuccess('Team updated successfully'));
       await loadTeamsByGroup(team.groupId);
     } catch (e) {
-      debugPrint('TeamCubit: Failed to update team - $e');
-      emit(TeamError('Failed to update team: $e'));
+      _emitUserFacingError(
+        'Failed to update team',
+        e,
+        'Could not update team. Please try again.',
+      );
     }
   }
 
@@ -82,8 +103,11 @@ class TeamCubit extends Cubit<TeamState> {
       emit(const TeamOperationSuccess('Team deleted successfully'));
       await loadTeamsByGroup(groupId);
     } catch (e) {
-      debugPrint('TeamCubit: Failed to delete team - $e');
-      emit(TeamError('Failed to delete team: $e'));
+      _emitUserFacingError(
+        'Failed to delete team',
+        e,
+        'Could not delete team. Please try again.',
+      );
     }
   }
 
@@ -111,8 +135,11 @@ class TeamCubit extends Cubit<TeamState> {
       emit(const TeamOperationSuccess('Servant assigned successfully'));
       await loadTeamsByGroup(team.groupId);
     } catch (e) {
-      debugPrint('TeamCubit: Failed to assign servant - $e');
-      emit(TeamError('Failed to assign servant: $e'));
+      _emitUserFacingError(
+        'Failed to assign servant',
+        e,
+        'Could not assign servant. Please try again.',
+      );
     }
   }
 
@@ -127,8 +154,11 @@ class TeamCubit extends Cubit<TeamState> {
       emit(const TeamOperationSuccess('Servant unassigned successfully'));
       await loadTeamsByGroup(team.groupId);
     } catch (e) {
-      debugPrint('TeamCubit: Failed to unassign servant - $e');
-      emit(TeamError('Failed to unassign servant: $e'));
+      _emitUserFacingError(
+        'Failed to unassign servant',
+        e,
+        'Could not unassign servant. Please try again.',
+      );
     }
   }
 
@@ -147,8 +177,11 @@ class TeamCubit extends Cubit<TeamState> {
       );
       emit(const TeamOperationSuccess('Team members updated successfully'));
     } catch (e) {
-      debugPrint('TeamCubit: Failed to set team members - $e');
-      emit(TeamError('Failed to update team members: $e'));
+      _emitUserFacingError(
+        'Failed to set team members',
+        e,
+        'Could not update team members. Please try again.',
+      );
     }
   }
 }

@@ -30,6 +30,7 @@ class TeamRepository implements ITeamRepository {
     }
   }
 
+  @override
   Stream<List<TeamModel>> watchTeamsByGroup(String groupId) {
     return _classesCollection
         .where('groupId', isEqualTo: groupId)
@@ -62,6 +63,7 @@ class TeamRepository implements ITeamRepository {
     }
   }
 
+  @override
   Stream<List<TeamModel>> watchAllTeams() {
     return _classesCollection.snapshots().map((snapshot) {
       final teams = snapshot.docs

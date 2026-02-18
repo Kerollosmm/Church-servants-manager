@@ -12,6 +12,10 @@ final class StudentProfileLoading extends StudentProfileState {
   const StudentProfileLoading();
 }
 
+final class StudentProfileProvisioning extends StudentProfileState {
+  const StudentProfileProvisioning();
+}
+
 final class StudentProfileLoaded extends StudentProfileState {
   final StudentModel student;
 

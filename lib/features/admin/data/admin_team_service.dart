@@ -32,6 +32,29 @@ class AdminTeamService {
     }
   }
 
+  void _validateServantForTeam({
+    required TeamModel team,
+    required String servantDocId,
+    required Map<String, dynamic> servantData,
+  }) {
+    final role = (servantData['role'] as String?)?.trim().toLowerCase();
+    if (role != UserRole.servant.name) {
+      throw StateError('Selected user is not a servant');
+    }
+
+    final groupId = (servantData['groupId'] as String?)?.trim();
+    if (groupId == null || groupId.isEmpty) {
+      throw StateError(
+        'Selected servant ($servantDocId) is missing group assignment',
+      );
+    }
+    if (groupId != team.groupId) {
+      throw StateError(
+        'Cannot assign servant from group "$groupId" to team group "${team.groupId}"',
+      );
+    }
+  }
+
   List<String> _extractAssignedTeamIds(Map<String, dynamic> data) {
     final ids = <String>[];
 
@@ -72,6 +95,37 @@ class AdminTeamService {
     };
   }
 
+  Future<void> _recomputeStudentIdsForClasses(Set<String> classIds) async {
+    final normalizedClassIds = classIds
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet();
+
+    if (normalizedClassIds.isEmpty) return;
+
+    final pendingIds = normalizedClassIds.toList(growable: false);
+    for (var i = 0; i < pendingIds.length; i += 200) {
+      final batch = _firestore.batch();
+      final end = (i + 200 > pendingIds.length) ? pendingIds.length : i + 200;
+      final slice = pendingIds.sublist(i, end);
+
+      for (final classId in slice) {
+        final membersSnap = await _students
+            .where('classId', isEqualTo: classId)
+            .get();
+        final memberIds = membersSnap.docs
+            .map((studentDoc) => studentDoc.id)
+            .toList(growable: false);
+        batch.set(_classes.doc(classId), {
+          'student_ids': memberIds,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
+
+      await batch.commit();
+    }
+  }
+
   /// Assign [servant] as the responsible servant for [team].
   ///
   /// Updates:
@@ -88,58 +142,60 @@ class AdminTeamService {
     final teamRef = _classes.doc(team.id);
     final newServantRef = _users.doc(servant.docID);
 
-    final teamSnap = await teamRef.get();
-    if (!teamSnap.exists) {
-      throw StateError('Team not found');
-    }
+    await _firestore.runTransaction((transaction) async {
+      final teamSnap = await transaction.get(teamRef);
+      if (!teamSnap.exists) {
+        throw StateError('Team not found');
+      }
 
-    final data = teamSnap.data() ?? <String, dynamic>{};
-    final oldServantId = data['assignedServantId'] as String?;
-    final oldServantRef = oldServantId == null || oldServantId.isEmpty
-        ? null
-        : _users.doc(oldServantId);
+      final teamData = teamSnap.data() ?? <String, dynamic>{};
+      final oldServantId = (teamData['assignedServantId'] as String?)?.trim();
+      final oldServantRef = oldServantId == null || oldServantId.isEmpty
+          ? null
+          : _users.doc(oldServantId);
 
-    List<String> oldServantTeamIds = const [];
-    if (oldServantRef != null && oldServantId != servant.docID) {
-      final oldServantSnap = await oldServantRef.get();
-      oldServantTeamIds = _extractAssignedTeamIds(
-        oldServantSnap.data() ?? <String, dynamic>{},
-      )..removeWhere((id) => id == team.id);
-    }
-
-    final newServantSnap = await newServantRef.get();
-    final newServantTeamIds = _extractAssignedTeamIds(
-      newServantSnap.data() ?? <String, dynamic>{},
-    );
-    if (!newServantTeamIds.contains(team.id)) {
-      newServantTeamIds.add(team.id);
-    }
-
-    final batch = _firestore.batch();
-
-    // Update team assignment.
-    batch.update(teamRef, {
-      'assignedServantId': servant.docID,
-      'assignedServantName': servant.name,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-
-    // Remove this team from the previous servant assignment list, if any.
-    if (oldServantRef != null && oldServantId != servant.docID) {
-      batch.set(
-        oldServantRef,
-        _servantAssignmentPatch(oldServantTeamIds),
-        SetOptions(merge: true),
+      final newServantSnap = await transaction.get(newServantRef);
+      final newServantData = newServantSnap.data();
+      if (!newServantSnap.exists || newServantData == null) {
+        throw StateError('Servant not found');
+      }
+      _validateServantForTeam(
+        team: team,
+        servantDocId: servant.docID,
+        servantData: newServantData,
       );
-    }
 
-    // Set the new servant assignment.
-    batch.set(newServantRef, {
-      ..._servantAssignmentPatch(newServantTeamIds),
-      'groupId': team.groupId,
-    }, SetOptions(merge: true));
+      final newServantTeamIds = _extractAssignedTeamIds(newServantData);
+      if (!newServantTeamIds.contains(team.id)) {
+        newServantTeamIds.add(team.id);
+      }
 
-    await batch.commit();
+      transaction.update(teamRef, {
+        'assignedServantId': servant.docID,
+        'assignedServantName':
+            (newServantData['name'] as String?) ?? servant.name,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      if (oldServantRef != null && oldServantId != servant.docID) {
+        final oldServantSnap = await transaction.get(oldServantRef);
+        if (oldServantSnap.exists) {
+          final oldServantTeamIds = _extractAssignedTeamIds(
+            oldServantSnap.data() ?? <String, dynamic>{},
+          )..removeWhere((id) => id == team.id);
+          transaction.set(
+            oldServantRef,
+            _servantAssignmentPatch(oldServantTeamIds),
+            SetOptions(merge: true),
+          );
+        }
+      }
+
+      transaction.set(newServantRef, {
+        ..._servantAssignmentPatch(newServantTeamIds),
+        'groupId': team.groupId,
+      }, SetOptions(merge: true));
+    });
   }
 
   /// Remove any responsible servant from [team] and removes this team from that servant's assignment list.
@@ -150,42 +206,39 @@ class AdminTeamService {
     _assertAdmin(actor);
 
     final teamRef = _classes.doc(team.id);
-    final teamSnap = await teamRef.get();
-    if (!teamSnap.exists) {
-      throw StateError('Team not found');
-    }
 
-    final data = teamSnap.data() ?? <String, dynamic>{};
-    final oldServantId = data['assignedServantId'] as String?;
-    final oldServantRef = oldServantId == null || oldServantId.isEmpty
-        ? null
-        : _users.doc(oldServantId);
+    await _firestore.runTransaction((transaction) async {
+      final teamSnap = await transaction.get(teamRef);
+      if (!teamSnap.exists) {
+        throw StateError('Team not found');
+      }
 
-    List<String> oldServantTeamIds = const [];
-    if (oldServantRef != null) {
-      final oldServantSnap = await oldServantRef.get();
-      oldServantTeamIds = _extractAssignedTeamIds(
-        oldServantSnap.data() ?? <String, dynamic>{},
-      )..removeWhere((id) => id == team.id);
-    }
+      final data = teamSnap.data() ?? <String, dynamic>{};
+      final oldServantId = (data['assignedServantId'] as String?)?.trim();
+      final oldServantRef = oldServantId == null || oldServantId.isEmpty
+          ? null
+          : _users.doc(oldServantId);
 
-    final batch = _firestore.batch();
+      transaction.update(teamRef, {
+        'assignedServantId': FieldValue.delete(),
+        'assignedServantName': FieldValue.delete(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
 
-    batch.update(teamRef, {
-      'assignedServantId': FieldValue.delete(),
-      'assignedServantName': FieldValue.delete(),
-      'updatedAt': FieldValue.serverTimestamp(),
+      if (oldServantRef != null) {
+        final oldServantSnap = await transaction.get(oldServantRef);
+        if (oldServantSnap.exists) {
+          final oldServantTeamIds = _extractAssignedTeamIds(
+            oldServantSnap.data() ?? <String, dynamic>{},
+          )..removeWhere((id) => id == team.id);
+          transaction.set(
+            oldServantRef,
+            _servantAssignmentPatch(oldServantTeamIds),
+            SetOptions(merge: true),
+          );
+        }
+      }
     });
-
-    if (oldServantRef != null) {
-      batch.set(
-        oldServantRef,
-        _servantAssignmentPatch(oldServantTeamIds),
-        SetOptions(merge: true),
-      );
-    }
-
-    await batch.commit();
   }
 
   /// Set the exact list of students that belong to [team].
@@ -208,6 +261,7 @@ class AdminTeamService {
     final currentIds = currentSnap.docs.map((d) => d.id).toSet();
 
     final selectedIds = selectedStudents.map((s) => s.docID).toSet();
+    final affectedClassIds = <String>{team.id};
 
     final toAdd = selectedStudents
         .where((s) => !currentIds.contains(s.docID))
@@ -230,6 +284,13 @@ class AdminTeamService {
 
     // Add / move to team
     for (final student in toAdd) {
+      final previousClassId = student.classId?.trim();
+      if (previousClassId != null &&
+          previousClassId.isNotEmpty &&
+          previousClassId != team.id) {
+        affectedClassIds.add(previousClassId);
+      }
+
       final studentRef = _students.doc(student.docID);
       addOp(
         (b) => b.set(studentRef, {
@@ -255,6 +316,11 @@ class AdminTeamService {
 
     // Remove from team
     for (final student in toRemoveStudents) {
+      final previousClassId = student.classId?.trim();
+      if (previousClassId != null && previousClassId.isNotEmpty) {
+        affectedClassIds.add(previousClassId);
+      }
+
       final studentRef = _students.doc(student.docID);
       addOp(
         (b) => b.set(studentRef, {
@@ -293,5 +359,7 @@ class AdminTeamService {
       }
       await batch.commit();
     }
+
+    await _recomputeStudentIdsForClasses(affectedClassIds);
   }
 }

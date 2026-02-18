@@ -40,6 +40,14 @@ class ServantDataRepository implements IServantRepository {
   @override
   Future<ServantModel?> getServantByUid(String uid) async {
     try {
+      final canonicalDoc = await _usersCollection.doc(uid).get();
+      if (canonicalDoc.exists && canonicalDoc.data() != null) {
+        final data = canonicalDoc.data()!;
+        if (data['role'] == UserRole.servant.name) {
+          return ServantModel.fromMap(data, canonicalDoc.id);
+        }
+      }
+
       final snapshot = await _servantsQuery
           .where('uid', isEqualTo: uid)
           .limit(1)
@@ -49,6 +57,37 @@ class ServantDataRepository implements IServantRepository {
       return ServantModel.fromMap(doc.data(), doc.id);
     } catch (e) {
       throw mapExceptionToServantFailure(e);
+    }
+  }
+
+  Future<({List<ServantModel> servants, bool isFromCache})>
+  getServantsByGroupWithFallback(String groupId) async {
+    try {
+      final serverSnapshot = await _usersCollection
+          .where('role', isEqualTo: UserRole.servant.name)
+          .where('groupId', isEqualTo: groupId)
+          .get(const GetOptions(source: Source.server));
+      return (
+        servants: serverSnapshot.docs
+            .map((doc) => ServantModel.fromMap(doc.data(), doc.id))
+            .toList(growable: false),
+        isFromCache: false,
+      );
+    } catch (_) {
+      try {
+        final cacheSnapshot = await _usersCollection
+            .where('role', isEqualTo: UserRole.servant.name)
+            .where('groupId', isEqualTo: groupId)
+            .get(const GetOptions(source: Source.cache));
+        return (
+          servants: cacheSnapshot.docs
+              .map((doc) => ServantModel.fromMap(doc.data(), doc.id))
+              .toList(growable: false),
+          isFromCache: true,
+        );
+      } catch (e) {
+        throw mapExceptionToServantFailure(e);
+      }
     }
   }
 
@@ -132,12 +171,22 @@ class ServantDataRepository implements IServantRepository {
   @override
   Future<String> createServant(ServantModel servant) async {
     try {
-      final docRef = _usersCollection.doc();
-      final data = servant.copyWith(docID: docRef.id).toMap();
+      final normalizedUid = servant.uid?.trim();
+      final docId = (normalizedUid != null && normalizedUid.isNotEmpty)
+          ? normalizedUid
+          : _usersCollection.doc().id;
+      final data = servant
+          .copyWith(
+            docID: docId,
+            uid: normalizedUid == null || normalizedUid.isEmpty
+                ? servant.uid
+                : normalizedUid,
+          )
+          .toMap();
       // Ensure role is strictly set to servant
       data['role'] = UserRole.servant.name;
-      await docRef.set(data);
-      return docRef.id;
+      await _usersCollection.doc(docId).set(data, SetOptions(merge: true));
+      return docId;
     } catch (e) {
       throw mapExceptionToServantFailure(e);
     }

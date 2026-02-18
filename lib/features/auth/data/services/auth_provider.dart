@@ -3,9 +3,6 @@ import 'package:church_managment_system/features/auth/data/models/auth_user.dart
 
 /// Abstract auth provider interface following clean architecture
 abstract class AuthProvider {
-  /// Initialize the authentication provider
-  Future<void> initialize();
-
   /// Get the current authenticated user
   AuthUser? get currentUser;
 

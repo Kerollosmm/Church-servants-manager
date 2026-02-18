@@ -2,19 +2,12 @@ import 'package:church_managment_system/core/constants/enums.dart';
 import 'package:church_managment_system/features/auth/data/models/auth_user.dart';
 import 'package:church_managment_system/features/auth/data/utils/auth_error_mapper.dart';
 import 'package:church_managment_system/features/auth/data/services/firebase_auth_provider.dart';
-import 'package:church_managment_system/features/auth/domain/failures/auth_failures.dart';
 
 class AuthService {
   final FirebaseAuthProvider _provider;
+  AuthUser? _lastKnownAppUser;
 
-  AuthService._internal(this._provider);
-
-  static final AuthService _instance = AuthService._internal(
-    FirebaseAuthProvider(),
-  );
-
-  /// Factory constructor to get Firebase auth service
-  factory AuthService.firebase() => _instance;
+  AuthService({required FirebaseAuthProvider provider}) : _provider = provider;
 
   /// Get the current Firebase user (basic info)
   AuthUser? get currentUser => _provider.currentUser;
@@ -25,14 +18,17 @@ class AuthService {
   /// Get current user with full app data from Firestore
   Future<AuthUser?> getCurrentAppUser() async {
     final firebaseUser = _provider.currentUser;
-    if (firebaseUser == null) return null;
-
-    try {
-      return await _provider.getUserData(firebaseUser.uid);
-    } catch (_) {
-      return firebaseUser;
+    if (firebaseUser == null) {
+      _lastKnownAppUser = null;
+      return null;
     }
+
+    final appUser = await _provider.getUserData(firebaseUser.uid);
+    _lastKnownAppUser = appUser;
+    return appUser;
   }
+
+  AuthUser? get lastKnownAppUser => _lastKnownAppUser;
 
   /// Login with email and password
   Future<AuthUser> login({
@@ -71,6 +67,7 @@ class AuthService {
   Future<void> logout() async {
     try {
       await _provider.logOut();
+      _lastKnownAppUser = null;
     } catch (e) {
       throw AuthErrorMapper.mapException(e);
     }

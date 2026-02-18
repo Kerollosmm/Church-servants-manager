@@ -1,5 +1,4 @@
 import 'package:church_managment_system/features/student/data/models/student_model.dart';
-import 'package:church_managment_system/features/student/domain/failures/student_failures.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Interface for Student Repository.
@@ -43,4 +42,18 @@ abstract class IStudentRepository {
 
   /// Upsert a student (create or update).
   Future<void> upsertStudent(StudentModel student);
+
+  //Stream-based queries (for-real-time-update)
+
+  /// Watch all students ordered by name.
+  Stream<List<StudentModel>> watchAllStudents();
+
+  /// Watch students by class ID (real-time).
+  Stream<List<StudentModel>> watchStudentsByClass(String classId);
+
+  /// Watch students by multiple class IDs (real-time).
+  Stream<List<StudentModel>> watchStudentsByClasses(List<String> classIds);
+
+  /// Watch students by group name (real-time).
+  Stream<List<StudentModel>> watchStudentsByGroup(String groupName);
 }

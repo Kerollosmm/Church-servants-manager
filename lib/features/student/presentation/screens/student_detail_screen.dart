@@ -4,6 +4,7 @@ import 'package:church_managment_system/core/routing/route_args.dart';
 import 'package:church_managment_system/core/theme/app_colors.dart';
 import 'package:church_managment_system/core/theme/app_spacing.dart';
 import 'package:church_managment_system/core/widgets/dialogs/generic_dialog.dart';
+import 'package:church_managment_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
 import 'package:church_managment_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -13,16 +14,7 @@ class StudentDetailScreen extends StatelessWidget {
 
   const StudentDetailScreen({super.key, required this.args});
 
-  bool _canEdit() {
-    final actor = args.actor;
-    final student = args.student;
-
-    if (actor.role == UserRole.admin) return true;
-    if (actor.role == UserRole.servant) {
-      return actor.groupId != null && student.group.name == actor.groupId;
-    }
-    return false;
-  }
+  bool _canEdit() => const CanMutateStudentUseCase()(args.actor, args.student);
 
   @override
   Widget build(BuildContext context) {
