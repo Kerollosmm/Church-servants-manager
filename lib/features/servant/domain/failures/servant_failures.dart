@@ -1,3 +1,4 @@
+import 'package:church_managment_system/core/utils/exception_matchers.dart';
 import 'package:equatable/equatable.dart';
 
 /// Base class for all servant-related failures.
@@ -26,15 +27,12 @@ class GenericServantFailure extends ServantFailure {
 
 /// Helper to map exceptions to failures
 ServantFailure mapExceptionToServantFailure(Object e) {
-  final entry = e.toString().toLowerCase();
-
-  if (entry.contains('permission-denied') ||
-      entry.contains('permission denied')) {
+  if (isPermissionDeniedException(e)) {
     // Reusing generic or specific if needed
     return GenericServantFailure('Permission denied');
   }
 
-  if (entry.contains('not-found') || entry.contains('not found')) {
+  if (isNotFoundException(e)) {
     return const ServantNotFoundFailure();
   }
 

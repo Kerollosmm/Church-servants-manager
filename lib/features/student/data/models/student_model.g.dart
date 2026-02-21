@@ -65,6 +65,6 @@ const _$GroupEnumMap = {
 
 const _$EducationStageEnumMap = {
   EducationStage.preparatory: 'preparatory',
-  EducationStage.collage: 'collage',
-  EducationStage.hightSchool: 'hightSchool',
+  EducationStage.highSchool: 'highSchool',
+  EducationStage.college: 'college',
 };

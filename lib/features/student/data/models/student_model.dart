@@ -1,5 +1,5 @@
 import 'package:church_managment_system/core/constants/enums.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:church_managment_system/core/utils/json_converters.dart';
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 
@@ -8,25 +8,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'student_model.freezed.dart';
 part 'student_model.g.dart';
 
-/// Converts Firestore Timestamp to/from Dart DateTime.
-class _TimestampConverter implements JsonConverter<DateTime?, dynamic> {
-  const _TimestampConverter();
-
-  @override
-  DateTime? fromJson(dynamic json) {
-    if (json == null) return null;
-    if (json is Timestamp) return json.toDate();
-    if (json is String) return DateTime.tryParse(json);
-    if (json is int) return DateTime.fromMillisecondsSinceEpoch(json);
-    return null;
-  }
-
-  @override
-  dynamic toJson(DateTime? date) {
-    if (date == null) return null;
-    return Timestamp.fromDate(date);
-  }
-}
+typedef _TimestampConverter = FirestoreTimestampConverter;
 
 @freezed
 class StudentModel with _$StudentModel {

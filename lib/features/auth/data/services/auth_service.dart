@@ -2,8 +2,9 @@ import 'package:church_managment_system/core/constants/enums.dart';
 import 'package:church_managment_system/features/auth/data/models/auth_user.dart';
 import 'package:church_managment_system/features/auth/data/utils/auth_error_mapper.dart';
 import 'package:church_managment_system/features/auth/data/services/firebase_auth_provider.dart';
+import 'package:church_managment_system/features/auth/domain/repos/auth_repository.dart';
 
-class AuthService {
+class AuthService implements AuthRepository {
   final FirebaseAuthProvider _provider;
   AuthUser? _lastKnownAppUser;
 
@@ -14,6 +15,9 @@ class AuthService {
 
   /// Get stream of auth state changes
   Stream<AuthUser?> get authStateChanges => _provider.authStateChanges;
+
+  @override
+  Future<AuthUser?> getCurrentUser() async => getCurrentAppUser();
 
   /// Get current user with full app data from Firestore
   Future<AuthUser?> getCurrentAppUser() async {
@@ -30,8 +34,8 @@ class AuthService {
 
   AuthUser? get lastKnownAppUser => _lastKnownAppUser;
 
-  /// Login with email and password
-  Future<AuthUser> login({
+  @override
+  Future<AuthUser> signIn({
     required String email,
     required String password,
   }) async {
@@ -42,8 +46,8 @@ class AuthService {
     }
   }
 
-  /// Register a new user
-  Future<AuthUser> register({
+  @override
+  Future<AuthUser> signUp({
     required String email,
     required String password,
     required String name,
@@ -63,8 +67,8 @@ class AuthService {
     }
   }
 
-  /// Logout the current user
-  Future<void> logout() async {
+  @override
+  Future<void> signOut() async {
     try {
       await _provider.logOut();
       _lastKnownAppUser = null;

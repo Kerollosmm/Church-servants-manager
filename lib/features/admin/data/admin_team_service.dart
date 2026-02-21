@@ -270,10 +270,17 @@ class AdminTeamService {
 
     // We might need uid for user-doc syncing when removing, so fetch those students.
     final toRemoveStudents = <StudentModel>[];
-    for (final id in toRemoveIds) {
-      final snap = await _students.doc(id).get();
-      if (snap.exists && snap.data() != null) {
-        toRemoveStudents.add(StudentModel.fromMap(snap.data()!, snap.id));
+    if (toRemoveIds.isNotEmpty) {
+      for (var i = 0; i < toRemoveIds.length; i += 10) {
+        final end = (i + 10 > toRemoveIds.length) ? toRemoveIds.length : i + 10;
+        final slice = toRemoveIds.sublist(i, end);
+        final snap = await _students
+            .where(FieldPath.documentId, whereIn: slice)
+            .get();
+        for (final doc in snap.docs) {
+          final data = doc.data();
+          toRemoveStudents.add(StudentModel.fromMap(data, doc.id));
+        }
       }
     }
 

@@ -339,9 +339,8 @@ class StudentDataRepository implements IStudentRepository {
           byDocId[student.docID] = student;
         }
       }
-      final merged = byDocId.values.toList(growable: false);
-      merged.sort((a, b) => a.name.compareTo(b.name));
-      return merged;
+      // Ordering is handled in StudentDataBloc before emitting UI state.
+      return byDocId.values.toList(growable: false);
     });
   }
 

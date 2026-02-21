@@ -210,7 +210,7 @@ class FirebaseAuthProvider implements AuthProvider {
     }
   }
 
-  /// Get user data from Firestore
+  /// Get user data from Firestore with improved cache/server fallback
   Future<AuthUser> getUserData(String uid) async {
     // Check cache first
     if (_userCache.containsKey(uid)) {
@@ -218,22 +218,23 @@ class FirebaseAuthProvider implements AuthProvider {
     }
 
     try {
-      // Try to fetch from server first to get latest data
+      // Use default source first to allow Firestore to serve from local cache
+      // when available, then fall back to explicit cache on failures.
       DocumentSnapshot<Map<String, dynamic>> doc;
       try {
         doc = await _db
             .collection(FirestoreCollections.users)
             .doc(uid)
-            .get(const GetOptions(source: Source.server));
+            .get()
+            .timeout(const Duration(seconds: 5));
       } catch (e) {
-        // Fallback to cache if server is unavailable
         doc = await _db
             .collection(FirestoreCollections.users)
             .doc(uid)
             .get(const GetOptions(source: Source.cache));
       }
 
-      if (doc.exists) {
+      if (doc.exists && doc.data() != null) {
         final user = AuthUser.fromJson(doc.data()!);
         _userCache[uid] = user;
         return user;

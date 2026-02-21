@@ -49,6 +49,7 @@ dependencies:
   equatable: ^2.0.8
   get_it: ^9.2.0
   injectable: ^2.7.1+4
+  intl: ^0.20.2
 
 dev_dependencies:
   mocktail: ^1.0.4

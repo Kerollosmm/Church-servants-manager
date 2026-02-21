@@ -10,6 +10,83 @@ import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
 class DataSeeder {
+  static const List<String> _studentFirstNames = [
+    'Kyrellos',
+    'Marina',
+    'George',
+    'Maria',
+    'Mina',
+    'Sarah',
+    'David',
+    'Christine',
+    'Peter',
+    'Mary',
+    'Bishoy',
+    'Irini',
+    'Tony',
+    'Sandra',
+    'Mark',
+    'Veronia',
+    'John',
+    'Demiana',
+    'Youssef',
+    'Nermien',
+  ];
+
+  static const List<String> _studentLastNames = [
+    'Nabil',
+    'Sameh',
+    'Girgis',
+    'Adel',
+    'Tawfik',
+    'Yacoub',
+    'Fawzy',
+    'Ibrahim',
+    'Shenouda',
+    'Fanous',
+    'Mikhail',
+    'Botros',
+    'Makram',
+    'Isaac',
+    'Hanna',
+    'Sidhom',
+    'Ghabrial',
+    'Soliman',
+  ];
+
+  static const List<String> _studentStreets = [
+    'Ramsis St.',
+    'Shoubra St.',
+    'Port Said St.',
+    'El-Gomhouria St.',
+    'El-Geish St.',
+    'Naguib Mahfouz St.',
+  ];
+
+  static const List<String> _studentAreas = [
+    'Shoubra',
+    'El-Sahel',
+    'Rod El-Farag',
+    'El-Khalafawy',
+  ];
+
+  static const List<String> _studentFathersOfConfession = [
+    'Fr. Daoud',
+    'Fr. Bishoy',
+    'Fr. Angelos',
+    'Fr. Moses',
+    'Fr. Raphael',
+  ];
+
+  static const List<String> _studentSchools = [
+    'Saint Mary School',
+    'The Holy Family School',
+    'College de la Salle',
+    'Notre Dame',
+    'Ramses College',
+    'Saint George School',
+  ];
+
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
   final Uuid _uuid;
@@ -59,85 +136,15 @@ class DataSeeder {
 
   /// Seeds demo student documents (not tied to Firebase Auth accounts).
   Future<void> seedStudents({int count = 20}) async {
-    const firstNames = [
-      'Kyrellos',
-      'Marina',
-      'George',
-      'Maria',
-      'Mina',
-      'Sarah',
-      'David',
-      'Christine',
-      'Peter',
-      'Mary',
-      'Bishoy',
-      'Irini',
-      'Tony',
-      'Sandra',
-      'Mark',
-      'Veronia',
-      'John',
-      'Demiana',
-      'Youssef',
-      'Nermien',
-    ];
-
-    const lastNames = [
-      'Nabil',
-      'Sameh',
-      'Girgis',
-      'Adel',
-      'Tawfik',
-      'Yacoub',
-      'Fawzy',
-      'Ibrahim',
-      'Shenouda',
-      'Fanous',
-      'Mikhail',
-      'Botros',
-      'Makram',
-      'Isaac',
-      'Hanna',
-      'Sidhom',
-      'Ghabrial',
-      'Soliman',
-    ];
-
-    const streets = [
-      'Ramsis St.',
-      'Shoubra St.',
-      'Port Said St.',
-      'El-Gomhouria St.',
-      'El-Geish St.',
-      'Naguib Mahfouz St.',
-    ];
-
-    const areas = ['Shoubra', 'El-Sahel', 'Rod El-Farag', 'El-Khalafawy'];
-
-    const fathersOfConfession = [
-      'Fr. Daoud',
-      'Fr. Bishoy',
-      'Fr. Angelos',
-      'Fr. Moses',
-      'Fr. Raphael',
-    ];
-
-    const schools = [
-      'Saint Mary School',
-      'The Holy Family School',
-      'College de la Salle',
-      'Notre Dame',
-      'Ramses College',
-      'Saint George School',
-    ];
-
     for (int i = 0; i < count; i++) {
       final uid = _uuid.v4();
       final docRef = _students.doc();
       final docId = docRef.id;
 
-      final firstName = firstNames[_random.nextInt(firstNames.length)];
-      final lastName = lastNames[_random.nextInt(lastNames.length)];
+      final firstName =
+          _studentFirstNames[_random.nextInt(_studentFirstNames.length)];
+      final lastName =
+          _studentLastNames[_random.nextInt(_studentLastNames.length)];
       final fullName = '$firstName $lastName';
 
       final group = Group.values[_random.nextInt(Group.values.length)];
@@ -191,14 +198,16 @@ class DataSeeder {
         fatherPhone: _randomPhone(),
         grade: grade,
         educationStage: stage,
-        school: schools[_random.nextInt(schools.length)],
+        school: _studentSchools[_random.nextInt(_studentSchools.length)],
         address:
-            '${_random.nextInt(100) + 1} ${streets[_random.nextInt(streets.length)]}, ${areas[_random.nextInt(areas.length)]}',
+            '${_random.nextInt(100) + 1} ${_studentStreets[_random.nextInt(_studentStreets.length)]}, ${_studentAreas[_random.nextInt(_studentAreas.length)]}',
         birthdate: DateTime.now().subtract(
           Duration(days: 365 * (12 + _random.nextInt(10))),
         ),
         fatherOfConfession:
-            fathersOfConfession[_random.nextInt(fathersOfConfession.length)],
+            _studentFathersOfConfession[_random.nextInt(
+              _studentFathersOfConfession.length,
+            )],
         notes: _random.nextBool() ? 'Active student' : null,
         classId: teamId, // Now correctly linking to a Team ID
       );

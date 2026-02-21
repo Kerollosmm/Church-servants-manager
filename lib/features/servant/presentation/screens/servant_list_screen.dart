@@ -6,6 +6,7 @@ import 'package:church_managment_system/features/auth/data/models/auth_user.dart
 import 'package:church_managment_system/core/routing/route_args.dart';
 import 'package:church_managment_system/core/theme/app_colors.dart';
 import 'package:church_managment_system/core/theme/app_spacing.dart';
+import 'package:church_managment_system/core/widgets/app_empty_state.dart';
 import 'package:church_managment_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_managment_system/features/servant/data/models/servant_models.dart';
 import 'package:church_managment_system/features/servant/presentation/bloc/servant_data/servant_data_cubit.dart';
@@ -237,7 +238,12 @@ class _ServantListScreenState extends State<ServantListScreen> {
                     else if (state is ServantDataLoaded && servants.isEmpty)
                       SliverFillRemaining(
                         hasScrollBody: false,
-                        child: _EmptyState(onRefresh: () => _refresh(actor)),
+                        child: AppEmptyState(
+                          title: 'لا يوجد خدام',
+                          subtitle: 'جرب البحث مرة أخرى أو قم بتحديث القائمة.',
+                          refreshLabel: 'تحديث',
+                          onRefresh: () => _refresh(actor),
+                        ),
                       )
                     else
                       SliverList(
@@ -261,48 +267,6 @@ class _ServantListScreenState extends State<ServantListScreen> {
           ),
         );
       },
-    );
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  final Future<void> Function() onRefresh;
-
-  const _EmptyState({required this.onRefresh});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.people_outline, size: 64, color: AppColors.outline),
-            AppSpacing.gapMd,
-            Text(
-              'لا يوجد خدام',
-              style: theme.textTheme.titleMedium,
-            ), // No servants
-            AppSpacing.gapSm,
-            Text(
-              'جرب البحث مرة أخرى أو قم بتحديث القائمة.', // Try again or refresh
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: AppColors.textSecondary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            AppSpacing.gapMd,
-            FilledButton.icon(
-              onPressed: () => onRefresh(),
-              icon: const Icon(Icons.refresh),
-              label: const Text('تحديث'), // Refresh
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

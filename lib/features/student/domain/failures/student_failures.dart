@@ -1,3 +1,4 @@
+import 'package:church_managment_system/core/utils/exception_matchers.dart';
 import 'package:equatable/equatable.dart';
 
 /// Base class for all student-related failures.
@@ -31,14 +32,11 @@ class GenericStudentFailure extends StudentFailure {
 
 /// Helper to map exceptions to failures
 StudentFailure mapExceptionToStudentFailure(Object e) {
-  final entry = e.toString().toLowerCase();
-
-  if (entry.contains('permission-denied') ||
-      entry.contains('permission denied')) {
+  if (isPermissionDeniedException(e)) {
     return const PermissionDeniedFailure();
   }
 
-  if (entry.contains('not-found') || entry.contains('not found')) {
+  if (isNotFoundException(e)) {
     return const StudentNotFoundFailure();
   }
 

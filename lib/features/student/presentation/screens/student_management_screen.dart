@@ -6,6 +6,7 @@ import 'package:church_managment_system/features/auth/data/models/auth_user.dart
 import 'package:church_managment_system/core/routing/route_args.dart';
 import 'package:church_managment_system/core/theme/app_colors.dart';
 import 'package:church_managment_system/core/theme/app_spacing.dart';
+import 'package:church_managment_system/core/widgets/app_empty_state.dart';
 import 'package:church_managment_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_managment_system/features/student/data/models/student_model.dart';
 import 'package:church_managment_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
@@ -227,7 +228,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                             ),
                             AppSpacing.gapMd,
                             Text(
-                              'Search students',
+                              'Search by student name',
                               style: theme.textTheme.titleSmall?.copyWith(
                                 color: AppColors.textSecondary,
                               ),
@@ -304,7 +305,12 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                     else if (state is StudentDataLoaded && students.isEmpty)
                       SliverFillRemaining(
                         hasScrollBody: false,
-                        child: _EmptyState(onRefresh: () => _refresh(actor)),
+                        child: AppEmptyState(
+                          title: 'No students found',
+                          subtitle:
+                              'Try a different search or refresh the list.',
+                          onRefresh: () => _refresh(actor),
+                        ),
                       )
                     else
                       SliverList(
@@ -332,45 +338,6 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
           ),
         );
       },
-    );
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  final Future<void> Function() onRefresh;
-
-  const _EmptyState({required this.onRefresh});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.people_outline, size: 64, color: AppColors.outline),
-            AppSpacing.gapMd,
-            Text('No students found', style: theme.textTheme.titleMedium),
-            AppSpacing.gapSm,
-            Text(
-              'Try a different search or refresh the list.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: AppColors.textSecondary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            AppSpacing.gapMd,
-            FilledButton.icon(
-              onPressed: () => onRefresh(),
-              icon: const Icon(Icons.refresh),
-              label: const Text('Refresh'),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

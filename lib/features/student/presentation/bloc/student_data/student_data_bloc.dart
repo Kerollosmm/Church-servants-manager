@@ -84,6 +84,13 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     emit(StudentDataError('$message. Please try again.'));
   }
 
+  StudentModel? _getCachedStudentById(String docId) {
+    for (final student in _allStudents) {
+      if (student.docID == docId) return student;
+    }
+    return null;
+  }
+
   Future<void> _onLoadStudents(
     StudentsLoadRequested event,
     Emitter<StudentDataState> emit,
@@ -162,9 +169,9 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     Emitter<StudentDataState> emit,
   ) async {
     try {
-      final existing = await _studentRepository.getStudentById(
-        event.student.docID,
-      );
+      final existing =
+          _getCachedStudentById(event.student.docID) ??
+          await _studentRepository.getStudentById(event.student.docID);
       if (existing == null) {
         emit(const StudentDataError('Student not found.'));
         return;
@@ -185,7 +192,9 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     Emitter<StudentDataState> emit,
   ) async {
     try {
-      final existing = await _studentRepository.getStudentById(event.docId);
+      final existing =
+          _getCachedStudentById(event.docId) ??
+          await _studentRepository.getStudentById(event.docId);
       if (existing == null) {
         emit(const StudentDataError('Student not found.'));
         return;

@@ -1,5 +1,5 @@
 import 'package:church_managment_system/core/constants/enums.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:church_managment_system/core/utils/json_converters.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 // ignore_for_file: invalid_annotation_target
@@ -7,47 +7,8 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'servant_models.freezed.dart';
 part 'servant_models.g.dart';
 
-/// Converts Firestore Timestamp to/from Dart DateTime.
-class _TimestampConverter implements JsonConverter<DateTime?, dynamic> {
-  const _TimestampConverter();
-
-  @override
-  DateTime? fromJson(dynamic json) {
-    if (json == null) return null;
-    if (json is Timestamp) return json.toDate();
-    if (json is String) return DateTime.tryParse(json);
-    if (json is int) return DateTime.fromMillisecondsSinceEpoch(json);
-    return null;
-  }
-
-  @override
-  dynamic toJson(DateTime? date) {
-    if (date == null) return null;
-    return Timestamp.fromDate(date);
-  }
-}
-
-/// Converts role string to UserRole enum.
-class _RoleConverter implements JsonConverter<UserRole, String?> {
-  const _RoleConverter();
-
-  @override
-  UserRole fromJson(String? json) {
-    if (json == null) return UserRole.servant;
-    switch (json.toLowerCase()) {
-      case 'admin':
-        return UserRole.admin;
-      case 'student':
-        return UserRole.student;
-      case 'servant':
-      default:
-        return UserRole.servant;
-    }
-  }
-
-  @override
-  String toJson(UserRole role) => role.name;
-}
+typedef _TimestampConverter = FirestoreTimestampConverter;
+typedef _RoleConverter = UserRoleJsonConverter;
 
 @freezed
 class ServantModel with _$ServantModel {

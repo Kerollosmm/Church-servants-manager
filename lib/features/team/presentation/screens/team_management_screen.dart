@@ -79,56 +79,50 @@ class _TeamManagementScreenState extends State<TeamManagementScreen>
   }
 
   void _showAddTeamDialog() {
-    final nameController = TextEditingController();
     final groupId = _groups[_tabController.index].name;
-
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(
-          'Add Team to ${_groupLabel(_groups[_tabController.index])}',
-        ),
-        content: TextField(
-          controller: nameController,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Team Name',
-            hintText: 'e.g. فريق مارمرقس',
-          ),
-          textCapitalization: TextCapitalization.words,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final name = nameController.text.trim();
-              if (name.isEmpty) return;
-              context.read<TeamCubit>().createTeam(
-                TeamModel(id: '', name: name, groupId: groupId),
-              );
-              Navigator.pop(dialogContext);
-            },
-            child: const Text('Create'),
-          ),
-        ],
-      ),
+    _showTeamNameDialog(
+      title: 'Add Team to ${_groupLabel(_groups[_tabController.index])}',
+      actionLabel: 'Create',
+      hintText: 'e.g. فريق مارمرقس',
+      onSave: (name) {
+        context.read<TeamCubit>().createTeam(
+          TeamModel(id: '', name: name, groupId: groupId),
+        );
+      },
     );
   }
 
   void _showEditTeamDialog(TeamModel team) {
-    final nameController = TextEditingController(text: team.name);
+    _showTeamNameDialog(
+      title: 'Edit Team',
+      actionLabel: 'Save',
+      initialName: team.name,
+      onSave: (name) {
+        context.read<TeamCubit>().updateTeam(team.copyWith(name: name));
+      },
+    );
+  }
+
+  void _showTeamNameDialog({
+    required String title,
+    required String actionLabel,
+    String initialName = '',
+    String? hintText,
+    required ValueChanged<String> onSave,
+  }) {
+    final nameController = TextEditingController(text: initialName);
 
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Edit Team'),
+        title: Text(title),
         content: TextField(
           controller: nameController,
           autofocus: true,
-          decoration: const InputDecoration(labelText: 'Team Name'),
+          decoration: InputDecoration(
+            labelText: 'Team Name',
+            hintText: hintText,
+          ),
           textCapitalization: TextCapitalization.words,
         ),
         actions: [
@@ -140,14 +134,14 @@ class _TeamManagementScreenState extends State<TeamManagementScreen>
             onPressed: () {
               final name = nameController.text.trim();
               if (name.isEmpty) return;
-              context.read<TeamCubit>().updateTeam(team.copyWith(name: name));
+              onSave(name);
               Navigator.pop(dialogContext);
             },
-            child: const Text('Save'),
+            child: Text(actionLabel),
           ),
         ],
       ),
-    );
+    ).then((_) => nameController.dispose());
   }
 
   void _confirmDeleteTeam(TeamModel team) {
@@ -198,161 +192,13 @@ class _TeamManagementScreenState extends State<TeamManagementScreen>
       return;
     }
 
-    var servantsFuture = _loadServantsForGroup(team.groupId);
-    String? selectedId;
-    var selectionInitialized = false;
-
     showDialog(
       context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return FutureBuilder<_ServantLoadResult>(
-              future: servantsFuture,
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return AlertDialog(
-                    title: const Text('Assign Servant'),
-                    content: Text('Failed to load servants: ${snapshot.error}'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(dialogContext),
-                        child: const Text('Close'),
-                      ),
-                      FilledButton(
-                        onPressed: () {
-                          setState(() {
-                            servantsFuture = _loadServantsForGroup(
-                              team.groupId,
-                            );
-                            selectionInitialized = false;
-                          });
-                        },
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  );
-                }
-
-                if (!snapshot.hasData) {
-                  return const AlertDialog(
-                    title: Text('Assign Servant'),
-                    content: SizedBox(
-                      height: 80,
-                      child: Center(child: CircularProgressIndicator()),
-                    ),
-                  );
-                }
-
-                final result = snapshot.data!;
-                final servants = result.servants;
-                final uniqueServants = <ServantModel>[];
-                final seenDocIds = <String>{};
-                for (final servant in servants) {
-                  final docId = servant.docID.trim();
-                  if (docId.isEmpty || seenDocIds.contains(docId)) continue;
-                  seenDocIds.add(docId);
-                  uniqueServants.add(servant);
-                }
-
-                String? normalizeToServantDocId(String? rawId) {
-                  if (rawId == null) return null;
-                  final id = rawId.trim();
-                  if (id.isEmpty) return null;
-
-                  for (final servant in uniqueServants) {
-                    if (servant.docID == id) return servant.docID;
-                  }
-                  for (final servant in uniqueServants) {
-                    if (servant.uid == id) return servant.docID;
-                  }
-                  return null;
-                }
-
-                if (!selectionInitialized) {
-                  selectedId = normalizeToServantDocId(team.assignedServantId);
-                  selectionInitialized = true;
-                }
-
-                final items = <DropdownMenuItem<String?>>[
-                  const DropdownMenuItem<String?>(
-                    value: null,
-                    child: Text('-- Unassigned --'),
-                  ),
-                  ...uniqueServants.map(
-                    (s) => DropdownMenuItem<String?>(
-                      value: s.docID,
-                      child: Text(s.name),
-                    ),
-                  ),
-                ];
-
-                ServantModel? selectedServant() {
-                  if (selectedId == null) return null;
-                  for (final servant in uniqueServants) {
-                    if (servant.docID == selectedId) return servant;
-                  }
-                  return null;
-                }
-
-                return AlertDialog(
-                  title: Text('Assign Servant - ${team.name}'),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (result.isFromCache)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                          child: Text(
-                            'Offline mode: showing cached servants.',
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(color: AppColors.textSecondary),
-                          ),
-                        ),
-                      DropdownButtonFormField<String?>(
-                        initialValue: selectedId,
-                        isExpanded: true,
-                        items: items,
-                        onChanged: (v) => setState(() => selectedId = v),
-                        decoration: const InputDecoration(
-                          labelText: 'Responsible servant',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                    ],
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(dialogContext),
-                      child: const Text('Cancel'),
-                    ),
-                    FilledButton(
-                      onPressed: () {
-                        final s = selectedServant();
-                        if (s == null) {
-                          context.read<TeamCubit>().unassignServant(
-                            actor: actor,
-                            team: team,
-                          );
-                        } else {
-                          context.read<TeamCubit>().assignServant(
-                            actor: actor,
-                            team: team,
-                            servant: s,
-                          );
-                        }
-                        Navigator.pop(dialogContext);
-                      },
-                      child: const Text('Save'),
-                    ),
-                  ],
-                );
-              },
-            );
-          },
-        );
-      },
+      builder: (_) => _AssignServantDialog(
+        actor: actor,
+        team: team,
+        loadServantsForGroup: _loadServantsForGroup,
+      ),
     );
   }
 
@@ -477,6 +323,195 @@ class _ServantLoadResult {
   final bool isFromCache;
 
   const _ServantLoadResult({required this.servants, this.isFromCache = false});
+}
+
+class _AssignServantDialog extends StatefulWidget {
+  final AuthUser actor;
+  final TeamModel team;
+  final Future<_ServantLoadResult> Function(String groupId)
+  loadServantsForGroup;
+
+  const _AssignServantDialog({
+    required this.actor,
+    required this.team,
+    required this.loadServantsForGroup,
+  });
+
+  @override
+  State<_AssignServantDialog> createState() => _AssignServantDialogState();
+}
+
+class _AssignServantDialogState extends State<_AssignServantDialog> {
+  late Future<_ServantLoadResult> _servantsFuture;
+  String? _selectedId;
+  var _selectionInitialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _servantsFuture = widget.loadServantsForGroup(widget.team.groupId);
+  }
+
+  void _retryLoadServants() {
+    setState(() {
+      _servantsFuture = widget.loadServantsForGroup(widget.team.groupId);
+      _selectionInitialized = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<_ServantLoadResult>(
+      future: _servantsFuture,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return AlertDialog(
+            title: const Text('Assign Servant'),
+            content: Text('Failed to load servants: ${snapshot.error}'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+              FilledButton(
+                onPressed: _retryLoadServants,
+                child: const Text('Retry'),
+              ),
+            ],
+          );
+        }
+
+        if (!snapshot.hasData) {
+          return const AlertDialog(
+            title: Text('Assign Servant'),
+            content: SizedBox(
+              height: 80,
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          );
+        }
+
+        final result = snapshot.data!;
+        final uniqueServants = _uniqueServants(result.servants);
+
+        if (!_selectionInitialized) {
+          _selectedId = _normalizeToServantDocId(
+            widget.team.assignedServantId,
+            uniqueServants,
+          );
+          _selectionInitialized = true;
+        }
+
+        final items = <DropdownMenuItem<String?>>[
+          const DropdownMenuItem<String?>(
+            value: null,
+            child: Text('-- Unassigned --'),
+          ),
+          ...uniqueServants.map(
+            (servant) => DropdownMenuItem<String?>(
+              value: servant.docID,
+              child: Text(servant.name),
+            ),
+          ),
+        ];
+
+        return AlertDialog(
+          title: Text('Assign Servant - ${widget.team.name}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (result.isFromCache)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                  child: Text(
+                    'Offline mode: showing cached servants.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+              DropdownButtonFormField<String?>(
+                initialValue: _selectedId,
+                isExpanded: true,
+                items: items,
+                onChanged: (value) => setState(() => _selectedId = value),
+                decoration: const InputDecoration(
+                  labelText: 'Responsible servant',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final selectedServant = _selectedServant(
+                  uniqueServants,
+                  _selectedId,
+                );
+                if (selectedServant == null) {
+                  context.read<TeamCubit>().unassignServant(
+                    actor: widget.actor,
+                    team: widget.team,
+                  );
+                } else {
+                  context.read<TeamCubit>().assignServant(
+                    actor: widget.actor,
+                    team: widget.team,
+                    servant: selectedServant,
+                  );
+                }
+                Navigator.pop(context);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  List<ServantModel> _uniqueServants(List<ServantModel> servants) {
+    final uniqueServants = <ServantModel>[];
+    final seenDocIds = <String>{};
+    for (final servant in servants) {
+      final docId = servant.docID.trim();
+      if (docId.isEmpty || seenDocIds.contains(docId)) continue;
+      seenDocIds.add(docId);
+      uniqueServants.add(servant);
+    }
+    return uniqueServants;
+  }
+
+  String? _normalizeToServantDocId(String? rawId, List<ServantModel> servants) {
+    if (rawId == null) return null;
+    final id = rawId.trim();
+    if (id.isEmpty) return null;
+
+    for (final servant in servants) {
+      if (servant.docID == id) return servant.docID;
+    }
+    for (final servant in servants) {
+      if (servant.uid == id) return servant.docID;
+    }
+    return null;
+  }
+
+  ServantModel? _selectedServant(
+    List<ServantModel> servants,
+    String? selectedId,
+  ) {
+    if (selectedId == null) return null;
+    for (final servant in servants) {
+      if (servant.docID == selectedId) return servant;
+    }
+    return null;
+  }
 }
 
 class _TeamCard extends StatelessWidget {

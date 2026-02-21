@@ -235,5 +235,58 @@ void main() {
         verify(() => mockRepository.createStudent(any())).called(1);
       },
     );
+
+    blocTest<StudentDataBloc, StudentDataState>(
+      'update uses cached student and skips repository lookup when loaded',
+      setUp: () {
+        when(
+          () => mockGetStudentsStream(
+            actor: any(named: 'actor'),
+            teamId: any(named: 'teamId'),
+          ),
+        ).thenAnswer((_) => Stream.value(allStudents));
+        when(
+          () => mockRepository.updateStudent(any()),
+        ).thenAnswer((_) async {});
+      },
+      build: buildBloc,
+      act: (bloc) async {
+        bloc.add(const StudentsLoadRequested(actor: admin));
+        await Future<void>.delayed(Duration.zero);
+        final student = allStudents.first;
+        final updated = student.copyWith(name: '${student.name} Updated');
+        bloc.add(StudentUpdated(actor: admin, student: updated));
+      },
+      verify: (_) {
+        verifyNever(() => mockRepository.getStudentById(any()));
+        verify(() => mockRepository.updateStudent(any())).called(1);
+      },
+    );
+
+    blocTest<StudentDataBloc, StudentDataState>(
+      'delete uses cached student and skips repository lookup when loaded',
+      setUp: () {
+        when(
+          () => mockGetStudentsStream(
+            actor: any(named: 'actor'),
+            teamId: any(named: 'teamId'),
+          ),
+        ).thenAnswer((_) => Stream.value(allStudents));
+        when(
+          () => mockRepository.deleteStudent(any()),
+        ).thenAnswer((_) async {});
+      },
+      build: buildBloc,
+      act: (bloc) async {
+        bloc.add(const StudentsLoadRequested(actor: admin));
+        await Future<void>.delayed(Duration.zero);
+        final student = allStudents.first;
+        bloc.add(StudentDeleted(actor: admin, docId: student.docID));
+      },
+      verify: (_) {
+        verifyNever(() => mockRepository.getStudentById(any()));
+        verify(() => mockRepository.deleteStudent(any())).called(1);
+      },
+    );
   });
 }
