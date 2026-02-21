@@ -15,9 +15,9 @@ class StudentHomeScreen extends StatelessWidget {
   /// Creates a [StudentHomeScreen].
   const StudentHomeScreen({super.key, required this.user});
 
-  Future<void> _onRefresh(BuildContext context) async {
+  Future<void> _onRefresh(BuildContext context) {
     context.read<AuthBloc>().add(const AuthEventRefreshUser());
-    await Future.delayed(const Duration(milliseconds: 500));
+    return Future<void>.value();
   }
 
   @override
