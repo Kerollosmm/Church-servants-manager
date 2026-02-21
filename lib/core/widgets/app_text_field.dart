@@ -11,7 +11,6 @@ class AppTextField extends StatelessWidget {
     required this.label,
     this.prefixIcon,
     this.errorText,
-    this.isPassword = false,
     this.obscureText = false,
     this.suffixIcon,
     this.controller,
@@ -24,7 +23,6 @@ class AppTextField extends StatelessWidget {
   final String label;
   final IconData? prefixIcon;
   final String? errorText;
-  final bool isPassword;
   final bool obscureText;
   final Widget? suffixIcon;
   final TextEditingController? controller;

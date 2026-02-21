@@ -136,6 +136,10 @@ class DataSeeder {
 
   /// Seeds demo student documents (not tied to Firebase Auth accounts).
   Future<void> seedStudents({int count = 20}) async {
+    final teamsByGroup = count > 0
+        ? await _loadSeedTeamsByGroup()
+        : const <Group, List<TeamModel>>{};
+
     for (int i = 0; i < count; i++) {
       final uid = _uuid.v4();
       final docRef = _students.doc();
@@ -157,30 +161,13 @@ class DataSeeder {
         Group.year3 => 3,
       };
 
-      // Fetch a random team for this group to ensure valid linking
-      // For performance in seeding, we'll just query 1 or pick a random one if we had them cached.
-      // To keep it simple and somewhat performant, let's just create a consistent ID based on the group
-      // or just query. Querying inside a loop is slow but safe for a seeder.
-      // Optimization: Fetch all teams once at start of method.
-
-      // FALLBACK: If we haven't run seedTeams, we might not have teams.
-      // So let's just make sure we run seedTeams first or handle it.
-      // For this implementation, I will assume we might just query a random one or generate a placeholder
-      // that matches the seedTeams pattern if strictly needed.
-      // Better: Let's fetch teams for the group.
-
-      final teamsSnapshot = await _classes
-          .where('groupId', isEqualTo: group.name)
-          .limit(5)
-          .get();
+      final teamsForGroup = teamsByGroup[group] ?? const <TeamModel>[];
 
       String teamId = 'temp_team_id';
       String teamName = 'Team A';
 
-      if (teamsSnapshot.docs.isNotEmpty) {
-        final randomTeamDoc =
-            teamsSnapshot.docs[_random.nextInt(teamsSnapshot.docs.length)];
-        final randomTeam = TeamModel.fromJson(randomTeamDoc.data());
+      if (teamsForGroup.isNotEmpty) {
+        final randomTeam = teamsForGroup[_random.nextInt(teamsForGroup.length)];
         teamId = randomTeam.id;
         teamName = randomTeam.name;
       }
@@ -219,6 +206,54 @@ class DataSeeder {
     debugPrint('DataSeeder: Student seeding complete.');
   }
 
+  Future<Map<Group, List<TeamModel>>> _loadSeedTeamsByGroup() async {
+    final entries = await Future.wait(
+      Group.values.map((group) async {
+        final teamsSnapshot = await _classes
+            .where('groupId', isEqualTo: group.name)
+            .limit(5)
+            .get();
+        final teams = teamsSnapshot.docs
+            .map((teamDoc) => TeamModel.fromJson(teamDoc.data()))
+            .toList(growable: false);
+        return MapEntry(group, teams);
+      }),
+    );
+
+    return Map<Group, List<TeamModel>>.fromEntries(entries);
+  }
+
+  /// Deletes ALL documents from the Students collection.
+  Future<void> clearStudents() async {
+    final snapshot = await _students.get();
+    final batch = _firestore.batch();
+    for (final doc in snapshot.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
+    debugPrint('DataSeeder: Cleared ${snapshot.docs.length} students.');
+  }
+
+  /// Deletes ALL documents from the Classes (Teams) collection.
+  Future<void> clearTeams() async {
+    final snapshot = await _classes.get();
+    final batch = _firestore.batch();
+    for (final doc in snapshot.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
+    debugPrint('DataSeeder: Cleared ${snapshot.docs.length} teams.');
+  }
+
+  /// Clears all seeded data and reseeds from scratch.
+  Future<void> clearAndReseed({int studentCount = 20}) async {
+    await clearStudents();
+    await clearTeams();
+    await seedTeams();
+    await seedStudents(count: studentCount);
+    debugPrint('DataSeeder: Clear & Reseed complete.');
+  }
+
   /// Sets current user role to admin.
   Future<void> assignMeAsAdmin() async {
     final uid = _currentUid();
@@ -246,7 +281,7 @@ class DataSeeder {
     final payload = <String, dynamic>{
       'uid': uid,
       'role': UserRole.servant.name,
-      'group': group.name, // Legacy field
+      'group': group.name,
       'groupId': group.name,
     };
     if (assignedTeamId != null) {

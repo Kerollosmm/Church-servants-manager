@@ -14,7 +14,8 @@ _$AuthUserImpl _$$AuthUserImplFromJson(Map<String, dynamic> json) =>
       role: $enumDecode(_$UserRoleEnumMap, json['role']),
       isEmailVerified: json['isEmailVerified'] as bool? ?? false,
       groupId: json['groupId'] as String?,
-      assignedTeamIds: (json['assignedTeamIds'] as List<dynamic>?)
+      assignedTeamIds:
+          (json['assignedTeamIds'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           const <String>[],

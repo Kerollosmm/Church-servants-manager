@@ -281,6 +281,38 @@ void main() {
     );
 
     blocTest<ServantDataCubit, ServantDataState>(
+      'update removes servant from list when role changes away from servant',
+      build: () {
+        when(
+          () => mockRepository.updateServant(any()),
+        ).thenAnswer((_) async {});
+        return ServantDataCubit(repository: mockRepository);
+      },
+      seed: () => ServantDataLoaded(servants: allServants),
+      act: (cubit) {
+        final promoted = allServants.first.copyWith(role: UserRole.admin);
+        cubit.updateServant(actor: admin, servant: promoted);
+      },
+      expect: () => [
+        isA<ServantDataLoading>(),
+        isA<ServantDataLoaded>()
+            .having((s) => s.servants.length, 'count', 9)
+            .having(
+              (s) => s.servants.any((x) => x.docID == 'doc-0'),
+              'removed',
+              false,
+            ),
+        isA<ServantDataOperationSuccess>(),
+      ],
+      verify: (_) {
+        verify(() => mockRepository.updateServant(any())).called(1);
+        verifyNever(
+          () => mockRepository.getAllServants(limit: any(named: 'limit')),
+        );
+      },
+    );
+
+    blocTest<ServantDataCubit, ServantDataState>(
       'delete avoids reload when list already loaded',
       build: () {
         when(

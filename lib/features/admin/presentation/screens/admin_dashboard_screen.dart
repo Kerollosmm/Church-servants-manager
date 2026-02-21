@@ -81,8 +81,10 @@ class AdminDashboardScreen extends StatelessWidget {
       child: ListTile(
         leading: Icon(icon, color: AppColors.primary),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-        subtitle: Text(subtitle,
-            style: const TextStyle(color: AppColors.textSecondary)),
+        subtitle: Text(
+          subtitle,
+          style: const TextStyle(color: AppColors.textSecondary),
+        ),
         trailing: const Icon(Icons.chevron_right),
         onTap: () => Navigator.pushNamed(context, route),
       ),

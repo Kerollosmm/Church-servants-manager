@@ -23,6 +23,30 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthEventRefreshUser>(_onRefreshUser);
   }
 
+  Future<void> _runAuthAction(
+    Emitter<AuthState> emit,
+    Future<void> Function() action, {
+    bool emitLoading = false,
+    void Function()? onEmailNotVerified,
+  }) async {
+    if (emitLoading) {
+      emit(const AuthLoading());
+    }
+    try {
+      await action();
+    } on EmailNotVerifiedFailure catch (e) {
+      if (onEmailNotVerified != null) {
+        onEmailNotVerified();
+      } else {
+        emit(AuthError(e.message));
+      }
+    } on AuthFailure catch (e) {
+      emit(AuthError(e.message));
+    } catch (_) {
+      emit(const AuthError('Something went wrong. Please try again.'));
+    }
+  }
+
   Future<void> _onCheckStatus(
     AuthEventCheckStatus event,
     Emitter<AuthState> emit,
@@ -79,26 +103,23 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   Future<void> _onSignIn(AuthEventSignIn event, Emitter<AuthState> emit) async {
-    emit(const AuthLoading());
-    try {
-      final user = await _authService.signIn(
-        email: event.email,
-        password: event.password,
-      );
+    await _runAuthAction(
+      emit,
+      () async {
+        final user = await _authService.signIn(
+          email: event.email,
+          password: event.password,
+        );
 
-      emit(AuthAuthenticated(user));
-    } on EmailNotVerifiedFailure {
-      emit(const AuthNeedsVerification());
-    } on AuthFailure catch (e) {
-      emit(AuthError(e.message));
-    } catch (e) {
-      emit(const AuthError('Something went wrong. Please try again.'));
-    }
+        emit(AuthAuthenticated(user));
+      },
+      emitLoading: true,
+      onEmailNotVerified: () => emit(const AuthNeedsVerification()),
+    );
   }
 
   Future<void> _onSignUp(AuthEventSignUp event, Emitter<AuthState> emit) async {
-    emit(const AuthLoading());
-    try {
+    await _runAuthAction(emit, () async {
       await _authService.signUp(
         email: event.email,
         password: event.password,
@@ -109,55 +130,37 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       // After registration, user needs to verify email
       emit(const AuthNeedsVerification());
-    } on AuthFailure catch (e) {
-      emit(AuthError(e.message));
-    } catch (e) {
-      emit(const AuthError('Something went wrong. Please try again.'));
-    }
+    }, emitLoading: true);
   }
 
   Future<void> _onSignOut(
     AuthEventSignOut event,
     Emitter<AuthState> emit,
   ) async {
-    emit(const AuthLoading());
-    try {
+    await _runAuthAction(emit, () async {
       await _authService.signOut();
       emit(const AuthUnauthenticated());
-    } on AuthFailure catch (e) {
-      emit(AuthError(e.message));
-    } catch (e) {
-      emit(const AuthError('Something went wrong. Please try again.'));
-    }
+    }, emitLoading: true);
   }
 
   Future<void> _onSendVerification(
     AuthEventSendVerification event,
     Emitter<AuthState> emit,
   ) async {
-    try {
+    await _runAuthAction(emit, () async {
       await _authService.sendEmailVerification();
       emit(const AuthVerificationSent());
-    } on AuthFailure catch (e) {
-      emit(AuthError(e.message));
-    } catch (e) {
-      emit(const AuthError('Something went wrong. Please try again.'));
-    }
+    });
   }
 
   Future<void> _onForgotPassword(
     AuthEventForgotPassword event,
     Emitter<AuthState> emit,
   ) async {
-    emit(const AuthLoading());
-    try {
+    await _runAuthAction(emit, () async {
       await _authService.sendPasswordResetEmail(event.email);
       emit(const AuthPasswordResetSent());
-    } on AuthFailure catch (e) {
-      emit(AuthError(e.message));
-    } catch (e) {
-      emit(const AuthError('Something went wrong. Please try again.'));
-    }
+    }, emitLoading: true);
   }
 
   Future<void> _onRefreshUser(

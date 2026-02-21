@@ -35,6 +35,7 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
   late Group _group;
   late EducationStage _educationStage;
   late int _grade;
+  late UserRole _selectedRole;
   DateTime? _birthdate;
   late final TeamRepository _teamRepository;
   List<TeamModel> _teams = const <TeamModel>[];
@@ -70,6 +71,7 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
 
     _educationStage = student?.educationStage ?? EducationStage.preparatory;
     _grade = student?.grade ?? 1;
+    _selectedRole = student?.role ?? UserRole.student;
     _birthdate = student?.birthdate;
 
     _teamRepository = context.read<TeamRepository>();
@@ -185,6 +187,9 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
     final isEditing = widget.args.isEditing;
     final existing = widget.args.student;
     final selectedTeamId = _selectedTeamId;
+    final selectedRole = isEditing && actor.role == UserRole.admin
+        ? _selectedRole
+        : UserRole.student;
 
     if (selectedTeamId == null || selectedTeamId.isEmpty) {
       ScaffoldMessenger.of(
@@ -213,16 +218,28 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
       orElse: () => _group,
     );
 
-    // New student profiles are not assumed to have a Firebase Auth identity.
     final uid = existing?.uid ?? '';
     final docId = existing?.docID ?? '';
+
+    if (isEditing &&
+        existing != null &&
+        existing.role != selectedRole &&
+        selectedRole == UserRole.servant &&
+        uid.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cannot promote student without linked user account.'),
+        ),
+      );
+      return;
+    }
 
     final student = StudentModel(
       uid: uid,
       docID: docId,
       name: _name.text.trim(),
       imageUrl: _imageUrl.text.trim().isEmpty ? null : _imageUrl.text.trim(),
-      role: UserRole.student,
+      role: selectedRole,
       mobile: _mobile.text.trim(),
       group: mappedGroup,
       teamName: normalizedSelectedTeam.name,
@@ -306,6 +323,31 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
                           ),
                           validator: Validators.validatePhone,
                         ),
+                        if (isEditing && actor.role == UserRole.admin) ...[
+                          AppSpacing.gapMd,
+                          DropdownButtonFormField<UserRole>(
+                            key: const Key('student_role_field'),
+                            initialValue: _selectedRole,
+                            decoration: const InputDecoration(
+                              labelText: 'Role',
+                              prefixIcon: Icon(Icons.security_outlined),
+                            ),
+                            items: const [
+                              DropdownMenuItem(
+                                value: UserRole.student,
+                                child: Text('student'),
+                              ),
+                              DropdownMenuItem(
+                                value: UserRole.servant,
+                                child: Text('servant'),
+                              ),
+                            ],
+                            onChanged: (role) {
+                              if (role == null) return;
+                              setState(() => _selectedRole = role);
+                            },
+                          ),
+                        ],
                         AppSpacing.gapMd,
                         DropdownMenu<Group>(
                           initialSelection: _group,

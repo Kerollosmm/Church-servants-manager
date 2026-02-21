@@ -21,6 +21,20 @@ class ServantDataRepository implements IServantRepository {
   Query<Map<String, dynamic>> get _servantsQuery =>
       _usersCollection.where('role', isEqualTo: UserRole.servant.name);
 
+  Map<String, dynamic> _normalizeServantWriteData(ServantModel servant) {
+    final data = servant.toMap();
+    data['role'] = servant.role.name;
+
+    if (servant.role != UserRole.servant) {
+      // Clear servant-only scoping fields when user is no longer a servant.
+      data['groupId'] = FieldValue.delete();
+      data['assignedTeamId'] = FieldValue.delete();
+      data['assignedTeamIds'] = FieldValue.delete();
+    }
+
+    return data;
+  }
+
   @override
   Future<ServantModel?> getServantById(String docId) async {
     try {
@@ -175,16 +189,13 @@ class ServantDataRepository implements IServantRepository {
       final docId = (normalizedUid != null && normalizedUid.isNotEmpty)
           ? normalizedUid
           : _usersCollection.doc().id;
-      final data = servant
-          .copyWith(
-            docID: docId,
-            uid: normalizedUid == null || normalizedUid.isEmpty
-                ? servant.uid
-                : normalizedUid,
-          )
-          .toMap();
-      // Ensure role is strictly set to servant
-      data['role'] = UserRole.servant.name;
+      final normalizedServant = servant.copyWith(
+        docID: docId,
+        uid: normalizedUid == null || normalizedUid.isEmpty
+            ? servant.uid
+            : normalizedUid,
+      );
+      final data = _normalizeServantWriteData(normalizedServant);
       await _usersCollection.doc(docId).set(data, SetOptions(merge: true));
       return docId;
     } catch (e) {
@@ -195,9 +206,7 @@ class ServantDataRepository implements IServantRepository {
   @override
   Future<void> upsertServant(ServantModel servant) async {
     try {
-      final Map<String, dynamic> data = servant.toMap();
-      // Ensure role is strictly set to servant
-      data['role'] = UserRole.servant.name;
+      final data = _normalizeServantWriteData(servant);
 
       await _usersCollection
           .doc(servant.docID)
@@ -210,9 +219,7 @@ class ServantDataRepository implements IServantRepository {
   @override
   Future<void> updateServant(ServantModel servant) async {
     try {
-      final data = servant.toMap();
-      // Role should generally not be changed here unless intended, but good to keep consistency
-      data['role'] = UserRole.servant.name;
+      final data = _normalizeServantWriteData(servant);
       await _usersCollection.doc(servant.docID).update(data);
     } catch (e) {
       throw mapExceptionToServantFailure(e);

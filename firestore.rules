@@ -60,7 +60,9 @@ service cloud.firestore {
 
     // Attendance Collection
     match /attendance/{attendanceId} {
-      allow read: if isAuthenticated();
+      // Attendance contains potentially sensitive personal data.
+      // Restrict reads to ministry staff roles only.
+      allow read: if isServantOrAdmin();
       allow write: if isServantOrAdmin();
     }
 

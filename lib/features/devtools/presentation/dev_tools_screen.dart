@@ -112,6 +112,65 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Reset Data',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.error,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  FilledButton.icon(
+                    onPressed: _busy
+                        ? null
+                        : () {
+                            final count =
+                                int.tryParse(_countController.text) ?? 20;
+                            _run(
+                              () => _seeder.clearAndReseed(studentCount: count),
+                              'Cleared old data & reseeded $count students.',
+                            );
+                          },
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Clear & Reseed All'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: colorScheme.error,
+                      foregroundColor: colorScheme.onError,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _busy
+                              ? null
+                              : () => _run(
+                                  () => _seeder.clearStudents(),
+                                  'All students cleared.',
+                                ),
+                          icon: const Icon(Icons.delete_outline),
+                          label: const Text('Clear Students'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _busy
+                              ? null
+                              : () => _run(
+                                  () => _seeder.clearTeams(),
+                                  'All teams cleared.',
+                                ),
+                          icon: const Icon(Icons.delete_outline),
+                          label: const Text('Clear Teams'),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),

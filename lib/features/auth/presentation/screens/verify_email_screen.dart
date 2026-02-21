@@ -47,7 +47,9 @@ class VerifyEmailScreen extends StatelessWidget {
               AppSpacing.gapMd,
               OutlinedButton.icon(
                 onPressed: () {
-                  context.read<AuthBloc>().add(const AuthEventSendVerification());
+                  context.read<AuthBloc>().add(
+                    const AuthEventSendVerification(),
+                  );
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Verification email resent')),
                   );

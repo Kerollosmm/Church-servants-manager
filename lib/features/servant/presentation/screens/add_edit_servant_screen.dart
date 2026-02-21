@@ -28,6 +28,7 @@ class _AddEditServantScreenState extends State<AddEditServantScreen> {
 
   DateTime? _birthdate;
   late Group _selectedGroup;
+  late UserRole _selectedRole;
 
   @override
   void initState() {
@@ -43,6 +44,7 @@ class _AddEditServantScreenState extends State<AddEditServantScreen> {
     _notes = TextEditingController(text: servant?.notes ?? '');
     _imageUrl = TextEditingController(text: servant?.imageUrl ?? '');
     _birthdate = servant?.birthdate;
+    _selectedRole = servant?.role ?? UserRole.servant;
 
     // Determine group from teamName or default
     _selectedGroup = Group.values.firstWhere(
@@ -93,7 +95,7 @@ class _AddEditServantScreenState extends State<AddEditServantScreen> {
       phone: _phone.text.trim(),
       email: _email.text.trim().isEmpty ? null : _email.text.trim(),
       imageUrl: _imageUrl.text.trim().isEmpty ? null : _imageUrl.text.trim(),
-      role: UserRole.servant,
+      role: isEditing ? _selectedRole : UserRole.servant,
       teamName: _selectedGroup.name,
       fatherOfConfession: _fatherOfConfession.text.trim().isEmpty
           ? null
@@ -183,6 +185,35 @@ class _AddEditServantScreenState extends State<AddEditServantScreen> {
                             prefixIcon: Icon(Icons.email_outlined),
                           ),
                         ),
+                        if (isEditing) ...[
+                          AppSpacing.gapMd,
+                          DropdownButtonFormField<UserRole>(
+                            key: const Key('servant_role_field'),
+                            initialValue: _selectedRole,
+                            decoration: const InputDecoration(
+                              labelText: 'Role',
+                              prefixIcon: Icon(Icons.security_outlined),
+                            ),
+                            items: const [
+                              DropdownMenuItem(
+                                value: UserRole.servant,
+                                child: Text('servant'),
+                              ),
+                              DropdownMenuItem(
+                                value: UserRole.student,
+                                child: Text('student'),
+                              ),
+                              DropdownMenuItem(
+                                value: UserRole.admin,
+                                child: Text('admin'),
+                              ),
+                            ],
+                            onChanged: (role) {
+                              if (role == null) return;
+                              setState(() => _selectedRole = role);
+                            },
+                          ),
+                        ],
                         AppSpacing.gapMd,
                         DropdownButtonFormField<Group>(
                           initialValue: _selectedGroup,

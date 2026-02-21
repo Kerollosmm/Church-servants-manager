@@ -72,11 +72,18 @@ void main() {
       ),
     );
     registerFallbackValue(admin);
+    registerFallbackValue(UserRole.student);
   });
 
   setUp(() {
     mockRepository = MockStudentDataRepository();
     mockGetStudentsStream = MockGetStudentsStreamUseCase();
+    when(
+      () => mockRepository.syncLinkedUserRoleFromStudent(
+        updatedStudent: any(named: 'updatedStudent'),
+        previousRole: any(named: 'previousRole'),
+      ),
+    ).thenAnswer((_) async {});
 
     allStudents = List.generate(10, (i) {
       final group = i.isEven ? Group.year1 : Group.year2;
@@ -234,6 +241,129 @@ void main() {
       verify: (_) {
         verify(() => mockRepository.createStudent(any())).called(1);
       },
+    );
+
+    blocTest<StudentDataBloc, StudentDataState>(
+      'admin can promote student to servant and sync linked user role',
+      setUp: () {
+        when(
+          () => mockRepository.getStudentById(any()),
+        ).thenAnswer((_) async => allStudents.first);
+        when(
+          () => mockRepository.updateStudent(any()),
+        ).thenAnswer((_) async {});
+      },
+      build: buildBloc,
+      act: (bloc) {
+        final promoted = allStudents.first.copyWith(role: UserRole.servant);
+        bloc.add(StudentUpdated(actor: admin, student: promoted));
+      },
+      expect: () => [isA<StudentDataOperationSuccess>()],
+      verify: (_) {
+        verify(() => mockRepository.updateStudent(any())).called(1);
+        verify(
+          () => mockRepository.syncLinkedUserRoleFromStudent(
+            updatedStudent: any(named: 'updatedStudent'),
+            previousRole: UserRole.student,
+          ),
+        ).called(1);
+      },
+    );
+
+    blocTest<StudentDataBloc, StudentDataState>(
+      'non-admin cannot change student role',
+      setUp: () {
+        final editable = allStudents.first.copyWith(classId: 'year1');
+        when(
+          () => mockRepository.getStudentById(any()),
+        ).thenAnswer((_) async => editable);
+      },
+      build: buildBloc,
+      act: (bloc) {
+        final promoted = allStudents.first.copyWith(
+          classId: 'year1',
+          role: UserRole.servant,
+        );
+        bloc.add(StudentUpdated(actor: teacherYear1, student: promoted));
+      },
+      expect: () => [
+        isA<StudentDataError>().having(
+          (s) => s.message,
+          'message',
+          'Not allowed.',
+        ),
+      ],
+      verify: (_) {
+        verifyNever(() => mockRepository.updateStudent(any()));
+        verifyNever(
+          () => mockRepository.syncLinkedUserRoleFromStudent(
+            updatedStudent: any(named: 'updatedStudent'),
+            previousRole: any(named: 'previousRole'),
+          ),
+        );
+      },
+    );
+
+    blocTest<StudentDataBloc, StudentDataState>(
+      'role change to servant is blocked when uid is missing',
+      setUp: () {
+        final existing = allStudents.first.copyWith(uid: '');
+        when(
+          () => mockRepository.getStudentById(any()),
+        ).thenAnswer((_) async => existing);
+      },
+      build: buildBloc,
+      act: (bloc) {
+        final promoted = allStudents.first.copyWith(
+          uid: '',
+          role: UserRole.servant,
+        );
+        bloc.add(StudentUpdated(actor: admin, student: promoted));
+      },
+      expect: () => [
+        isA<StudentDataError>().having(
+          (s) => s.message,
+          'message',
+          'Cannot promote student without linked user account.',
+        ),
+      ],
+      verify: (_) {
+        verifyNever(() => mockRepository.updateStudent(any()));
+        verifyNever(
+          () => mockRepository.syncLinkedUserRoleFromStudent(
+            updatedStudent: any(named: 'updatedStudent'),
+            previousRole: any(named: 'previousRole'),
+          ),
+        );
+      },
+    );
+
+    blocTest<StudentDataBloc, StudentDataState>(
+      'loaded stream excludes non-student roles',
+      setUp: () {
+        final mixed = [
+          allStudents.first,
+          allStudents[1].copyWith(role: UserRole.servant),
+        ];
+        when(
+          () => mockGetStudentsStream(
+            actor: any(named: 'actor'),
+            teamId: any(named: 'teamId'),
+          ),
+        ).thenAnswer((_) => Stream.value(mixed));
+      },
+      build: buildBloc,
+      act: (bloc) => bloc.add(const StudentsLoadRequested(actor: admin)),
+      expect: () => [
+        isA<StudentDataLoading>(),
+        isA<StudentDataLoaded>()
+            .having((s) => s.students.length, 'count', 1)
+            .having(
+              (s) => s.students.every((x) => x.role == UserRole.student),
+              'all student role',
+              true,
+            ),
+      ],
     );
 
     blocTest<StudentDataBloc, StudentDataState>(

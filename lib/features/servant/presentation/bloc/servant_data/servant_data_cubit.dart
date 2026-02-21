@@ -69,12 +69,26 @@ class ServantDataCubit extends Cubit<ServantDataState> {
     required ServantModel servant,
   }) async {
     if (!_ensureAdmin(actor)) return;
+    final previousLoaded = state is ServantDataLoaded
+        ? state as ServantDataLoaded
+        : null;
     emit(const ServantDataLoading());
     try {
-      await _repository.createServant(servant);
-      // Reload first so the list is fresh, then emit success last so
-      // BlocListeners (e.g. Navigator.pop) are triggered after data is ready.
-      await loadServants(actor: actor, limit: _lastLimit);
+      final docId = await _repository.createServant(servant);
+      final createdServant = servant.copyWith(docID: docId);
+      final didOptimisticUpdate = _tryEmitOptimisticUpdate(previousLoaded, (
+        servants,
+      ) {
+        if (servant.docID != docId) {
+          servants.removeWhere((s) => s.docID == servant.docID);
+        }
+        return _upsertServant(servants, createdServant);
+      });
+      if (!didOptimisticUpdate) {
+        // Reload first so the list is fresh, then emit success last so
+        // BlocListeners (e.g. Navigator.pop) are triggered after data is ready.
+        await loadServants(actor: actor, limit: _lastLimit);
+      }
       emit(const ServantDataOperationSuccess('Servant created successfully'));
     } catch (e) {
       emit(ServantDataError(_mapFailure(e)));
@@ -86,11 +100,22 @@ class ServantDataCubit extends Cubit<ServantDataState> {
     required ServantModel servant,
   }) async {
     if (!_ensureAdmin(actor)) return;
+    final previousLoaded = state is ServantDataLoaded
+        ? state as ServantDataLoaded
+        : null;
     emit(const ServantDataLoading());
     try {
       await _repository.updateServant(servant);
-      // Reload first so the list is fresh, then emit success last.
-      await loadServants(actor: actor, limit: _lastLimit);
+      final didOptimisticUpdate = _tryEmitOptimisticUpdate(
+        previousLoaded,
+        (servants) => servant.role == UserRole.servant
+            ? _upsertServant(servants, servant)
+            : _removeServant(servants, servant.docID),
+      );
+      if (!didOptimisticUpdate) {
+        // Reload first so the list is fresh, then emit success last.
+        await loadServants(actor: actor, limit: _lastLimit);
+      }
       emit(const ServantDataOperationSuccess('Servant updated successfully'));
     } catch (e) {
       emit(ServantDataError(_mapFailure(e)));
@@ -102,11 +127,21 @@ class ServantDataCubit extends Cubit<ServantDataState> {
     required String docId,
   }) async {
     if (!_ensureAdmin(actor)) return;
+    final previousLoaded = state is ServantDataLoaded
+        ? state as ServantDataLoaded
+        : null;
     emit(const ServantDataLoading());
     try {
       await _repository.deleteServant(docId);
       emit(const ServantDataOperationSuccess('Servant deleted successfully'));
-      await loadServants(actor: actor, limit: _lastLimit);
+      final didOptimisticUpdate = _tryEmitOptimisticUpdate(
+        previousLoaded,
+        (servants) => _removeServant(servants, docId),
+        emitLoading: true,
+      );
+      if (!didOptimisticUpdate) {
+        await loadServants(actor: actor, limit: _lastLimit);
+      }
     } catch (e) {
       emit(ServantDataError(_mapFailure(e)));
     }
@@ -124,5 +159,59 @@ class ServantDataCubit extends Cubit<ServantDataState> {
   ServantFailure _mapFailure(Object error) {
     if (error is ServantFailure) return error;
     return mapExceptionToServantFailure(error);
+  }
+
+  bool _tryEmitOptimisticUpdate(
+    ServantDataLoaded? previousLoaded,
+    List<ServantModel> Function(List<ServantModel> servants) update, {
+    bool emitLoading = false,
+  }) {
+    if (previousLoaded == null) return false;
+    if (!_canOptimisticallyUpdate(previousLoaded)) return false;
+    var updated = update(List<ServantModel>.from(previousLoaded.servants));
+    updated = _sortAndTrim(updated);
+    if (emitLoading) {
+      emit(const ServantDataLoading());
+    }
+    emit(ServantDataLoaded(servants: updated));
+    return true;
+  }
+
+  bool _canOptimisticallyUpdate(ServantDataLoaded previousLoaded) {
+    if (_lastQuery != null && _lastQuery!.isNotEmpty) return false;
+    if (previousLoaded.currentQuery != null &&
+        previousLoaded.currentQuery!.isNotEmpty) {
+      return false;
+    }
+    if (previousLoaded.currentFilterTeamName != null) return false;
+    return true;
+  }
+
+  List<ServantModel> _sortAndTrim(List<ServantModel> servants) {
+    servants.sort(
+      (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+    );
+    if (_lastLimit > 0 && servants.length > _lastLimit) {
+      return servants.sublist(0, _lastLimit);
+    }
+    return servants;
+  }
+
+  List<ServantModel> _upsertServant(
+    List<ServantModel> servants,
+    ServantModel servant,
+  ) {
+    final index = servants.indexWhere((s) => s.docID == servant.docID);
+    if (index == -1) {
+      servants.add(servant);
+    } else {
+      servants[index] = servant;
+    }
+    return servants;
+  }
+
+  List<ServantModel> _removeServant(List<ServantModel> servants, String docId) {
+    servants.removeWhere((s) => s.docID == docId);
+    return servants;
   }
 }

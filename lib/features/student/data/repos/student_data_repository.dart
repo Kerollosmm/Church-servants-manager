@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:church_managment_system/core/constants/enums.dart';
 import 'package:church_managment_system/core/constants/firestore_collections.dart';
 import 'package:church_managment_system/features/student/domain/failures/student_failures.dart';
 import 'package:church_managment_system/features/student/domain/repos/i_student_repository.dart';
@@ -13,6 +14,51 @@ class StudentDataRepository implements IStudentRepository {
 
   CollectionReference<Map<String, dynamic>> get _studentsCollection =>
       _firestore.collection(FirestoreCollections.students);
+
+  CollectionReference<Map<String, dynamic>> get _usersCollection =>
+      _firestore.collection(FirestoreCollections.users);
+
+  Future<void> syncLinkedUserRoleFromStudent({
+    required StudentModel updatedStudent,
+    required UserRole previousRole,
+  }) async {
+    try {
+      final uid = updatedStudent.uid.trim();
+      if (uid.isEmpty) {
+        throw const GenericStudentFailure(
+          'Cannot change role for student without linked user account.',
+        );
+      }
+
+      final payload = <String, dynamic>{
+        'uid': uid,
+        'role': updatedStudent.role.name,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      if (updatedStudent.role == UserRole.servant) {
+        payload['groupId'] = updatedStudent.group.name;
+        final classId = updatedStudent.classId?.trim() ?? '';
+        if (classId.isNotEmpty) {
+          payload['assignedTeamId'] = classId;
+          payload['assignedTeamIds'] = [classId];
+        } else {
+          payload['assignedTeamId'] = FieldValue.delete();
+          payload['assignedTeamIds'] = FieldValue.delete();
+        }
+      } else if (updatedStudent.role == UserRole.student ||
+          previousRole == UserRole.servant) {
+        payload['groupId'] = FieldValue.delete();
+        payload['assignedTeamId'] = FieldValue.delete();
+        payload['assignedTeamIds'] = FieldValue.delete();
+      }
+
+      await _usersCollection.doc(uid).set(payload, SetOptions(merge: true));
+    } catch (e) {
+      if (e is StudentFailure) rethrow;
+      throw mapExceptionToStudentFailure(e);
+    }
+  }
 
   @override
   Future<StudentModel?> getStudentById(String docId) async {

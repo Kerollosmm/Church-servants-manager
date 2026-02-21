@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:church_managment_system/core/constants/enums.dart';
 import 'package:church_managment_system/features/student/data/models/student_model.dart';
 import 'package:church_managment_system/features/student/data/repos/student_data_repository.dart';
 import 'package:church_managment_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
@@ -107,7 +108,9 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     _StudentsStreamUpdated event,
     Emitter<StudentDataState> emit,
   ) {
-    _allStudents = event.students;
+    _allStudents = event.students
+        .where((student) => student.role == UserRole.student)
+        .toList(growable: false);
     final query = _lastQuery;
     final students = (query != null && query.isNotEmpty)
         ? _filterByName(_allStudents, query)
@@ -180,7 +183,30 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
         emit(const StudentDataError('Not allowed.'));
         return;
       }
+
+      final isRoleChange = existing.role != event.student.role;
+      if (isRoleChange && event.actor.role != UserRole.admin) {
+        emit(const StudentDataError('Not allowed.'));
+        return;
+      }
+      if (isRoleChange &&
+          event.student.role == UserRole.servant &&
+          event.student.uid.trim().isEmpty) {
+        emit(
+          const StudentDataError(
+            'Cannot promote student without linked user account.',
+          ),
+        );
+        return;
+      }
+
       await _studentRepository.updateStudent(event.student);
+      if (isRoleChange) {
+        await _studentRepository.syncLinkedUserRoleFromStudent(
+          updatedStudent: event.student,
+          previousRole: existing.role,
+        );
+      }
       emit(const StudentDataOperationSuccess('Student updated successfully'));
     } catch (e) {
       _emitError(emit, 'Unable to update student', e);
