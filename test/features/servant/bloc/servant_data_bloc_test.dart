@@ -150,10 +150,8 @@ void main() {
       },
       expect: () => [
         isA<ServantDataLoading>(),
-        isA<ServantDataOperationSuccess>(),
-        // Then reload is triggered
-        isA<ServantDataLoading>(),
         isA<ServantDataLoaded>(),
+        isA<ServantDataOperationSuccess>(),
       ],
       verify: (_) {
         verify(() => mockRepository.createServant(any())).called(1);
@@ -174,9 +172,8 @@ void main() {
       },
       expect: () => [
         isA<ServantDataLoading>(),
-        isA<ServantDataOperationSuccess>(),
-        isA<ServantDataLoading>(),
         isA<ServantDataLoaded>(),
+        isA<ServantDataOperationSuccess>(),
       ],
       verify: (_) {
         verify(() => mockRepository.updateServant(any())).called(1);
@@ -202,6 +199,116 @@ void main() {
       ],
       verify: (_) {
         verify(() => mockRepository.deleteServant('doc-0')).called(1);
+      },
+    );
+
+    blocTest<ServantDataCubit, ServantDataState>(
+      'create avoids reload when list already loaded',
+      build: () {
+        when(
+          () => mockRepository.createServant(any()),
+        ).thenAnswer((_) async => 'new-doc');
+        return ServantDataCubit(repository: mockRepository);
+      },
+      seed: () => ServantDataLoaded(servants: allServants),
+      act: (cubit) {
+        final newServant = ServantModel(
+          uid: 'new-uid',
+          docID: 'temp',
+          name: 'New Servant',
+          phone: '01234567890',
+          email: 'new@test.com',
+          imageUrl: null,
+          role: UserRole.servant,
+          teamName: 'Team A',
+          fatherOfConfession: 'Fr.',
+          birthdate: null,
+          notes: null,
+        );
+        cubit.createServant(actor: admin, servant: newServant);
+      },
+      expect: () => [
+        isA<ServantDataLoading>(),
+        isA<ServantDataLoaded>()
+            .having((s) => s.servants.length, 'count', 11)
+            .having(
+              (s) => s.servants.any((x) => x.docID == 'new-doc'),
+              'contains new doc',
+              true,
+            ),
+        isA<ServantDataOperationSuccess>(),
+      ],
+      verify: (_) {
+        verify(() => mockRepository.createServant(any())).called(1);
+        verifyNever(
+          () => mockRepository.getAllServants(limit: any(named: 'limit')),
+        );
+      },
+    );
+
+    blocTest<ServantDataCubit, ServantDataState>(
+      'update avoids reload when list already loaded',
+      build: () {
+        when(
+          () => mockRepository.updateServant(any()),
+        ).thenAnswer((_) async {});
+        return ServantDataCubit(repository: mockRepository);
+      },
+      seed: () => ServantDataLoaded(servants: allServants),
+      act: (cubit) {
+        final updatedServant = allServants.first.copyWith(
+          name: 'Servant 0 Updated',
+        );
+        cubit.updateServant(actor: admin, servant: updatedServant);
+      },
+      expect: () => [
+        isA<ServantDataLoading>(),
+        isA<ServantDataLoaded>().having(
+          (s) => s.servants.any(
+            (x) => x.docID == 'doc-0' && x.name == 'Servant 0 Updated',
+          ),
+          'updated servant present',
+          true,
+        ),
+        isA<ServantDataOperationSuccess>(),
+      ],
+      verify: (_) {
+        verify(() => mockRepository.updateServant(any())).called(1);
+        verifyNever(
+          () => mockRepository.getAllServants(limit: any(named: 'limit')),
+        );
+      },
+    );
+
+    blocTest<ServantDataCubit, ServantDataState>(
+      'delete avoids reload when list already loaded',
+      build: () {
+        when(
+          () => mockRepository.deleteServant(any()),
+        ).thenAnswer((_) async {});
+        return ServantDataCubit(repository: mockRepository);
+      },
+      seed: () => ServantDataLoaded(servants: allServants),
+      act: (cubit) {
+        cubit.deleteServant(actor: admin, docId: 'doc-0');
+      },
+      expect: () => [
+        isA<ServantDataLoading>(),
+        isA<ServantDataOperationSuccess>(),
+        isA<ServantDataLoading>(),
+        isA<ServantDataLoaded>()
+            .having((s) => s.servants.length, 'count', 9)
+            .having(
+              (s) => s.servants.any((x) => x.docID == 'doc-0'),
+              'deleted servant missing',
+              false,
+            ),
+      ],
+      verify: (_) {
+        verify(() => mockRepository.deleteServant('doc-0')).called(1);
+        verifyNever(
+          () => mockRepository.getAllServants(limit: any(named: 'limit')),
+        );
       },
     );
 

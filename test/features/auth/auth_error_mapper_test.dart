@@ -54,12 +54,15 @@ void main() {
       expect(failure, isA<UserNotFoundFailure>());
     });
 
-    test('should map GenericAuthException with message to GenericAuthFailure', () {
-      const message = 'Custom error';
-      final exception = const GenericAuthException(message);
-      final failure = AuthErrorMapper.mapException(exception);
-      expect(failure, isA<GenericAuthFailure>());
-      expect(failure.message, contains(message));
-    });
+    test(
+      'should map GenericAuthException with message to GenericAuthFailure',
+      () {
+        const message = 'Custom error';
+        final exception = const GenericAuthException(message);
+        final failure = AuthErrorMapper.mapException(exception);
+        expect(failure, isA<GenericAuthFailure>());
+        expect(failure.message, contains(message));
+      },
+    );
   });
 }

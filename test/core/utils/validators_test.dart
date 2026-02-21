@@ -9,9 +9,18 @@ void main() {
       });
 
       test('should return error if email is invalid', () {
-        expect(Validators.validateEmail('invalid-email'), 'Enter a valid email address');
-        expect(Validators.validateEmail('test@'), 'Enter a valid email address');
-        expect(Validators.validateEmail('@example.com'), 'Enter a valid email address');
+        expect(
+          Validators.validateEmail('invalid-email'),
+          'Enter a valid email address',
+        );
+        expect(
+          Validators.validateEmail('test@'),
+          'Enter a valid email address',
+        );
+        expect(
+          Validators.validateEmail('@example.com'),
+          'Enter a valid email address',
+        );
       });
 
       test('should return null if email is valid', () {
@@ -25,7 +34,10 @@ void main() {
       });
 
       test('should return error if password is too short', () {
-        expect(Validators.validatePassword('12345'), 'Password must be at least 6 characters');
+        expect(
+          Validators.validatePassword('12345'),
+          'Password must be at least 6 characters',
+        );
       });
 
       test('should return null if password is valid', () {
@@ -39,7 +51,10 @@ void main() {
       });
 
       test('should return error if name is too short', () {
-        expect(Validators.validateName('A'), 'Name must be at least 2 characters');
+        expect(
+          Validators.validateName('A'),
+          'Name must be at least 2 characters',
+        );
       });
 
       test('should return null if name is valid', () {
@@ -53,8 +68,14 @@ void main() {
       });
 
       test('should return error if phone is invalid', () {
-        expect(Validators.validatePhone('123'), 'Enter a valid 11-digit phone number');
-        expect(Validators.validatePhone('abcdefghijk'), 'Enter a valid 11-digit phone number');
+        expect(
+          Validators.validatePhone('123'),
+          'Enter a valid 11-digit phone number',
+        );
+        expect(
+          Validators.validatePhone('abcdefghijk'),
+          'Enter a valid 11-digit phone number',
+        );
       });
 
       test('should return null if phone is valid', () {

@@ -26,7 +26,9 @@ void main() {
   }
 
   group('RegisterScreen', () {
-    testWidgets('should show validation errors when fields are empty', (tester) async {
+    testWidgets('should show validation errors when fields are empty', (
+      tester,
+    ) async {
       when(() => authBloc.state).thenReturn(const AuthInitial());
 
       await tester.pumpWidget(createWidgetUnderTest());
