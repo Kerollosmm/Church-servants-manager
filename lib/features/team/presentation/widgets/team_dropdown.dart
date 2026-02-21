@@ -154,14 +154,6 @@ class _TeamDropdownState extends State<TeamDropdown> {
             ? _selectedTeamId
             : (widget.showAllOption ? null : visibleTeams.first.id);
 
-        // Fallback if no visible teams and not showing all option (though handled by isEmpty check above)
-        if (effectiveValue == null &&
-            !widget.showAllOption &&
-            visibleTeams.isNotEmpty) {
-          // rare edge case where selection became invalid but teams exist
-          // Usually covered by effectiveValue logic
-        }
-
         return DropdownButtonFormField<String?>(
           initialValue: effectiveValue,
           decoration: InputDecoration(

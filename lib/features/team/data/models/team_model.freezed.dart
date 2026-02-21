@@ -12,7 +12,8 @@ part of 'team_model.dart';
 T _$identity<T>(T value) => value;
 
 final _privateConstructorUsedError = UnsupportedError(
-    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
+  'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
+);
 
 TeamModel _$TeamModelFromJson(Map<String, dynamic> json) {
   return _TeamModel.fromJson(json);
@@ -46,12 +47,13 @@ abstract class $TeamModelCopyWith<$Res> {
   factory $TeamModelCopyWith(TeamModel value, $Res Function(TeamModel) then) =
       _$TeamModelCopyWithImpl<$Res, TeamModel>;
   @useResult
-  $Res call(
-      {String id,
-      String name,
-      String groupId,
-      String? assignedServantId,
-      String? assignedServantName});
+  $Res call({
+    String id,
+    String name,
+    String groupId,
+    String? assignedServantId,
+    String? assignedServantName,
+  });
 }
 
 /// @nodoc
@@ -73,28 +75,31 @@ class _$TeamModelCopyWithImpl<$Res, $Val extends TeamModel>
     Object? assignedServantId = freezed,
     Object? assignedServantName = freezed,
   }) {
-    return _then(_value.copyWith(
-      id: null == id
-          ? _value.id
-          : id // ignore: cast_nullable_to_non_nullable
-              as String,
-      name: null == name
-          ? _value.name
-          : name // ignore: cast_nullable_to_non_nullable
-              as String,
-      groupId: null == groupId
-          ? _value.groupId
-          : groupId // ignore: cast_nullable_to_non_nullable
-              as String,
-      assignedServantId: freezed == assignedServantId
-          ? _value.assignedServantId
-          : assignedServantId // ignore: cast_nullable_to_non_nullable
-              as String?,
-      assignedServantName: freezed == assignedServantName
-          ? _value.assignedServantName
-          : assignedServantName // ignore: cast_nullable_to_non_nullable
-              as String?,
-    ) as $Val);
+    return _then(
+      _value.copyWith(
+            id: null == id
+                ? _value.id
+                : id // ignore: cast_nullable_to_non_nullable
+                      as String,
+            name: null == name
+                ? _value.name
+                : name // ignore: cast_nullable_to_non_nullable
+                      as String,
+            groupId: null == groupId
+                ? _value.groupId
+                : groupId // ignore: cast_nullable_to_non_nullable
+                      as String,
+            assignedServantId: freezed == assignedServantId
+                ? _value.assignedServantId
+                : assignedServantId // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            assignedServantName: freezed == assignedServantName
+                ? _value.assignedServantName
+                : assignedServantName // ignore: cast_nullable_to_non_nullable
+                      as String?,
+          )
+          as $Val,
+    );
   }
 }
 
@@ -102,16 +107,18 @@ class _$TeamModelCopyWithImpl<$Res, $Val extends TeamModel>
 abstract class _$$TeamModelImplCopyWith<$Res>
     implements $TeamModelCopyWith<$Res> {
   factory _$$TeamModelImplCopyWith(
-          _$TeamModelImpl value, $Res Function(_$TeamModelImpl) then) =
-      __$$TeamModelImplCopyWithImpl<$Res>;
+    _$TeamModelImpl value,
+    $Res Function(_$TeamModelImpl) then,
+  ) = __$$TeamModelImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call(
-      {String id,
-      String name,
-      String groupId,
-      String? assignedServantId,
-      String? assignedServantName});
+  $Res call({
+    String id,
+    String name,
+    String groupId,
+    String? assignedServantId,
+    String? assignedServantName,
+  });
 }
 
 /// @nodoc
@@ -119,8 +126,9 @@ class __$$TeamModelImplCopyWithImpl<$Res>
     extends _$TeamModelCopyWithImpl<$Res, _$TeamModelImpl>
     implements _$$TeamModelImplCopyWith<$Res> {
   __$$TeamModelImplCopyWithImpl(
-      _$TeamModelImpl _value, $Res Function(_$TeamModelImpl) _then)
-      : super(_value, _then);
+    _$TeamModelImpl _value,
+    $Res Function(_$TeamModelImpl) _then,
+  ) : super(_value, _then);
 
   @pragma('vm:prefer-inline')
   @override
@@ -131,41 +139,43 @@ class __$$TeamModelImplCopyWithImpl<$Res>
     Object? assignedServantId = freezed,
     Object? assignedServantName = freezed,
   }) {
-    return _then(_$TeamModelImpl(
-      id: null == id
-          ? _value.id
-          : id // ignore: cast_nullable_to_non_nullable
-              as String,
-      name: null == name
-          ? _value.name
-          : name // ignore: cast_nullable_to_non_nullable
-              as String,
-      groupId: null == groupId
-          ? _value.groupId
-          : groupId // ignore: cast_nullable_to_non_nullable
-              as String,
-      assignedServantId: freezed == assignedServantId
-          ? _value.assignedServantId
-          : assignedServantId // ignore: cast_nullable_to_non_nullable
-              as String?,
-      assignedServantName: freezed == assignedServantName
-          ? _value.assignedServantName
-          : assignedServantName // ignore: cast_nullable_to_non_nullable
-              as String?,
-    ));
+    return _then(
+      _$TeamModelImpl(
+        id: null == id
+            ? _value.id
+            : id // ignore: cast_nullable_to_non_nullable
+                  as String,
+        name: null == name
+            ? _value.name
+            : name // ignore: cast_nullable_to_non_nullable
+                  as String,
+        groupId: null == groupId
+            ? _value.groupId
+            : groupId // ignore: cast_nullable_to_non_nullable
+                  as String,
+        assignedServantId: freezed == assignedServantId
+            ? _value.assignedServantId
+            : assignedServantId // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        assignedServantName: freezed == assignedServantName
+            ? _value.assignedServantName
+            : assignedServantName // ignore: cast_nullable_to_non_nullable
+                  as String?,
+      ),
+    );
   }
 }
 
 /// @nodoc
 @JsonSerializable()
 class _$TeamModelImpl extends _TeamModel {
-  const _$TeamModelImpl(
-      {required this.id,
-      required this.name,
-      required this.groupId,
-      this.assignedServantId,
-      this.assignedServantName})
-      : super._();
+  const _$TeamModelImpl({
+    required this.id,
+    required this.name,
+    required this.groupId,
+    this.assignedServantId,
+    this.assignedServantName,
+  }) : super._();
 
   factory _$TeamModelImpl.fromJson(Map<String, dynamic> json) =>
       _$$TeamModelImplFromJson(json);
@@ -212,7 +222,13 @@ class _$TeamModelImpl extends _TeamModel {
   @JsonKey(ignore: true)
   @override
   int get hashCode => Object.hash(
-      runtimeType, id, name, groupId, assignedServantId, assignedServantName);
+    runtimeType,
+    id,
+    name,
+    groupId,
+    assignedServantId,
+    assignedServantName,
+  );
 
   @JsonKey(ignore: true)
   @override
@@ -222,42 +238,36 @@ class _$TeamModelImpl extends _TeamModel {
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$TeamModelImplToJson(
-      this,
-    );
+    return _$$TeamModelImplToJson(this);
   }
 }
 
 abstract class _TeamModel extends TeamModel {
-  const factory _TeamModel(
-      {required final String id,
-      required final String name,
-      required final String groupId,
-      final String? assignedServantId,
-      final String? assignedServantName}) = _$TeamModelImpl;
+  const factory _TeamModel({
+    required final String id,
+    required final String name,
+    required final String groupId,
+    final String? assignedServantId,
+    final String? assignedServantName,
+  }) = _$TeamModelImpl;
   const _TeamModel._() : super._();
 
   factory _TeamModel.fromJson(Map<String, dynamic> json) =
       _$TeamModelImpl.fromJson;
 
   @override
-
   /// Firestore document ID.
   String get id;
   @override
-
   /// Team display name (e.g. "فريق مارمرقس").
   String get name;
   @override
-
   /// The group/year this team belongs to (e.g. "year1").
   String get groupId;
   @override
-
   /// UID of the servant assigned to this team (optional).
   String? get assignedServantId;
   @override
-
   /// Denormalized servant name for display.
   String? get assignedServantName;
   @override
