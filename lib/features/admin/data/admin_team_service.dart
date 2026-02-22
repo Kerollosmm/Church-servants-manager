@@ -79,6 +79,24 @@ class AdminTeamService {
     return ids;
   }
 
+  Future<void> _removeTeamFromServant(
+    Transaction transaction,
+    DocumentReference<Map<String, dynamic>> servantRef,
+    String teamId,
+  ) async {
+    final servantSnap = await transaction.get(servantRef);
+    if (servantSnap.exists) {
+      final teamIds = _extractAssignedTeamIds(
+        servantSnap.data() ?? <String, dynamic>{},
+      )..removeWhere((id) => id == teamId);
+      transaction.set(
+        servantRef,
+        _servantAssignmentPatch(teamIds),
+        SetOptions(merge: true),
+      );
+    }
+  }
+
   Map<String, dynamic> _servantAssignmentPatch(List<String> teamIds) {
     if (teamIds.isEmpty) {
       return {
@@ -178,17 +196,7 @@ class AdminTeamService {
       });
 
       if (oldServantRef != null && oldServantId != servant.docID) {
-        final oldServantSnap = await transaction.get(oldServantRef);
-        if (oldServantSnap.exists) {
-          final oldServantTeamIds = _extractAssignedTeamIds(
-            oldServantSnap.data() ?? <String, dynamic>{},
-          )..removeWhere((id) => id == team.id);
-          transaction.set(
-            oldServantRef,
-            _servantAssignmentPatch(oldServantTeamIds),
-            SetOptions(merge: true),
-          );
-        }
+        await _removeTeamFromServant(transaction, oldServantRef, team.id);
       }
 
       transaction.set(newServantRef, {
@@ -226,17 +234,7 @@ class AdminTeamService {
       });
 
       if (oldServantRef != null) {
-        final oldServantSnap = await transaction.get(oldServantRef);
-        if (oldServantSnap.exists) {
-          final oldServantTeamIds = _extractAssignedTeamIds(
-            oldServantSnap.data() ?? <String, dynamic>{},
-          )..removeWhere((id) => id == team.id);
-          transaction.set(
-            oldServantRef,
-            _servantAssignmentPatch(oldServantTeamIds),
-            SetOptions(merge: true),
-          );
-        }
+        await _removeTeamFromServant(transaction, oldServantRef, team.id);
       }
     });
   }

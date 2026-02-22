@@ -263,6 +263,21 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
     }
   }
 
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String labelText,
+    required Widget prefixIcon,
+    String? Function(String?)? validator,
+    int maxLines = 1,
+  }) {
+    return TextFormField(
+      controller: controller,
+      decoration: InputDecoration(labelText: labelText, prefixIcon: prefixIcon),
+      validator: validator,
+      maxLines: maxLines,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final actor = widget.args.actor;
@@ -306,21 +321,17 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
                           ),
                         ),
                         AppSpacing.gapMd,
-                        TextFormField(
+                        _buildTextField(
                           controller: _name,
-                          decoration: const InputDecoration(
-                            labelText: 'Full Name',
-                            prefixIcon: Icon(Icons.person_outline),
-                          ),
+                          labelText: 'Full Name',
+                          prefixIcon: const Icon(Icons.person_outline),
                           validator: Validators.validateName,
                         ),
                         AppSpacing.gapMd,
-                        TextFormField(
+                        _buildTextField(
                           controller: _mobile,
-                          decoration: const InputDecoration(
-                            labelText: 'Mobile',
-                            prefixIcon: Icon(Icons.phone_outlined),
-                          ),
+                          labelText: 'Mobile',
+                          prefixIcon: const Icon(Icons.phone_outlined),
                           validator: Validators.validatePhone,
                         ),
                         if (isEditing && actor.role == UserRole.admin) ...[
@@ -459,21 +470,17 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
                           ),
                         ),
                         AppSpacing.gapMd,
-                        TextFormField(
+                        _buildTextField(
                           controller: _motherPhone,
-                          decoration: const InputDecoration(
-                            labelText: 'Mother Phone',
-                            prefixIcon: Icon(Icons.phone_outlined),
-                          ),
+                          labelText: 'Mother Phone',
+                          prefixIcon: const Icon(Icons.phone_outlined),
                           validator: Validators.validatePhone,
                         ),
                         AppSpacing.gapMd,
-                        TextFormField(
+                        _buildTextField(
                           controller: _fatherPhone,
-                          decoration: const InputDecoration(
-                            labelText: 'Father Phone',
-                            prefixIcon: Icon(Icons.phone_outlined),
-                          ),
+                          labelText: 'Father Phone',
+                          prefixIcon: const Icon(Icons.phone_outlined),
                           validator: Validators.validatePhone,
                         ),
                       ],
@@ -495,29 +502,23 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
                           ),
                         ),
                         AppSpacing.gapMd,
-                        TextFormField(
+                        _buildTextField(
                           controller: _fatherOfConfession,
-                          decoration: const InputDecoration(
-                            labelText: 'Father of Confession',
-                            prefixIcon: Icon(Icons.church_outlined),
-                          ),
+                          labelText: 'Father of Confession',
+                          prefixIcon: const Icon(Icons.church_outlined),
                           validator: Validators.validateName,
                         ),
                         AppSpacing.gapMd,
-                        TextFormField(
+                        _buildTextField(
                           controller: _school,
-                          decoration: const InputDecoration(
-                            labelText: 'School / College (optional)',
-                            prefixIcon: Icon(Icons.school_outlined),
-                          ),
+                          labelText: 'School / College (optional)',
+                          prefixIcon: const Icon(Icons.school_outlined),
                         ),
                         AppSpacing.gapMd,
-                        TextFormField(
+                        _buildTextField(
                           controller: _address,
-                          decoration: const InputDecoration(
-                            labelText: 'Address (optional)',
-                            prefixIcon: Icon(Icons.location_on_outlined),
-                          ),
+                          labelText: 'Address (optional)',
+                          prefixIcon: const Icon(Icons.location_on_outlined),
                         ),
                         AppSpacing.gapMd,
                         Row(
@@ -547,21 +548,17 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
                           ],
                         ),
                         AppSpacing.gapMd,
-                        TextFormField(
+                        _buildTextField(
                           controller: _notes,
-                          decoration: const InputDecoration(
-                            labelText: 'Notes (optional)',
-                            prefixIcon: Icon(Icons.notes_outlined),
-                          ),
+                          labelText: 'Notes (optional)',
+                          prefixIcon: const Icon(Icons.notes_outlined),
                           maxLines: 2,
                         ),
                         AppSpacing.gapMd,
-                        TextFormField(
+                        _buildTextField(
                           controller: _imageUrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Image URL (optional)',
-                            prefixIcon: Icon(Icons.image_outlined),
-                          ),
+                          labelText: 'Image URL (optional)',
+                          prefixIcon: const Icon(Icons.image_outlined),
                         ),
                         AppSpacing.gapMd,
                         Container(

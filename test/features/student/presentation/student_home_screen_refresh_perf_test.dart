@@ -3,7 +3,6 @@ import 'package:church_managment_system/core/constants/enums.dart';
 import 'package:church_managment_system/features/auth/data/models/auth_user.dart';
 import 'package:church_managment_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_managment_system/features/student/presentation/screens/student_home_screen.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -69,6 +68,12 @@ void main() {
     debugPrint('student_home_refresh_elapsed_ms=${elapsed.inMilliseconds}');
 
     expect(completed, isTrue);
+    expect(
+      elapsed.inMilliseconds,
+      lessThan(100),
+      reason:
+          'Refresh callback should complete promptly without an artificial delay.',
+    );
     verify(() => authBloc.add(const AuthEventRefreshUser())).called(1);
   });
 }
