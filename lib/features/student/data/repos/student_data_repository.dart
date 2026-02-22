@@ -18,42 +18,89 @@ class StudentDataRepository implements IStudentRepository {
   CollectionReference<Map<String, dynamic>> get _usersCollection =>
       _firestore.collection(FirestoreCollections.users);
 
+  Map<String, dynamic> _buildLinkedUserRolePatch({
+    required StudentModel updatedStudent,
+    required UserRole previousRole,
+  }) {
+    final uid = updatedStudent.uid.trim();
+    if (uid.isEmpty) {
+      throw const GenericStudentFailure(
+        'Cannot change role for student without linked user account.',
+      );
+    }
+
+    final payload = <String, dynamic>{
+      'uid': uid,
+      'role': updatedStudent.role.name,
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+
+    if (updatedStudent.role == UserRole.servant) {
+      payload['groupId'] = updatedStudent.group.name;
+      final classId = updatedStudent.classId?.trim() ?? '';
+      if (classId.isNotEmpty) {
+        payload['assignedTeamId'] = classId;
+        payload['assignedTeamIds'] = [classId];
+      } else {
+        payload['assignedTeamId'] = FieldValue.delete();
+        payload['assignedTeamIds'] = FieldValue.delete();
+      }
+    } else if (updatedStudent.role == UserRole.student ||
+        previousRole == UserRole.servant) {
+      payload['groupId'] = FieldValue.delete();
+      payload['assignedTeamId'] = FieldValue.delete();
+      payload['assignedTeamIds'] = FieldValue.delete();
+    }
+
+    return payload;
+  }
+
   Future<void> syncLinkedUserRoleFromStudent({
     required StudentModel updatedStudent,
     required UserRole previousRole,
   }) async {
     try {
       final uid = updatedStudent.uid.trim();
-      if (uid.isEmpty) {
-        throw const GenericStudentFailure(
-          'Cannot change role for student without linked user account.',
-        );
-      }
-
-      final payload = <String, dynamic>{
-        'uid': uid,
-        'role': updatedStudent.role.name,
-        'updatedAt': FieldValue.serverTimestamp(),
-      };
-
-      if (updatedStudent.role == UserRole.servant) {
-        payload['groupId'] = updatedStudent.group.name;
-        final classId = updatedStudent.classId?.trim() ?? '';
-        if (classId.isNotEmpty) {
-          payload['assignedTeamId'] = classId;
-          payload['assignedTeamIds'] = [classId];
-        } else {
-          payload['assignedTeamId'] = FieldValue.delete();
-          payload['assignedTeamIds'] = FieldValue.delete();
-        }
-      } else if (updatedStudent.role == UserRole.student ||
-          previousRole == UserRole.servant) {
-        payload['groupId'] = FieldValue.delete();
-        payload['assignedTeamId'] = FieldValue.delete();
-        payload['assignedTeamIds'] = FieldValue.delete();
-      }
-
+      final payload = _buildLinkedUserRolePatch(
+        updatedStudent: updatedStudent,
+        previousRole: previousRole,
+      );
       await _usersCollection.doc(uid).set(payload, SetOptions(merge: true));
+    } catch (e) {
+      if (e is StudentFailure) rethrow;
+      throw mapExceptionToStudentFailure(e);
+    }
+  }
+
+  Future<void> updateStudentAndSyncLinkedUserRole({
+    required StudentModel updatedStudent,
+    required UserRole previousRole,
+  }) async {
+    try {
+      if (updatedStudent.role == previousRole) {
+        await _studentsCollection
+            .doc(updatedStudent.docID)
+            .update(updatedStudent.toMap());
+        return;
+      }
+
+      final uid = updatedStudent.uid.trim();
+      final linkedUserPatch = _buildLinkedUserRolePatch(
+        updatedStudent: updatedStudent,
+        previousRole: previousRole,
+      );
+
+      final batch = _firestore.batch();
+      batch.update(
+        _studentsCollection.doc(updatedStudent.docID),
+        updatedStudent.toMap(),
+      );
+      batch.set(
+        _usersCollection.doc(uid),
+        linkedUserPatch,
+        SetOptions(merge: true),
+      );
+      await batch.commit();
     } catch (e) {
       if (e is StudentFailure) rethrow;
       throw mapExceptionToStudentFailure(e);
@@ -93,18 +140,32 @@ class StudentDataRepository implements IStudentRepository {
     int limit = 10,
     DocumentSnapshot? lastDocument,
   }) async {
+    Query<Map<String, dynamic>> query = _studentsCollection
+        .orderBy('name')
+        .limit(limit);
+
+    if (lastDocument != null) {
+      query = query.startAfterDocument(lastDocument);
+    }
+
     try {
-      Query<Map<String, dynamic>> query = _studentsCollection
-          .orderBy('name')
-          .limit(limit);
-
-      if (lastDocument != null) {
-        query = query.startAfterDocument(lastDocument);
+      final cacheSnapshot = await query.get(
+        const GetOptions(source: Source.cache),
+      );
+      if (cacheSnapshot.docs.isNotEmpty) {
+        return cacheSnapshot.docs
+            .map((doc) => StudentModel.fromMap(doc.data(), doc.id))
+            .toList();
       }
+    } catch (_) {
+      // Ignore cache errors and fallback to server
+    }
 
-      final snapshot = await query.get();
-
-      return snapshot.docs
+    try {
+      final serverSnapshot = await query.get(
+        const GetOptions(source: Source.server),
+      );
+      return serverSnapshot.docs
           .map((doc) => StudentModel.fromMap(doc.data(), doc.id))
           .toList();
     } catch (e) {
@@ -115,10 +176,21 @@ class StudentDataRepository implements IStudentRepository {
   @override
   Future<List<StudentModel>> getStudentsByClass(String classId) async {
     try {
+      try {
+        final cacheSnapshot = await _studentsCollection
+            .where('classId', isEqualTo: classId)
+            .get(const GetOptions(source: Source.cache));
+        if (cacheSnapshot.docs.isNotEmpty) {
+          return cacheSnapshot.docs
+              .map((doc) => StudentModel.fromMap(doc.data(), doc.id))
+              .toList();
+        }
+      } catch (_) {}
+
       // Primary approach: Single query using classId field (most efficient)
       final snapshot = await _studentsCollection
           .where('classId', isEqualTo: classId)
-          .get();
+          .get(const GetOptions(source: Source.server));
 
       if (snapshot.docs.isNotEmpty) {
         return snapshot.docs
@@ -130,7 +202,7 @@ class StudentDataRepository implements IStudentRepository {
       final classDoc = await _firestore
           .collection(FirestoreCollections.classes)
           .doc(classId)
-          .get();
+          .get(); // Intentionally letting this hit server/default cache automatically
       if (!classDoc.exists) return [];
 
       final studentIds = List<String>.from(
@@ -143,7 +215,7 @@ class StudentDataRepository implements IStudentRepository {
       final futures = chunks.map(
         (chunk) => _studentsCollection
             .where(FieldPath.documentId, whereIn: chunk)
-            .get(),
+            .get(), // Allowing standard get here because it's an ID lookup
       );
 
       final results = await Future.wait(futures);
@@ -200,6 +272,20 @@ class StudentDataRepository implements IStudentRepository {
   Future<({List<StudentModel> students, bool isFromCache})>
   getStudentsByGroupWithFallback(String groupName) async {
     try {
+      final cacheSnapshot = await _studentsCollection
+          .where('group', isEqualTo: groupName)
+          .get(const GetOptions(source: Source.cache));
+      if (cacheSnapshot.docs.isNotEmpty) {
+        return (
+          students: cacheSnapshot.docs
+              .map((doc) => StudentModel.fromMap(doc.data(), doc.id))
+              .toList(growable: false),
+          isFromCache: true,
+        );
+      }
+    } catch (_) {}
+
+    try {
       final serverSnapshot = await _studentsCollection
           .where('group', isEqualTo: groupName)
           .get(const GetOptions(source: Source.server));
@@ -209,20 +295,8 @@ class StudentDataRepository implements IStudentRepository {
             .toList(growable: false),
         isFromCache: false,
       );
-    } catch (_) {
-      try {
-        final cacheSnapshot = await _studentsCollection
-            .where('group', isEqualTo: groupName)
-            .get(const GetOptions(source: Source.cache));
-        return (
-          students: cacheSnapshot.docs
-              .map((doc) => StudentModel.fromMap(doc.data(), doc.id))
-              .toList(growable: false),
-          isFromCache: true,
-        );
-      } catch (e) {
-        throw mapExceptionToStudentFailure(e);
-      }
+    } catch (e) {
+      throw mapExceptionToStudentFailure(e);
     }
   }
 
@@ -231,28 +305,17 @@ class StudentDataRepository implements IStudentRepository {
     String query, {
     int limit = 20,
   }) async {
-    try {
-      if (query.isEmpty) return getAllStudents(limit: limit);
-
-      final snapshot = await _studentsCollection
-          .orderBy('name')
-          .startAt([query])
-          .endAt(['$query\uf8ff'])
-          .limit(limit)
-          .get();
-
-      return snapshot.docs
-          .map((doc) => StudentModel.fromMap(doc.data(), doc.id))
-          .toList();
-    } catch (e) {
-      throw mapExceptionToStudentFailure(e);
-    }
+    // In-memory, case-insensitive search is handled by StudentDataBloc.
+    // This repo method now simply fetches all students for the BLoC to filter.
+    return getAllStudents(limit: limit);
   }
 
   @override
   Future<String> createStudent(StudentModel student) async {
     try {
-      final docRef = _studentsCollection.doc();
+      final docRef = student.docID.isNotEmpty
+          ? _studentsCollection.doc(student.docID)
+          : _studentsCollection.doc();
       final finalStudent = student.copyWith(docID: docRef.id);
       await docRef.set(finalStudent.toMap());
       return docRef.id;
@@ -326,6 +389,7 @@ class StudentDataRepository implements IStudentRepository {
   Stream<List<StudentModel>> watchAllStudents() {
     return _studentsCollection
         .orderBy('name')
+        .limit(200)
         .snapshots()
         .map(
           (snapshot) => snapshot.docs

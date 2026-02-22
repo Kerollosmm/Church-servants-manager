@@ -64,6 +64,14 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
               ),
             );
           }
+          if (state is StudentProfileMissingProfile) {
+            return _MissingProfileState(
+              message: state.message,
+              onRetry: () {
+                context.read<StudentProfileCubit>().loadProfile(widget.user);
+              },
+            );
+          }
           if (state is StudentProfileError) {
             return _ErrorState(
               message: state.message,
@@ -277,6 +285,50 @@ class _ErrorState extends StatelessWidget {
             Icon(Icons.error_outline, size: 64, color: AppColors.error),
             AppSpacing.gapMd,
             Text('Unable to load profile', style: theme.textTheme.titleMedium),
+            AppSpacing.gapSm,
+            Text(
+              message,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: AppColors.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            AppSpacing.gapMd,
+            FilledButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MissingProfileState extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+
+  const _MissingProfileState({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.person_search_outlined,
+              size: 64,
+              color: AppColors.outline,
+            ),
+            AppSpacing.gapMd,
+            Text('Profile not set up', style: theme.textTheme.titleMedium),
             AppSpacing.gapSm,
             Text(
               message,

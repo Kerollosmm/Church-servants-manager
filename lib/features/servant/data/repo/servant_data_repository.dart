@@ -77,6 +77,21 @@ class ServantDataRepository implements IServantRepository {
   Future<({List<ServantModel> servants, bool isFromCache})>
   getServantsByGroupWithFallback(String groupId) async {
     try {
+      final cacheSnapshot = await _usersCollection
+          .where('role', isEqualTo: UserRole.servant.name)
+          .where('groupId', isEqualTo: groupId)
+          .get(const GetOptions(source: Source.cache));
+      if (cacheSnapshot.docs.isNotEmpty) {
+        return (
+          servants: cacheSnapshot.docs
+              .map((doc) => ServantModel.fromMap(doc.data(), doc.id))
+              .toList(growable: false),
+          isFromCache: true,
+        );
+      }
+    } catch (_) {}
+
+    try {
       final serverSnapshot = await _usersCollection
           .where('role', isEqualTo: UserRole.servant.name)
           .where('groupId', isEqualTo: groupId)
@@ -87,21 +102,8 @@ class ServantDataRepository implements IServantRepository {
             .toList(growable: false),
         isFromCache: false,
       );
-    } catch (_) {
-      try {
-        final cacheSnapshot = await _usersCollection
-            .where('role', isEqualTo: UserRole.servant.name)
-            .where('groupId', isEqualTo: groupId)
-            .get(const GetOptions(source: Source.cache));
-        return (
-          servants: cacheSnapshot.docs
-              .map((doc) => ServantModel.fromMap(doc.data(), doc.id))
-              .toList(growable: false),
-          isFromCache: true,
-        );
-      } catch (e) {
-        throw mapExceptionToServantFailure(e);
-      }
+    } catch (e) {
+      throw mapExceptionToServantFailure(e);
     }
   }
 
@@ -110,19 +112,31 @@ class ServantDataRepository implements IServantRepository {
     int limit = 20,
     DocumentSnapshot? lastDocument,
   }) async {
+    Query<Map<String, dynamic>> query = _usersCollection
+        .where('role', isEqualTo: UserRole.servant.name)
+        .orderBy('name')
+        .limit(limit);
+
+    if (lastDocument != null) {
+      query = query.startAfterDocument(lastDocument);
+    }
+
     try {
-      Query<Map<String, dynamic>> query = _usersCollection
-          .where('role', isEqualTo: UserRole.servant.name)
-          .orderBy('name')
-          .limit(limit);
-
-      if (lastDocument != null) {
-        query = query.startAfterDocument(lastDocument);
+      final cacheSnapshot = await query.get(
+        const GetOptions(source: Source.cache),
+      );
+      if (cacheSnapshot.docs.isNotEmpty) {
+        return cacheSnapshot.docs
+            .map((doc) => ServantModel.fromMap(doc.data(), doc.id))
+            .toList();
       }
+    } catch (_) {}
 
-      final snapshot = await query.get();
-
-      return snapshot.docs
+    try {
+      final serverSnapshot = await query.get(
+        const GetOptions(source: Source.server),
+      );
+      return serverSnapshot.docs
           .map((doc) => ServantModel.fromMap(doc.data(), doc.id))
           .toList();
     } catch (e) {
@@ -133,10 +147,23 @@ class ServantDataRepository implements IServantRepository {
   @override
   Future<List<ServantModel>> getServantsByTeam(String teamName) async {
     try {
+      try {
+        final cacheSnapshot = await _usersCollection
+            .where('role', isEqualTo: UserRole.servant.name)
+            .where('groupId', isEqualTo: teamName)
+            .get(const GetOptions(source: Source.cache));
+
+        if (cacheSnapshot.docs.isNotEmpty) {
+          return cacheSnapshot.docs
+              .map((doc) => ServantModel.fromMap(doc.data(), doc.id))
+              .toList();
+        }
+      } catch (_) {}
+
       final snapshot = await _usersCollection
           .where('role', isEqualTo: UserRole.servant.name)
           .where('groupId', isEqualTo: teamName)
-          .get();
+          .get(const GetOptions(source: Source.server));
 
       return snapshot.docs
           .map((doc) => ServantModel.fromMap(doc.data(), doc.id))

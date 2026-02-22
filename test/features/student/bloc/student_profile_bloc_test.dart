@@ -89,22 +89,24 @@ void main() {
   );
 
   blocTest<StudentProfileCubit, StudentProfileState>(
-    'provisions missing profile for student actor',
+    'emits missing profile state when student profile is absent',
     build: () {
       when(
         () => repo.getStudentByUid('student-1'),
       ).thenAnswer((_) async => null);
-      when(() => repo.upsertStudent(any())).thenAnswer((_) async {});
       return StudentProfileCubit(studentRepository: repo);
     },
     act: (cubit) => cubit.loadProfile(studentActor),
     expect: () => [
       isA<StudentProfileLoading>(),
-      isA<StudentProfileProvisioning>(),
-      isA<StudentProfileLoaded>(),
+      isA<StudentProfileMissingProfile>().having(
+        (s) => s.message,
+        'message',
+        'Your student profile has not been set up yet. Please contact an admin/teacher.',
+      ),
     ],
     verify: (_) {
-      verify(() => repo.upsertStudent(any())).called(1);
+      verifyNever(() => repo.upsertStudent(any()));
     },
   );
 

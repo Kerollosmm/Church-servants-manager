@@ -35,4 +35,13 @@ abstract class AuthProvider {
 
   /// Reload current user data
   Future<void> reloadUser();
+
+  /// Create a new user account as admin without disrupting current session.
+  /// Uses a secondary FirebaseApp instance so the admin remains logged in.
+  Future<AuthUser> createUserAsAdmin({
+    required String email,
+    required String password,
+    required String name,
+    UserRole role = UserRole.student,
+  });
 }

@@ -35,8 +35,15 @@ final class StudentsSearchRequested extends StudentDataEvent {
 final class StudentCreated extends StudentDataEvent {
   final AuthUser actor;
   final StudentModel student;
+  final String? email;
+  final String? password;
 
-  const StudentCreated({required this.actor, required this.student});
+  const StudentCreated({
+    required this.actor,
+    required this.student,
+    this.email,
+    this.password,
+  });
 }
 
 /// Update an existing student.
@@ -60,6 +67,11 @@ final class StudentsRefreshRequested extends StudentDataEvent {
   final AuthUser actor;
 
   const StudentsRefreshRequested({required this.actor});
+}
+
+/// Stop active Firestore listening and clear in-memory list cache.
+final class StudentsListeningStopped extends StudentDataEvent {
+  const StudentsListeningStopped();
 }
 
 /// Internal event: fired when the Firestore stream emits new data.

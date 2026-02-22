@@ -24,6 +24,8 @@ class ServantListScreen extends StatefulWidget {
 class _ServantListScreenState extends State<ServantListScreen> {
   final TextEditingController _searchController = TextEditingController();
   Timer? _searchDebounce;
+  List<ServantModel> _lastLoadedServants = const <ServantModel>[];
+  bool _hasLoadedServants = false;
 
   @override
   void initState() {
@@ -66,10 +68,7 @@ class _ServantListScreenState extends State<ServantListScreen> {
   }
 
   Future<void> _refresh(AuthUser actor) async {
-    final cubit = context.read<ServantDataCubit>();
-    final future = cubit.stream.firstWhere((s) => s is! ServantDataLoading);
-    cubit.refreshServants(actor: actor);
-    await future;
+    await context.read<ServantDataCubit>().refreshServants(actor: actor);
   }
 
   bool _canManage(AuthUser actor) => actor.role == UserRole.admin;
@@ -136,9 +135,18 @@ class _ServantListScreenState extends State<ServantListScreen> {
             },
             builder: (context, state) {
               final isLoading = state is ServantDataLoading;
+              if (state is ServantDataLoaded) {
+                _lastLoadedServants = state.servants;
+                _hasLoadedServants = true;
+              }
               final servants = state is ServantDataLoaded
                   ? state.servants
-                  : <ServantModel>[];
+                  : (_hasLoadedServants
+                        ? _lastLoadedServants
+                        : const <ServantModel>[]);
+              final showInitialLoading = isLoading && servants.isEmpty;
+              final showEmptyState =
+                  state is ServantDataLoaded && state.servants.isEmpty;
 
               return RefreshIndicator(
                 onRefresh: () => _refresh(actor),
@@ -230,12 +238,12 @@ class _ServantListScreenState extends State<ServantListScreen> {
                         ),
                       ),
                     ),
-                    if (isLoading && servants.isEmpty)
+                    if (showInitialLoading)
                       const SliverFillRemaining(
                         hasScrollBody: false,
                         child: Center(child: CircularProgressIndicator()),
                       )
-                    else if (state is ServantDataLoaded && servants.isEmpty)
+                    else if (showEmptyState)
                       SliverFillRemaining(
                         hasScrollBody: false,
                         child: AppEmptyState(

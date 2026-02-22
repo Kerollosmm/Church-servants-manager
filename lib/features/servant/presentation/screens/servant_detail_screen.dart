@@ -3,10 +3,7 @@ import 'package:church_managment_system/core/constants/routes.dart';
 import 'package:church_managment_system/core/routing/route_args.dart';
 import 'package:church_managment_system/core/theme/app_colors.dart';
 import 'package:church_managment_system/core/theme/app_spacing.dart';
-import 'package:church_managment_system/core/widgets/dialogs/generic_dialog.dart';
-import 'package:church_managment_system/features/servant/presentation/bloc/servant_data/servant_data_cubit.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 class ServantDetailScreen extends StatelessWidget {
   final ServantDetailArgs args;
@@ -41,32 +38,6 @@ class ServantDetailScreen extends StatelessWidget {
                     servant: servant,
                   ),
                 );
-              },
-            ),
-          if (canEdit)
-            IconButton(
-              icon: const Icon(Icons.delete_outline),
-              tooltip: 'حذف', // Delete
-              onPressed: () async {
-                final shouldDelete = await showGenericDialog<bool>(
-                  context: context,
-                  title: 'حذف الخادم؟', // Delete Servant?
-                  content:
-                      'سيتم حذف ${servant.name} نهائياً. لا يمكن التراجع عن هذا الإجراء.', // Permanent delete warning
-                  optionBuilder: () => {
-                    'إلغاء': false, // Cancel
-                    'حذف': true, // Delete
-                  },
-                );
-
-                if (shouldDelete != true) return;
-                if (!context.mounted) return;
-
-                context.read<ServantDataCubit>().deleteServant(
-                  actor: args.actor,
-                  docId: servant.docID,
-                );
-                Navigator.pop(context);
               },
             ),
         ],
@@ -136,7 +107,7 @@ class ServantDetailScreen extends StatelessWidget {
                 Expanded(
                   child: Text(
                     canEdit
-                        ? 'صلاحية المسؤول: تعديل/حذف'
+                        ? 'صلاحية المسؤول: تعديل'
                         : 'عرض فقط', // Admin access / Read-only
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: AppColors.textSecondary,

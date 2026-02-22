@@ -6,6 +6,7 @@ import 'package:church_managment_system/features/auth/presentation/screens/login
 import 'package:church_managment_system/features/auth/presentation/screens/register_screen.dart';
 
 import 'package:church_managment_system/core/routing/route_args.dart';
+import 'package:church_managment_system/core/widgets/not_found_screen.dart';
 import 'package:church_managment_system/features/devtools/presentation/dev_tools_screen.dart';
 import 'package:church_managment_system/features/student/presentation/screens/student_detail_screen.dart';
 import 'package:church_managment_system/features/student/presentation/screens/student_edit_screen.dart';
@@ -124,9 +125,9 @@ class AppRouter {
         );
 
       default:
-        return _buildMessageRoute(
+        return _buildPageRoute(
+          builder: (_) => const NotFoundScreen(),
           settings: settings,
-          message: 'Route not found',
         );
     }
   }

@@ -24,6 +24,8 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
 
   late final TextEditingController _name;
   late final TextEditingController _mobile;
+  late final TextEditingController _email;
+  late final TextEditingController _password;
   late final TextEditingController _motherPhone;
   late final TextEditingController _fatherPhone;
   late final TextEditingController _school;
@@ -50,6 +52,8 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
 
     _name = TextEditingController(text: student?.name ?? '');
     _mobile = TextEditingController(text: student?.mobile ?? '');
+    _email = TextEditingController();
+    _password = TextEditingController();
     _motherPhone = TextEditingController(text: student?.motherPhone ?? '');
     _fatherPhone = TextEditingController(text: student?.fatherPhone ?? '');
     _school = TextEditingController(text: student?.school ?? '');
@@ -156,6 +160,8 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
   void dispose() {
     _name.dispose();
     _mobile.dispose();
+    _email.dispose();
+    _password.dispose();
     _motherPhone.dispose();
     _fatherPhone.dispose();
     _school.dispose();
@@ -259,7 +265,14 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
     if (isEditing) {
       bloc.add(StudentUpdated(actor: actor, student: student));
     } else {
-      bloc.add(StudentCreated(actor: actor, student: student));
+      bloc.add(
+        StudentCreated(
+          actor: actor,
+          student: student,
+          email: _email.text.trim().isNotEmpty ? _email.text.trim() : null,
+          password: _password.text.isNotEmpty ? _password.text : null,
+        ),
+      );
     }
   }
 
@@ -334,6 +347,29 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
                           prefixIcon: const Icon(Icons.phone_outlined),
                           validator: Validators.validatePhone,
                         ),
+                        if (!isEditing) ...[
+                          AppSpacing.gapMd,
+                          _buildTextField(
+                            controller: _email,
+                            labelText: 'البريد الإلكتروني',
+                            prefixIcon: const Icon(Icons.email_outlined),
+                            validator: (v) => v == null || v.trim().isEmpty
+                                ? 'مطلوب لإنشاء حساب'
+                                : null,
+                          ),
+                          AppSpacing.gapMd,
+                          TextFormField(
+                            controller: _password,
+                            obscureText: true,
+                            decoration: const InputDecoration(
+                              labelText: 'كلمة المرور',
+                              prefixIcon: Icon(Icons.lock_outline),
+                            ),
+                            validator: (v) => v == null || v.length < 6
+                                ? 'يجب أن تكون 6 أحرف على الأقل'
+                                : null,
+                          ),
+                        ],
                         if (isEditing && actor.role == UserRole.admin) ...[
                           AppSpacing.gapMd,
                           DropdownButtonFormField<UserRole>(

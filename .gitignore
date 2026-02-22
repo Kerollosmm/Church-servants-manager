@@ -46,4 +46,3 @@ app.*.map.json
 
 # Agent and Docs
 docs/
-.agent/

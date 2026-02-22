@@ -20,14 +20,17 @@ class AuthService implements AuthRepository {
   Future<AuthUser?> getCurrentUser() async => getCurrentAppUser();
 
   /// Get current user with full app data from Firestore
-  Future<AuthUser?> getCurrentAppUser() async {
+  Future<AuthUser?> getCurrentAppUser({bool forceRefresh = false}) async {
     final firebaseUser = _provider.currentUser;
     if (firebaseUser == null) {
       _lastKnownAppUser = null;
       return null;
     }
 
-    final appUser = await _provider.getUserData(firebaseUser.uid);
+    final appUser = await _provider.getUserData(
+      firebaseUser.uid,
+      forceRefresh: forceRefresh,
+    );
     _lastKnownAppUser = appUser;
     return appUser;
   }
@@ -100,4 +103,29 @@ class AuthService implements AuthRepository {
 
   /// Reload user data
   Future<void> reloadUser() => _provider.reloadUser();
+
+  /// Reload Firebase auth user and fetch a fresh app profile snapshot.
+  Future<AuthUser?> refreshCurrentAppUser() async {
+    await reloadUser();
+    return getCurrentAppUser(forceRefresh: true);
+  }
+
+  /// Create a new user account as admin without disrupting current session.
+  Future<AuthUser> createUserAsAdmin({
+    required String email,
+    required String password,
+    required String name,
+    UserRole role = UserRole.student,
+  }) async {
+    try {
+      return await _provider.createUserAsAdmin(
+        email: email,
+        password: password,
+        name: name,
+        role: role,
+      );
+    } catch (e) {
+      throw AuthErrorMapper.mapException(e);
+    }
+  }
 }

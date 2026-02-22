@@ -24,14 +24,13 @@ class StudentProfileCubit extends Cubit<StudentProfileState> {
 
       var profile = await _studentRepository.getStudentByUid(actor.uid);
 
-      // Auto-create profile only for the authenticated student user.
       if (profile == null) {
-        emit(const StudentProfileProvisioning());
-        debugPrint(
-          'StudentProfileCubit: provisioning profile for ${actor.uid}',
+        emit(
+          const StudentProfileMissingProfile(
+            'Your student profile has not been set up yet. Please contact an admin/teacher.',
+          ),
         );
-        profile = _createDefaultProfile(actor);
-        await _studentRepository.upsertStudent(profile);
+        return;
       }
 
       emit(StudentProfileLoaded(profile));
@@ -41,29 +40,5 @@ class StudentProfileCubit extends Cubit<StudentProfileState> {
         const StudentProfileError('Unable to load profile. Please try again.'),
       );
     }
-  }
-
-  /// Creates a default StudentModel for a new student user.
-  StudentModel _createDefaultProfile(AuthUser user) {
-    return StudentModel(
-      uid: user.uid,
-      docID: user.uid, // Use UID as document ID for easy lookup
-      name: user.name,
-      imageUrl: null,
-      role: UserRole.student,
-      mobile: '',
-      group: Group.year1,
-      teamName: '',
-      motherPhone: '',
-      fatherPhone: '',
-      grade: 1,
-      educationStage: EducationStage.preparatory,
-      school: null,
-      address: null,
-      birthdate: null,
-      fatherOfConfession: '',
-      notes: null,
-      classId: Group.year1.name,
-    );
   }
 }

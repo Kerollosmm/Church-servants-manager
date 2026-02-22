@@ -26,19 +26,24 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
   final TextEditingController _searchController = TextEditingController();
   Timer? _searchDebounce;
   String? _selectedTeamId;
+  late final StudentDataBloc _studentDataBloc;
+  List<StudentModel> _lastLoadedStudents = const <StudentModel>[];
+  bool _hasLoadedStudents = false;
 
   @override
   void initState() {
     super.initState();
+    _studentDataBloc = context.read<StudentDataBloc>();
     final actor = _currentActorOrNull();
     if (actor != null) {
-      context.read<StudentDataBloc>().add(StudentsLoadRequested(actor: actor));
+      _studentDataBloc.add(StudentsLoadRequested(actor: actor));
     }
   }
 
   @override
   void dispose() {
     _searchDebounce?.cancel();
+    _studentDataBloc.add(const StudentsListeningStopped());
     _searchController.dispose();
     super.dispose();
   }
@@ -88,14 +93,21 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
 
   Future<void> _refresh(AuthUser actor) async {
     final bloc = context.read<StudentDataBloc>();
-    final future = bloc.stream
-        .firstWhere((s) => s is! StudentDataLoading)
-        .timeout(
-          const Duration(seconds: 10),
-          onTimeout: () => const StudentDataError('Refresh timed out'),
-        );
+    final completer = Completer<void>();
+    late final StreamSubscription<StudentDataState> sub;
+    sub = bloc.stream.listen((state) {
+      if (state is! StudentDataLoading && !completer.isCompleted) {
+        completer.complete();
+        sub.cancel();
+      }
+    });
     bloc.add(StudentsRefreshRequested(actor: actor));
-    await future;
+    await completer.future.timeout(
+      const Duration(seconds: 10),
+      onTimeout: () {
+        sub.cancel();
+      },
+    );
   }
 
   bool _canManage(AuthUser actor) =>
@@ -166,9 +178,18 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
             },
             builder: (context, state) {
               final isLoading = state is StudentDataLoading;
+              if (state is StudentDataLoaded) {
+                _lastLoadedStudents = state.students;
+                _hasLoadedStudents = true;
+              }
               final students = state is StudentDataLoaded
                   ? state.students
-                  : <StudentModel>[];
+                  : (_hasLoadedStudents
+                        ? _lastLoadedStudents
+                        : const <StudentModel>[]);
+              final showInitialLoading = isLoading && students.isEmpty;
+              final showEmptyState =
+                  state is StudentDataLoaded && state.students.isEmpty;
 
               return RefreshIndicator(
                 onRefresh: () => _refresh(actor),
@@ -297,12 +318,12 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                         ),
                       ),
                     ),
-                    if (isLoading && students.isEmpty)
+                    if (showInitialLoading)
                       const SliverFillRemaining(
                         hasScrollBody: false,
                         child: Center(child: CircularProgressIndicator()),
                       )
-                    else if (state is StudentDataLoaded && students.isEmpty)
+                    else if (showEmptyState)
                       SliverFillRemaining(
                         hasScrollBody: false,
                         child: AppEmptyState(

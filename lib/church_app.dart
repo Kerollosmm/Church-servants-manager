@@ -49,6 +49,7 @@ class ChurchApp extends StatelessWidget {
               studentRepository: getIt<StudentDataRepository>(),
               getStudentsStream: getIt<GetStudentsStreamUseCase>(),
               canMutateStudent: getIt<CanMutateStudentUseCase>(),
+              authService: getIt<AuthService>(),
             ),
           ),
           BlocProvider(
@@ -57,8 +58,10 @@ class ChurchApp extends StatelessWidget {
             ),
           ),
           BlocProvider(
-            create: (_) =>
-                ServantDataCubit(repository: getIt<ServantDataRepository>()),
+            create: (_) => ServantDataCubit(
+              repository: getIt<ServantDataRepository>(),
+              authService: getIt<AuthService>(),
+            ),
           ),
           BlocProvider(
             create: (_) => TeamCubit(

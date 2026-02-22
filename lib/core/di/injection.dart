@@ -16,9 +16,15 @@ final getIt = GetIt.instance;
 /// Call once before [runApp].
 void configureDependencies() {
   // ---- External ----
-  getIt.registerLazySingleton<FirebaseFirestore>(
-    () => FirebaseFirestore.instance,
-  );
+  getIt.registerLazySingleton<FirebaseFirestore>(() {
+    final firestore = FirebaseFirestore.instance;
+    // Explictly configuring offline persistence and cache size (e.g. 100MB)
+    firestore.settings = const Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+    );
+    return firestore;
+  });
 
   // ---- Services ----
   getIt.registerLazySingleton<FirebaseAuthProvider>(

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:bloc_test/bloc_test.dart';
 import 'package:church_managment_system/core/constants/enums.dart';
 import 'package:church_managment_system/features/auth/data/models/auth_user.dart';
+import 'package:church_managment_system/features/auth/data/services/auth_service.dart';
 import 'package:church_managment_system/features/student/data/models/student_model.dart';
 import 'package:church_managment_system/features/student/data/repos/student_data_repository.dart';
 import 'package:church_managment_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
@@ -16,12 +17,16 @@ class MockStudentDataRepository extends Mock implements StudentDataRepository {}
 class MockGetStudentsStreamUseCase extends Mock
     implements GetStudentsStreamUseCase {}
 
+class MockAuthService extends Mock implements AuthService {}
+
 void main() {
   late MockStudentDataRepository mockRepository;
   late MockGetStudentsStreamUseCase mockGetStudentsStream;
+  late MockAuthService mockAuthService;
   const canMutateStudent = CanMutateStudentUseCase();
   late List<StudentModel> allStudents;
   late List<StudentModel> year1Students;
+  late StreamController<List<StudentModel>> liveStudentsController;
 
   const admin = AuthUser(
     uid: 'admin-1',
@@ -78,8 +83,15 @@ void main() {
   setUp(() {
     mockRepository = MockStudentDataRepository();
     mockGetStudentsStream = MockGetStudentsStreamUseCase();
+    mockAuthService = MockAuthService();
     when(
       () => mockRepository.syncLinkedUserRoleFromStudent(
+        updatedStudent: any(named: 'updatedStudent'),
+        previousRole: any(named: 'previousRole'),
+      ),
+    ).thenAnswer((_) async {});
+    when(
+      () => mockRepository.updateStudentAndSyncLinkedUserRole(
         updatedStudent: any(named: 'updatedStudent'),
         previousRole: any(named: 'previousRole'),
       ),
@@ -110,12 +122,14 @@ void main() {
     });
 
     year1Students = allStudents.where((s) => s.classId == 'year1').toList();
+    liveStudentsController = StreamController<List<StudentModel>>();
   });
 
   StudentDataBloc buildBloc() => StudentDataBloc(
     studentRepository: mockRepository,
     getStudentsStream: mockGetStudentsStream,
     canMutateStudent: canMutateStudent,
+    authService: mockAuthService,
   );
 
   group('StudentDataBloc', () {
@@ -249,9 +263,6 @@ void main() {
         when(
           () => mockRepository.getStudentById(any()),
         ).thenAnswer((_) async => allStudents.first);
-        when(
-          () => mockRepository.updateStudent(any()),
-        ).thenAnswer((_) async {});
       },
       build: buildBloc,
       act: (bloc) {
@@ -260,13 +271,19 @@ void main() {
       },
       expect: () => [isA<StudentDataOperationSuccess>()],
       verify: (_) {
-        verify(() => mockRepository.updateStudent(any())).called(1);
         verify(
-          () => mockRepository.syncLinkedUserRoleFromStudent(
+          () => mockRepository.updateStudentAndSyncLinkedUserRole(
             updatedStudent: any(named: 'updatedStudent'),
             previousRole: UserRole.student,
           ),
         ).called(1);
+        verifyNever(() => mockRepository.updateStudent(any()));
+        verifyNever(
+          () => mockRepository.syncLinkedUserRoleFromStudent(
+            updatedStudent: any(named: 'updatedStudent'),
+            previousRole: any(named: 'previousRole'),
+          ),
+        );
       },
     );
 
@@ -301,6 +318,12 @@ void main() {
             previousRole: any(named: 'previousRole'),
           ),
         );
+        verifyNever(
+          () => mockRepository.updateStudentAndSyncLinkedUserRole(
+            updatedStudent: any(named: 'updatedStudent'),
+            previousRole: any(named: 'previousRole'),
+          ),
+        );
       },
     );
 
@@ -331,6 +354,12 @@ void main() {
         verifyNever(() => mockRepository.updateStudent(any()));
         verifyNever(
           () => mockRepository.syncLinkedUserRoleFromStudent(
+            updatedStudent: any(named: 'updatedStudent'),
+            previousRole: any(named: 'previousRole'),
+          ),
+        );
+        verifyNever(
+          () => mockRepository.updateStudentAndSyncLinkedUserRole(
             updatedStudent: any(named: 'updatedStudent'),
             previousRole: any(named: 'previousRole'),
           ),
@@ -416,6 +445,61 @@ void main() {
       verify: (_) {
         verifyNever(() => mockRepository.getStudentById(any()));
         verify(() => mockRepository.deleteStudent(any())).called(1);
+      },
+    );
+
+    blocTest<StudentDataBloc, StudentDataState>(
+      'refresh emits loading then loaded even when stream data is unchanged',
+      setUp: () {
+        when(
+          () => mockGetStudentsStream(
+            actor: any(named: 'actor'),
+            teamId: any(named: 'teamId'),
+          ),
+        ).thenAnswer((_) => Stream.value(allStudents));
+      },
+      build: buildBloc,
+      act: (bloc) async {
+        bloc.add(const StudentsLoadRequested(actor: admin));
+        await Future<void>.delayed(Duration.zero);
+        bloc.add(const StudentsRefreshRequested(actor: admin));
+      },
+      expect: () => [
+        isA<StudentDataLoading>(),
+        isA<StudentDataLoaded>().having((s) => s.students.length, 'count', 10),
+        isA<StudentDataLoading>(),
+        isA<StudentDataLoaded>().having((s) => s.students.length, 'count', 10),
+      ],
+    );
+
+    blocTest<StudentDataBloc, StudentDataState>(
+      'stop listening cancels active stream and resets state',
+      setUp: () {
+        when(
+          () => mockGetStudentsStream(
+            actor: any(named: 'actor'),
+            teamId: any(named: 'teamId'),
+          ),
+        ).thenAnswer((_) => liveStudentsController.stream);
+      },
+      build: buildBloc,
+      act: (bloc) async {
+        bloc.add(const StudentsLoadRequested(actor: admin));
+        await Future<void>.delayed(Duration.zero);
+        liveStudentsController.add(allStudents);
+        await Future<void>.delayed(Duration.zero);
+        bloc.add(const StudentsListeningStopped());
+        await Future<void>.delayed(Duration.zero);
+        liveStudentsController.add([allStudents.first]);
+        await Future<void>.delayed(Duration.zero);
+      },
+      expect: () => [
+        isA<StudentDataLoading>(),
+        isA<StudentDataLoaded>().having((s) => s.students.length, 'count', 10),
+        isA<StudentDataInitial>(),
+      ],
+      tearDown: () async {
+        await liveStudentsController.close();
       },
     );
   });

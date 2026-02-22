@@ -1,6 +1,7 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:church_managment_system/core/constants/enums.dart';
 import 'package:church_managment_system/features/auth/data/models/auth_user.dart';
+import 'package:church_managment_system/features/auth/data/services/auth_service.dart';
 import 'package:church_managment_system/features/servant/data/models/servant_models.dart';
 import 'package:church_managment_system/features/servant/data/repo/servant_data_repository.dart';
 import 'package:church_managment_system/features/servant/presentation/bloc/servant_data/servant_data_cubit.dart';
@@ -9,8 +10,11 @@ import 'package:mocktail/mocktail.dart';
 
 class MockServantDataRepository extends Mock implements ServantDataRepository {}
 
+class MockAuthService extends Mock implements AuthService {}
+
 void main() {
   late MockServantDataRepository mockRepository;
+  late MockAuthService mockAuthService;
   late List<ServantModel> allServants;
 
   const admin = AuthUser(
@@ -50,6 +54,7 @@ void main() {
 
   setUp(() {
     mockRepository = MockServantDataRepository();
+    mockAuthService = MockAuthService();
 
     allServants = List.generate(10, (i) {
       return ServantModel(
@@ -78,7 +83,10 @@ void main() {
   group('ServantDataCubit', () {
     blocTest<ServantDataCubit, ServantDataState>(
       'non-admin is blocked from loading servants',
-      build: () => ServantDataCubit(repository: mockRepository),
+      build: () => ServantDataCubit(
+        repository: mockRepository,
+        authService: mockAuthService,
+      ),
       act: (cubit) => cubit.loadServants(actor: servant),
       expect: () => [
         isA<ServantDataError>().having(
@@ -96,7 +104,10 @@ void main() {
 
     blocTest<ServantDataCubit, ServantDataState>(
       'admin can load all servants',
-      build: () => ServantDataCubit(repository: mockRepository),
+      build: () => ServantDataCubit(
+        repository: mockRepository,
+        authService: mockAuthService,
+      ),
       act: (cubit) => cubit.loadServants(actor: admin),
       expect: () => [
         isA<ServantDataLoading>(),
@@ -105,22 +116,35 @@ void main() {
             .having((s) => s.currentQuery, 'query', null),
       ],
       verify: (_) {
-        verify(() => mockRepository.getAllServants(limit: 50)).called(1);
+        verify(() => mockRepository.getAllServants(limit: 200)).called(1);
       },
     );
 
     blocTest<ServantDataCubit, ServantDataState>(
-      'admin search uses repository search',
-      build: () => ServantDataCubit(repository: mockRepository),
-      act: (cubit) => cubit.searchServants(actor: admin, query: 'Servant 1'),
+      'admin search filters cached list',
+      build: () => ServantDataCubit(
+        repository: mockRepository,
+        authService: mockAuthService,
+      ),
+      act: (cubit) async {
+        await cubit.loadServants(actor: admin);
+        await cubit.searchServants(actor: admin, query: 'Servant 1');
+      },
       expect: () => [
-        isA<ServantDataLoading>(),
+        isA<ServantDataLoading>(), // from load
+        isA<ServantDataLoaded>().having(
+          (s) => s.servants.length,
+          'count',
+          10,
+        ), // from load
+        isA<ServantDataLoading>(), // from search
         isA<ServantDataLoaded>()
             .having((s) => s.servants.length, 'count', 1)
-            .having((s) => s.currentQuery, 'query', 'Servant 1'),
+            .having((s) => s.currentQuery, 'query', 'Servant 1'), // from search
       ],
       verify: (_) {
-        verify(() => mockRepository.searchServants('Servant 1')).called(1);
+        verify(() => mockRepository.getAllServants(limit: 200)).called(1);
+        verifyNever(() => mockRepository.searchServants(any()));
       },
     );
 
@@ -130,7 +154,10 @@ void main() {
         when(
           () => mockRepository.createServant(any()),
         ).thenAnswer((_) async => 'new-doc');
-        return ServantDataCubit(repository: mockRepository);
+        return ServantDataCubit(
+          repository: mockRepository,
+          authService: mockAuthService,
+        );
       },
       act: (cubit) {
         final newServant = ServantModel(
@@ -164,7 +191,10 @@ void main() {
         when(
           () => mockRepository.updateServant(any()),
         ).thenAnswer((_) async {});
-        return ServantDataCubit(repository: mockRepository);
+        return ServantDataCubit(
+          repository: mockRepository,
+          authService: mockAuthService,
+        );
       },
       act: (cubit) {
         final existingServant = allServants.first;
@@ -186,16 +216,18 @@ void main() {
         when(
           () => mockRepository.deleteServant(any()),
         ).thenAnswer((_) async {});
-        return ServantDataCubit(repository: mockRepository);
+        return ServantDataCubit(
+          repository: mockRepository,
+          authService: mockAuthService,
+        );
       },
       act: (cubit) {
         cubit.deleteServant(actor: admin, docId: 'doc-0');
       },
       expect: () => [
         isA<ServantDataLoading>(),
-        isA<ServantDataOperationSuccess>(),
-        isA<ServantDataLoading>(),
         isA<ServantDataLoaded>(),
+        isA<ServantDataOperationSuccess>(),
       ],
       verify: (_) {
         verify(() => mockRepository.deleteServant('doc-0')).called(1);
@@ -208,10 +240,14 @@ void main() {
         when(
           () => mockRepository.createServant(any()),
         ).thenAnswer((_) async => 'new-doc');
-        return ServantDataCubit(repository: mockRepository);
+        return ServantDataCubit(
+          repository: mockRepository,
+          authService: mockAuthService,
+        );
       },
       seed: () => ServantDataLoaded(servants: allServants),
-      act: (cubit) {
+      act: (cubit) async {
+        await cubit.loadServants(actor: admin); // Populate cache
         final newServant = ServantModel(
           uid: 'new-uid',
           docID: 'temp',
@@ -225,9 +261,13 @@ void main() {
           birthdate: null,
           notes: null,
         );
-        cubit.createServant(actor: admin, servant: newServant);
+        await cubit.createServant(actor: admin, servant: newServant);
       },
       expect: () => [
+        // from load
+        isA<ServantDataLoading>(),
+        isA<ServantDataLoaded>().having((s) => s.servants.length, 'count', 10),
+        // from create optimistic
         isA<ServantDataLoading>(),
         isA<ServantDataLoaded>()
             .having((s) => s.servants.length, 'count', 11)
@@ -240,107 +280,109 @@ void main() {
       ],
       verify: (_) {
         verify(() => mockRepository.createServant(any())).called(1);
-        verifyNever(
-          () => mockRepository.getAllServants(limit: any(named: 'limit')),
-        );
+        verify(() => mockRepository.getAllServants(limit: 200)).called(1);
       },
     );
 
     blocTest<ServantDataCubit, ServantDataState>(
-      'update avoids reload when list already loaded',
+      'update always reloads list from server after successful write',
       build: () {
         when(
           () => mockRepository.updateServant(any()),
         ).thenAnswer((_) async {});
-        return ServantDataCubit(repository: mockRepository);
+        return ServantDataCubit(
+          repository: mockRepository,
+          authService: mockAuthService,
+        );
       },
       seed: () => ServantDataLoaded(servants: allServants),
-      act: (cubit) {
+      act: (cubit) async {
+        await cubit.loadServants(actor: admin); // Populate cache
         final updatedServant = allServants.first.copyWith(
           name: 'Servant 0 Updated',
         );
-        cubit.updateServant(actor: admin, servant: updatedServant);
+        await cubit.updateServant(actor: admin, servant: updatedServant);
       },
       expect: () => [
         isA<ServantDataLoading>(),
-        isA<ServantDataLoaded>().having(
-          (s) => s.servants.any(
-            (x) => x.docID == 'doc-0' && x.name == 'Servant 0 Updated',
-          ),
-          'updated servant present',
-          true,
-        ),
+        isA<ServantDataLoaded>(),
+        isA<ServantDataLoading>(),
+        // After update, list is reloaded from server (not optimistic)
+        isA<ServantDataLoaded>().having((s) => s.servants.length, 'count', 10),
         isA<ServantDataOperationSuccess>(),
       ],
       verify: (_) {
         verify(() => mockRepository.updateServant(any())).called(1);
-        verifyNever(
+        verify(
           () => mockRepository.getAllServants(limit: any(named: 'limit')),
-        );
+        ).called(2);
       },
     );
 
     blocTest<ServantDataCubit, ServantDataState>(
-      'update removes servant from list when role changes away from servant',
+      'update reloads list from server after role change',
       build: () {
         when(
           () => mockRepository.updateServant(any()),
         ).thenAnswer((_) async {});
-        return ServantDataCubit(repository: mockRepository);
+        return ServantDataCubit(
+          repository: mockRepository,
+          authService: mockAuthService,
+        );
       },
       seed: () => ServantDataLoaded(servants: allServants),
-      act: (cubit) {
+      act: (cubit) async {
+        await cubit.loadServants(actor: admin); // Populate cache
         final promoted = allServants.first.copyWith(role: UserRole.admin);
-        cubit.updateServant(actor: admin, servant: promoted);
+        await cubit.updateServant(actor: admin, servant: promoted);
       },
       expect: () => [
         isA<ServantDataLoading>(),
-        isA<ServantDataLoaded>()
-            .having((s) => s.servants.length, 'count', 9)
-            .having(
-              (s) => s.servants.any((x) => x.docID == 'doc-0'),
-              'removed',
-              false,
-            ),
+        isA<ServantDataLoaded>(),
+        isA<ServantDataLoading>(),
+        // List is reloaded from server, so it returns the original 10
+        isA<ServantDataLoaded>().having((s) => s.servants.length, 'count', 10),
         isA<ServantDataOperationSuccess>(),
       ],
       verify: (_) {
         verify(() => mockRepository.updateServant(any())).called(1);
-        verifyNever(
+        verify(
           () => mockRepository.getAllServants(limit: any(named: 'limit')),
-        );
+        ).called(2);
       },
     );
 
     blocTest<ServantDataCubit, ServantDataState>(
-      'delete avoids reload when list already loaded',
+      'admin delete removes servant from list optimistically',
       build: () {
         when(
           () => mockRepository.deleteServant(any()),
         ).thenAnswer((_) async {});
-        return ServantDataCubit(repository: mockRepository);
+        return ServantDataCubit(
+          repository: mockRepository,
+          authService: mockAuthService,
+        );
       },
       seed: () => ServantDataLoaded(servants: allServants),
-      act: (cubit) {
-        cubit.deleteServant(actor: admin, docId: 'doc-0');
+      act: (cubit) async {
+        await cubit.loadServants(actor: admin); // Populate cache
+        await cubit.deleteServant(actor: admin, docId: 'doc-0');
       },
       expect: () => [
         isA<ServantDataLoading>(),
-        isA<ServantDataOperationSuccess>(),
+        isA<ServantDataLoaded>(),
         isA<ServantDataLoading>(),
         isA<ServantDataLoaded>()
             .having((s) => s.servants.length, 'count', 9)
             .having(
               (s) => s.servants.any((x) => x.docID == 'doc-0'),
-              'deleted servant missing',
+              'no longer contains deleted',
               false,
             ),
+        isA<ServantDataOperationSuccess>(),
       ],
       verify: (_) {
         verify(() => mockRepository.deleteServant('doc-0')).called(1);
-        verifyNever(
-          () => mockRepository.getAllServants(limit: any(named: 'limit')),
-        );
       },
     );
 
@@ -350,7 +392,10 @@ void main() {
         when(
           () => mockRepository.getAllServants(limit: any(named: 'limit')),
         ).thenThrow(Exception('Network error'));
-        return ServantDataCubit(repository: mockRepository);
+        return ServantDataCubit(
+          repository: mockRepository,
+          authService: mockAuthService,
+        );
       },
       act: (cubit) => cubit.loadServants(actor: admin),
       expect: () => [isA<ServantDataLoading>(), isA<ServantDataError>()],

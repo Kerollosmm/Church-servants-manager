@@ -1,13 +1,15 @@
 import 'package:church_managment_system/core/constants/enums.dart';
 import 'package:church_managment_system/core/constants/firestore_collections.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:church_managment_system/features/auth/data/models/auth_user.dart';
 import 'package:church_managment_system/features/auth/domain/failures/auth_failures.dart';
 import 'package:church_managment_system/features/auth/domain/failures/auth_exceptions.dart';
 import 'package:church_managment_system/features/auth/data/services/auth_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 import 'package:firebase_auth/firebase_auth.dart'
-    show FirebaseAuth, FirebaseAuthException;
+    show FirebaseAuth, FirebaseAuthException, User;
 
 class FirebaseAuthProvider implements AuthProvider {
   final FirebaseAuth _auth;
@@ -15,6 +17,10 @@ class FirebaseAuthProvider implements AuthProvider {
 
   // In-memory cache for user data
   final Map<String, AuthUser> _userCache = {};
+
+  // Cached secondary app for admin account creation (avoids per-call overhead).
+  static const _secondaryAppName = 'admin_account_creator';
+  FirebaseApp? _secondaryApp;
 
   FirebaseAuthProvider({FirebaseAuth? auth, FirebaseFirestore? db})
     : _auth = auth ?? FirebaseAuth.instance,
@@ -94,6 +100,8 @@ class FirebaseAuthProvider implements AuthProvider {
     UserRole role = UserRole.student,
     String? grade,
   }) async {
+    User? createdFirebaseUser;
+    var profileSaved = false;
     try {
       await _auth.createUserWithEmailAndPassword(
         email: email,
@@ -101,9 +109,8 @@ class FirebaseAuthProvider implements AuthProvider {
       );
 
       final user = _auth.currentUser;
+      createdFirebaseUser = user;
       if (user != null) {
-        await user.sendEmailVerification();
-
         final appUser = AuthUser(
           uid: user.uid,
           name: name,
@@ -113,7 +120,18 @@ class FirebaseAuthProvider implements AuthProvider {
         );
 
         await _saveUserToFirestore(appUser);
+        profileSaved = true;
         _userCache[appUser.uid] = appUser;
+
+        try {
+          await user.sendEmailVerification();
+        } catch (e) {
+          debugPrint(
+            'FirebaseAuthProvider: Initial verification email send failed for '
+            '${user.uid}: $e',
+          );
+        }
+
         return appUser;
       } else {
         throw UserNotLoggedInAuthException();
@@ -130,6 +148,24 @@ class FirebaseAuthProvider implements AuthProvider {
           rethrow;
       }
     } catch (e) {
+      if (!profileSaved && createdFirebaseUser != null) {
+        final rollbackUid = createdFirebaseUser.uid;
+        try {
+          await createdFirebaseUser.delete();
+          final currentUser = _auth.currentUser;
+          if (currentUser != null && currentUser.uid == rollbackUid) {
+            await _auth.signOut();
+          }
+        } catch (rollbackError) {
+          _userCache.remove(rollbackUid);
+          throw const GenericAuthException(
+            'Account setup failed and cleanup was incomplete. Please contact support or try again later.',
+          );
+        } finally {
+          _userCache.remove(rollbackUid);
+        }
+      }
+
       if (e is WeakPasswordAuthException ||
           e is EmailAlreadyInUseAuthException ||
           e is InvalidEmailAuthException ||
@@ -211,9 +247,9 @@ class FirebaseAuthProvider implements AuthProvider {
   }
 
   /// Get user data from Firestore with improved cache/server fallback
-  Future<AuthUser> getUserData(String uid) async {
+  Future<AuthUser> getUserData(String uid, {bool forceRefresh = false}) async {
     // Check cache first
-    if (_userCache.containsKey(uid)) {
+    if (!forceRefresh && _userCache.containsKey(uid)) {
       return _userCache[uid]!;
     }
 
@@ -226,7 +262,7 @@ class FirebaseAuthProvider implements AuthProvider {
             .collection(FirestoreCollections.users)
             .doc(uid)
             .get()
-            .timeout(const Duration(seconds: 5));
+            .timeout(const Duration(seconds: 12));
       } catch (e) {
         doc = await _db
             .collection(FirestoreCollections.users)
@@ -263,6 +299,87 @@ class FirebaseAuthProvider implements AuthProvider {
           .set(payload, SetOptions(merge: true));
     } catch (e) {
       throw GenericAuthException('Failed to save user data: $e');
+    }
+  }
+
+  /// Returns the cached secondary FirebaseApp, creating it once if needed.
+  Future<FirebaseApp> _getOrCreateSecondaryApp() async {
+    if (_secondaryApp != null) {
+      // Verify the cached reference is still valid.
+      try {
+        Firebase.app(_secondaryAppName);
+        return _secondaryApp!;
+      } catch (_) {
+        _secondaryApp = null;
+      }
+    }
+    _secondaryApp = await Firebase.initializeApp(
+      name: _secondaryAppName,
+      options: Firebase.app().options,
+    );
+    return _secondaryApp!;
+  }
+
+  @override
+  Future<AuthUser> createUserAsAdmin({
+    required String email,
+    required String password,
+    required String name,
+    UserRole role = UserRole.student,
+  }) async {
+    try {
+      // Use a persistent secondary FirebaseApp so the admin session is
+      // NOT disrupted, and we don't pay init/delete overhead on every call.
+      final secondaryApp = await _getOrCreateSecondaryApp();
+      final secondaryAuth = FirebaseAuth.instanceFor(app: secondaryApp);
+
+      final credential = await secondaryAuth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      final newUser = credential.user;
+      if (newUser == null) {
+        throw const GenericAuthException('Account creation returned no user.');
+      }
+
+      final appUser = AuthUser(
+        uid: newUser.uid,
+        name: name,
+        email: email,
+        role: role,
+        isEmailVerified: false,
+      );
+
+      await _saveUserToFirestore(appUser);
+
+      try {
+        await newUser.sendEmailVerification();
+      } catch (e) {
+        debugPrint(
+          'FirebaseAuthProvider: Verification email send failed for '
+          '${newUser.uid}: $e',
+        );
+      }
+
+      // Sign out from the secondary app (cleanup for next use).
+      await secondaryAuth.signOut();
+
+      return appUser;
+    } on FirebaseAuthException catch (e) {
+      switch (e.code) {
+        case 'weak-password':
+          throw WeakPasswordAuthException();
+        case 'email-already-in-use':
+          throw EmailAlreadyInUseAuthException();
+        case 'invalid-email':
+          throw InvalidEmailAuthException();
+        default:
+          throw GenericAuthException('Account creation failed: ${e.message}');
+      }
+    } catch (e) {
+      if (e is AuthFailure) rethrow;
+      throw GenericAuthException('Account creation failed: $e');
     }
   }
 }

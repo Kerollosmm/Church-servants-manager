@@ -75,7 +75,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         return;
       }
 
-      final user = await _authService.getCurrentAppUser();
+      final user = await _authService.getCurrentAppUser(
+        forceRefresh: initialUser != null,
+      );
       if (user == null) {
         emit(const AuthUnauthenticated());
         return;
@@ -168,7 +170,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     try {
-      final user = await _authService.getCurrentAppUser();
+      final user = await _authService.refreshCurrentAppUser();
       if (user != null) {
         emit(AuthAuthenticated(user));
       } else {

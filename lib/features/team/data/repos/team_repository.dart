@@ -16,9 +16,23 @@ class TeamRepository implements ITeamRepository {
   @override
   Future<List<TeamModel>> getTeamsByGroup(String groupId) async {
     try {
+      try {
+        final cacheSnapshot = await _classesCollection
+            .where('groupId', isEqualTo: groupId)
+            .get(const GetOptions(source: Source.cache));
+
+        if (cacheSnapshot.docs.isNotEmpty) {
+          final teams = cacheSnapshot.docs
+              .map((doc) => TeamModel.fromMap(doc.data(), doc.id))
+              .toList();
+          teams.sort((a, b) => a.name.compareTo(b.name));
+          return teams;
+        }
+      } catch (_) {}
+
       final snapshot = await _classesCollection
           .where('groupId', isEqualTo: groupId)
-          .get();
+          .get(const GetOptions(source: Source.server));
 
       final teams = snapshot.docs
           .map((doc) => TeamModel.fromMap(doc.data(), doc.id))
@@ -34,20 +48,38 @@ class TeamRepository implements ITeamRepository {
   Stream<List<TeamModel>> watchTeamsByGroup(String groupId) {
     return _classesCollection
         .where('groupId', isEqualTo: groupId)
+        .orderBy('name')
         .snapshots()
         .map((snapshot) {
-          final teams = snapshot.docs
+          return snapshot.docs
               .map((doc) => TeamModel.fromMap(doc.data(), doc.id))
               .toList();
-          teams.sort((a, b) => a.name.compareTo(b.name));
-          return teams;
         });
   }
 
   @override
   Future<List<TeamModel>> getAllTeams() async {
     try {
-      final snapshot = await _classesCollection.get();
+      try {
+        final cacheSnapshot = await _classesCollection.get(
+          const GetOptions(source: Source.cache),
+        );
+        if (cacheSnapshot.docs.isNotEmpty) {
+          final teams = cacheSnapshot.docs
+              .map((doc) => TeamModel.fromMap(doc.data(), doc.id))
+              .toList();
+          teams.sort((a, b) {
+            final groupCompare = a.groupId.compareTo(b.groupId);
+            if (groupCompare != 0) return groupCompare;
+            return a.name.compareTo(b.name);
+          });
+          return teams;
+        }
+      } catch (_) {}
+
+      final snapshot = await _classesCollection.get(
+        const GetOptions(source: Source.server),
+      );
 
       final teams = snapshot.docs
           .map((doc) => TeamModel.fromMap(doc.data(), doc.id))
@@ -65,17 +97,15 @@ class TeamRepository implements ITeamRepository {
 
   @override
   Stream<List<TeamModel>> watchAllTeams() {
-    return _classesCollection.snapshots().map((snapshot) {
-      final teams = snapshot.docs
-          .map((doc) => TeamModel.fromMap(doc.data(), doc.id))
-          .toList();
-      teams.sort((a, b) {
-        final groupCompare = a.groupId.compareTo(b.groupId);
-        if (groupCompare != 0) return groupCompare;
-        return a.name.compareTo(b.name);
-      });
-      return teams;
-    });
+    return _classesCollection
+        .orderBy('groupId')
+        .orderBy('name')
+        .snapshots()
+        .map((snapshot) {
+          return snapshot.docs
+              .map((doc) => TeamModel.fromMap(doc.data(), doc.id))
+              .toList();
+        });
   }
 
   @override

@@ -16,6 +16,12 @@ final class StudentProfileProvisioning extends StudentProfileState {
   const StudentProfileProvisioning();
 }
 
+final class StudentProfileMissingProfile extends StudentProfileState {
+  final String message;
+
+  const StudentProfileMissingProfile(this.message);
+}
+
 final class StudentProfileLoaded extends StudentProfileState {
   final StudentModel student;
 

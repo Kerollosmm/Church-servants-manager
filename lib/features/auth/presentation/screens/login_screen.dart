@@ -3,7 +3,7 @@ import 'package:church_managment_system/core/theme/app_colors.dart';
 import 'package:church_managment_system/core/theme/app_spacing.dart';
 import 'package:church_managment_system/core/widgets/app_logo.dart';
 import 'package:church_managment_system/core/widgets/gradient_border_container.dart';
-import 'package:church_managment_system/core/widgets/dialogs/error_dialog.dart';
+
 import 'package:church_managment_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_managment_system/features/auth/presentation/widgets/auth_submit_button.dart';
 import 'package:church_managment_system/features/auth/presentation/widgets/auth_text_field.dart';
@@ -48,9 +48,24 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: BlocListener<AuthBloc, AuthState>(
+        listenWhen: (previous, current) =>
+            current is AuthError ||
+            current is AuthNeedsVerification ||
+            current is AuthVerificationSent,
         listener: (context, state) {
           if (state is AuthError) {
-            showErrorDialog(context, state.message);
+            // Clear password for security — never keep a wrong password in the field.
+            _passwordController.clear();
+            ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar()
+              ..showSnackBar(
+                SnackBar(
+                  content: Text(state.message),
+                  backgroundColor: Theme.of(context).colorScheme.error,
+                  behavior: SnackBarBehavior.floating,
+                  duration: const Duration(seconds: 4),
+                ),
+              );
           }
           if (state is AuthNeedsVerification) {
             showEmailVerificationDialog(context);

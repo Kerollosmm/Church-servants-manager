@@ -22,6 +22,7 @@ class _AddEditServantScreenState extends State<AddEditServantScreen> {
   late final TextEditingController _name;
   late final TextEditingController _phone;
   late final TextEditingController _email;
+  late final TextEditingController _password;
   late final TextEditingController _fatherOfConfession;
   late final TextEditingController _notes;
   late final TextEditingController _imageUrl;
@@ -38,6 +39,7 @@ class _AddEditServantScreenState extends State<AddEditServantScreen> {
     _name = TextEditingController(text: servant?.name ?? '');
     _phone = TextEditingController(text: servant?.phone ?? '');
     _email = TextEditingController(text: servant?.email ?? '');
+    _password = TextEditingController();
     _fatherOfConfession = TextEditingController(
       text: servant?.fatherOfConfession ?? '',
     );
@@ -58,6 +60,7 @@ class _AddEditServantScreenState extends State<AddEditServantScreen> {
     _name.dispose();
     _phone.dispose();
     _email.dispose();
+    _password.dispose();
     _fatherOfConfession.dispose();
     _notes.dispose();
     _imageUrl.dispose();
@@ -108,7 +111,12 @@ class _AddEditServantScreenState extends State<AddEditServantScreen> {
     if (isEditing) {
       cubit.updateServant(actor: actor, servant: servant);
     } else {
-      cubit.createServant(actor: actor, servant: servant);
+      cubit.createServant(
+        actor: actor,
+        servant: servant,
+        email: _email.text.trim().isNotEmpty ? _email.text.trim() : null,
+        password: _password.text.isNotEmpty ? _password.text : null,
+      );
     }
   }
 
@@ -179,12 +187,32 @@ class _AddEditServantScreenState extends State<AddEditServantScreen> {
                         AppSpacing.gapMd,
                         TextFormField(
                           controller: _email,
-                          decoration: const InputDecoration(
-                            labelText:
-                                'البريد الإلكتروني (اختياري)', // Email (optional)
-                            prefixIcon: Icon(Icons.email_outlined),
+                          decoration: InputDecoration(
+                            labelText: isEditing
+                                ? 'البريد الإلكتروني (اختياري)'
+                                : 'البريد الإلكتروني', // Email
+                            prefixIcon: const Icon(Icons.email_outlined),
                           ),
+                          validator: isEditing
+                              ? null
+                              : (v) => v == null || v.trim().isEmpty
+                                    ? 'مطلوب لإنشاء حساب'
+                                    : null,
                         ),
+                        if (!isEditing) ...[
+                          AppSpacing.gapMd,
+                          TextFormField(
+                            controller: _password,
+                            obscureText: true,
+                            decoration: const InputDecoration(
+                              labelText: 'كلمة المرور', // Password
+                              prefixIcon: Icon(Icons.lock_outline),
+                            ),
+                            validator: (v) => v == null || v.length < 6
+                                ? 'يجب أن تكون 6 أحرف على الأقل'
+                                : null,
+                          ),
+                        ],
                         if (isEditing) ...[
                           AppSpacing.gapMd,
                           DropdownButtonFormField<UserRole>(

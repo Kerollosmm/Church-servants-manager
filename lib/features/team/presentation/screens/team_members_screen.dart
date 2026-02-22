@@ -87,6 +87,8 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
   }
 
   Future<void> _save() async {
+    if (_saving || _loading) return;
+
     final team = widget.args.team;
     final actor = widget.args.actor;
 
@@ -95,16 +97,23 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
         .toList();
 
     setState(() => _saving = true);
-    context.read<TeamCubit>().setTeamMembers(
-      actor: actor,
-      team: team,
-      students: selectedStudents,
-    );
+    try {
+      await context.read<TeamCubit>().setTeamMembers(
+        actor: actor,
+        team: team,
+        students: selectedStudents,
+      );
+    } catch (_) {
+      if (mounted) {
+        setState(() => _saving = false);
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final team = widget.args.team;
+    final filtered = _filtered;
     final selectedCount = _selected.values.where((v) => v == true).length;
 
     return BlocListener<TeamCubit, TeamState>(
@@ -219,10 +228,10 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
                   ),
                   Expanded(
                     child: ListView.separated(
-                      itemCount: _filtered.length,
+                      itemCount: filtered.length,
                       separatorBuilder: (_, index) => const Divider(height: 1),
                       itemBuilder: (context, index) {
-                        final s = _filtered[index];
+                        final s = filtered[index];
                         final isChecked = _selected[s.docID] ?? false;
 
                         return CheckboxListTile(
