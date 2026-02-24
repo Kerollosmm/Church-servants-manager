@@ -351,8 +351,11 @@ class AdminTeamService {
     try {
       await _recomputeStudentIdsForClasses(affectedClassIds);
     } catch (e) {
-      // Log but don't fail the main operation
-      print('Warning: Failed to recompute student IDs: $e');
+      // Log but don't fail the main operation - best effort
     }
   }
 }
+
+
+
+
