@@ -3,15 +3,16 @@ import 'package:church_managment_system/core/constants/firestore_collections.dar
 import 'package:church_managment_system/core/constants/enums.dart';
 import 'package:church_managment_system/features/servant/domain/failures/servant_failures.dart';
 import 'package:church_managment_system/features/servant/domain/repo/i_servant_repository.dart';
+import 'package:injectable/injectable.dart';
 import '../models/servant_models.dart';
 
 /// Repository for managing servant data.
 /// Servants are stored in the Users collection with role == 'servant'.
+@LazySingleton(as: IServantRepository)
 class ServantDataRepository implements IServantRepository {
   final FirebaseFirestore _firestore;
 
-  ServantDataRepository({FirebaseFirestore? firestore})
-    : _firestore = firestore ?? FirebaseFirestore.instance;
+  ServantDataRepository(this._firestore);
 
   /// Reference to Users collection (servants are users with role == servant)
   CollectionReference<Map<String, dynamic>> get _usersCollection =>
@@ -24,6 +25,8 @@ class ServantDataRepository implements IServantRepository {
   Map<String, dynamic> _normalizeServantWriteData(ServantModel servant) {
     final data = servant.toMap();
     data['role'] = servant.role.name;
+    // Add name_lowercase for case-insensitive search
+    data['name_lowercase'] = servant.name.trim().toLowerCase();
 
     if (servant.role != UserRole.servant) {
       // Clear servant-only scoping fields when user is no longer a servant.
@@ -145,12 +148,12 @@ class ServantDataRepository implements IServantRepository {
   }
 
   @override
-  Future<List<ServantModel>> getServantsByTeam(String teamName) async {
+  Future<List<ServantModel>> getServantsByGroup(String groupId) async {
     try {
       try {
         final cacheSnapshot = await _usersCollection
             .where('role', isEqualTo: UserRole.servant.name)
-            .where('groupId', isEqualTo: teamName)
+            .where('groupId', isEqualTo: groupId)
             .get(const GetOptions(source: Source.cache));
 
         if (cacheSnapshot.docs.isNotEmpty) {
@@ -162,7 +165,7 @@ class ServantDataRepository implements IServantRepository {
 
       final snapshot = await _usersCollection
           .where('role', isEqualTo: UserRole.servant.name)
-          .where('groupId', isEqualTo: teamName)
+          .where('groupId', isEqualTo: groupId)
           .get(const GetOptions(source: Source.server));
 
       return snapshot.docs
@@ -179,13 +182,21 @@ class ServantDataRepository implements IServantRepository {
     int limit = 20,
   }) async {
     try {
-      if (query.isEmpty) return getAllServants(limit: limit);
+      final normalizedQuery = query.trim().toLowerCase();
+      if (normalizedQuery.isEmpty) return getAllServants(limit: limit);
 
+      // Use name_lowercase for case-insensitive search
       final snapshot = await _usersCollection
           .where('role', isEqualTo: UserRole.servant.name)
-          .orderBy('name')
-          .startAt([query])
-          .endAt(['$query\uf8ff'])
+          .where(
+            'name_lowercase',
+            isGreaterThanOrEqualTo: normalizedQuery,
+          )
+          .where(
+            'name_lowercase',
+            isLessThanOrEqualTo: '$normalizedQuery\uf8ff',
+          )
+          .orderBy('name_lowercase')
           .limit(limit)
           .get();
 
@@ -268,8 +279,15 @@ class ServantDataRepository implements IServantRepository {
   @override
   Future<void> deleteServant(String docId) async {
     try {
-      // Option 1: Actually delete the user document
-      await _usersCollection.doc(docId).delete();
+      // CRITICAL: Demote servant to student instead of deleting the account.
+      // This preserves the user's authentication and profile data.
+      await _usersCollection.doc(docId).update({
+        'role': UserRole.student.name,
+        'groupId': FieldValue.delete(),
+        'assignedTeamId': FieldValue.delete(),
+        'assignedTeamIds': FieldValue.delete(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
     } catch (e) {
       throw mapExceptionToServantFailure(e);
     }

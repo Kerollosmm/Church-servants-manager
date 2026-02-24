@@ -7,9 +7,9 @@ import 'package:church_managment_system/features/student/data/repos/student_data
 import 'package:church_managment_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
 import 'package:church_managment_system/features/student/domain/usecases/get_students_stream_usecase.dart';
 import 'package:church_managment_system/features/auth/data/models/auth_user.dart';
-import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:collection/collection.dart';
 
 part 'student_data_event.dart';
 part 'student_data_state.dart';
@@ -19,13 +19,15 @@ part 'student_data_state.dart';
 /// Delegates stream selection to [GetStudentsStreamUseCase]
 /// and authorization to [CanMutateStudentUseCase].
 class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
+  static const int _backgroundSortThreshold = 120;
+
   final StudentDataRepository _studentRepository;
   final GetStudentsStreamUseCase _getStudentsStream;
   final CanMutateStudentUseCase _canMutateStudent;
   final AuthService _authService;
 
   StreamSubscription<List<StudentModel>>? _studentsSubscription;
-  List<StudentModel> _allStudents = [];
+  int _studentsEmissionVersion = 0;
   Map<String, StudentModel> _studentsByDocId = {};
   String? _lastFilterGroupId;
   String? _lastFilterTeamId;
@@ -48,6 +50,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     on<StudentDeleted>(_onDeleteStudent);
     on<StudentsRefreshRequested>(_onRefreshStudents);
     on<StudentsListeningStopped>(_onStopListening);
+    on<StudentFormSubmitted>(_onFormSubmitted);
     on<_StudentsStreamUpdated>(_onStreamUpdated);
     on<_StreamError>(_onStreamError);
   }
@@ -55,6 +58,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
   Future<void> _cancelStudentsSubscription() async {
     final subscription = _studentsSubscription;
     _studentsSubscription = null;
+    _studentsEmissionVersion++;
     await subscription?.cancel();
   }
 
@@ -73,10 +77,12 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     }
 
     _studentsSubscription = stream.listen(
-      (students) {
+      (students) async {
         if (isClosed) return;
-        students.sort((a, b) => a.name.compareTo(b.name));
-        add(_StudentsStreamUpdated(students));
+        final emissionVersion = ++_studentsEmissionVersion;
+        final sortedStudents = await _sortStudentsForUi(students);
+        if (isClosed || emissionVersion != _studentsEmissionVersion) return;
+        add(_StudentsStreamUpdated(sortedStudents));
       },
       onError: (Object error) {
         if (isClosed) return;
@@ -86,11 +92,23 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     );
   }
 
-  List<StudentModel> _filterByName(List<StudentModel> students, String query) {
-    final normalized = query.toLowerCase();
-    return students
-        .where((s) => s.name.toLowerCase().contains(normalized))
-        .toList();
+  void _onStreamUpdated(
+    _StudentsStreamUpdated event,
+    Emitter<StudentDataState> emit,
+  ) {
+    final students = event.students
+        .where((student) => student.role == UserRole.student)
+        .toList(growable: false);
+    _studentsByDocId = {for (final s in students) s.docID: s};
+
+    emit(
+      StudentDataLoaded(
+        students: students,
+        currentFilterGroupId: _lastFilterGroupId,
+        currentFilterTeamId: _lastFilterTeamId,
+        currentQuery: _lastQuery,
+      ),
+    );
   }
 
   void _emitError(
@@ -102,6 +120,70 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     emit(StudentDataError('$message. Please try again.'));
   }
 
+  int _compareStudentsByName(StudentModel a, StudentModel b) {
+    final nameCompare = a.name.toLowerCase().compareTo(b.name.toLowerCase());
+    if (nameCompare != 0) return nameCompare;
+    return a.docID.compareTo(b.docID);
+  }
+
+  bool _isSortedByName(List<StudentModel> students) {
+    for (var i = 1; i < students.length; i++) {
+      if (_compareStudentsByName(students[i - 1], students[i]) > 0) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  Future<List<StudentModel>> _sortStudentsForUi(
+    List<StudentModel> students,
+  ) async {
+    if (students.length < 2 || _isSortedByName(students)) {
+      return students;
+    }
+
+    if (students.length < _backgroundSortThreshold) {
+      final sorted = List<StudentModel>.of(students);
+      sorted.sort(_compareStudentsByName);
+      return sorted;
+    }
+
+    final sortRows = <List<String>>[
+      for (final student in students)
+        <String>[student.docID, student.name.toLowerCase()],
+    ];
+
+    try {
+      final sortedIds = await compute(_sortStudentIdsByName, sortRows);
+      final byId = <String, StudentModel>{
+        for (final student in students) student.docID: student,
+      };
+      final ordered = <StudentModel>[];
+      for (final id in sortedIds) {
+        final student = byId.remove(id);
+        if (student != null) {
+          ordered.add(student);
+        }
+      }
+
+      if (byId.isNotEmpty) {
+        final remaining = byId.values.toList(growable: false);
+        final sortedRemaining = List<StudentModel>.of(remaining)
+          ..sort(_compareStudentsByName);
+        ordered.addAll(sortedRemaining);
+      }
+
+      return ordered;
+    } catch (error) {
+      debugPrint(
+        'StudentDataBloc: Background sort failed, using local sort: $error',
+      );
+      final sorted = List<StudentModel>.of(students);
+      sorted.sort(_compareStudentsByName);
+      return sorted;
+    }
+  }
+
   StudentModel? _getCachedStudentById(String docId) {
     return _studentsByDocId[docId];
   }
@@ -110,35 +192,15 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     StudentsLoadRequested event,
     Emitter<StudentDataState> emit,
   ) async {
-    emit(const StudentDataLoading());
+    final currentStudents = state is StudentDataLoaded
+        ? (state as StudentDataLoaded).students
+        : <StudentModel>[];
+    emit(StudentDataLoading(previousStudents: currentStudents));
     _lastFilterGroupId = event.actor.groupId;
     _lastFilterTeamId = event.teamId;
     _lastQuery = null;
 
     await _subscribeToStudents(actor: event.actor, teamId: event.teamId);
-  }
-
-  void _onStreamUpdated(
-    _StudentsStreamUpdated event,
-    Emitter<StudentDataState> emit,
-  ) {
-    _allStudents = event.students
-        .where((student) => student.role == UserRole.student)
-        .toList(growable: false);
-    _studentsByDocId = {for (final s in _allStudents) s.docID: s};
-    final query = _lastQuery;
-    final students = (query != null && query.isNotEmpty)
-        ? _filterByName(_allStudents, query)
-        : _allStudents;
-
-    emit(
-      StudentDataLoaded(
-        students: students,
-        currentFilterGroupId: _lastFilterGroupId,
-        currentFilterTeamId: _lastFilterTeamId,
-        currentQuery: query,
-      ),
-    );
   }
 
   void _onStreamError(_StreamError event, Emitter<StudentDataState> emit) {
@@ -152,18 +214,23 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     final query = event.query.trim();
     _lastQuery = query;
 
-    final students = (query.isNotEmpty)
-        ? _filterByName(_allStudents, query)
-        : _allStudents;
-
-    emit(
-      StudentDataLoaded(
-        students: students,
-        currentFilterGroupId: _lastFilterGroupId,
-        currentFilterTeamId: _lastFilterTeamId,
-        currentQuery: query,
-      ),
-    );
+    final currentStudents = state is StudentDataLoaded
+        ? (state as StudentDataLoaded).students
+        : <StudentModel>[];
+    emit(StudentDataLoading(previousStudents: currentStudents));
+    try {
+      final results = await _studentRepository.searchStudents(query);
+      emit(
+        StudentDataLoaded(
+          students: results,
+          currentFilterGroupId: _lastFilterGroupId,
+          currentFilterTeamId: _lastFilterTeamId,
+          currentQuery: query,
+        ),
+      );
+    } catch (e) {
+      _emitError(emit, 'Unable to search students', e);
+    }
   }
 
   Future<void> _onCreateStudent(
@@ -196,6 +263,10 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
       }
 
       await _studentRepository.createStudent(studentToCreate);
+      
+      // Refresh the stream to update UI with new data
+      await _subscribeToStudents(actor: event.actor, teamId: _lastFilterTeamId);
+      
       emit(const StudentDataOperationSuccess('Student created successfully'));
     } catch (e) {
       _emitError(emit, 'Unable to create student', e);
@@ -243,6 +314,10 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
       } else {
         await _studentRepository.updateStudent(event.student);
       }
+      
+      // Refresh the stream to update UI with updated data
+      await _subscribeToStudents(actor: event.actor, teamId: _lastFilterTeamId);
+      
       emit(const StudentDataOperationSuccess('Student updated successfully'));
     } catch (e) {
       _emitError(emit, 'Unable to update student', e);
@@ -266,9 +341,137 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
         return;
       }
       await _studentRepository.deleteStudent(event.docId);
+      
+      // Refresh the stream to update UI after deletion
+      final actor = _authService.currentUser;
+      if (actor != null) {
+        await _subscribeToStudents(actor: actor, teamId: _lastFilterTeamId);
+      }
+      
       emit(const StudentDataOperationSuccess('Student deleted successfully'));
     } catch (e) {
       _emitError(emit, 'Unable to delete student', e);
+    }
+  }
+
+  Future<void> _onFormSubmitted(
+    StudentFormSubmitted event,
+    Emitter<StudentDataState> emit,
+  ) async {
+    try {
+      if (event.isEditing) {
+        final existing = event.existingStudent;
+        if (existing == null) {
+          emit(const StudentDataError('Student not found.'));
+          return;
+        }
+        if (!_canMutateStudent(event.actor, existing)) {
+          emit(const StudentDataError('Not allowed.'));
+          return;
+        }
+
+        final isRoleChange = existing.role != event.role;
+        if (isRoleChange && event.actor.role != UserRole.admin) {
+          emit(const StudentDataError('Not allowed.'));
+          return;
+        }
+        if (isRoleChange &&
+            event.role == UserRole.servant &&
+            existing.uid.trim().isEmpty) {
+          emit(
+            const StudentDataError(
+              'Cannot promote student without linked user account.',
+            ),
+          );
+          return;
+        }
+
+        final student = StudentModel(
+          uid: existing.uid,
+          docID: existing.docID,
+          name: event.name,
+          imageUrl: event.imageUrl,
+          role: event.role,
+          mobile: event.mobile,
+          group: event.group,
+          teamName: event.teamName ?? '',
+          motherPhone: event.motherPhone,
+          fatherPhone: event.fatherPhone,
+          grade: event.grade,
+          educationStage: event.educationStage,
+          school: event.school,
+          address: event.address,
+          birthdate: event.birthdate,
+          fatherOfConfession: event.fatherOfConfession,
+          notes: event.notes,
+          classId: event.teamId,
+        );
+
+        if (isRoleChange) {
+          await _studentRepository.updateStudentAndSyncLinkedUserRole(
+            updatedStudent: student,
+            previousRole: existing.role,
+          );
+        } else {
+          await _studentRepository.updateStudent(student);
+        }
+        
+        // Refresh the stream to update UI with updated data
+        await _subscribeToStudents(actor: event.actor, teamId: _lastFilterTeamId);
+        
+        emit(const StudentDataOperationSuccess('Student updated successfully'));
+      } else {
+        var studentToCreate = StudentModel(
+          uid: '',
+          docID: '',
+          name: event.name,
+          imageUrl: event.imageUrl,
+          role: event.role,
+          mobile: event.mobile,
+          group: event.group,
+          teamName: event.teamName ?? '',
+          motherPhone: event.motherPhone,
+          fatherPhone: event.fatherPhone,
+          grade: event.grade,
+          educationStage: event.educationStage,
+          school: event.school,
+          address: event.address,
+          birthdate: event.birthdate,
+          fatherOfConfession: event.fatherOfConfession,
+          notes: event.notes,
+          classId: event.teamId,
+        );
+
+        if (!_canMutateStudent(event.actor, studentToCreate)) {
+          emit(const StudentDataError('Not allowed.'));
+          return;
+        }
+
+        if (event.email != null &&
+            event.email!.isNotEmpty &&
+            event.password != null &&
+            event.password!.isNotEmpty) {
+          final authUser = await _authService.createUserAsAdmin(
+            email: event.email!,
+            password: event.password!,
+            name: event.name,
+            role: event.role,
+          );
+          studentToCreate = studentToCreate.copyWith(
+            uid: authUser.uid,
+            docID: authUser.uid,
+          );
+        }
+
+        await _studentRepository.createStudent(studentToCreate);
+        
+        // Refresh the stream to update UI with new data
+        await _subscribeToStudents(actor: event.actor, teamId: _lastFilterTeamId);
+        
+        emit(const StudentDataOperationSuccess('Student created successfully'));
+      }
+    } catch (e) {
+      _emitError(emit, 'Unable to save student', e);
     }
   }
 
@@ -286,7 +489,6 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     Emitter<StudentDataState> emit,
   ) async {
     await _cancelStudentsSubscription();
-    _allStudents = const [];
     _lastFilterGroupId = null;
     _lastFilterTeamId = null;
     _lastQuery = null;
@@ -298,4 +500,15 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     await _cancelStudentsSubscription();
     return super.close();
   }
+}
+
+List<String> _sortStudentIdsByName(List<List<String>> rows) {
+  rows.sort((a, b) {
+    final nameCompare = a[1].compareTo(b[1]);
+    if (nameCompare != 0) {
+      return nameCompare;
+    }
+    return a[0].compareTo(b[0]);
+  });
+  return [for (final row in rows) row[0]];
 }

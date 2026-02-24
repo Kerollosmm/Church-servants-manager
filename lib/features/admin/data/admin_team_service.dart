@@ -5,6 +5,7 @@ import 'package:church_managment_system/features/auth/data/models/auth_user.dart
 import 'package:church_managment_system/features/servant/data/models/servant_models.dart';
 import 'package:church_managment_system/features/student/data/models/student_model.dart';
 import 'package:church_managment_system/features/team/data/models/team_model.dart';
+import 'package:injectable/injectable.dart';
 
 /// Admin-only operations that touch multiple collections.
 ///
@@ -13,11 +14,11 @@ import 'package:church_managment_system/features/team/data/models/team_model.dar
 /// - Admin assigns/removes students to/from a team.
 ///
 /// NOTE: Permissions must be enforced by Firestore Security Rules.
+@lazySingleton
 class AdminTeamService {
   final FirebaseFirestore _firestore;
 
-  AdminTeamService({FirebaseFirestore? firestore})
-    : _firestore = firestore ?? FirebaseFirestore.instance;
+  AdminTeamService(this._firestore);
 
   CollectionReference<Map<String, dynamic>> get _classes =>
       _firestore.collection(FirestoreCollections.classes);
@@ -282,10 +283,9 @@ class AdminTeamService {
       }
     }
 
-    // Collect batch operations (we will commit them in chunks to avoid the 500 ops limit).
-    final ops = <void Function(WriteBatch)>[];
-
-    void addOp(void Function(WriteBatch) op) => ops.add(op);
+    // Build a single atomic batch operation
+    // If operations exceed 500, we'll use multiple batches but ALL must succeed
+    final batch = _firestore.batch();
 
     // Add / move to team
     for (final student in toAdd) {
@@ -297,25 +297,21 @@ class AdminTeamService {
       }
 
       final studentRef = _students.doc(student.docID);
-      addOp(
-        (b) => b.set(studentRef, {
-          'classId': team.id,
-          'team_name': team.name,
-          'group': team.groupId,
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true)),
-      );
+      batch.set(studentRef, {
+        'classId': team.id,
+        'team_name': team.name,
+        'group': team.groupId,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
 
       // Keep user doc in sync (best effort).
       if (student.uid.isNotEmpty) {
-        addOp(
-          (b) => b.set(_users.doc(student.uid), {
-            'classId': team.id,
-            'team_name': team.name,
-            'groupId': team.groupId,
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true)),
-        );
+        batch.set(_users.doc(student.uid), {
+          'classId': team.id,
+          'team_name': team.name,
+          'groupId': team.groupId,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
       }
     }
 
@@ -327,44 +323,36 @@ class AdminTeamService {
       }
 
       final studentRef = _students.doc(student.docID);
-      addOp(
-        (b) => b.set(studentRef, {
+      batch.set(studentRef, {
+        'classId': FieldValue.delete(),
+        'team_name': '',
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      if (student.uid.isNotEmpty) {
+        batch.set(_users.doc(student.uid), {
           'classId': FieldValue.delete(),
           'team_name': '',
           'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true)),
-      );
-
-      if (student.uid.isNotEmpty) {
-        addOp(
-          (b) => b.set(_users.doc(student.uid), {
-            'classId': FieldValue.delete(),
-            'team_name': '',
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true)),
-        );
+        }, SetOptions(merge: true));
       }
     }
 
     // Maintain team student_ids (best-effort)
-    addOp(
-      (b) => b.set(_classes.doc(team.id), {
-        'student_ids': selectedIds.toList(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true)),
-    );
+    batch.set(_classes.doc(team.id), {
+      'student_ids': selectedIds.toList(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
 
-    // Commit in chunks (<= 400 ops per batch, to be safe).
-    for (var i = 0; i < ops.length; i += 400) {
-      final batch = _firestore.batch();
-      final end = (i + 400 > ops.length) ? ops.length : i + 400;
-      final slice = ops.sublist(i, end);
-      for (final op in slice) {
-        op(batch);
-      }
-      await batch.commit();
+    // Commit atomically - all or nothing
+    await batch.commit();
+
+    // Recompute student IDs for affected classes (best-effort, non-blocking)
+    try {
+      await _recomputeStudentIdsForClasses(affectedClassIds);
+    } catch (e) {
+      // Log but don't fail the main operation
+      print('Warning: Failed to recompute student IDs: $e');
     }
-
-    await _recomputeStudentIdsForClasses(affectedClassIds);
   }
 }

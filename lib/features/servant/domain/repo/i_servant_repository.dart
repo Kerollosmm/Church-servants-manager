@@ -15,8 +15,8 @@ abstract class IServantRepository {
     DocumentSnapshot? lastDocument,
   });
 
-  /// Get servants by team name.
-  Future<List<ServantModel>> getServantsByTeam(String teamName);
+  /// Get servants by group ID.
+  Future<List<ServantModel>> getServantsByGroup(String groupId);
 
   /// Search servants by name.
   Future<List<ServantModel>> searchServants(String query, {int limit = 20});

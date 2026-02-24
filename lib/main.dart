@@ -67,20 +67,21 @@ class _StartupFailureApp extends StatelessWidget {
             padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(height: 24),
-                const Icon(
+              children: const [
+                SizedBox(height: 24),
+                Icon(
                   Icons.error_outline,
                   size: 64,
                   color: Colors.redAccent,
                 ),
-                const SizedBox(height: 16),
-                const Text(
+                SizedBox(height: 16),
+                Text(
                   'حدث خطأ أثناء تشغيل التطبيق',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
-                const Text(
+                SizedBox(height: 8),
+                Text(
                   'يرجى إعادة تشغيل التطبيق والمحاولة مرة أخرى.\nإذا استمرت المشكلة تواصل مع الدعم الفني.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.black54),

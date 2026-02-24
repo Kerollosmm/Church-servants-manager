@@ -46,3 +46,6 @@ app.*.map.json
 
 # Agent and Docs
 docs/
+
+# Generated dependency injection (regenerated via build_runner)
+lib/core/di/injection.config.dart

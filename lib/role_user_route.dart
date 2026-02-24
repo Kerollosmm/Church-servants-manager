@@ -70,7 +70,10 @@ class RoleUserRoute extends StatelessWidget {
               case UserRole.student:
                 return StudentProfileScreen(user: user);
               case UserRole.admin:
-                return AdminDashboardScreen();
+                return const AdminDashboardScreen();
+              default:
+                // Fallback for unknown roles - redirect to login
+                return const LoginScreen();
             }
           }
 
