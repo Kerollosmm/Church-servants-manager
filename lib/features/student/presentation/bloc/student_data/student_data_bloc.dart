@@ -343,10 +343,8 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
       await _studentRepository.deleteStudent(event.docId);
       
       // Refresh the stream to update UI after deletion
-      final actor = _authService.currentUser;
-      if (actor != null) {
-        await _subscribeToStudents(actor: actor, teamId: _lastFilterTeamId);
-      }
+      // Use event.actor to maintain consistency with the user who initiated the action
+      await _subscribeToStudents(actor: event.actor, teamId: _lastFilterTeamId);
       
       emit(const StudentDataOperationSuccess('Student deleted successfully'));
     } catch (e) {
@@ -512,3 +510,5 @@ List<String> _sortStudentIdsByName(List<List<String>> rows) {
   });
   return [for (final row in rows) row[0]];
 }
+
+
