@@ -1,6 +1,5 @@
 import 'package:church_managment_system/core/theme/app_colors.dart';
-import 'package:church_managment_system/features/team/data/models/team_model.dart';
-import 'package:church_managment_system/features/team/data/repos/team_repository.dart';
+import 'package:church_managment_system/features/team/presentation/bloc/team_cubit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -10,8 +9,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 /// - Admin: sees "All Teams" option + individual teams
 /// - Servant: sees teams for their group; defaults to [defaultTeamId]
 class TeamDropdown extends StatefulWidget {
-  /// The group/year to load teams for (e.g. "year1").
-  final String groupId;
+  /// The group/year to load teams for (e.g. "year1"). If null, loads all teams.
+  final String? groupId;
 
   /// Pre-selected team ID (optional). Used for servant auto-selection.
   final String? defaultTeamId;
@@ -35,7 +34,7 @@ class TeamDropdown extends StatefulWidget {
 
   const TeamDropdown({
     super.key,
-    required this.groupId,
+    this.groupId,
     required this.onChanged,
     this.defaultTeamId,
     this.showAllOption = false,
@@ -50,24 +49,33 @@ class TeamDropdown extends StatefulWidget {
 
 class _TeamDropdownState extends State<TeamDropdown> {
   String? _selectedTeamId;
-  late Stream<List<TeamModel>> _teamsStream;
 
   @override
   void initState() {
     super.initState();
     _selectedTeamId = widget.defaultTeamId;
-    _teamsStream = context.read<TeamRepository>().watchTeamsByGroup(
-      widget.groupId,
-    );
+    if (widget.groupId == null) {
+      context.read<TeamCubit>().loadAllTeams();
+    } else {
+      context.read<TeamCubit>().loadTeamsByGroup(
+        widget.groupId!,
+        defaultTeamId: widget.defaultTeamId,
+      );
+    }
   }
 
   @override
   void didUpdateWidget(covariant TeamDropdown oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.groupId != widget.groupId) {
-      _teamsStream = context.read<TeamRepository>().watchTeamsByGroup(
-        widget.groupId,
-      );
+      if (widget.groupId == null) {
+        context.read<TeamCubit>().loadAllTeams();
+      } else {
+        context.read<TeamCubit>().loadTeamsByGroup(
+          widget.groupId!,
+          defaultTeamId: widget.defaultTeamId,
+        );
+      }
     }
     if (oldWidget.defaultTeamId != widget.defaultTeamId ||
         oldWidget.groupId != widget.groupId) {
@@ -77,21 +85,29 @@ class _TeamDropdownState extends State<TeamDropdown> {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<List<TeamModel>>(
-      stream: _teamsStream,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+    return BlocConsumer<TeamCubit, TeamState>(
+      listener: (context, state) {
+        if (state is TeamLoaded &&
+            _selectedTeamId == null &&
+            state.selectedTeamId != null) {
+          setState(() {
+            _selectedTeamId = state.selectedTeamId;
+          });
+        }
+      },
+      builder: (context, state) {
+        if (state is TeamLoading || state is TeamInitial) {
           return const Padding(
             padding: EdgeInsets.symmetric(vertical: 8),
             child: LinearProgressIndicator(),
           );
         }
 
-        if (snapshot.hasError) {
+        if (state is TeamError) {
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Text(
-              'Failed to load teams.',
+              state.message,
               style: TextStyle(
                 color: AppColors.error,
                 fontStyle: FontStyle.italic,
@@ -100,72 +116,93 @@ class _TeamDropdownState extends State<TeamDropdown> {
           );
         }
 
-        final teams = snapshot.data ?? <TeamModel>[];
-        final restrictedTeamIds = <String>{};
-        if (widget.restrictToTeamId != null &&
-            widget.restrictToTeamId!.isNotEmpty) {
-          restrictedTeamIds.add(widget.restrictToTeamId!);
-        }
-        for (final id in widget.restrictToTeamIds ?? const <String>[]) {
-          if (id.isNotEmpty) {
-            restrictedTeamIds.add(id);
+        if (state is TeamLoaded) {
+          final teams = state.teams;
+          final restrictedTeamIds = <String>{};
+          if (widget.restrictToTeamId != null &&
+              widget.restrictToTeamId!.isNotEmpty) {
+            restrictedTeamIds.add(widget.restrictToTeamId!);
           }
-        }
+          for (final id in widget.restrictToTeamIds ?? const <String>[]) {
+            if (id.isNotEmpty) {
+              restrictedTeamIds.add(id);
+            }
+          }
 
-        final visibleTeams = restrictedTeamIds.isEmpty
-            ? teams
-            : teams.where((t) => restrictedTeamIds.contains(t.id)).toList();
+          final visibleTeams = restrictedTeamIds.isEmpty
+              ? teams
+              : teams.where((t) => restrictedTeamIds.contains(t.id)).toList();
 
-        if (visibleTeams.isEmpty) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-              'No teams available for this year.',
-              style: TextStyle(
-                color: AppColors.textSecondary,
-                fontStyle: FontStyle.italic,
+          if (visibleTeams.isEmpty) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                widget.groupId == null
+                    ? 'No teams available.'
+                    : 'No teams available for this year.',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontStyle: FontStyle.italic,
+                ),
               ),
+            );
+          }
+
+          // Build dropdown items
+          final items = <DropdownMenuItem<String?>>[];
+
+          if (widget.showAllOption) {
+            items.add(
+              DropdownMenuItem<String?>(
+                value: null,
+                child: SizedBox(
+                  height: 48,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: const Text('All Teams'),
+                  ),
+                ),
+              ),
+            );
+          }
+
+          items.addAll(
+            visibleTeams.map((team) {
+              return DropdownMenuItem<String?>(
+                value: team.id,
+                child: SizedBox(
+                  height: 48,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(team.name),
+                  ),
+                ),
+              );
+            }),
+          );
+
+          // Ensure selected value is valid
+          final validIds = visibleTeams.map((t) => t.id).toSet();
+          final effectiveValue =
+              (_selectedTeamId != null && validIds.contains(_selectedTeamId))
+              ? _selectedTeamId
+              : (widget.showAllOption ? null : visibleTeams.first.id);
+
+          return DropdownButtonFormField<String?>(
+            initialValue: effectiveValue,
+            decoration: InputDecoration(
+              labelText: widget.label ?? 'Team',
+              prefixIcon: const Icon(Icons.group),
             ),
+            items: items,
+            onChanged: (value) {
+              setState(() => _selectedTeamId = value);
+              widget.onChanged(value);
+            },
           );
         }
 
-        // Build dropdown items
-        final items = <DropdownMenuItem<String?>>[];
-
-        if (widget.showAllOption) {
-          items.add(
-            const DropdownMenuItem<String?>(
-              value: null,
-              child: Text('All Teams'),
-            ),
-          );
-        }
-
-        for (final team in visibleTeams) {
-          items.add(
-            DropdownMenuItem<String?>(value: team.id, child: Text(team.name)),
-          );
-        }
-
-        // Ensure selected value is valid
-        final validIds = visibleTeams.map((t) => t.id).toSet();
-        final effectiveValue =
-            (_selectedTeamId != null && validIds.contains(_selectedTeamId))
-            ? _selectedTeamId
-            : (widget.showAllOption ? null : visibleTeams.first.id);
-
-        return DropdownButtonFormField<String?>(
-          initialValue: effectiveValue,
-          decoration: InputDecoration(
-            labelText: widget.label ?? 'Team',
-            prefixIcon: const Icon(Icons.group),
-          ),
-          items: items,
-          onChanged: (value) {
-            setState(() => _selectedTeamId = value);
-            widget.onChanged(value);
-          },
-        );
+        return const SizedBox.shrink();
       },
     );
   }

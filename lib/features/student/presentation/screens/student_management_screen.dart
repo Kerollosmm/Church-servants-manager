@@ -295,7 +295,9 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                             AppSpacing.gapSm,
                             // Team filter dropdown
                             TeamDropdown(
-                              groupId: actor.groupId ?? 'year1',
+                              groupId: actor.role == UserRole.admin
+                                  ? null
+                                  : (actor.groupId ?? 'year1'),
                               showAllOption:
                                   actor.role == UserRole.admin ||
                                   (actor.role == UserRole.servant &&
