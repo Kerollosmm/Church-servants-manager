@@ -1,0 +1,186 @@
+import 'package:church_managment_system/features/team/data/models/team_model.dart';
+import 'package:church_managment_system/features/team/data/repos/team_repository.dart';
+import 'package:church_managment_system/features/admin/data/admin_team_service.dart';
+import 'package:church_managment_system/features/auth/data/models/auth_user.dart';
+import 'package:church_managment_system/features/servant/data/models/servant_models.dart';
+import 'package:church_managment_system/features/student/data/models/student_model.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+part 'team_state.dart';
+
+/// Cubit for managing team/class data.
+/// - Admin: full CRUD across all groups
+/// - Servant: load teams for their group
+class TeamCubit extends Cubit<TeamState> {
+  final TeamRepository _teamRepository;
+  final AdminTeamService _adminTeamService;
+
+  TeamCubit({
+    required TeamRepository teamRepository,
+    required AdminTeamService adminTeamService,
+  }) : _teamRepository = teamRepository,
+       _adminTeamService = adminTeamService,
+       super(const TeamInitial());
+
+  void _emitUserFacingError(
+    String contextLabel,
+    Object error,
+    String userMessage,
+  ) {
+    if (kDebugMode) {
+      debugPrint('TeamCubit: $contextLabel (${error.runtimeType})');
+    }
+    emit(TeamError(userMessage));
+  }
+
+  Future<void> _reloadGroupTeams(String groupId) {
+    return loadTeamsByGroup(groupId);
+  }
+
+  Future<void> _runTeamLoad({
+    required Future<List<TeamModel>> Function() action,
+    String? selectedTeamId,
+    required String errorContext,
+    required String errorMessage,
+  }) async {
+    emit(const TeamLoading());
+    try {
+      final teams = await action();
+      emit(TeamLoaded(teams: teams, selectedTeamId: selectedTeamId));
+    } catch (e) {
+      _emitUserFacingError(errorContext, e, errorMessage);
+    }
+  }
+
+  Future<void> _runTeamMutation({
+    required Future<void> Function() action,
+    required String successMessage,
+    required String errorContext,
+    required String errorMessage,
+    String? reloadGroupId,
+  }) async {
+    emit(const TeamLoading());
+    try {
+      await action();
+      emit(TeamOperationSuccess(successMessage));
+      if (reloadGroupId != null) {
+        await _reloadGroupTeams(reloadGroupId);
+      }
+    } catch (e) {
+      _emitUserFacingError(errorContext, e, errorMessage);
+    }
+  }
+
+  /// Load teams for a specific group/year.
+  Future<void> loadTeamsByGroup(String groupId, {String? defaultTeamId}) async {
+    await _runTeamLoad(
+      action: () => _teamRepository.getTeamsByGroup(groupId),
+      selectedTeamId: defaultTeamId,
+      errorContext: 'Failed to load teams',
+      errorMessage: 'تعذر تحميل الفرق. تحقق من الاتصال وحاول مرة أخرى.',
+    );
+  }
+
+  /// Load all teams across all groups (admin use).
+  Future<void> loadAllTeams() async {
+    await _runTeamLoad(
+      action: _teamRepository.getAllTeams,
+      errorContext: 'Failed to load all teams',
+      errorMessage: 'تعذر تحميل الفرق. تحقق من الاتصال وحاول مرة أخرى.',
+    );
+  }
+
+  /// Create a new team (admin only).
+  Future<void> createTeam(TeamModel team) async {
+    await _runTeamMutation(
+      action: () => _teamRepository.createTeam(team),
+      successMessage: 'تم إنشاء الفريق بنجاح',
+      errorContext: 'Failed to create team',
+      errorMessage: 'تعذر إنشاء الفريق. حاول مرة أخرى.',
+      reloadGroupId: team.groupId,
+    );
+  }
+
+  /// Update an existing team (admin only).
+  Future<void> updateTeam(TeamModel team) async {
+    await _runTeamMutation(
+      action: () => _teamRepository.updateTeam(team),
+      successMessage: 'تم تحديث الفريق بنجاح',
+      errorContext: 'Failed to update team',
+      errorMessage: 'تعذر تحديث الفريق. حاول مرة أخرى.',
+      reloadGroupId: team.groupId,
+    );
+  }
+
+  /// Delete a team (admin only).
+  Future<void> deleteTeam(String teamId, String groupId) async {
+    await _runTeamMutation(
+      action: () => _teamRepository.deleteTeam(teamId),
+      successMessage: 'تم حذف الفريق بنجاح',
+      errorContext: 'Failed to delete team',
+      errorMessage: 'تعذر حذف الفريق. حاول مرة أخرى.',
+      reloadGroupId: groupId,
+    );
+  }
+
+  /// Select a team (for dropdown usage).
+  void selectTeam(String? teamId) {
+    final currentState = state;
+    if (currentState is TeamLoaded) {
+      emit(TeamLoaded(teams: currentState.teams, selectedTeamId: teamId));
+    }
+  }
+
+  /// Admin: assign a responsible servant to a team.
+  Future<void> assignServant({
+    required AuthUser actor,
+    required TeamModel team,
+    required ServantModel servant,
+  }) async {
+    await _runTeamMutation(
+      action: () => _adminTeamService.assignServantToTeam(
+        actor: actor,
+        team: team,
+        servant: servant,
+      ),
+      successMessage: 'تم تعيين الخادم بنجاح',
+      errorContext: 'Failed to assign servant',
+      errorMessage: 'تعذر تعيين الخادم. حاول مرة أخرى.',
+      reloadGroupId: team.groupId,
+    );
+  }
+
+  /// Admin: unassign the responsible servant from a team.
+  Future<void> unassignServant({
+    required AuthUser actor,
+    required TeamModel team,
+  }) async {
+    await _runTeamMutation(
+      action: () =>
+          _adminTeamService.unassignServantFromTeam(actor: actor, team: team),
+      successMessage: 'تم إلغاء تعيين الخادم بنجاح',
+      errorContext: 'Failed to unassign servant',
+      errorMessage: 'تعذر إلغاء تعيين الخادم. حاول مرة أخرى.',
+      reloadGroupId: team.groupId,
+    );
+  }
+
+  /// Admin: set the members of a team (students).
+  Future<void> setTeamMembers({
+    required AuthUser actor,
+    required TeamModel team,
+    required List<StudentModel> students,
+  }) async {
+    await _runTeamMutation(
+      action: () => _adminTeamService.setStudentsForTeam(
+        actor: actor,
+        team: team,
+        selectedStudents: students,
+      ),
+      successMessage: 'تم تحديث أعضاء الفريق بنجاح',
+      errorContext: 'Failed to set team members',
+      errorMessage: 'تعذر تحديث أعضاء الفريق. حاول مرة أخرى.',
+    );
+  }
+}

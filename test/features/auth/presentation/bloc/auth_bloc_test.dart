@@ -1,0 +1,223 @@
+import 'package:church_managment_system/core/constants/enums.dart';
+import 'package:church_managment_system/features/auth/data/models/auth_user.dart';
+import 'package:church_managment_system/features/auth/data/services/auth_service.dart';
+import 'package:church_managment_system/features/auth/domain/failures/auth_failures.dart';
+import 'package:church_managment_system/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+
+class MockAuthService extends Mock implements AuthService {}
+
+void main() {
+  late MockAuthService authService;
+
+  AuthUser testUser({bool isEmailVerified = true}) {
+    return AuthUser(
+      uid: 'u1',
+      email: 'user@example.com',
+      name: 'Test User',
+      role: UserRole.student,
+      isEmailVerified: isEmailVerified,
+    );
+  }
+
+  setUp(() {
+    authService = MockAuthService();
+  });
+
+  test('emits loading then authenticated on successful sign in', () async {
+    when(
+      () => authService.signIn(email: 'user@example.com', password: 'password'),
+    ).thenAnswer((_) async => testUser());
+
+    final bloc = AuthBloc(authService: authService);
+    final expectation = expectLater(
+      bloc.stream,
+      emitsInOrder([
+        isA<AuthLoading>(),
+        isA<AuthAuthenticated>().having((s) => s.user.uid, 'uid', 'u1'),
+      ]),
+    );
+
+    bloc.add(
+      const AuthEventSignIn(email: 'user@example.com', password: 'password'),
+    );
+    await expectation;
+    await bloc.close();
+  });
+
+  test(
+    'emits loading then needs verification when email is not verified',
+    () async {
+      when(
+        () => authService.signIn(email: 'user@example.com', password: 'pw'),
+      ).thenThrow(const EmailNotVerifiedFailure());
+
+      final bloc = AuthBloc(authService: authService);
+      final expectation = expectLater(
+        bloc.stream,
+        emitsInOrder([isA<AuthLoading>(), isA<AuthNeedsVerification>()]),
+      );
+
+      bloc.add(
+        const AuthEventSignIn(email: 'user@example.com', password: 'pw'),
+      );
+      await expectation;
+      await bloc.close();
+    },
+  );
+
+  test('emits unauthenticated when check status has no user', () async {
+    when(
+      () => authService.authStateChanges,
+    ).thenAnswer((_) => Stream.value(null));
+    when(() => authService.currentUser).thenReturn(null);
+
+    final bloc = AuthBloc(authService: authService);
+    final expectation = expectLater(
+      bloc.stream,
+      emitsInOrder([isA<AuthLoading>(), isA<AuthUnauthenticated>()]),
+    );
+
+    bloc.add(const AuthEventCheckStatus());
+    await expectation;
+
+    verifyNever(
+      () => authService.getCurrentAppUser(
+        forceRefresh: any(named: 'forceRefresh'),
+      ),
+    );
+    await bloc.close();
+  });
+
+  test('emits authenticated when check status finds verified user', () async {
+    final currentUser = testUser(isEmailVerified: true);
+    final fullUser = testUser(isEmailVerified: true);
+
+    when(
+      () => authService.authStateChanges,
+    ).thenAnswer((_) => Stream.value(currentUser));
+    when(() => authService.reloadUser()).thenAnswer((_) async {});
+    when(() => authService.currentUser).thenReturn(currentUser);
+    when(
+      () => authService.getCurrentAppUser(forceRefresh: true),
+    ).thenAnswer((_) async => fullUser);
+
+    final bloc = AuthBloc(authService: authService);
+    final expectation = expectLater(
+      bloc.stream,
+      emitsInOrder([
+        isA<AuthLoading>(),
+        isA<AuthAuthenticated>().having(
+          (s) => s.user.email,
+          'email',
+          'user@example.com',
+        ),
+      ]),
+    );
+
+    bloc.add(const AuthEventCheckStatus());
+    await expectation;
+    await bloc.close();
+  });
+
+  test(
+    'emits degraded when check status fails but cached user exists',
+    () async {
+      final adminUser = AuthUser(
+        uid: 'admin1',
+        email: 'admin@example.com',
+        name: 'Admin',
+        role: UserRole.admin,
+        isEmailVerified: true,
+      );
+
+      when(
+        () => authService.authStateChanges,
+      ).thenAnswer((_) => Stream.value(adminUser));
+      when(
+        () => authService.reloadUser(),
+      ).thenThrow(const GenericAuthFailure('reload failed'));
+      when(() => authService.currentUser).thenReturn(adminUser);
+      when(() => authService.lastKnownAppUser).thenReturn(adminUser);
+
+      final bloc = AuthBloc(authService: authService);
+      final expectation = expectLater(
+        bloc.stream,
+        emitsInOrder([
+          isA<AuthLoading>(),
+          isA<AuthDegraded>().having(
+            (s) => s.user.role,
+            'role',
+            UserRole.admin,
+          ),
+        ]),
+      );
+
+      bloc.add(const AuthEventCheckStatus());
+      await expectation;
+      await bloc.close();
+    },
+  );
+
+  test(
+    'emits degraded on refresh failure when cached user matches session',
+    () async {
+      final adminUser = AuthUser(
+        uid: 'admin1',
+        email: 'admin@example.com',
+        name: 'Admin',
+        role: UserRole.admin,
+        isEmailVerified: true,
+      );
+
+      when(
+        () => authService.refreshCurrentAppUser(),
+      ).thenThrow(const GenericAuthFailure('refresh failed'));
+      when(() => authService.currentUser).thenReturn(adminUser);
+      when(() => authService.lastKnownAppUser).thenReturn(adminUser);
+
+      final bloc = AuthBloc(authService: authService);
+      final expectation = expectLater(
+        bloc.stream,
+        emitsInOrder([
+          isA<AuthDegraded>().having((s) => s.user.uid, 'uid', 'admin1'),
+        ]),
+      );
+
+      bloc.add(const AuthEventRefreshUser());
+      await expectation;
+      await bloc.close();
+    },
+  );
+
+  test('emits authenticated on refresh when service returns user', () async {
+    final refreshedUser = AuthUser(
+      uid: 'u2',
+      email: 'refreshed@example.com',
+      name: 'Refreshed',
+      role: UserRole.servant,
+      isEmailVerified: true,
+    );
+
+    when(
+      () => authService.refreshCurrentAppUser(),
+    ).thenAnswer((_) async => refreshedUser);
+
+    final bloc = AuthBloc(authService: authService);
+    final expectation = expectLater(
+      bloc.stream,
+      emitsInOrder([
+        isA<AuthAuthenticated>().having(
+          (s) => s.user.email,
+          'email',
+          'refreshed@example.com',
+        ),
+      ]),
+    );
+
+    bloc.add(const AuthEventRefreshUser());
+    await expectation;
+    await bloc.close();
+  });
+}
