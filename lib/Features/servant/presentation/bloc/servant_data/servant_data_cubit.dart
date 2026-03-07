@@ -110,13 +110,15 @@ class ServantDataCubit extends Cubit<ServantDataState> {
   }) async {
     if (!_ensureAdmin(actor)) return;
     final previousLoaded = _loadedState;
+    AuthUser? createdAuthUser;
     emit(const ServantDataLoading());
     try {
-      final authUid = await _createServantAuthUserUid(
+      createdAuthUser = await _createServantAuthUser(
         servant: servant,
         email: email,
         password: password,
       );
+      final authUid = createdAuthUser?.uid;
 
       final servantWithUid = authUid != null
           ? servant.copyWith(uid: authUid, docID: authUid)
@@ -136,6 +138,30 @@ class ServantDataCubit extends Cubit<ServantDataState> {
       }
       emit(const ServantDataOperationSuccess('تم إنشاء الخادم بنجاح'));
     } catch (e) {
+      if (createdAuthUser != null &&
+          email != null &&
+          email.isNotEmpty &&
+          password != null &&
+          password.isNotEmpty) {
+        try {
+          await _authService.rollbackAdminCreatedUser(
+            uid: createdAuthUser.uid,
+            email: email,
+            password: password,
+          );
+        } catch (rollbackError) {
+          emit(
+            ServantDataError(
+              _mapFailure(
+                Exception(
+                  'Create servant failed and rollback was incomplete: $rollbackError',
+                ),
+              ),
+            ),
+          );
+          return;
+        }
+      }
       emit(ServantDataError(_mapFailure(e)));
     }
   }
@@ -244,7 +270,7 @@ class ServantDataCubit extends Cubit<ServantDataState> {
     _lastDocument = null;
   }
 
-  Future<String?> _createServantAuthUserUid({
+  Future<AuthUser?> _createServantAuthUser({
     required ServantModel servant,
     String? email,
     String? password,
@@ -255,13 +281,12 @@ class ServantDataCubit extends Cubit<ServantDataState> {
         password.isEmpty) {
       return null;
     }
-    final authUser = await _authService.createUserAsAdmin(
+    return _authService.createUserAsAdmin(
       email: email,
       password: password,
       name: servant.name,
       role: servant.role,
     );
-    return authUser.uid;
   }
 
   ServantFailure _mapFailure(Object error) {

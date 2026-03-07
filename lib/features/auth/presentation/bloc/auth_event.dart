@@ -19,7 +19,7 @@ class AuthEventSignUp extends AuthEvent {
   final String email;
   final String password;
   final String name;
-  final String role;
+  final UserRole role;
   final String? grade;
 
   const AuthEventSignUp({

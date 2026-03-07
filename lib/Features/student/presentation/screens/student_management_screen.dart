@@ -182,6 +182,13 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
               if (state is StudentDataError) {
                 AppSnackbars.showError(context, state.message);
               }
+              if (state is StudentDataLoaded && state.successMessage != null) {
+                AppSnackbars.showSuccess(
+                  context,
+                  state.successMessage!,
+                  backgroundColor: AppColors.secondary,
+                );
+              }
               if (state is StudentDataOperationSuccess) {
                 AppSnackbars.showSuccess(
                   context,

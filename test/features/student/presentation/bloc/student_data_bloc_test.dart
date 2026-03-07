@@ -235,4 +235,76 @@ void main() {
     );
     await bloc.close();
   });
+
+  test('create rolls back linked auth user when student write fails', () async {
+    final admin = actor(UserRole.admin);
+    final newStudent = student(id: 'local-id');
+    final linkedAuthUser = AuthUser(
+      uid: 'auth-uid',
+      email: 'student@example.com',
+      name: newStudent.name,
+      role: UserRole.student,
+      isEmailVerified: false,
+    );
+
+    when(() => canMutateStudent(admin, newStudent)).thenReturn(true);
+    when(
+      () => authService.createUserAsAdmin(
+        email: 'student@example.com',
+        password: 'secret123',
+        name: newStudent.name,
+        role: UserRole.student,
+      ),
+    ).thenAnswer((_) async => linkedAuthUser);
+    when(
+      () => repository.createStudent(
+        newStudent.copyWith(uid: 'auth-uid', docID: 'auth-uid'),
+      ),
+    ).thenThrow(Exception('write failed'));
+    when(
+      () => authService.rollbackAdminCreatedUser(
+        uid: 'auth-uid',
+        email: 'student@example.com',
+        password: 'secret123',
+      ),
+    ).thenAnswer((_) async {});
+
+    final bloc = StudentDataBloc(
+      studentRepository: repository,
+      getStudentsStream: getStudentsStream,
+      canMutateStudent: canMutateStudent,
+      authService: authService,
+    );
+
+    final expectation = expectLater(
+      bloc.stream,
+      emitsInOrder([
+        isA<StudentDataError>().having(
+          (s) => s.message,
+          'message',
+          'تعذر إنشاء المخدوم. حاول مرة أخرى.',
+        ),
+      ]),
+    );
+
+    bloc.add(
+      StudentCreated(
+        actor: admin,
+        student: newStudent,
+        email: 'student@example.com',
+        password: 'secret123',
+      ),
+    );
+
+    await expectation;
+    verify(() => repository.createStudent(any())).called(1);
+    verify(
+      () => authService.rollbackAdminCreatedUser(
+        uid: 'auth-uid',
+        email: 'student@example.com',
+        password: 'secret123',
+      ),
+    ).called(1);
+    await bloc.close();
+  });
 }

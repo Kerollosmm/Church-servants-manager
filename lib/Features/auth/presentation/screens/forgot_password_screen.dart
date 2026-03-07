@@ -1,7 +1,9 @@
-import 'package:csms/Features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:csms/Features/auth/presentation/widgets/auth_header.dart';
-import 'package:csms/Features/auth/presentation/widgets/auth_submit_button.dart';
-import 'package:csms/Features/auth/presentation/widgets/auth_text_field.dart';
+import 'package:church_managment_system/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:church_managment_system/features/auth/presentation/widgets/auth_header.dart';
+import 'package:church_managment_system/features/auth/presentation/widgets/auth_submit_button.dart';
+import 'package:church_managment_system/features/auth/presentation/widgets/auth_text_field.dart';
+import 'package:church_managment_system/core/widgets/feedback/app_snackbars.dart';
+import 'package:church_managment_system/core/widgets/dialogs/error_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -35,7 +37,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -47,21 +48,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       body: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {
           if (state is AuthPasswordResetSent) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Password reset email sent! Check your inbox.'),
-                backgroundColor: Colors.green,
-              ),
+            AppSnackbars.showSuccess(
+              context,
+              'تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك.',
             );
             Navigator.pop(context);
           }
           if (state is AuthError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: Colors.red,
-              ),
-            );
+            showErrorDialog(context, state.message);
           }
         },
         child: SafeArea(
@@ -82,24 +76,24 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         const AuthHeader(
-                          title: 'Reset Password',
+                          title: 'إعادة تعيين كلمة المرور',
                           subtitle:
-                              'Enter your email and we\'ll send you a link to reset your password',
+                              'أدخل بريدك الإلكتروني وسنرسل لك رابط إعادة التعيين',
                         ),
                         const SizedBox(height: 32),
 
                         // Email
                         AuthTextField(
                           controller: _emailController,
-                          label: 'Email',
+                          label: 'البريد الإلكتروني',
                           prefixIcon: Icons.email_outlined,
                           keyboardType: TextInputType.emailAddress,
                           validator: (value) {
                             if (value == null || value.isEmpty) {
-                              return 'Email is required';
+                              return 'البريد الإلكتروني مطلوب';
                             }
                             if (!value.contains('@')) {
-                              return 'Enter a valid email';
+                              return 'أدخل بريدا إلكترونيا صحيحا';
                             }
                             return null;
                           },
@@ -108,7 +102,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
                         // Submit
                         AuthSubmitButton(
-                          text: 'Send Reset Link',
+                          text: 'إرسال رابط إعادة التعيين',
                           onPressed: _submit,
                         ),
                       ],

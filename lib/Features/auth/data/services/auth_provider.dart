@@ -1,11 +1,8 @@
-import 'package:csms/core/constants/enums.dart';
-import 'package:csms/core/models/auth_user.dart';
+import 'package:church_managment_system/core/constants/enums.dart';
+import 'package:church_managment_system/features/auth/data/models/auth_user.dart';
 
 /// Abstract auth provider interface following clean architecture
 abstract class AuthProvider {
-  /// Initialize the authentication provider
-  Future<void> initialize();
-
   /// Get the current authenticated user
   AuthUser? get currentUser;
 
@@ -38,4 +35,13 @@ abstract class AuthProvider {
 
   /// Reload current user data
   Future<void> reloadUser();
+
+  /// Create a new user account as admin without disrupting current session.
+  /// Uses a secondary FirebaseApp instance so the admin remains logged in.
+  Future<AuthUser> createUserAsAdmin({
+    required String email,
+    required String password,
+    required String name,
+    UserRole role = UserRole.student,
+  });
 }

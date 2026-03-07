@@ -112,6 +112,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     Emitter<StudentDataState> emit, {
     required List<StudentModel> students,
     String? query,
+    String? successMessage,
   }) {
     emit(
       StudentDataLoaded(
@@ -119,7 +120,20 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
         currentFilterGroupId: _lastFilterGroupId,
         currentFilterTeamId: _lastFilterTeamId,
         currentQuery: query,
+        successMessage: successMessage,
       ),
+    );
+  }
+
+  /// Emits the current loaded state with an attached success message.
+  /// Falls back to emitting [StudentDataOperationSuccess] if no data is loaded.
+  void _emitSuccessWithData(Emitter<StudentDataState> emit, String message) {
+    final students = _resolveVisibleStudents(_lastQuery);
+    _emitLoadedState(
+      emit,
+      students: students,
+      query: _lastQuery,
+      successMessage: message,
     );
   }
 
@@ -130,21 +144,32 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
         event.password!.isNotEmpty;
   }
 
-  Future<StudentModel> _createStudentWithLinkedAuth(
-    StudentCreated event,
-  ) async {
+  Future<AuthUser?> _createLinkedAuthUser(StudentCreated event) async {
     if (!_canCreateAuthAccount(event)) {
-      return event.student;
+      return null;
     }
 
-    final authUser = await _authService.createUserAsAdmin(
+    return _authService.createUserAsAdmin(
       email: event.email!,
       password: event.password!,
       name: event.student.name,
       role: event.student.role,
     );
+  }
 
-    return event.student.copyWith(uid: authUser.uid, docID: authUser.uid);
+  Future<void> _rollbackLinkedAuthUser(
+    StudentCreated event,
+    AuthUser authUser,
+  ) async {
+    if (!_canCreateAuthAccount(event)) {
+      return;
+    }
+
+    await _authService.rollbackAdminCreatedUser(
+      uid: authUser.uid,
+      email: event.email!,
+      password: event.password!,
+    );
   }
 
   Future<StudentModel?> _resolveExistingStudent(String docId) async {
@@ -240,17 +265,36 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     StudentCreated event,
     Emitter<StudentDataState> emit,
   ) async {
+    AuthUser? createdAuthUser;
     try {
       if (!_canMutateStudent(event.actor, event.student)) {
         _emitNotAllowed(emit);
         return;
       }
 
-      final studentToCreate = await _createStudentWithLinkedAuth(event);
+      createdAuthUser = await _createLinkedAuthUser(event);
+      final studentToCreate = createdAuthUser == null
+          ? event.student
+          : event.student.copyWith(
+              uid: createdAuthUser.uid,
+              docID: createdAuthUser.uid,
+            );
 
       await _studentRepository.createStudent(studentToCreate);
-      emit(const StudentDataOperationSuccess('تم إنشاء المخدوم بنجاح'));
+      _emitSuccessWithData(emit, 'تم إنشاء المخدوم بنجاح');
     } catch (e) {
+      if (createdAuthUser != null) {
+        try {
+          await _rollbackLinkedAuthUser(event, createdAuthUser);
+        } catch (rollbackError) {
+          _emitError(
+            emit,
+            'تعذر إنشاء المخدوم، كما فشلت إعادة التراجع عن الحساب المرتبط',
+            rollbackError,
+          );
+          return;
+        }
+      }
       _emitError(emit, 'تعذر إنشاء المخدوم', e);
     }
   }
@@ -299,7 +343,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
       } else {
         await _studentRepository.updateStudent(event.student);
       }
-      emit(const StudentDataOperationSuccess('تم تحديث بيانات المخدوم بنجاح'));
+      _emitSuccessWithData(emit, 'تم تحديث بيانات المخدوم بنجاح');
     } catch (e) {
       _emitError(emit, 'تعذر تحديث بيانات المخدوم', e);
     }
@@ -320,7 +364,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
         return;
       }
       await _studentRepository.deleteStudent(event.docId);
-      emit(const StudentDataOperationSuccess('تم حذف المخدوم بنجاح'));
+      _emitSuccessWithData(emit, 'تم حذف المخدوم بنجاح');
     } catch (e) {
       _emitError(emit, 'تعذر حذف المخدوم', e);
     }

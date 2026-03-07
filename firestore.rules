@@ -1,0 +1,100 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Helpers ───────────────────────────────────────────────────
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function callerUid() {
+      return request.auth.uid;
+    }
+
+    function callerUser() {
+      return get(/databases/$(database)/documents/Users/$(callerUid())).data;
+    }
+
+    function getUserRole() {
+      return callerUser().role;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && getUserRole() == 'admin';
+    }
+
+    function isServant() {
+      return isSignedIn() && getUserRole() == 'servant';
+    }
+
+    function servantCanReadStudent() {
+      let user = callerUser();
+      let studentGroup = resource.data.group;
+      let studentClassId = resource.data.classId;
+      let assignedTeamIds = user.assignedTeamIds;
+
+      return isServant() && (
+        (studentGroup != null && user.groupId != null && studentGroup == user.groupId) ||
+        (studentClassId != null && (
+          studentClassId == user.assignedTeamId ||
+          (assignedTeamIds != null && studentClassId in assignedTeamIds)
+        ))
+      );
+    }
+
+    // ─── Users ─────────────────────────────────────────────────────
+    match /Users/{userId} {
+      // Users can read their own doc; admins can read any user.
+      allow read: if isSignedIn() && (callerUid() == userId || isAdmin());
+
+      // Only admins can create new user docs (for admin-created accounts).
+      // Users can create their own doc on first sign-up.
+      allow create: if isSignedIn() && (callerUid() == userId || isAdmin());
+
+      // Users can update their own non-role fields.
+      // Admins can update any user doc (including role changes).
+      allow update: if isSignedIn() && (
+        isAdmin() ||
+        (callerUid() == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']))
+      );
+
+      // Only admins can delete user docs.
+      allow delete: if isAdmin();
+    }
+
+    // ─── Students ──────────────────────────────────────────────────
+    match /Students/{studentId} {
+      // Admins can read all students.
+      // Servants can read students that belong to their group or assigned team.
+      // Students can read their own profile.
+      allow read: if isSignedIn() && (
+        isAdmin() ||
+        servantCanReadStudent() ||
+        resource.data.uid == callerUid()
+      );
+
+      // Only admins and servants can create students.
+      allow create: if isSignedIn() && (isAdmin() || isServant());
+
+      // Admins and servants can update students.
+      // Servants cannot change a student's role — only admins.
+      allow update: if isSignedIn() && (
+        isAdmin() ||
+        (isServant() && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']))
+      );
+
+      // Only admins can delete students.
+      allow delete: if isAdmin();
+    }
+
+    // ─── Classes (Teams) ───────────────────────────────────────────
+    match /Classes/{classId} {
+      // Admins can read all classes.
+      // Servants can read classes (for team assignment UIs).
+      allow read: if isSignedIn() && (isAdmin() || isServant());
+
+      // Only admins can create, update, or delete classes/teams.
+      allow create, update, delete: if isAdmin();
+    }
+  }
+}

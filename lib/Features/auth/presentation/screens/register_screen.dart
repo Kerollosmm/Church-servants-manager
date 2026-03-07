@@ -1,11 +1,12 @@
-import 'package:csms/Features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:csms/Features/auth/presentation/widgets/auth_header.dart';
-import 'package:csms/Features/auth/presentation/widgets/auth_submit_button.dart';
-import 'package:csms/Features/auth/presentation/widgets/auth_text_field.dart';
-import 'package:csms/Features/auth/presentation/widgets/email_verification_dialog.dart';
-import 'package:csms/core/constants/enums.dart';
-import 'package:csms/core/routing/app_router.dart';
-import 'package:csms/core/utilities/dialog/error_dialog.dart';
+import 'package:church_managment_system/core/constants/enums.dart';
+import 'package:church_managment_system/core/utils/validators.dart';
+import 'package:church_managment_system/core/widgets/feedback/app_snackbars.dart';
+import 'package:church_managment_system/core/widgets/dialogs/error_dialog.dart';
+import 'package:church_managment_system/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:church_managment_system/features/auth/presentation/widgets/auth_header.dart';
+import 'package:church_managment_system/features/auth/presentation/widgets/auth_submit_button.dart';
+import 'package:church_managment_system/features/auth/presentation/widgets/auth_text_field.dart';
+import 'package:church_managment_system/features/auth/presentation/widgets/email_verification_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -23,7 +24,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
 
   bool _obscurePassword = true;
-  UserRole _selectedRole = UserRole.student;
 
   @override
   void dispose() {
@@ -41,7 +41,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
         name: _nameController.text.trim(),
-        role: _selectedRole.name,
+        role: UserRole.student,
       ),
     );
   }
@@ -51,7 +51,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
       body: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {
           if (state is AuthAuthenticated) {
@@ -61,11 +60,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
             showEmailVerificationDialog(context);
           }
           if (state is AuthVerificationSent) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Verification email sent! Check your inbox.'),
-                backgroundColor: Colors.green,
-              ),
+            AppSnackbars.showSuccess(
+              context,
+              'تم إرسال رسالة التحقق إلى بريدك الإلكتروني.',
             );
           }
           if (state is AuthError) {
@@ -90,47 +87,34 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         const AuthHeader(
-                          title: 'Create Account',
-                          subtitle: 'Sign up to get started',
+                          title: 'إنشاء حساب',
+                          subtitle: 'سجّل الآن للبدء',
                         ),
                         const SizedBox(height: 32),
 
                         // Name
                         AuthTextField(
                           controller: _nameController,
-                          label: 'Full Name',
+                          label: 'الاسم الكامل',
                           prefixIcon: Icons.person_outline,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Name is required';
-                            }
-                            return null;
-                          },
+                          validator: Validators.validateName,
                         ),
                         const SizedBox(height: 16),
 
                         // Email
                         AuthTextField(
                           controller: _emailController,
-                          label: 'Email',
+                          label: 'البريد الإلكتروني',
                           prefixIcon: Icons.email_outlined,
                           keyboardType: TextInputType.emailAddress,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Email is required';
-                            }
-                            if (!value.contains('@')) {
-                              return 'Enter a valid email';
-                            }
-                            return null;
-                          },
+                          validator: Validators.validateEmail,
                         ),
                         const SizedBox(height: 16),
 
                         // Password
                         AuthTextField(
                           controller: _passwordController,
-                          label: 'Password',
+                          label: 'كلمة المرور',
                           prefixIcon: Icons.lock_outline,
                           obscureText: _obscurePassword,
                           suffixIcon: IconButton(
@@ -145,48 +129,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               });
                             },
                           ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Password is required';
-                            }
-                            if (value.length < 6) {
-                              return 'Password must be at least 6 characters';
-                            }
-                            return null;
-                          },
+                          validator: Validators.validatePassword,
                         ),
                         const SizedBox(height: 16),
 
-                        // Role Dropdown
-                        DropdownButtonFormField<UserRole>(
-                          initialValue: _selectedRole,
-                          decoration: InputDecoration(
-                            labelText: 'Role',
-                            prefixIcon: const Icon(Icons.badge_outlined),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          items: const [
-                            DropdownMenuItem(
-                              value: UserRole.student,
-                              child: Text('Student'),
-                            ),
-                            DropdownMenuItem(
-                              value: UserRole.servant,
-                              child: Text('Servant'),
-                            ),
-                          ],
-                          onChanged: (role) {
-                            if (role != null) {
-                              setState(() => _selectedRole = role);
-                            }
-                          },
-                        ),
                         const SizedBox(height: 24),
 
                         // Submit
-                        AuthSubmitButton(text: 'Sign Up', onPressed: _submit),
+                        AuthSubmitButton(
+                          text: 'إنشاء حساب',
+                          onPressed: _submit,
+                        ),
                         const SizedBox(height: 24),
 
                         // Navigate to Login
@@ -194,17 +147,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              'Already have an account?',
+                              'لديك حساب بالفعل؟',
                               style: theme.textTheme.bodyMedium,
                             ),
                             TextButton(
                               onPressed: () {
-                                Navigator.pushReplacementNamed(
-                                  context,
-                                  AppRouter.login,
-                                );
+                                Navigator.pop(context);
                               },
-                              child: const Text('Login'),
+                              child: const Text('تسجيل الدخول'),
                             ),
                           ],
                         ),

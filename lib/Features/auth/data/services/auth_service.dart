@@ -1,22 +1,14 @@
-import 'package:csms/Features/auth/data/services/firebase_auth_provider.dart';
-import 'package:csms/Features/auth/data/services/auth_exceptions.dart';
-import 'package:csms/Features/auth/domain/failures/auth_failures.dart';
-import 'package:csms/core/constants/enums.dart';
-import 'package:csms/core/models/auth_user.dart';
+import 'package:church_managment_system/core/constants/enums.dart';
+import 'package:church_managment_system/features/auth/data/models/auth_user.dart';
+import 'package:church_managment_system/features/auth/data/utils/auth_error_mapper.dart';
+import 'package:church_managment_system/features/auth/data/services/firebase_auth_provider.dart';
+import 'package:church_managment_system/features/auth/domain/repos/auth_repository.dart';
 
-/// AuthService provides a facade over authentication providers.
-/// This follows the service pattern from the reference Notely app.
-class AuthService {
+class AuthService implements AuthRepository {
   final FirebaseAuthProvider _provider;
+  AuthUser? _lastKnownAppUser;
 
-  AuthService._internal(this._provider);
-
-  static final AuthService _instance = AuthService._internal(
-    FirebaseAuthProvider(),
-  );
-
-  /// Factory constructor to get Firebase auth service
-  factory AuthService.firebase() => _instance;
+  AuthService({required FirebaseAuthProvider provider}) : _provider = provider;
 
   /// Get the current Firebase user (basic info)
   AuthUser? get currentUser => _provider.currentUser;
@@ -24,42 +16,41 @@ class AuthService {
   /// Get stream of auth state changes
   Stream<AuthUser?> get authStateChanges => _provider.authStateChanges;
 
-  /// Get current user with full app data from Firestore
-  Future<AuthUser?> getCurrentAppUser() async {
-    final firebaseUser = _provider.currentUser;
-    if (firebaseUser == null) return null;
+  @override
+  Future<AuthUser?> getCurrentUser() async => getCurrentAppUser();
 
-    try {
-      return await _provider.getUserData(firebaseUser.uid);
-    } catch (_) {
-      return firebaseUser;
+  /// Get current user with full app data from Firestore
+  Future<AuthUser?> getCurrentAppUser({bool forceRefresh = false}) async {
+    final firebaseUser = _provider.currentUser;
+    if (firebaseUser == null) {
+      _lastKnownAppUser = null;
+      return null;
     }
+
+    final appUser = await _provider.getUserData(
+      firebaseUser.uid,
+      forceRefresh: forceRefresh,
+    );
+    _lastKnownAppUser = appUser;
+    return appUser;
   }
 
-  /// Login with email and password
-  Future<AuthUser> login({
+  AuthUser? get lastKnownAppUser => _lastKnownAppUser;
+
+  @override
+  Future<AuthUser> signIn({
     required String email,
     required String password,
   }) async {
     try {
       return await _provider.logIn(email: email, password: password);
-    } on EmailNotVerifiedAuthException {
-      throw const EmailNotVerifiedFailure();
-    } on UserNotFoundAuthException {
-      throw const UserNotFoundFailure();
-    } on WrongPasswordAuthException {
-      throw const WrongPasswordFailure();
-    } on InvalidEmailAuthException {
-      throw const InvalidEmailFailure();
-    } on GenericAuthException catch (e) {
-      throw GenericAuthFailure(e.message ?? 'Authentication failed');
-    } catch (_) {
-      throw const GenericAuthFailure('An unexpected error occurred');
+    } catch (e) {
+      throw AuthErrorMapper.mapException(e);
     }
   }
 
-  /// Register a new user
-  Future<AuthUser> register({
+  @override
+  Future<AuthUser> signUp({
     required String email,
     required String password,
     required String name,
@@ -74,27 +65,18 @@ class AuthService {
         role: role,
         grade: grade,
       );
-    } on WeakPasswordAuthException {
-      throw const WeakPasswordFailure();
-    } on EmailAlreadyInUseAuthException {
-      throw const EmailAlreadyInUseFailure();
-    } on InvalidEmailAuthException {
-      throw const InvalidEmailFailure();
-    } on GenericAuthException catch (e) {
-      throw GenericAuthFailure(e.message ?? 'Registration failed');
-    } catch (_) {
-      throw const GenericAuthFailure('An unexpected error occurred');
+    } catch (e) {
+      throw AuthErrorMapper.mapException(e);
     }
   }
 
-  /// Logout the current user
-  Future<void> logout() async {
+  @override
+  Future<void> signOut() async {
     try {
       await _provider.logOut();
-    } on UserNotLoggedInAuthException {
-      throw const UserNotLoggedInFailure();
-    } catch (_) {
-      throw const GenericAuthFailure('Logout failed');
+      _lastKnownAppUser = null;
+    } catch (e) {
+      throw AuthErrorMapper.mapException(e);
     }
   }
 
@@ -102,10 +84,8 @@ class AuthService {
   Future<void> sendEmailVerification() async {
     try {
       await _provider.sendEmailVerification();
-    } on UserNotLoggedInAuthException {
-      throw const UserNotLoggedInFailure();
-    } catch (_) {
-      throw const GenericAuthFailure('Failed to send verification email');
+    } catch (e) {
+      throw AuthErrorMapper.mapException(e);
     }
   }
 
@@ -113,14 +93,8 @@ class AuthService {
   Future<void> sendPasswordResetEmail(String email) async {
     try {
       await _provider.sendPasswordReset(toEmail: email);
-    } on InvalidEmailAuthException {
-      throw const InvalidEmailFailure();
-    } on UserNotFoundAuthException {
-      throw const UserNotFoundFailure();
-    } on PasswordResetAuthException catch (e) {
-      throw PasswordResetFailure(e.message ?? 'Password reset failed');
-    } catch (_) {
-      throw const GenericAuthFailure('Failed to send password reset email');
+    } catch (e) {
+      throw AuthErrorMapper.mapException(e);
     }
   }
 
@@ -129,4 +103,45 @@ class AuthService {
 
   /// Reload user data
   Future<void> reloadUser() => _provider.reloadUser();
+
+  /// Reload Firebase auth user and fetch a fresh app profile snapshot.
+  Future<AuthUser?> refreshCurrentAppUser() async {
+    await reloadUser();
+    return getCurrentAppUser(forceRefresh: true);
+  }
+
+  /// Create a new user account as admin without disrupting current session.
+  Future<AuthUser> createUserAsAdmin({
+    required String email,
+    required String password,
+    required String name,
+    UserRole role = UserRole.student,
+  }) async {
+    try {
+      return await _provider.createUserAsAdmin(
+        email: email,
+        password: password,
+        name: name,
+        role: role,
+      );
+    } catch (e) {
+      throw AuthErrorMapper.mapException(e);
+    }
+  }
+
+  Future<void> rollbackAdminCreatedUser({
+    required String uid,
+    required String email,
+    required String password,
+  }) async {
+    try {
+      await _provider.rollbackAdminCreatedUser(
+        uid: uid,
+        email: email,
+        password: password,
+      );
+    } catch (e) {
+      throw AuthErrorMapper.mapException(e);
+    }
+  }
 }

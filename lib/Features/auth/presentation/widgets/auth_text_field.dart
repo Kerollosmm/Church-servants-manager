@@ -1,3 +1,4 @@
+import 'package:church_managment_system/core/theme/app_spacing.dart';
 import 'package:flutter/material.dart';
 
 /// Reusable styled text field for auth forms
@@ -31,7 +32,7 @@ class AuthTextField extends StatelessWidget {
         labelText: label,
         prefixIcon: Icon(prefixIcon),
         suffixIcon: suffixIcon,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        border: OutlineInputBorder(borderRadius: AppRadius.mdRadius),
       ),
       validator: validator,
     );

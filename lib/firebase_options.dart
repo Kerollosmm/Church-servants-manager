@@ -58,7 +58,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyDrEulD0bfBXgxYJC15zHZ57ZFUp_NwXpI',
-    appId: '1:527209708828:android:ed3ed10b7a5aeb6d0b8ed9',
+    appId: '1:527209708828:android:1b6042dc1c85c7ac0b8ed9',
     messagingSenderId: '527209708828',
     projectId: 'church-6eb05',
     storageBucket: 'church-6eb05.firebasestorage.app',
@@ -66,10 +66,10 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyATQjY08dRXUr3jUrJOOvBfqqrQVdA1bs0',
-    appId: '1:527209708828:ios:7cd18dca976d42300b8ed9',
+    appId: '1:527209708828:ios:e40c4403dfa21bb30b8ed9',
     messagingSenderId: '527209708828',
     projectId: 'church-6eb05',
     storageBucket: 'church-6eb05.firebasestorage.app',
-    iosBundleId: 'com.csms.csms',
+    iosBundleId: 'com.example.churchManagmentSystem',
   );
 }

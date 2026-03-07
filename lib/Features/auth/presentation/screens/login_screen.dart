@@ -1,9 +1,15 @@
-import 'package:csms/Features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:csms/Features/auth/presentation/widgets/auth_header.dart';
-import 'package:csms/Features/auth/presentation/widgets/auth_submit_button.dart';
-import 'package:csms/Features/auth/presentation/widgets/auth_text_field.dart';
-import 'package:csms/Features/auth/presentation/widgets/email_verification_dialog.dart';
-import 'package:csms/core/routing/app_router.dart';
+import 'package:church_managment_system/core/constants/routes.dart';
+import 'package:church_managment_system/core/theme/app_colors.dart';
+import 'package:church_managment_system/core/theme/app_spacing.dart';
+import 'package:church_managment_system/core/widgets/app_logo.dart';
+import 'package:church_managment_system/core/widgets/feedback/app_snackbars.dart';
+import 'package:church_managment_system/core/widgets/gradient_border_container.dart';
+
+import 'package:church_managment_system/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:church_managment_system/features/auth/presentation/widgets/auth_submit_button.dart';
+import 'package:church_managment_system/features/auth/presentation/widgets/auth_text_field.dart';
+import 'package:church_managment_system/features/auth/presentation/widgets/email_verification_dialog.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -40,149 +46,170 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor: AppColors.background,
       body: BlocListener<AuthBloc, AuthState>(
+        listenWhen: (previous, current) =>
+            current is AuthError ||
+            current is AuthNeedsVerification ||
+            current is AuthVerificationSent,
         listener: (context, state) {
-          if (state is AuthAuthenticated) {
-            // Pop all routes and go back to AppRoot which will show the correct screen
-            Navigator.of(context).popUntil((route) => route.isFirst);
+          if (state is AuthError) {
+            // Clear password for security — never keep a wrong password in the field.
+            _passwordController.clear();
+            AppSnackbars.showError(
+              context,
+              state.message,
+              duration: const Duration(seconds: 4),
+            );
           }
           if (state is AuthNeedsVerification) {
             showEmailVerificationDialog(context);
           }
           if (state is AuthVerificationSent) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Verification email sent! Check your inbox.'),
-                backgroundColor: Colors.green,
-              ),
-            );
-          }
-          if (state is AuthError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: Colors.red,
-              ),
+            AppSnackbars.showSuccess(
+              context,
+              'تم إرسال رسالة التحقق. راجع بريدك الإلكتروني.',
             );
           }
         },
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Card(
-                elevation: 8,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const AuthHeader(
-                          title: 'Welcome Back',
-                          subtitle: 'Sign in to continue',
-                        ),
-                        const SizedBox(height: 32),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.screenHorizontal,
+              ),
+              child: Column(
+                children: [
+                  // Logo
+                  const AppLogo(size: 150),
+                  AppSpacing.gapMd,
 
-                        // Email
-                        AuthTextField(
-                          controller: _emailController,
-                          label: 'Email',
-                          prefixIcon: Icons.email_outlined,
-                          keyboardType: TextInputType.emailAddress,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Email is required';
-                            }
-                            if (!value.contains('@')) {
-                              return 'Enter a valid email';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Password
-                        AuthTextField(
-                          controller: _passwordController,
-                          label: 'Password',
-                          prefixIcon: Icons.lock_outline,
-                          obscureText: _obscurePassword,
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscurePassword
-                                  ? Icons.visibility_off
-                                  : Icons.visibility,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                _obscurePassword = !_obscurePassword;
-                              });
-                            },
-                          ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Password is required';
-                            }
-                            if (value.length < 6) {
-                              return 'Password must be at least 6 characters';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 8),
-
-                        // Forgot Password
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton(
-                            onPressed: () {
-                              Navigator.pushNamed(
-                                context,
-                                AppRouter.forgotPassword,
-                              );
-                            },
-                            child: const Text('Forgot Password?'),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Submit
-                        AuthSubmitButton(text: 'Login', onPressed: _submit),
-                        const SizedBox(height: 24),
-
-                        // Navigate to Register
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              "Don't have an account?",
-                              style: theme.textTheme.bodyMedium,
-                            ),
-                            TextButton(
-                              onPressed: () {
-                                Navigator.pushReplacementNamed(
-                                  context,
-                                  AppRouter.register,
-                                );
-                              },
-                              child: const Text('Sign Up'),
-                            ),
-                          ],
-                        ),
-                      ],
+                  // App Title
+                  Text(
+                    'CSMS',
+                    style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                      color: AppColors.tertiary,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                ),
+                  AppSpacing.gapXl,
+
+                  // Form inside gradient container
+                  GradientBorderContainer(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            'مرحبا بعودتك',
+                            style: Theme.of(context).textTheme.headlineMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.tertiary,
+                                ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'سجّل الدخول للمتابعة',
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: AppColors.textSecondary),
+                            textAlign: TextAlign.center,
+                          ),
+                          AppSpacing.gapXl,
+
+                          // Email
+                          AuthTextField(
+                            controller: _emailController,
+                            label: 'البريد الإلكتروني',
+                            prefixIcon: Icons.email_outlined,
+                            keyboardType: TextInputType.emailAddress,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'البريد الإلكتروني مطلوب';
+                              }
+                              if (!value.contains('@')) {
+                                return 'أدخل بريدا إلكترونيا صحيحا';
+                              }
+                              return null;
+                            },
+                          ),
+                          AppSpacing.gapMd,
+
+                          // Password
+                          AuthTextField(
+                            controller: _passwordController,
+                            label: 'كلمة المرور',
+                            prefixIcon: Icons.lock_outline,
+                            obscureText: _obscurePassword,
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscurePassword
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _obscurePassword = !_obscurePassword;
+                                });
+                              },
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'كلمة المرور مطلوبة';
+                              }
+                              if (value.length < 6) {
+                                return 'يجب أن تكون كلمة المرور 6 أحرف على الأقل';
+                              }
+                              return null;
+                            },
+                          ),
+                          AppSpacing.gapSm,
+
+                          // Forgot Password
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: () {
+                                Navigator.pushNamed(context, forgotPassword);
+                              },
+                              child: const Text('هل نسيت كلمة المرور؟'),
+                            ),
+                          ),
+                          AppSpacing.gapMd,
+
+                          // Submit
+                          AuthSubmitButton(
+                            text: 'تسجيل الدخول',
+                            onPressed: _submit,
+                          ),
+                          AppSpacing.gapLg,
+
+                          // Navigate to Register
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                'ليس لديك حساب؟',
+                                style: Theme.of(context).textTheme.bodyMedium,
+                              ),
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.pushNamed(context, register);
+                                },
+                                child: const Text('إنشاء حساب'),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

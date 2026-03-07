@@ -11,7 +11,7 @@ plugins {
 android {
     namespace = "com.csms.csms"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = "27.0.12077973" // Changed from flutter.ndkVersion to local version to bypass network download failure
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11

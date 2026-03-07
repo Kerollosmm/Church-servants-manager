@@ -26,6 +26,10 @@ void main() {
   ServantModel servant(String id, String name) =>
       ServantModel(docID: id, uid: id, name: name, role: UserRole.servant);
 
+  setUpAll(() {
+    registerFallbackValue(servant('fallback', 'Fallback'));
+  });
+
   setUp(() {
     repository = MockServantDataRepository();
     authService = MockAuthService();
@@ -96,4 +100,72 @@ void main() {
       await cubit.close();
     },
   );
+
+  test('create rolls back linked auth user when servant write fails', () async {
+    final admin = actor(UserRole.admin);
+    final newServant = servant('draft-id', 'Andrew');
+    final linkedAuthUser = AuthUser(
+      uid: 'auth-uid',
+      email: 'servant@example.com',
+      name: newServant.name,
+      role: UserRole.servant,
+      isEmailVerified: false,
+    );
+
+    when(
+      () => authService.createUserAsAdmin(
+        email: 'servant@example.com',
+        password: 'secret123',
+        name: newServant.name,
+        role: UserRole.servant,
+      ),
+    ).thenAnswer((_) async => linkedAuthUser);
+    when(
+      () => repository.createServant(
+        newServant.copyWith(uid: 'auth-uid', docID: 'auth-uid'),
+      ),
+    ).thenThrow(Exception('write failed'));
+    when(
+      () => authService.rollbackAdminCreatedUser(
+        uid: 'auth-uid',
+        email: 'servant@example.com',
+        password: 'secret123',
+      ),
+    ).thenAnswer((_) async {});
+
+    final cubit = ServantDataCubit(
+      repository: repository,
+      authService: authService,
+    );
+
+    final expectation = expectLater(
+      cubit.stream,
+      emitsInOrder([
+        isA<ServantDataLoading>(),
+        isA<ServantDataError>().having(
+          (s) => s.message,
+          'message',
+          'Exception: write failed',
+        ),
+      ]),
+    );
+
+    await cubit.createServant(
+      actor: admin,
+      servant: newServant,
+      email: 'servant@example.com',
+      password: 'secret123',
+    );
+
+    await expectation;
+    verify(() => repository.createServant(any())).called(1);
+    verify(
+      () => authService.rollbackAdminCreatedUser(
+        uid: 'auth-uid',
+        email: 'servant@example.com',
+        password: 'secret123',
+      ),
+    ).called(1);
+    await cubit.close();
+  });
 }

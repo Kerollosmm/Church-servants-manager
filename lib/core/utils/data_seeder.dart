@@ -229,26 +229,35 @@ class DataSeeder {
     return Map<Group, List<TeamModel>>.fromEntries(entries);
   }
 
-  /// Deletes ALL documents from the Students collection.
+  /// Deletes ALL documents from the Students collection in paginated batches.
   Future<void> clearStudents() async {
-    final snapshot = await _students.get();
-    final batch = _firestore.batch();
-    for (final doc in snapshot.docs) {
-      batch.delete(doc.reference);
-    }
-    await batch.commit();
-    _log('DataSeeder: Cleared ${snapshot.docs.length} students.');
+    await _clearCollection(_students, 'students');
   }
 
-  /// Deletes ALL documents from the Classes (Teams) collection.
+  /// Deletes ALL documents from the Classes (Teams) collection in paginated batches.
   Future<void> clearTeams() async {
-    final snapshot = await _classes.get();
-    final batch = _firestore.batch();
-    for (final doc in snapshot.docs) {
-      batch.delete(doc.reference);
-    }
-    await batch.commit();
-    _log('DataSeeder: Cleared ${snapshot.docs.length} teams.');
+    await _clearCollection(_classes, 'teams');
+  }
+
+  /// Deletes all documents in [collection] using paginated batches of 400.
+  Future<void> _clearCollection(
+    CollectionReference<Map<String, dynamic>> collection,
+    String label,
+  ) async {
+    int totalDeleted = 0;
+    const batchSize = 400;
+    QuerySnapshot<Map<String, dynamic>> snapshot;
+    do {
+      snapshot = await collection.limit(batchSize).get();
+      if (snapshot.docs.isEmpty) break;
+      final batch = _firestore.batch();
+      for (final doc in snapshot.docs) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+      totalDeleted += snapshot.docs.length;
+    } while (snapshot.docs.length == batchSize);
+    _log('DataSeeder: Cleared $totalDeleted $label.');
   }
 
   /// Clears all seeded data and reseeds from scratch.
@@ -260,8 +269,10 @@ class DataSeeder {
     _log('DataSeeder: Clear & Reseed complete.');
   }
 
-  /// Sets current user role to admin.
+  /// Sets current user role to admin. Debug-only.
   Future<void> assignMeAsAdmin() async {
+    assert(kDebugMode, 'assignMeAsAdmin must not be called in release builds');
+    if (!kDebugMode) return;
     final uid = _currentUid();
     await _users.doc(uid).set({
       'uid': uid,
@@ -270,8 +281,13 @@ class DataSeeder {
     _log('DataSeeder: Set current user as admin.');
   }
 
-  /// Sets current user role to teacher (servant) and assigns a groupId: year1/year2/year3.
+  /// Sets current user role to teacher (servant) and assigns a groupId. Debug-only.
   Future<void> assignMeAsTeacher({required Group group}) async {
+    assert(
+      kDebugMode,
+      'assignMeAsTeacher must not be called in release builds',
+    );
+    if (!kDebugMode) return;
     // Assign to a random team in that group
     final teamsSnapshot = await _classes
         .where('groupId', isEqualTo: group.name)
@@ -300,8 +316,13 @@ class DataSeeder {
     );
   }
 
-  /// Sets current user role to student and creates/updates a StudentModel profile for them.
+  /// Sets current user role to student and creates/updates a StudentModel profile. Debug-only.
   Future<void> assignMeAsStudentAndCreateProfile() async {
+    assert(
+      kDebugMode,
+      'assignMeAsStudentAndCreateProfile must not be called in release builds',
+    );
+    if (!kDebugMode) return;
     final user = _auth.currentUser;
     if (user == null) throw StateError('Not signed in.');
 
