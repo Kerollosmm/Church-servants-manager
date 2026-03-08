@@ -1,19 +1,20 @@
-import 'package:church_managment_system/core/di/injection.dart';
-import 'package:church_managment_system/role_user_route.dart';
-import 'package:church_managment_system/core/routing/app_router.dart';
-import 'package:church_managment_system/core/theme/app_theme.dart';
-import 'package:church_managment_system/features/auth/data/services/auth_service.dart';
-import 'package:church_managment_system/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:church_managment_system/features/servant/data/repo/servant_data_repository.dart';
-import 'package:church_managment_system/features/servant/presentation/bloc/servant_data/servant_data_cubit.dart';
-import 'package:church_managment_system/features/student/data/repos/student_data_repository.dart';
-import 'package:church_managment_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
-import 'package:church_managment_system/features/student/domain/usecases/get_students_stream_usecase.dart';
-import 'package:church_managment_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
-import 'package:church_managment_system/features/student/presentation/bloc/student_profile/student_profile_cubit.dart';
-import 'package:church_managment_system/features/team/data/repos/team_repository.dart';
-import 'package:church_managment_system/features/team/presentation/bloc/team_cubit.dart';
-import 'package:church_managment_system/features/admin/data/admin_team_service.dart';
+import 'package:church_management_system/core/di/injection.dart';
+import 'package:church_management_system/role_user_route.dart';
+import 'package:church_management_system/core/routing/app_router.dart';
+import 'package:church_management_system/core/theme/app_theme.dart';
+import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
+import 'package:church_management_system/features/auth/data/services/auth_service.dart';
+import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:church_management_system/features/admin/data/admin_team_service.dart';
+import 'package:church_management_system/features/servant/data/repo/servant_data_repository.dart';
+import 'package:church_management_system/features/servant/presentation/bloc/servant_data/servant_data_cubit.dart';
+import 'package:church_management_system/features/student/data/repos/student_data_repository.dart';
+import 'package:church_management_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
+import 'package:church_management_system/features/student/domain/usecases/get_students_stream_usecase.dart';
+import 'package:church_management_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
+import 'package:church_management_system/features/student/presentation/bloc/student_profile/student_profile_cubit.dart';
+import 'package:church_management_system/features/team/data/repos/team_repository.dart';
+import 'package:church_management_system/features/team/presentation/bloc/team_cubit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -36,37 +37,49 @@ class ChurchApp extends StatelessWidget {
         RepositoryProvider<AdminTeamService>.value(
           value: getIt<AdminTeamService>(),
         ),
+        RepositoryProvider<AuthService>.value(value: getIt<AuthService>()),
+        RepositoryProvider<AdminUserProvisioningService>.value(
+          value: getIt<AdminUserProvisioningService>(),
+        ),
+        RepositoryProvider<GetStudentsStreamUseCase>.value(
+          value: getIt<GetStudentsStreamUseCase>(),
+        ),
+        RepositoryProvider<CanMutateStudentUseCase>.value(
+          value: getIt<CanMutateStudentUseCase>(),
+        ),
       ],
       child: MultiBlocProvider(
         providers: [
           BlocProvider(
-            create: (_) =>
-                AuthBloc(authService: getIt<AuthService>())
+            create: (context) =>
+                AuthBloc(authService: context.read<AuthService>())
                   ..add(const AuthEventCheckStatus()),
           ),
           BlocProvider(
-            create: (_) => StudentDataBloc(
-              studentRepository: getIt<StudentDataRepository>(),
-              getStudentsStream: getIt<GetStudentsStreamUseCase>(),
-              canMutateStudent: getIt<CanMutateStudentUseCase>(),
-              authService: getIt<AuthService>(),
+            create: (context) => StudentDataBloc(
+              studentRepository: context.read<StudentDataRepository>(),
+              getStudentsStream: context.read<GetStudentsStreamUseCase>(),
+              canMutateStudent: context.read<CanMutateStudentUseCase>(),
+              adminUserProvisioningService: context
+                  .read<AdminUserProvisioningService>(),
             ),
           ),
           BlocProvider(
-            create: (_) => StudentProfileCubit(
-              studentRepository: getIt<StudentDataRepository>(),
+            create: (context) => StudentProfileCubit(
+              studentRepository: context.read<StudentDataRepository>(),
             ),
           ),
           BlocProvider(
-            create: (_) => ServantDataCubit(
-              repository: getIt<ServantDataRepository>(),
-              authService: getIt<AuthService>(),
+            create: (context) => ServantDataCubit(
+              repository: context.read<ServantDataRepository>(),
+              adminUserProvisioningService: context
+                  .read<AdminUserProvisioningService>(),
             ),
           ),
           BlocProvider(
-            create: (_) => TeamCubit(
-              teamRepository: getIt<TeamRepository>(),
-              adminTeamService: getIt<AdminTeamService>(),
+            create: (context) => TeamCubit(
+              teamRepository: context.read<TeamRepository>(),
+              adminTeamService: context.read<AdminTeamService>(),
             ),
           ),
         ],

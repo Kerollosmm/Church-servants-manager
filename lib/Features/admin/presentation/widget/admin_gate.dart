@@ -1,12 +1,12 @@
-import 'package:church_managment_system/core/theme/app_colors.dart';
-import 'package:church_managment_system/core/theme/app_spacing.dart';
-import 'package:church_managment_system/features/admin/domain/admin_policy.dart';
-import 'package:church_managment_system/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:church_management_system/core/theme/app_colors.dart';
+import 'package:church_management_system/core/theme/app_spacing.dart';
+import 'package:church_management_system/features/admin/domain/admin_policy.dart';
+import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 /// Wrap any screen that must be visible to admins only.
-/// NOTE: UI reads AuthBloc state only (no Firebase calls here). :contentReference[oaicite:2]{index=2}
+/// NOTE: UI reads AuthBloc state only (no Firebase calls here).
 class AdminGate extends StatelessWidget {
   const AdminGate({super.key, required this.child, AdminPolicy? policy})
     : _policy = policy ?? const AdminPolicy();

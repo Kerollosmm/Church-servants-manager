@@ -1,8 +1,8 @@
-import 'package:church_managment_system/core/constants/enums.dart';
-import 'package:church_managment_system/features/auth/data/models/auth_user.dart';
-import 'package:church_managment_system/features/auth/data/utils/auth_error_mapper.dart';
-import 'package:church_managment_system/features/auth/data/services/firebase_auth_provider.dart';
-import 'package:church_managment_system/features/auth/domain/repos/auth_repository.dart';
+import 'package:church_management_system/core/constants/enums.dart';
+import 'package:church_management_system/features/auth/data/models/auth_user.dart';
+import 'package:church_management_system/features/auth/data/utils/auth_error_mapper.dart';
+import 'package:church_management_system/features/auth/data/services/firebase_auth_provider.dart';
+import 'package:church_management_system/features/auth/domain/repos/auth_repository.dart';
 
 class AuthService implements AuthRepository {
   final FirebaseAuthProvider _provider;
@@ -108,40 +108,5 @@ class AuthService implements AuthRepository {
   Future<AuthUser?> refreshCurrentAppUser() async {
     await reloadUser();
     return getCurrentAppUser(forceRefresh: true);
-  }
-
-  /// Create a new user account as admin without disrupting current session.
-  Future<AuthUser> createUserAsAdmin({
-    required String email,
-    required String password,
-    required String name,
-    UserRole role = UserRole.student,
-  }) async {
-    try {
-      return await _provider.createUserAsAdmin(
-        email: email,
-        password: password,
-        name: name,
-        role: role,
-      );
-    } catch (e) {
-      throw AuthErrorMapper.mapException(e);
-    }
-  }
-
-  Future<void> rollbackAdminCreatedUser({
-    required String uid,
-    required String email,
-    required String password,
-  }) async {
-    try {
-      await _provider.rollbackAdminCreatedUser(
-        uid: uid,
-        email: email,
-        password: password,
-      );
-    } catch (e) {
-      throw AuthErrorMapper.mapException(e);
-    }
   }
 }

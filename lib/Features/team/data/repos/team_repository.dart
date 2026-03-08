@@ -1,8 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:church_managment_system/core/constants/firestore_collections.dart';
-import 'package:church_managment_system/features/team/data/models/team_model.dart';
-import 'package:church_managment_system/features/team/domain/failures/team_failures.dart';
-import 'package:church_managment_system/features/team/domain/repos/i_team_repository.dart';
+import 'package:church_management_system/core/constants/firestore_collections.dart';
+import 'package:church_management_system/features/team/data/models/team_model.dart';
+import 'package:church_management_system/features/team/domain/failures/team_failures.dart';
+import 'package:church_management_system/features/team/domain/repos/i_team_repository.dart';
 
 class TeamRepository implements ITeamRepository {
   final FirebaseFirestore _firestore;

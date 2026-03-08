@@ -1,5 +1,5 @@
-import 'package:church_managment_system/features/servant/data/models/servant_models.dart';
-import 'package:church_managment_system/features/servant/domain/failures/servant_failures.dart';
+import 'package:church_management_system/features/servant/data/models/servant_models.dart';
+import 'package:church_management_system/features/servant/domain/failures/servant_failures.dart';
 import 'package:equatable/equatable.dart';
 
 /// Sealed states for ServantDataCubit with exhaustive switch support.

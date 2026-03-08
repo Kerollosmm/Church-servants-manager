@@ -1,4 +1,4 @@
-import 'package:church_managment_system/features/team/data/models/team_model.dart';
+import 'package:church_management_system/features/team/data/models/team_model.dart';
 
 /// Interface for team repository operations.
 abstract class ITeamRepository {

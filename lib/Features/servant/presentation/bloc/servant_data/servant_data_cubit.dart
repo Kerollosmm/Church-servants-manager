@@ -1,12 +1,12 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import 'package:church_managment_system/core/constants/enums.dart';
-import 'package:church_managment_system/features/auth/data/models/auth_user.dart';
-import 'package:church_managment_system/features/auth/data/services/auth_service.dart';
-import 'package:church_managment_system/features/servant/data/models/servant_models.dart';
-import 'package:church_managment_system/features/servant/data/repo/servant_data_repository.dart';
-import 'package:church_managment_system/features/servant/domain/failures/servant_failures.dart';
+import 'package:church_management_system/core/constants/enums.dart';
+import 'package:church_management_system/features/auth/data/models/auth_user.dart';
+import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
+import 'package:church_management_system/features/servant/data/models/servant_models.dart';
+import 'package:church_management_system/features/servant/data/repo/servant_data_repository.dart';
+import 'package:church_management_system/features/servant/domain/failures/servant_failures.dart';
 
 import 'servant_data_state.dart';
 
@@ -15,13 +15,13 @@ export 'servant_data_state.dart';
 /// Cubit for managing Servant data operations (CRUD).
 class ServantDataCubit extends Cubit<ServantDataState> {
   final ServantDataRepository _repository;
-  final AuthService _authService;
+  final AdminUserProvisioningService _adminUserProvisioningService;
 
   ServantDataCubit({
     required ServantDataRepository repository,
-    required AuthService authService,
+    required AdminUserProvisioningService adminUserProvisioningService,
   }) : _repository = repository,
-       _authService = authService,
+       _adminUserProvisioningService = adminUserProvisioningService,
        super(const ServantDataInitial());
 
   String? _lastQuery;
@@ -144,7 +144,7 @@ class ServantDataCubit extends Cubit<ServantDataState> {
           password != null &&
           password.isNotEmpty) {
         try {
-          await _authService.rollbackAdminCreatedUser(
+          await _adminUserProvisioningService.rollbackCreatedUser(
             uid: createdAuthUser.uid,
             email: email,
             password: password,
@@ -281,7 +281,7 @@ class ServantDataCubit extends Cubit<ServantDataState> {
         password.isEmpty) {
       return null;
     }
-    return _authService.createUserAsAdmin(
+    return _adminUserProvisioningService.createUser(
       email: email,
       password: password,
       name: servant.name,

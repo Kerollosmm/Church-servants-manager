@@ -1,9 +1,11 @@
-import 'package:church_managment_system/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:church_managment_system/features/auth/presentation/widgets/auth_header.dart';
-import 'package:church_managment_system/features/auth/presentation/widgets/auth_submit_button.dart';
-import 'package:church_managment_system/features/auth/presentation/widgets/auth_text_field.dart';
-import 'package:church_managment_system/core/widgets/feedback/app_snackbars.dart';
-import 'package:church_managment_system/core/widgets/dialogs/error_dialog.dart';
+import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:church_management_system/core/theme/app_spacing.dart';
+import 'package:church_management_system/features/auth/presentation/widgets/auth_header.dart';
+import 'package:church_management_system/features/auth/presentation/widgets/auth_form_card.dart';
+import 'package:church_management_system/features/auth/presentation/widgets/auth_submit_button.dart';
+import 'package:church_management_system/features/auth/presentation/widgets/auth_text_field.dart';
+import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
+import 'package:church_management_system/core/widgets/dialogs/error_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -61,52 +63,43 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Card(
-                elevation: 8,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const AuthHeader(
-                          title: 'إعادة تعيين كلمة المرور',
-                          subtitle:
-                              'أدخل بريدك الإلكتروني وسنرسل لك رابط إعادة التعيين',
-                        ),
-                        const SizedBox(height: 32),
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: AuthFormCard(
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const AuthHeader(
+                        title: 'إعادة تعيين كلمة المرور',
+                        subtitle:
+                            'أدخل بريدك الإلكتروني وسنرسل لك رابط إعادة التعيين',
+                      ),
+                      AppSpacing.gapXl,
 
-                        // Email
-                        AuthTextField(
-                          controller: _emailController,
-                          label: 'البريد الإلكتروني',
-                          prefixIcon: Icons.email_outlined,
-                          keyboardType: TextInputType.emailAddress,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'البريد الإلكتروني مطلوب';
-                            }
-                            if (!value.contains('@')) {
-                              return 'أدخل بريدا إلكترونيا صحيحا';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 24),
+                      AuthTextField(
+                        controller: _emailController,
+                        label: 'البريد الإلكتروني',
+                        prefixIcon: Icons.email_outlined,
+                        keyboardType: TextInputType.emailAddress,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'البريد الإلكتروني مطلوب';
+                          }
+                          if (!value.contains('@')) {
+                            return 'أدخل بريدا إلكترونيا صحيحا';
+                          }
+                          return null;
+                        },
+                      ),
+                      AppSpacing.gapLg,
 
-                        // Submit
-                        AuthSubmitButton(
-                          text: 'إرسال رابط إعادة التعيين',
-                          onPressed: _submit,
-                        ),
-                      ],
-                    ),
+                      AuthSubmitButton(
+                        text: 'إرسال رابط إعادة التعيين',
+                        onPressed: _submit,
+                      ),
+                    ],
                   ),
                 ),
               ),

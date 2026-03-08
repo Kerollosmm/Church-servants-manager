@@ -1,19 +1,19 @@
-import 'dart:async';
-
-import 'package:church_managment_system/core/constants/enums.dart';
-import 'package:church_managment_system/core/constants/routes.dart';
-import 'package:church_managment_system/features/auth/data/models/auth_user.dart';
-import 'package:church_managment_system/core/routing/route_args.dart';
-import 'package:church_managment_system/core/theme/app_colors.dart';
-import 'package:church_managment_system/core/theme/app_spacing.dart';
-import 'package:church_managment_system/core/widgets/app_empty_state.dart';
-import 'package:church_managment_system/core/widgets/cards/person_list_card.dart';
-import 'package:church_managment_system/core/widgets/feedback/app_snackbars.dart';
-import 'package:church_managment_system/core/widgets/search/live_search_panel.dart';
-import 'package:church_managment_system/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:church_managment_system/features/student/data/models/student_model.dart';
-import 'package:church_managment_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
-import 'package:church_managment_system/features/team/presentation/widgets/team_dropdown.dart';
+import 'package:church_management_system/core/constants/enums.dart';
+import 'package:church_management_system/core/constants/routes.dart';
+import 'package:church_management_system/features/auth/data/models/auth_user.dart';
+import 'package:church_management_system/core/routing/route_args.dart';
+import 'package:church_management_system/core/theme/app_colors.dart';
+import 'package:church_management_system/core/theme/app_spacing.dart';
+import 'package:church_management_system/core/widgets/app_empty_state.dart';
+import 'package:church_management_system/core/widgets/cards/person_list_card.dart';
+import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
+import 'package:church_management_system/core/widgets/search/live_search_panel.dart';
+import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:church_management_system/features/student/data/models/student_model.dart';
+import 'package:church_management_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
+import 'package:church_management_system/features/team/data/models/team_model.dart';
+import 'package:church_management_system/features/team/presentation/bloc/team_cubit.dart';
+import 'package:church_management_system/features/team/presentation/widgets/team_dropdown.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -27,25 +27,31 @@ class StudentManagementScreen extends StatefulWidget {
 
 class _StudentManagementScreenState extends State<StudentManagementScreen> {
   final TextEditingController _searchController = TextEditingController();
-  Timer? _searchDebounce;
   String? _selectedTeamId;
   late final StudentDataBloc _studentDataBloc;
-  List<StudentModel> _lastLoadedStudents = const <StudentModel>[];
-  bool _hasLoadedStudents = false;
+  late final TeamCubit _teamCubit;
 
   @override
   void initState() {
     super.initState();
     _studentDataBloc = context.read<StudentDataBloc>();
+    _teamCubit = context.read<TeamCubit>();
     final actor = _currentActorOrNull();
     if (actor != null) {
-      _studentDataBloc.add(StudentsLoadRequested(actor: actor));
+      _selectedTeamId =
+          actor.role == UserRole.servant &&
+              actor.effectiveAssignedTeamIds.length == 1
+          ? actor.effectiveAssignedTeamIds.first
+          : null;
+      _studentDataBloc.add(
+        StudentsLoadRequested(actor: actor, teamId: _selectedTeamId),
+      );
+      _loadTeamsForActor(actor);
     }
   }
 
   @override
   void dispose() {
-    _searchDebounce?.cancel();
     _studentDataBloc.add(const StudentsListeningStopped());
     _searchController.dispose();
     super.dispose();
@@ -59,10 +65,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
   }
 
   void _onSearchChanged(AuthUser actor, String value) {
-    _searchDebounce?.cancel();
-    _searchDebounce = Timer(const Duration(milliseconds: 350), () {
-      _dispatchSearch(actor, value, teamId: _selectedTeamId);
-    });
+    _dispatchSearch(actor, value, teamId: _selectedTeamId);
   }
 
   void _clearSearch(AuthUser actor) {
@@ -78,6 +81,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
 
   void _onTeamFilterChanged(AuthUser actor, String? teamId) {
     _selectedTeamId = teamId;
+    _teamCubit.selectTeam(teamId);
     final query = _searchController.text.trim();
     if (query.isNotEmpty) {
       _dispatchSearch(actor, query, teamId: teamId);
@@ -88,23 +92,20 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
     }
   }
 
-  Future<void> _refresh(AuthUser actor) async {
-    final bloc = context.read<StudentDataBloc>();
-    final completer = Completer<void>();
-    late final StreamSubscription<StudentDataState> sub;
-    sub = bloc.stream.listen((state) {
-      if (state is! StudentDataLoading && !completer.isCompleted) {
-        completer.complete();
-        sub.cancel();
-      }
-    });
-    bloc.add(StudentsRefreshRequested(actor: actor));
-    await completer.future.timeout(
-      const Duration(seconds: 10),
-      onTimeout: () {
-        sub.cancel();
-      },
-    );
+  void _loadTeamsForActor(AuthUser actor) {
+    if (actor.role == UserRole.admin) {
+      _teamCubit.loadAllTeams();
+      return;
+    }
+    final groupId = actor.groupId;
+    if (groupId != null && groupId.isNotEmpty) {
+      _teamCubit.loadTeamsByGroup(
+        groupId,
+        defaultTeamId: actor.effectiveAssignedTeamIds.length == 1
+            ? actor.effectiveAssignedTeamIds.first
+            : null,
+      );
+    }
   }
 
   bool _canManage(AuthUser actor) =>
@@ -112,18 +113,18 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
 
   _StudentListViewData _buildViewData(StudentDataState state) {
     final isLoading = state is StudentDataLoading;
-    if (state is StudentDataLoaded) {
-      _lastLoadedStudents = state.students;
-      _hasLoadedStudents = true;
-    }
-    final students = state is StudentDataLoaded
-        ? state.students
-        : (_hasLoadedStudents ? _lastLoadedStudents : const <StudentModel>[]);
+    final students = switch (state) {
+      StudentDataLoaded() => state.students,
+      StudentDataLoading() => state.previousStudents,
+      _ => const <StudentModel>[],
+    };
+    final showInitialLoading =
+        state is StudentDataLoading && !state.hasPreviousStudents;
 
     return _StudentListViewData(
       isLoading: isLoading,
       students: students,
-      showInitialLoading: isLoading && students.isEmpty,
+      showInitialLoading: showInitialLoading,
       showEmptyState: state is StudentDataLoaded && state.students.isEmpty,
     );
   }
@@ -157,9 +158,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                 icon: const Icon(Icons.refresh),
                 tooltip: 'تحديث',
                 onPressed: () {
-                  context.read<StudentDataBloc>().add(
-                    StudentsRefreshRequested(actor: actor),
-                  );
+                  context.read<StudentDataBloc>().refresh(actor);
                 },
               ),
             ],
@@ -183,16 +182,12 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                 AppSnackbars.showError(context, state.message);
               }
               if (state is StudentDataLoaded && state.successMessage != null) {
+                if (state.mutationStatus != StudentMutationStatus.success) {
+                  return;
+                }
                 AppSnackbars.showSuccess(
                   context,
                   state.successMessage!,
-                  backgroundColor: AppColors.secondary,
-                );
-              }
-              if (state is StudentDataOperationSuccess) {
-                AppSnackbars.showSuccess(
-                  context,
-                  state.message,
                   backgroundColor: AppColors.secondary,
                 );
               }
@@ -201,7 +196,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
               final viewData = _buildViewData(state);
 
               return RefreshIndicator(
-                onRefresh: () => _refresh(actor),
+                onRefresh: () => context.read<StudentDataBloc>().refresh(actor),
                 child: CustomScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   slivers: [
@@ -246,27 +241,38 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                                           ),
                                     ),
                                   AppSpacing.gapSm,
-                                  TeamDropdown(
-                                    groupId: actor.role == UserRole.admin
-                                        ? null
-                                        : (actor.groupId ?? 'year1'),
-                                    showAllOption:
-                                        actor.role == UserRole.admin ||
-                                        (actor.role == UserRole.servant &&
-                                            assignedTeamIds.length > 1),
-                                    defaultTeamId:
-                                        actor.role == UserRole.servant &&
-                                            assignedTeamIds.length == 1
-                                        ? assignedTeamIds.first
-                                        : null,
-                                    restrictToTeamIds:
-                                        actor.role == UserRole.servant &&
-                                            assignedTeamIds.isNotEmpty
-                                        ? assignedTeamIds
-                                        : null,
-                                    label: 'تصفية حسب الفريق',
-                                    onChanged: (teamId) =>
-                                        _onTeamFilterChanged(actor, teamId),
+                                  BlocBuilder<TeamCubit, TeamState>(
+                                    builder: (context, teamState) {
+                                      final teams = teamState is TeamLoaded
+                                          ? teamState.teams
+                                          : const <TeamModel>[];
+                                      final loading =
+                                          teamState is TeamLoading ||
+                                          teamState is TeamInitial;
+                                      final errorMessage =
+                                          teamState is TeamError
+                                          ? teamState.message
+                                          : null;
+
+                                      return TeamDropdown(
+                                        teams: teams,
+                                        selectedTeamId: _selectedTeamId,
+                                        isLoading: loading,
+                                        errorMessage: errorMessage,
+                                        showAllOption:
+                                            actor.role == UserRole.admin ||
+                                            (actor.role == UserRole.servant &&
+                                                assignedTeamIds.length > 1),
+                                        restrictToTeamIds:
+                                            actor.role == UserRole.servant &&
+                                                assignedTeamIds.isNotEmpty
+                                            ? assignedTeamIds
+                                            : null,
+                                        label: 'تصفية حسب الفريق',
+                                        onChanged: (teamId) =>
+                                            _onTeamFilterChanged(actor, teamId),
+                                      );
+                                    },
                                   ),
                                 ],
                               ),
@@ -286,7 +292,8 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                         child: AppEmptyState(
                           title: 'لا يوجد مخدومون',
                           subtitle: 'جرّب بحثا مختلفا أو حدّث القائمة.',
-                          onRefresh: () => _refresh(actor),
+                          onRefresh: () =>
+                              context.read<StudentDataBloc>().refresh(actor),
                         ),
                       )
                     else

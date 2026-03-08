@@ -31,8 +31,8 @@ This file tracks non-blocking but important hardening items that improve support
 - Severity: P2
 - Category: Architecture / Maintainability
 - Evidence:
-  - Docs reference files that are not present, e.g. in `docs/CURRENT_PROJECT_STRUCTURE.md:43` and `:229`.
-  - Typoed feature path exists: `lib/features/attendace_recourd/models/attendance_record_model.dart`.
+  - Multiple reports in `reports/` were stale and needed reconciliation with the current repo state.
+  - The typoed feature path was renamed to `lib/features/attendance_record/models/attendance_record_model.dart`, and residual references should stay cleaned up.
 - Why this is bad:
   - New contributors can implement in wrong places.
   - Increases risk of duplicate modules and dead code.
@@ -40,8 +40,8 @@ This file tracks non-blocking but important hardening items that improve support
   - Documentation and folder naming were not kept synchronized with refactors.
 - Solution:
   1. Normalize feature folder names and fix typos.
-  2. Update project-structure docs to current state.
-  3. Add lint/checklist rules for architecture conventions.
+  2. Keep remediation/report files aligned with the actual repository state.
+  3. Add checklist rules for architecture conventions and stale-review cleanup.
 - Acceptance criteria:
   - Folder names are consistent and typo-free.
   - Docs accurately match repository layout.

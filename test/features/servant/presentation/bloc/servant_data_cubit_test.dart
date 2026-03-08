@@ -1,19 +1,20 @@
-import 'package:church_managment_system/core/constants/enums.dart';
-import 'package:church_managment_system/features/auth/data/models/auth_user.dart';
-import 'package:church_managment_system/features/auth/data/services/auth_service.dart';
-import 'package:church_managment_system/features/servant/data/models/servant_models.dart';
-import 'package:church_managment_system/features/servant/data/repo/servant_data_repository.dart';
-import 'package:church_managment_system/features/servant/presentation/bloc/servant_data/servant_data_cubit.dart';
+import 'package:church_management_system/core/constants/enums.dart';
+import 'package:church_management_system/features/auth/data/models/auth_user.dart';
+import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
+import 'package:church_management_system/features/servant/data/models/servant_models.dart';
+import 'package:church_management_system/features/servant/data/repo/servant_data_repository.dart';
+import 'package:church_management_system/features/servant/presentation/bloc/servant_data/servant_data_cubit.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockServantDataRepository extends Mock implements ServantDataRepository {}
 
-class MockAuthService extends Mock implements AuthService {}
+class MockAdminUserProvisioningService extends Mock
+    implements AdminUserProvisioningService {}
 
 void main() {
   late MockServantDataRepository repository;
-  late MockAuthService authService;
+  late MockAdminUserProvisioningService adminUserProvisioningService;
 
   AuthUser actor(UserRole role) => AuthUser(
     uid: 'u1',
@@ -32,13 +33,13 @@ void main() {
 
   setUp(() {
     repository = MockServantDataRepository();
-    authService = MockAuthService();
+    adminUserProvisioningService = MockAdminUserProvisioningService();
   });
 
   test('denies non-admin load with permission error', () async {
     final cubit = ServantDataCubit(
       repository: repository,
-      authService: authService,
+      adminUserProvisioningService: adminUserProvisioningService,
     );
 
     final expectation = expectLater(
@@ -75,7 +76,7 @@ void main() {
 
       final cubit = ServantDataCubit(
         repository: repository,
-        authService: authService,
+        adminUserProvisioningService: adminUserProvisioningService,
       );
 
       final expectation = expectLater(
@@ -113,7 +114,7 @@ void main() {
     );
 
     when(
-      () => authService.createUserAsAdmin(
+      () => adminUserProvisioningService.createUser(
         email: 'servant@example.com',
         password: 'secret123',
         name: newServant.name,
@@ -126,7 +127,7 @@ void main() {
       ),
     ).thenThrow(Exception('write failed'));
     when(
-      () => authService.rollbackAdminCreatedUser(
+      () => adminUserProvisioningService.rollbackCreatedUser(
         uid: 'auth-uid',
         email: 'servant@example.com',
         password: 'secret123',
@@ -135,7 +136,7 @@ void main() {
 
     final cubit = ServantDataCubit(
       repository: repository,
-      authService: authService,
+      adminUserProvisioningService: adminUserProvisioningService,
     );
 
     final expectation = expectLater(
@@ -160,7 +161,7 @@ void main() {
     await expectation;
     verify(() => repository.createServant(any())).called(1);
     verify(
-      () => authService.rollbackAdminCreatedUser(
+      () => adminUserProvisioningService.rollbackCreatedUser(
         uid: 'auth-uid',
         email: 'servant@example.com',
         password: 'secret123',

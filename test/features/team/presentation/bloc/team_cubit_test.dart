@@ -1,10 +1,10 @@
-import 'package:church_managment_system/core/constants/enums.dart';
-import 'package:church_managment_system/features/admin/data/admin_team_service.dart';
-import 'package:church_managment_system/features/auth/data/models/auth_user.dart';
-import 'package:church_managment_system/features/servant/data/models/servant_models.dart';
-import 'package:church_managment_system/features/team/data/models/team_model.dart';
-import 'package:church_managment_system/features/team/data/repos/team_repository.dart';
-import 'package:church_managment_system/features/team/presentation/bloc/team_cubit.dart';
+import 'package:church_management_system/core/constants/enums.dart';
+import 'package:church_management_system/features/admin/data/admin_team_service.dart';
+import 'package:church_management_system/features/auth/data/models/auth_user.dart';
+import 'package:church_management_system/features/servant/data/models/servant_models.dart';
+import 'package:church_management_system/features/team/data/models/team_model.dart';
+import 'package:church_management_system/features/team/data/repos/team_repository.dart';
+import 'package:church_management_system/features/team/presentation/bloc/team_cubit.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -101,13 +101,18 @@ void main() {
       cubit.stream,
       emitsInOrder([
         isA<TeamLoading>(),
-        isA<TeamOperationSuccess>().having(
-          (s) => s.message,
-          'message',
-          'تم إنشاء الفريق بنجاح',
-        ),
-        isA<TeamLoading>(),
-        isA<TeamLoaded>().having((s) => s.teams.length, 'count', 1),
+        isA<TeamLoaded>()
+            .having((s) => s.teams.length, 'count', 1)
+            .having(
+              (s) => s.mutationStatus,
+              'mutationStatus',
+              TeamMutationStatus.success,
+            )
+            .having(
+              (s) => s.feedbackMessage,
+              'feedbackMessage',
+              'تم إنشاء الفريق بنجاح',
+            ),
       ]),
     );
 
@@ -117,6 +122,52 @@ void main() {
     verify(() => repository.getTeamsByGroup('year1')).called(1);
     await cubit.close();
   });
+
+  test(
+    'mutation preserves loaded teams while reporting in-progress and success',
+    () async {
+      when(
+        () => repository.getTeamsByGroup('year1'),
+      ).thenAnswer((_) async => [team]);
+      when(() => repository.updateTeam(team)).thenAnswer((_) async {});
+
+      final cubit = TeamCubit(
+        teamRepository: repository,
+        adminTeamService: adminService,
+      );
+
+      await cubit.loadTeamsByGroup('year1');
+
+      final expectation = expectLater(
+        cubit.stream,
+        emitsInOrder([
+          isA<TeamLoaded>().having(
+            (s) => s.mutationStatus,
+            'mutationStatus',
+            TeamMutationStatus.inProgress,
+          ),
+          isA<TeamLoaded>()
+              .having((s) => s.teams.length, 'count', 1)
+              .having(
+                (s) => s.mutationStatus,
+                'mutationStatus',
+                TeamMutationStatus.success,
+              )
+              .having(
+                (s) => s.feedbackMessage,
+                'feedbackMessage',
+                'تم تحديث الفريق بنجاح',
+              ),
+        ]),
+      );
+
+      await cubit.updateTeam(team);
+      await expectation;
+      verify(() => repository.updateTeam(team)).called(1);
+      verify(() => repository.getTeamsByGroup('year1')).called(2);
+      await cubit.close();
+    },
+  );
 
   test('setTeamMembers emits team error when service fails', () async {
     when(

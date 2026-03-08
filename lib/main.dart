@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:ui';
 
-import 'package:church_managment_system/church_app.dart';
-import 'package:church_managment_system/core/di/injection.dart';
-import 'package:church_managment_system/firebase_options.dart';
+import 'package:church_management_system/church_app.dart';
+import 'package:church_management_system/core/di/injection.dart';
+import 'package:church_management_system/firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';

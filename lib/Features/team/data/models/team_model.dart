@@ -32,7 +32,25 @@ class TeamModel with _$TeamModel {
 
   /// Convenience factory for Firestore documents with separate docId.
   factory TeamModel.fromMap(Map<String, dynamic> data, String docId) {
-    return TeamModel.fromJson({...data, 'id': docId});
+    String? readString(String key) {
+      final value = data[key];
+      if (value == null) {
+        return null;
+      }
+      if (value is String) {
+        return value;
+      }
+      return value.toString();
+    }
+
+    return TeamModel.fromJson({
+      ...data,
+      'id': readString('id') ?? docId,
+      'name': readString('name') ?? '',
+      'groupId': readString('groupId') ?? '',
+      'assignedServantId': readString('assignedServantId'),
+      'assignedServantName': readString('assignedServantName'),
+    });
   }
 
   /// Converts to Firestore-compatible map (excludes the doc ID).

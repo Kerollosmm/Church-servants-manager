@@ -5,6 +5,8 @@ sealed class StudentDataState {
   const StudentDataState();
 }
 
+enum StudentMutationStatus { idle, success }
+
 /// Initial state - no data loaded yet.
 final class StudentDataInitial extends StudentDataState {
   const StudentDataInitial();
@@ -12,7 +14,15 @@ final class StudentDataInitial extends StudentDataState {
 
 /// Loading state - fetching data.
 final class StudentDataLoading extends StudentDataState {
-  const StudentDataLoading();
+  final List<StudentModel> previousStudents;
+  final bool isRefresh;
+
+  const StudentDataLoading({
+    this.previousStudents = const <StudentModel>[],
+    this.isRefresh = false,
+  });
+
+  bool get hasPreviousStudents => previousStudents.isNotEmpty;
 }
 
 /// Loaded state - students fetched successfully.
@@ -21,9 +31,9 @@ final class StudentDataLoaded extends StudentDataState {
   final String? currentFilterGroupId;
   final String? currentFilterTeamId;
   final String? currentQuery;
+  final StudentMutationStatus mutationStatus;
 
   /// Optional one-shot message signaling a successful CRUD operation.
-  /// The UI can show this as a snackbar, then ignore it on next rebuild.
   final String? successMessage;
 
   const StudentDataLoaded({
@@ -31,6 +41,7 @@ final class StudentDataLoaded extends StudentDataState {
     this.currentFilterGroupId,
     this.currentFilterTeamId,
     this.currentQuery,
+    this.mutationStatus = StudentMutationStatus.idle,
     this.successMessage,
   });
 
@@ -48,6 +59,7 @@ final class StudentDataLoaded extends StudentDataState {
           currentFilterGroupId == other.currentFilterGroupId &&
           currentFilterTeamId == other.currentFilterTeamId &&
           currentQuery == other.currentQuery &&
+          mutationStatus == other.mutationStatus &&
           successMessage == other.successMessage &&
           const ListEquality<StudentModel>().equals(students, other.students);
 
@@ -57,6 +69,7 @@ final class StudentDataLoaded extends StudentDataState {
     currentFilterGroupId,
     currentFilterTeamId,
     currentQuery,
+    mutationStatus,
     successMessage,
   );
 }
@@ -71,23 +84,6 @@ final class StudentDataError extends StudentDataState {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is StudentDataError &&
-          runtimeType == other.runtimeType &&
-          message == other.message;
-
-  @override
-  int get hashCode => message.hashCode;
-}
-
-/// Success state for CRUD operations.
-final class StudentDataOperationSuccess extends StudentDataState {
-  final String message;
-
-  const StudentDataOperationSuccess(this.message);
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is StudentDataOperationSuccess &&
           runtimeType == other.runtimeType &&
           message == other.message;
 

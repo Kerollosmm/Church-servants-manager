@@ -1,0 +1,60 @@
+import 'package:church_management_system/features/team/data/repos/team_repository.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+class ServantDashboardState {
+  final bool isLoading;
+  final List<String> teamNames;
+  final String? errorMessage;
+
+  const ServantDashboardState({
+    this.isLoading = false,
+    this.teamNames = const <String>[],
+    this.errorMessage,
+  });
+}
+
+class ServantDashboardCubit extends Cubit<ServantDashboardState> {
+  ServantDashboardCubit({required TeamRepository teamRepository})
+    : _teamRepository = teamRepository,
+      super(const ServantDashboardState());
+
+  final TeamRepository _teamRepository;
+
+  Future<void> loadAssignedTeamNames(List<String> assignedTeamIds) async {
+    if (assignedTeamIds.isEmpty) {
+      emit(const ServantDashboardState(teamNames: <String>[]));
+      return;
+    }
+
+    emit(const ServantDashboardState(isLoading: true));
+
+    try {
+      final teams = await Future.wait(
+        assignedTeamIds.map((teamId) => _teamRepository.getTeamById(teamId)),
+      );
+      final names = <String>[];
+      for (var i = 0; i < teams.length; i++) {
+        final name = teams[i]?.name.trim();
+        if (name != null && name.isNotEmpty) {
+          names.add(name);
+        } else {
+          names.add('Unknown team');
+        }
+      }
+      emit(ServantDashboardState(teamNames: names));
+    } catch (error) {
+      if (kDebugMode) {
+        debugPrint(
+          'ServantDashboardCubit: failed to load team names '
+          '(${error.runtimeType})',
+        );
+      }
+      emit(
+        const ServantDashboardState(
+          errorMessage: 'Failed to load assigned teams.',
+        ),
+      );
+    }
+  }
+}

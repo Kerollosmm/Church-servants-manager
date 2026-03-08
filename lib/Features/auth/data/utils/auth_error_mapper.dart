@@ -1,5 +1,5 @@
-import 'package:church_managment_system/features/auth/domain/failures/auth_exceptions.dart';
-import 'package:church_managment_system/features/auth/domain/failures/auth_failures.dart';
+import 'package:church_management_system/features/auth/domain/failures/auth_exceptions.dart';
+import 'package:church_management_system/features/auth/domain/failures/auth_failures.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class AuthErrorMapper {

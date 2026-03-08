@@ -1,8 +1,8 @@
-import 'package:church_managment_system/core/constants/enums.dart';
-import 'package:church_managment_system/features/auth/data/models/auth_user.dart';
-import 'package:church_managment_system/features/auth/data/services/auth_service.dart';
-import 'package:church_managment_system/features/auth/domain/failures/auth_failures.dart';
-import 'package:church_managment_system/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:church_management_system/core/constants/enums.dart';
+import 'package:church_management_system/features/auth/data/models/auth_user.dart';
+import 'package:church_management_system/features/auth/data/services/auth_service.dart';
+import 'package:church_management_system/features/auth/domain/failures/auth_failures.dart';
+import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 

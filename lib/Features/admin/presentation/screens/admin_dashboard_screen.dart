@@ -1,7 +1,7 @@
-import 'package:church_managment_system/core/constants/routes.dart';
-import 'package:church_managment_system/core/theme/app_colors.dart';
-import 'package:church_managment_system/core/theme/app_spacing.dart';
-import 'package:church_managment_system/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:church_management_system/core/constants/routes.dart';
+import 'package:church_management_system/core/theme/app_spacing.dart';
+import 'package:church_management_system/core/widgets/cards/app_navigation_tile_card.dart';
+import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -13,12 +13,10 @@ class AdminDashboardScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Admin Dashboard'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.white,
+        title: const Text('لوحة المسؤول'),
         actions: [
           IconButton(
-            tooltip: 'Logout',
+            tooltip: 'تسجيل الخروج',
             icon: const Icon(Icons.logout),
             onPressed: () {
               context.read<AuthBloc>().add(const AuthEventSignOut());
@@ -33,24 +31,24 @@ class AdminDashboardScreen extends StatelessWidget {
             _tile(
               context,
               icon: Icons.people_alt_outlined,
-              title: 'Students',
-              subtitle: 'Manage students (admin view)',
+              title: 'المخدومون',
+              subtitle: 'إدارة بيانات المخدومين',
               route: studentList,
             ),
             AppSpacing.gapSm,
             _tile(
               context,
               icon: Icons.group_work_outlined,
-              title: 'Teams',
-              subtitle: 'Create / edit teams',
+              title: 'الفرق',
+              subtitle: 'إنشاء الفرق وتعديلها',
               route: teamManagement,
             ),
             AppSpacing.gapSm,
             _tile(
               context,
               icon: Icons.supervisor_account_outlined,
-              title: 'Servants',
-              subtitle: 'Create / edit servants',
+              title: 'الخدام',
+              subtitle: 'إدارة بيانات الخدام',
               route: servantList,
             ),
             if (kDebugMode) ...[
@@ -58,8 +56,8 @@ class AdminDashboardScreen extends StatelessWidget {
               _tile(
                 context,
                 icon: Icons.build_outlined,
-                title: 'Dev Tools',
-                subtitle: 'Debug utilities',
+                title: 'أدوات التطوير',
+                subtitle: 'أدوات التشخيص والاختبار',
                 route: devTools,
               ),
             ],
@@ -76,18 +74,11 @@ class AdminDashboardScreen extends StatelessWidget {
     required String subtitle,
     required String route,
   }) {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: AppRadius.lgRadius),
-      child: ListTile(
-        leading: Icon(icon, color: AppColors.primary),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-        subtitle: Text(
-          subtitle,
-          style: const TextStyle(color: AppColors.textSecondary),
-        ),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: () => Navigator.pushNamed(context, route),
-      ),
+    return AppNavigationTileCard(
+      icon: icon,
+      title: title,
+      subtitle: subtitle,
+      onTap: () => Navigator.pushNamed(context, route),
     );
   }
 }

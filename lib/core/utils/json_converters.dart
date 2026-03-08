@@ -1,4 +1,4 @@
-import 'package:church_managment_system/core/constants/enums.dart';
+import 'package:church_management_system/core/constants/enums.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 

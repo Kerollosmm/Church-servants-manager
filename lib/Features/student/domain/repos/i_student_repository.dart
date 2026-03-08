@@ -1,4 +1,4 @@
-import 'package:church_managment_system/features/student/data/models/student_model.dart';
+import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Interface for Student Repository.

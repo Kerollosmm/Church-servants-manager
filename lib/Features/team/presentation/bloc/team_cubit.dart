@@ -1,9 +1,9 @@
-import 'package:church_managment_system/features/team/data/models/team_model.dart';
-import 'package:church_managment_system/features/team/data/repos/team_repository.dart';
-import 'package:church_managment_system/features/admin/data/admin_team_service.dart';
-import 'package:church_managment_system/features/auth/data/models/auth_user.dart';
-import 'package:church_managment_system/features/servant/data/models/servant_models.dart';
-import 'package:church_managment_system/features/student/data/models/student_model.dart';
+import 'package:church_management_system/features/team/data/models/team_model.dart';
+import 'package:church_management_system/features/team/data/repos/team_repository.dart';
+import 'package:church_management_system/features/admin/data/admin_team_service.dart';
+import 'package:church_management_system/features/auth/data/models/auth_user.dart';
+import 'package:church_management_system/features/servant/data/models/servant_models.dart';
+import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -15,6 +15,8 @@ part 'team_state.dart';
 class TeamCubit extends Cubit<TeamState> {
   final TeamRepository _teamRepository;
   final AdminTeamService _adminTeamService;
+  List<TeamModel> _currentTeams = const [];
+  String? _selectedTeamId;
 
   TeamCubit({
     required TeamRepository teamRepository,
@@ -31,11 +33,18 @@ class TeamCubit extends Cubit<TeamState> {
     if (kDebugMode) {
       debugPrint('TeamCubit: $contextLabel (${error.runtimeType})');
     }
+    if (_currentTeams.isNotEmpty) {
+      emit(
+        TeamLoaded(
+          teams: _currentTeams,
+          selectedTeamId: _selectedTeamId,
+          mutationStatus: TeamMutationStatus.failure,
+          feedbackMessage: userMessage,
+        ),
+      );
+      return;
+    }
     emit(TeamError(userMessage));
-  }
-
-  Future<void> _reloadGroupTeams(String groupId) {
-    return loadTeamsByGroup(groupId);
   }
 
   Future<void> _runTeamLoad({
@@ -47,9 +56,14 @@ class TeamCubit extends Cubit<TeamState> {
     emit(const TeamLoading());
     try {
       final teams = await action();
+      _currentTeams = teams;
+      _selectedTeamId = selectedTeamId;
       emit(TeamLoaded(teams: teams, selectedTeamId: selectedTeamId));
     } catch (e) {
-      _emitUserFacingError(errorContext, e, errorMessage);
+      if (kDebugMode) {
+        debugPrint('TeamCubit: $errorContext (${e.runtimeType})');
+      }
+      emit(TeamError(errorMessage));
     }
   }
 
@@ -60,12 +74,33 @@ class TeamCubit extends Cubit<TeamState> {
     required String errorMessage,
     String? reloadGroupId,
   }) async {
-    emit(const TeamLoading());
+    if (_currentTeams.isNotEmpty) {
+      emit(
+        TeamLoaded(
+          teams: _currentTeams,
+          selectedTeamId: _selectedTeamId,
+          mutationStatus: TeamMutationStatus.inProgress,
+        ),
+      );
+    } else {
+      emit(const TeamLoading());
+    }
     try {
       await action();
-      emit(TeamOperationSuccess(successMessage));
       if (reloadGroupId != null) {
-        await _reloadGroupTeams(reloadGroupId);
+        final teams = await _teamRepository.getTeamsByGroup(reloadGroupId);
+        _currentTeams = teams;
+      }
+      emit(
+        TeamLoaded(
+          teams: _currentTeams,
+          selectedTeamId: _selectedTeamId,
+          mutationStatus: TeamMutationStatus.success,
+          feedbackMessage: successMessage,
+        ),
+      );
+      if (reloadGroupId == null && _currentTeams.isEmpty) {
+        emit(TeamLoaded(teams: _currentTeams, selectedTeamId: _selectedTeamId));
       }
     } catch (e) {
       _emitUserFacingError(errorContext, e, errorMessage);
@@ -126,9 +161,16 @@ class TeamCubit extends Cubit<TeamState> {
 
   /// Select a team (for dropdown usage).
   void selectTeam(String? teamId) {
+    _selectedTeamId = teamId;
     final currentState = state;
     if (currentState is TeamLoaded) {
-      emit(TeamLoaded(teams: currentState.teams, selectedTeamId: teamId));
+      emit(
+        currentState.copyWith(
+          selectedTeamId: teamId,
+          mutationStatus: TeamMutationStatus.idle,
+          clearFeedbackMessage: true,
+        ),
+      );
     }
   }
 

@@ -1,11 +1,11 @@
-import 'package:church_managment_system/core/constants/enums.dart';
-import 'package:church_managment_system/features/admin/presentation/screens/admin_dashboard_screen.dart';
-import 'package:church_managment_system/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:church_managment_system/features/auth/presentation/screens/login_screen.dart';
-import 'package:church_managment_system/features/auth/presentation/screens/verify_email_screen.dart';
-import 'package:church_managment_system/features/servant/presentation/screens/servant_dashboard_screen.dart';
-import 'package:church_managment_system/features/student/presentation/screens/student_profile_screen.dart';
-import 'package:church_managment_system/core/widgets/feedback/app_snackbars.dart';
+import 'package:church_management_system/core/constants/enums.dart';
+import 'package:church_management_system/features/admin/presentation/screens/admin_dashboard_screen.dart';
+import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:church_management_system/features/auth/presentation/screens/login_screen.dart';
+import 'package:church_management_system/features/auth/presentation/screens/verify_email_screen.dart';
+import 'package:church_management_system/features/servant/presentation/screens/servant_dashboard_screen.dart';
+import 'package:church_management_system/features/student/presentation/screens/student_profile_screen.dart';
+import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -104,7 +104,7 @@ class _AdminRefreshRequiredScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Admin access paused')),
+      appBar: AppBar(title: const Text('تم إيقاف صلاحيات المسؤول مؤقتا')),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -114,7 +114,7 @@ class _AdminRefreshRequiredScreen extends StatelessWidget {
               const Icon(Icons.admin_panel_settings_outlined, size: 56),
               const SizedBox(height: 12),
               const Text(
-                'Admin actions are temporarily locked.',
+                'إجراءات المسؤول متوقفة مؤقتا حتى يتم تحديث بيانات الحساب.',
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
@@ -125,14 +125,14 @@ class _AdminRefreshRequiredScreen extends StatelessWidget {
                   context.read<AuthBloc>().add(const AuthEventRefreshUser());
                 },
                 icon: const Icon(Icons.refresh),
-                label: const Text('Refresh permissions'),
+                label: const Text('تحديث الصلاحيات'),
               ),
               const SizedBox(height: 8),
               TextButton(
                 onPressed: () {
                   context.read<AuthBloc>().add(const AuthEventSignOut());
                 },
-                child: const Text('Sign out'),
+                child: const Text('تسجيل الخروج'),
               ),
             ],
           ),

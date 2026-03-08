@@ -1,5 +1,5 @@
-import 'package:church_managment_system/core/theme/app_colors.dart';
-import 'package:church_managment_system/core/theme/app_spacing.dart';
+import 'package:church_management_system/core/theme/app_colors.dart';
+import 'package:church_management_system/core/theme/app_spacing.dart';
 import 'package:flutter/material.dart';
 
 /// A container with a gradient border effect (gold → brown).

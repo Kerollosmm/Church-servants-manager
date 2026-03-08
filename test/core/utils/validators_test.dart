@@ -1,4 +1,4 @@
-import 'package:church_managment_system/core/utils/validators.dart';
+import 'package:church_management_system/core/utils/validators.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

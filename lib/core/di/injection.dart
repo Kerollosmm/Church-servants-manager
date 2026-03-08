@@ -1,13 +1,18 @@
-import 'package:church_managment_system/core/routing/app_router.dart';
-import 'package:church_managment_system/features/admin/data/admin_team_service.dart';
-import 'package:church_managment_system/features/auth/data/services/auth_service.dart';
-import 'package:church_managment_system/features/auth/data/services/firebase_auth_provider.dart';
-import 'package:church_managment_system/features/servant/data/repo/servant_data_repository.dart';
-import 'package:church_managment_system/features/student/data/repos/student_data_repository.dart';
-import 'package:church_managment_system/features/student/domain/repos/i_student_repository.dart';
-import 'package:church_managment_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
-import 'package:church_managment_system/features/student/domain/usecases/get_students_stream_usecase.dart';
-import 'package:church_managment_system/features/team/data/repos/team_repository.dart';
+import 'package:church_management_system/core/routing/app_router.dart';
+import 'package:church_management_system/features/admin/data/admin_team_membership_service.dart';
+import 'package:church_management_system/features/admin/data/admin_team_service.dart';
+import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
+import 'package:church_management_system/features/auth/data/services/auth_user_profile_store.dart';
+import 'package:church_management_system/features/auth/data/services/auth_service.dart';
+import 'package:church_management_system/features/auth/data/services/firebase_auth_provider.dart';
+import 'package:church_management_system/features/servant/data/repo/servant_data_repository.dart';
+import 'package:church_management_system/features/student/data/repos/student_data_repository.dart';
+import 'package:church_management_system/features/student/data/services/student_linked_user_sync_service.dart';
+import 'package:church_management_system/features/student/data/services/student_query_service.dart';
+import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
+import 'package:church_management_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
+import 'package:church_management_system/features/student/domain/usecases/get_students_stream_usecase.dart';
+import 'package:church_management_system/features/team/data/repos/team_repository.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get_it/get_it.dart';
 
@@ -27,16 +32,28 @@ void configureDependencies() {
   });
 
   // ---- Services ----
+  getIt.registerLazySingleton<AuthUserProfileStore>(
+    () => AuthUserProfileStore(firestore: getIt()),
+  );
   getIt.registerLazySingleton<FirebaseAuthProvider>(
-    () => FirebaseAuthProvider(),
+    () => FirebaseAuthProvider(userProfileStore: getIt<AuthUserProfileStore>()),
   );
   getIt.registerLazySingleton<AuthService>(
     () => AuthService(provider: getIt<FirebaseAuthProvider>()),
   );
+  getIt.registerLazySingleton<AdminUserProvisioningService>(
+    () => ClientAdminUserProvisioningService(
+      userProfileStore: getIt<AuthUserProfileStore>(),
+    ),
+  );
 
   // ---- Repositories ----
   getIt.registerLazySingleton<StudentDataRepository>(
-    () => StudentDataRepository(firestore: getIt()),
+    () => StudentDataRepository(
+      firestore: getIt(),
+      queryService: getIt<StudentQueryService>(),
+      linkedUserSyncService: getIt<StudentLinkedUserSyncService>(),
+    ),
   );
   getIt.registerLazySingleton<IStudentRepository>(
     () => getIt<StudentDataRepository>(),
@@ -44,11 +61,23 @@ void configureDependencies() {
   getIt.registerLazySingleton<ServantDataRepository>(
     () => ServantDataRepository(firestore: getIt()),
   );
+  getIt.registerLazySingleton<StudentQueryService>(
+    () => StudentQueryService(firestore: getIt()),
+  );
+  getIt.registerLazySingleton<StudentLinkedUserSyncService>(
+    () => StudentLinkedUserSyncService(firestore: getIt()),
+  );
   getIt.registerLazySingleton<TeamRepository>(
     () => TeamRepository(firestore: getIt()),
   );
+  getIt.registerLazySingleton<AdminTeamMembershipService>(
+    () => AdminTeamMembershipService(firestore: getIt()),
+  );
   getIt.registerLazySingleton<AdminTeamService>(
-    () => AdminTeamService(firestore: getIt()),
+    () => AdminTeamService(
+      firestore: getIt(),
+      membershipService: getIt<AdminTeamMembershipService>(),
+    ),
   );
 
   // ---- UseCases ----

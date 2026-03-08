@@ -1,11 +1,13 @@
-import 'package:church_managment_system/core/constants/enums.dart';
-import 'package:church_managment_system/features/auth/data/models/auth_user.dart';
-import 'package:church_managment_system/features/auth/data/services/auth_service.dart';
-import 'package:church_managment_system/features/student/data/models/student_model.dart';
-import 'package:church_managment_system/features/student/data/repos/student_data_repository.dart';
-import 'package:church_managment_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
-import 'package:church_managment_system/features/student/domain/usecases/get_students_stream_usecase.dart';
-import 'package:church_managment_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
+import 'dart:async';
+
+import 'package:church_management_system/core/constants/enums.dart';
+import 'package:church_management_system/features/auth/data/models/auth_user.dart';
+import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
+import 'package:church_management_system/features/student/data/models/student_model.dart';
+import 'package:church_management_system/features/student/data/repos/student_data_repository.dart';
+import 'package:church_management_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
+import 'package:church_management_system/features/student/domain/usecases/get_students_stream_usecase.dart';
+import 'package:church_management_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -17,13 +19,14 @@ class MockGetStudentsStreamUseCase extends Mock
 class MockCanMutateStudentUseCase extends Mock
     implements CanMutateStudentUseCase {}
 
-class MockAuthService extends Mock implements AuthService {}
+class MockAdminUserProvisioningService extends Mock
+    implements AdminUserProvisioningService {}
 
 void main() {
   late MockStudentDataRepository repository;
   late MockGetStudentsStreamUseCase getStudentsStream;
   late MockCanMutateStudentUseCase canMutateStudent;
-  late MockAuthService authService;
+  late MockAdminUserProvisioningService adminUserProvisioningService;
 
   AuthUser actor(UserRole role) => AuthUser(
     uid: 'u1',
@@ -66,7 +69,7 @@ void main() {
     repository = MockStudentDataRepository();
     getStudentsStream = MockGetStudentsStreamUseCase();
     canMutateStudent = MockCanMutateStudentUseCase();
-    authService = MockAuthService();
+    adminUserProvisioningService = MockAdminUserProvisioningService();
   });
 
   test(
@@ -81,13 +84,15 @@ void main() {
         studentRepository: repository,
         getStudentsStream: getStudentsStream,
         canMutateStudent: canMutateStudent,
-        authService: authService,
+        adminUserProvisioningService: adminUserProvisioningService,
       );
 
       final expectation = expectLater(
         bloc.stream,
         emitsInOrder([
-          isA<StudentDataLoading>(),
+          isA<StudentDataLoading>()
+              .having((s) => s.previousStudents.length, 'previousStudents', 0)
+              .having((s) => s.isRefresh, 'isRefresh', false),
           isA<StudentDataLoaded>().having((s) => s.students.length, 'count', 0),
         ]),
       );
@@ -98,6 +103,44 @@ void main() {
     },
   );
 
+  test('refresh keeps previous students visible while loading', () async {
+    final admin = actor(UserRole.admin);
+    final controller = StreamController<List<StudentModel>>.broadcast();
+    when(
+      () => getStudentsStream(actor: admin, teamId: null),
+    ).thenAnswer((_) => controller.stream);
+
+    final bloc = StudentDataBloc(
+      studentRepository: repository,
+      getStudentsStream: getStudentsStream,
+      canMutateStudent: canMutateStudent,
+      adminUserProvisioningService: adminUserProvisioningService,
+    );
+
+    final expectation = expectLater(
+      bloc.stream,
+      emitsInOrder([
+        isA<StudentDataLoading>(),
+        isA<StudentDataLoaded>().having((s) => s.students.length, 'count', 1),
+        isA<StudentDataLoading>()
+            .having((s) => s.previousStudents.length, 'previousStudents', 1)
+            .having((s) => s.isRefresh, 'isRefresh', true),
+        isA<StudentDataLoaded>().having((s) => s.students.length, 'count', 1),
+      ]),
+    );
+
+    bloc.add(StudentsLoadRequested(actor: admin));
+    await Future<void>.delayed(Duration.zero);
+    controller.add([student(id: 's1')]);
+    await Future<void>.delayed(Duration.zero);
+    await bloc.refresh(admin);
+    controller.add([student(id: 's2')]);
+
+    await expectation;
+    await controller.close();
+    await bloc.close();
+  });
+
   test('create emits not-allowed when actor cannot mutate student', () async {
     final servant = actor(UserRole.servant);
     final newStudent = student();
@@ -107,7 +150,7 @@ void main() {
       studentRepository: repository,
       getStudentsStream: getStudentsStream,
       canMutateStudent: canMutateStudent,
-      authService: authService,
+      adminUserProvisioningService: adminUserProvisioningService,
     );
 
     final expectation = expectLater(
@@ -137,7 +180,7 @@ void main() {
       studentRepository: repository,
       getStudentsStream: getStudentsStream,
       canMutateStudent: canMutateStudent,
-      authService: authService,
+      adminUserProvisioningService: adminUserProvisioningService,
     );
 
     final expectation = expectLater(
@@ -171,7 +214,7 @@ void main() {
       studentRepository: repository,
       getStudentsStream: getStudentsStream,
       canMutateStudent: canMutateStudent,
-      authService: authService,
+      adminUserProvisioningService: adminUserProvisioningService,
     );
 
     final expectation = expectLater(
@@ -210,7 +253,7 @@ void main() {
       studentRepository: repository,
       getStudentsStream: getStudentsStream,
       canMutateStudent: canMutateStudent,
-      authService: authService,
+      adminUserProvisioningService: adminUserProvisioningService,
     );
 
     final expectation = expectLater(
@@ -249,7 +292,7 @@ void main() {
 
     when(() => canMutateStudent(admin, newStudent)).thenReturn(true);
     when(
-      () => authService.createUserAsAdmin(
+      () => adminUserProvisioningService.createUser(
         email: 'student@example.com',
         password: 'secret123',
         name: newStudent.name,
@@ -262,7 +305,7 @@ void main() {
       ),
     ).thenThrow(Exception('write failed'));
     when(
-      () => authService.rollbackAdminCreatedUser(
+      () => adminUserProvisioningService.rollbackCreatedUser(
         uid: 'auth-uid',
         email: 'student@example.com',
         password: 'secret123',
@@ -273,7 +316,7 @@ void main() {
       studentRepository: repository,
       getStudentsStream: getStudentsStream,
       canMutateStudent: canMutateStudent,
-      authService: authService,
+      adminUserProvisioningService: adminUserProvisioningService,
     );
 
     final expectation = expectLater(
@@ -299,7 +342,7 @@ void main() {
     await expectation;
     verify(() => repository.createStudent(any())).called(1);
     verify(
-      () => authService.rollbackAdminCreatedUser(
+      () => adminUserProvisioningService.rollbackCreatedUser(
         uid: 'auth-uid',
         email: 'student@example.com',
         password: 'secret123',
@@ -307,4 +350,46 @@ void main() {
     ).called(1);
     await bloc.close();
   });
+
+  test(
+    'create emits loaded success contract after successful mutation',
+    () async {
+      final admin = actor(UserRole.admin);
+      final newStudent = student(id: 'local-id');
+
+      when(() => canMutateStudent(admin, newStudent)).thenReturn(true);
+      when(
+        () => repository.createStudent(newStudent),
+      ).thenAnswer((_) async => 's1');
+
+      final bloc = StudentDataBloc(
+        studentRepository: repository,
+        getStudentsStream: getStudentsStream,
+        canMutateStudent: canMutateStudent,
+        adminUserProvisioningService: adminUserProvisioningService,
+      );
+
+      final expectation = expectLater(
+        bloc.stream,
+        emits(
+          isA<StudentDataLoaded>()
+              .having(
+                (s) => s.mutationStatus,
+                'mutationStatus',
+                StudentMutationStatus.success,
+              )
+              .having(
+                (s) => s.successMessage,
+                'successMessage',
+                'تم إنشاء المخدوم بنجاح',
+              ),
+        ),
+      );
+
+      bloc.add(StudentCreated(actor: admin, student: newStudent));
+      await expectation;
+      verify(() => repository.createStudent(newStudent)).called(1);
+      await bloc.close();
+    },
+  );
 }

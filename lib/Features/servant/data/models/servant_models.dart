@@ -1,5 +1,5 @@
-import 'package:church_managment_system/core/constants/enums.dart';
-import 'package:church_managment_system/core/utils/json_converters.dart';
+import 'package:church_management_system/core/constants/enums.dart';
+import 'package:church_management_system/core/utils/json_converters.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 // ignore_for_file: invalid_annotation_target
@@ -60,7 +60,45 @@ class ServantModel with _$ServantModel {
 
   /// Convenience factory for Firestore documents with separate docId.
   factory ServantModel.fromMap(Map<String, dynamic> data, String docId) {
-    return ServantModel.fromJson({...data, 'docID': docId});
+    String? readString(String key) {
+      final value = data[key];
+      if (value == null) {
+        return null;
+      }
+      if (value is String) {
+        return value;
+      }
+      return value.toString();
+    }
+
+    bool readBool(String key, {bool fallback = false}) {
+      final value = data[key];
+      if (value is bool) {
+        return value;
+      }
+      if (value is String) {
+        final normalized = value.trim().toLowerCase();
+        if (normalized == 'true') return true;
+        if (normalized == 'false') return false;
+      }
+      return fallback;
+    }
+
+    return ServantModel.fromJson({
+      ...data,
+      'uid': readString('uid'),
+      'docID': readString('docID') ?? docId,
+      'name': readString('name') ?? '',
+      'role': readString('role') ?? UserRole.servant.name,
+      'email': readString('email'),
+      'phone': readString('phone'),
+      'imageUrl': readString('imageUrl'),
+      'groupId': readString('groupId'),
+      'isEmailVerified': readBool('isEmailVerified'),
+      'father_of_confession': readString('father_of_confession'),
+      'notes': readString('notes'),
+      'assignedTeamId': readString('assignedTeamId'),
+    });
   }
 
   /// Converts to Firestore-compatible map.

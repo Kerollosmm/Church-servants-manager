@@ -1,12 +1,12 @@
 import 'dart:async';
 
-import 'package:church_managment_system/core/constants/enums.dart';
-import 'package:church_managment_system/features/auth/data/services/auth_service.dart';
-import 'package:church_managment_system/features/student/data/models/student_model.dart';
-import 'package:church_managment_system/features/student/data/repos/student_data_repository.dart';
-import 'package:church_managment_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
-import 'package:church_managment_system/features/student/domain/usecases/get_students_stream_usecase.dart';
-import 'package:church_managment_system/features/auth/data/models/auth_user.dart';
+import 'package:church_management_system/core/constants/enums.dart';
+import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
+import 'package:church_management_system/features/student/data/models/student_model.dart';
+import 'package:church_management_system/features/student/data/repos/student_data_repository.dart';
+import 'package:church_management_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
+import 'package:church_management_system/features/student/domain/usecases/get_students_stream_usecase.dart';
+import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -22,9 +22,10 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
   final StudentDataRepository _studentRepository;
   final GetStudentsStreamUseCase _getStudentsStream;
   final CanMutateStudentUseCase _canMutateStudent;
-  final AuthService _authService;
+  final AdminUserProvisioningService _adminUserProvisioningService;
 
   StreamSubscription<List<StudentModel>>? _studentsSubscription;
+  Completer<void>? _pendingRefreshCompleter;
   List<StudentModel> _allStudents = [];
   Map<String, StudentModel> _studentsByDocId = {};
   String? _lastFilterGroupId;
@@ -35,11 +36,11 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     required StudentDataRepository studentRepository,
     required GetStudentsStreamUseCase getStudentsStream,
     required CanMutateStudentUseCase canMutateStudent,
-    required AuthService authService,
+    required AdminUserProvisioningService adminUserProvisioningService,
   }) : _studentRepository = studentRepository,
        _getStudentsStream = getStudentsStream,
        _canMutateStudent = canMutateStudent,
-       _authService = authService,
+       _adminUserProvisioningService = adminUserProvisioningService,
        super(const StudentDataInitial()) {
     on<StudentsLoadRequested>(_onLoadStudents);
     on<StudentsSearchRequested>(_onSearchStudents);
@@ -56,6 +57,33 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     final subscription = _studentsSubscription;
     _studentsSubscription = null;
     await subscription?.cancel();
+  }
+
+  Future<void> refresh(AuthUser actor) {
+    final existingCompleter = _pendingRefreshCompleter;
+    if (existingCompleter != null && !existingCompleter.isCompleted) {
+      return existingCompleter.future;
+    }
+
+    final completer = Completer<void>();
+    _pendingRefreshCompleter = completer;
+    add(StudentsRefreshRequested(actor: actor));
+    return completer.future.timeout(
+      const Duration(seconds: 10),
+      onTimeout: () {
+        if (!completer.isCompleted) {
+          completer.complete();
+        }
+      },
+    );
+  }
+
+  void _completePendingRefresh() {
+    final completer = _pendingRefreshCompleter;
+    if (completer != null && !completer.isCompleted) {
+      completer.complete();
+    }
+    _pendingRefreshCompleter = null;
   }
 
   /// Subscribes to the stream returned by the use case.
@@ -112,6 +140,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     Emitter<StudentDataState> emit, {
     required List<StudentModel> students,
     String? query,
+    StudentMutationStatus mutationStatus = StudentMutationStatus.idle,
     String? successMessage,
   }) {
     emit(
@@ -120,19 +149,19 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
         currentFilterGroupId: _lastFilterGroupId,
         currentFilterTeamId: _lastFilterTeamId,
         currentQuery: query,
+        mutationStatus: mutationStatus,
         successMessage: successMessage,
       ),
     );
   }
 
-  /// Emits the current loaded state with an attached success message.
-  /// Falls back to emitting [StudentDataOperationSuccess] if no data is loaded.
   void _emitSuccessWithData(Emitter<StudentDataState> emit, String message) {
     final students = _resolveVisibleStudents(_lastQuery);
     _emitLoadedState(
       emit,
       students: students,
       query: _lastQuery,
+      mutationStatus: StudentMutationStatus.success,
       successMessage: message,
     );
   }
@@ -149,7 +178,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
       return null;
     }
 
-    return _authService.createUserAsAdmin(
+    return _adminUserProvisioningService.createUser(
       email: event.email!,
       password: event.password!,
       name: event.student.name,
@@ -165,7 +194,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
       return;
     }
 
-    await _authService.rollbackAdminCreatedUser(
+    await _adminUserProvisioningService.rollbackCreatedUser(
       uid: authUser.uid,
       email: event.email!,
       password: event.password!,
@@ -223,7 +252,12 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     StudentsLoadRequested event,
     Emitter<StudentDataState> emit,
   ) async {
-    emit(const StudentDataLoading());
+    emit(
+      StudentDataLoading(
+        previousStudents: _resolveVisibleStudents(_lastQuery),
+        isRefresh: _allStudents.isNotEmpty,
+      ),
+    );
     _setCurrentFilters(groupId: event.actor.groupId, teamId: event.teamId);
 
     await _subscribeToStudents(actor: event.actor, teamId: event.teamId);
@@ -240,10 +274,12 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     final query = _lastQuery;
     final students = _resolveVisibleStudents(query);
     _emitLoadedState(emit, students: students, query: query);
+    _completePendingRefresh();
   }
 
   void _onStreamError(_StreamError event, Emitter<StudentDataState> emit) {
     emit(StudentDataError(event.message));
+    _completePendingRefresh();
   }
 
   Future<void> _onSearchStudents(
@@ -374,7 +410,12 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     StudentsRefreshRequested event,
     Emitter<StudentDataState> emit,
   ) async {
-    emit(const StudentDataLoading());
+    emit(
+      StudentDataLoading(
+        previousStudents: _resolveVisibleStudents(_lastQuery),
+        isRefresh: _allStudents.isNotEmpty,
+      ),
+    );
     _setCurrentFilters(
       groupId: event.actor.groupId,
       teamId: _lastFilterTeamId,
@@ -391,11 +432,13 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     _allStudents = const [];
     _setCurrentFilters();
     emit(const StudentDataInitial());
+    _completePendingRefresh();
   }
 
   @override
   Future<void> close() async {
     await _cancelStudentsSubscription();
+    _completePendingRefresh();
     return super.close();
   }
 }

@@ -1,8 +1,11 @@
-import 'package:church_managment_system/core/constants/enums.dart';
-import 'package:church_managment_system/core/constants/routes.dart';
-import 'package:church_managment_system/core/routing/route_args.dart';
-import 'package:church_managment_system/core/theme/app_colors.dart';
-import 'package:church_managment_system/core/theme/app_spacing.dart';
+import 'package:church_management_system/core/constants/enums.dart';
+import 'package:church_management_system/core/constants/routes.dart';
+import 'package:church_management_system/core/routing/route_args.dart';
+import 'package:church_management_system/core/theme/app_spacing.dart';
+import 'package:church_management_system/core/widgets/common/app_detail_section_card.dart';
+import 'package:church_management_system/core/widgets/common/app_info_banner.dart';
+import 'package:church_management_system/core/widgets/common/app_key_value_row.dart';
+import 'package:church_management_system/core/widgets/common/app_profile_header_card.dart';
 import 'package:flutter/material.dart';
 
 class ServantDetailScreen extends StatelessWidget {
@@ -18,7 +21,6 @@ class ServantDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final servant = args.servant;
-    final theme = Theme.of(context);
     final canEdit = _canEdit();
 
     return Scaffold(
@@ -94,28 +96,9 @@ class ServantDetailScreen extends StatelessWidget {
             ],
           ),
           AppSpacing.gapMd,
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceContainer,
-              borderRadius: AppRadius.mdRadius,
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.cloud_done, color: AppColors.primary),
-                AppSpacing.gapSm,
-                Expanded(
-                  child: Text(
-                    canEdit
-                        ? 'صلاحية المسؤول: تعديل'
-                        : 'عرض فقط', // Admin access / Read-only
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          AppInfoBanner(
+            icon: Icons.cloud_done,
+            message: canEdit ? 'صلاحية المسؤول: تعديل' : 'عرض فقط',
           ),
         ],
       ),
@@ -142,49 +125,10 @@ class _HeaderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 28,
-              backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-              child: Text(
-                servantName.isNotEmpty ? servantName[0].toUpperCase() : '?',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-            AppSpacing.gapMd,
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    servantName,
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  AppSpacing.gapXs,
-                  Text(
-                    'المجموعة: $teamName', // Team
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+    return AppProfileHeaderCard(
+      title: servantName,
+      subtitle: 'المجموعة: $teamName',
+      avatarText: servantName.isNotEmpty ? servantName[0].toUpperCase() : '?',
     );
   }
 }
@@ -197,27 +141,7 @@ class _InfoSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w800,
-                color: AppColors.primary,
-              ),
-            ),
-            AppSpacing.gapMd,
-            ...children,
-          ],
-        ),
-      ),
-    );
+    return AppDetailSectionCard(title: title, children: children);
   }
 }
 
@@ -229,33 +153,6 @@ class _InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 140,
-            child: Text(
-              label,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+    return AppKeyValueRow(label: label, value: value, labelWidth: 140);
   }
 }

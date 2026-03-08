@@ -1,15 +1,15 @@
-import 'package:church_managment_system/core/constants/enums.dart';
-import 'package:church_managment_system/core/constants/routes.dart';
-import 'package:church_managment_system/core/routing/route_args.dart';
-import 'package:church_managment_system/core/theme/app_colors.dart';
-import 'package:church_managment_system/core/theme/app_spacing.dart';
-import 'package:church_managment_system/core/widgets/feedback/app_snackbars.dart';
-import 'package:church_managment_system/features/auth/data/models/auth_user.dart';
-import 'package:church_managment_system/features/team/data/models/team_model.dart';
-import 'package:church_managment_system/features/team/presentation/bloc/team_cubit.dart';
-import 'package:church_managment_system/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:church_managment_system/features/servant/data/repo/servant_data_repository.dart';
-import 'package:church_managment_system/features/team/presentation/widgets/assign_servant_dialog.dart';
+import 'package:church_management_system/core/constants/enums.dart';
+import 'package:church_management_system/core/constants/routes.dart';
+import 'package:church_management_system/core/routing/route_args.dart';
+import 'package:church_management_system/core/theme/app_colors.dart';
+import 'package:church_management_system/core/theme/app_spacing.dart';
+import 'package:church_management_system/core/widgets/common/app_state_message.dart';
+import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
+import 'package:church_management_system/features/auth/data/models/auth_user.dart';
+import 'package:church_management_system/features/team/data/models/team_model.dart';
+import 'package:church_management_system/features/team/presentation/bloc/team_cubit.dart';
+import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:church_management_system/features/team/presentation/widgets/assign_servant_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -68,15 +68,6 @@ class _TeamManagementScreenState extends State<TeamManagementScreen>
       case Group.year3:
         return 'السنة الثالثة';
     }
-  }
-
-  Future<ServantLoadResult> _loadServantsForGroup(String groupId) async {
-    final servantRepo = context.read<ServantDataRepository>();
-    final result = await servantRepo.getServantsByGroupWithFallback(groupId);
-    return ServantLoadResult(
-      servants: result.servants,
-      isFromCache: result.isFromCache,
-    );
   }
 
   void _showAddTeamDialog() {
@@ -191,11 +182,7 @@ class _TeamManagementScreenState extends State<TeamManagementScreen>
 
     showDialog(
       context: context,
-      builder: (_) => AssignServantDialog(
-        actor: actor,
-        team: team,
-        loadServantsForGroup: _loadServantsForGroup,
-      ),
+      builder: (_) => AssignServantDialog(actor: actor, team: team),
     );
   }
 
@@ -224,45 +211,33 @@ class _TeamManagementScreenState extends State<TeamManagementScreen>
           if (state is TeamError) {
             AppSnackbars.showError(context, state.message);
           }
-          if (state is TeamOperationSuccess) {
+          if (state is TeamLoaded &&
+              state.feedbackMessage != null &&
+              state.mutationStatus == TeamMutationStatus.success) {
             AppSnackbars.showSuccess(
               context,
-              state.message,
+              state.feedbackMessage!,
               backgroundColor: AppColors.secondary,
             );
           }
+          if (state is TeamLoaded &&
+              state.feedbackMessage != null &&
+              state.mutationStatus == TeamMutationStatus.failure) {
+            AppSnackbars.showError(context, state.feedbackMessage!);
+          }
         },
         builder: (context, state) {
-          if (state is TeamLoading) {
+          if (state is TeamLoading || state is TeamInitial) {
             return const Center(child: CircularProgressIndicator());
           }
 
           if (state is TeamLoaded) {
             final teams = state.teams;
             if (teams.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.group_work_outlined,
-                      size: 64,
-                      color: AppColors.outline,
-                    ),
-                    AppSpacing.gapMd,
-                    Text(
-                      'لا توجد فرق بعد',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    AppSpacing.gapSm,
-                    Text(
-                      'اضغط + لإنشاء فريق لهذه السنة.',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
+              return const AppStateMessage(
+                icon: Icons.group_work_outlined,
+                title: 'لا توجد فرق بعد',
+                message: 'اضغط + لإنشاء فريق لهذه السنة.',
               );
             }
 
@@ -287,21 +262,12 @@ class _TeamManagementScreenState extends State<TeamManagementScreen>
           }
 
           if (state is TeamError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.error_outline, size: 48, color: AppColors.error),
-                  AppSpacing.gapMd,
-                  Text(state.message),
-                  AppSpacing.gapMd,
-                  FilledButton.icon(
-                    onPressed: _loadTeamsForCurrentTab,
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('إعادة المحاولة'),
-                  ),
-                ],
-              ),
+            return AppStateMessage(
+              icon: Icons.error_outline,
+              iconColor: AppColors.error,
+              title: 'تعذر تحميل الفرق',
+              message: state.message,
+              onRetry: _loadTeamsForCurrentTab,
             );
           }
 
@@ -339,7 +305,9 @@ class _TeamCard extends StatelessWidget {
         ),
         title: Text(
           team.name,
-          style: const TextStyle(fontWeight: FontWeight.w600),
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
         ),
         subtitle: team.assignedServantName != null
             ? Text(

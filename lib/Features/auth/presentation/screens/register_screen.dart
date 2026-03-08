@@ -1,12 +1,14 @@
-import 'package:church_managment_system/core/constants/enums.dart';
-import 'package:church_managment_system/core/utils/validators.dart';
-import 'package:church_managment_system/core/widgets/feedback/app_snackbars.dart';
-import 'package:church_managment_system/core/widgets/dialogs/error_dialog.dart';
-import 'package:church_managment_system/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:church_managment_system/features/auth/presentation/widgets/auth_header.dart';
-import 'package:church_managment_system/features/auth/presentation/widgets/auth_submit_button.dart';
-import 'package:church_managment_system/features/auth/presentation/widgets/auth_text_field.dart';
-import 'package:church_managment_system/features/auth/presentation/widgets/email_verification_dialog.dart';
+import 'package:church_management_system/core/constants/enums.dart';
+import 'package:church_management_system/core/utils/validators.dart';
+import 'package:church_management_system/core/theme/app_spacing.dart';
+import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
+import 'package:church_management_system/core/widgets/dialogs/error_dialog.dart';
+import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:church_management_system/features/auth/presentation/widgets/auth_form_card.dart';
+import 'package:church_management_system/features/auth/presentation/widgets/auth_header.dart';
+import 'package:church_management_system/features/auth/presentation/widgets/auth_submit_button.dart';
+import 'package:church_management_system/features/auth/presentation/widgets/auth_text_field.dart';
+import 'package:church_management_system/features/auth/presentation/widgets/email_verification_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -72,94 +74,80 @@ class _RegisterScreenState extends State<RegisterScreen> {
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Card(
-                elevation: 8,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const AuthHeader(
-                          title: 'إنشاء حساب',
-                          subtitle: 'سجّل الآن للبدء',
-                        ),
-                        const SizedBox(height: 32),
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: AuthFormCard(
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const AuthHeader(
+                        title: 'إنشاء حساب',
+                        subtitle: 'سجّل الآن للبدء',
+                      ),
+                      AppSpacing.gapXl,
 
-                        // Name
-                        AuthTextField(
-                          controller: _nameController,
-                          label: 'الاسم الكامل',
-                          prefixIcon: Icons.person_outline,
-                          validator: Validators.validateName,
-                        ),
-                        const SizedBox(height: 16),
+                      AuthTextField(
+                        controller: _nameController,
+                        label: 'الاسم الكامل',
+                        prefixIcon: Icons.person_outline,
+                        validator: Validators.validateName,
+                      ),
+                      AppSpacing.gapMd,
 
-                        // Email
-                        AuthTextField(
-                          controller: _emailController,
-                          label: 'البريد الإلكتروني',
-                          prefixIcon: Icons.email_outlined,
-                          keyboardType: TextInputType.emailAddress,
-                          validator: Validators.validateEmail,
-                        ),
-                        const SizedBox(height: 16),
+                      AuthTextField(
+                        controller: _emailController,
+                        label: 'البريد الإلكتروني',
+                        prefixIcon: Icons.email_outlined,
+                        keyboardType: TextInputType.emailAddress,
+                        validator: Validators.validateEmail,
+                      ),
+                      AppSpacing.gapMd,
 
-                        // Password
-                        AuthTextField(
-                          controller: _passwordController,
-                          label: 'كلمة المرور',
-                          prefixIcon: Icons.lock_outline,
-                          obscureText: _obscurePassword,
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscurePassword
-                                  ? Icons.visibility_off
-                                  : Icons.visibility,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                _obscurePassword = !_obscurePassword;
-                              });
-                            },
+                      AuthTextField(
+                        controller: _passwordController,
+                        label: 'كلمة المرور',
+                        prefixIcon: Icons.lock_outline,
+                        obscureText: _obscurePassword,
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_off
+                                : Icons.visibility,
                           ),
-                          validator: Validators.validatePassword,
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
                         ),
-                        const SizedBox(height: 16),
+                        validator: Validators.validatePassword,
+                      ),
+                      AppSpacing.gapLg,
 
-                        const SizedBox(height: 24),
+                      AuthSubmitButton(
+                        text: 'إنشاء حساب',
+                        onPressed: _submit,
+                      ),
+                      AppSpacing.gapLg,
 
-                        // Submit
-                        AuthSubmitButton(
-                          text: 'إنشاء حساب',
-                          onPressed: _submit,
-                        ),
-                        const SizedBox(height: 24),
-
-                        // Navigate to Login
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'لديك حساب بالفعل؟',
-                              style: theme.textTheme.bodyMedium,
-                            ),
-                            TextButton(
-                              onPressed: () {
-                                Navigator.pop(context);
-                              },
-                              child: const Text('تسجيل الدخول'),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'لديك حساب بالفعل؟',
+                            style: theme.textTheme.bodyMedium,
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                            },
+                            child: const Text('تسجيل الدخول'),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ),

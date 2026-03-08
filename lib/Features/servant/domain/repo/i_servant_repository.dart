@@ -1,4 +1,4 @@
-import 'package:church_managment_system/features/servant/data/models/servant_models.dart';
+import 'package:church_management_system/features/servant/data/models/servant_models.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Interface for Servant Repository.

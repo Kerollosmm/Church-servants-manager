@@ -1,21 +1,21 @@
-import 'package:church_managment_system/core/constants/routes.dart';
-import 'package:church_managment_system/features/admin/presentation/widget/admin_gate.dart';
-import 'package:church_managment_system/features/admin/presentation/screens/admin_dashboard_screen.dart';
-import 'package:church_managment_system/features/auth/presentation/screens/forgot_password_screen.dart';
-import 'package:church_managment_system/features/auth/presentation/screens/login_screen.dart';
-import 'package:church_managment_system/features/auth/presentation/screens/register_screen.dart';
+import 'package:church_management_system/core/constants/routes.dart';
+import 'package:church_management_system/features/admin/presentation/widget/admin_gate.dart';
+import 'package:church_management_system/features/admin/presentation/screens/admin_dashboard_screen.dart';
+import 'package:church_management_system/features/auth/presentation/screens/forgot_password_screen.dart';
+import 'package:church_management_system/features/auth/presentation/screens/login_screen.dart';
+import 'package:church_management_system/features/auth/presentation/screens/register_screen.dart';
 
-import 'package:church_managment_system/core/routing/route_args.dart';
-import 'package:church_managment_system/core/widgets/not_found_screen.dart';
-import 'package:church_managment_system/features/devtools/presentation/dev_tools_screen.dart';
-import 'package:church_managment_system/features/student/presentation/screens/student_detail_screen.dart';
-import 'package:church_managment_system/features/student/presentation/screens/student_edit_screen.dart';
-import 'package:church_managment_system/features/student/presentation/screens/student_management_screen.dart';
-import 'package:church_managment_system/features/servant/presentation/screens/servant_list_screen.dart';
-import 'package:church_managment_system/features/servant/presentation/screens/servant_detail_screen.dart';
-import 'package:church_managment_system/features/servant/presentation/screens/add_edit_servant_screen.dart';
-import 'package:church_managment_system/features/team/presentation/screens/team_management_screen.dart';
-import 'package:church_managment_system/features/team/presentation/screens/team_members_screen.dart';
+import 'package:church_management_system/core/routing/route_args.dart';
+import 'package:church_management_system/core/widgets/not_found_screen.dart';
+import 'package:church_management_system/features/devtools/presentation/dev_tools_screen.dart';
+import 'package:church_management_system/features/student/presentation/screens/student_detail_screen.dart';
+import 'package:church_management_system/features/student/presentation/screens/student_edit_screen.dart';
+import 'package:church_management_system/features/student/presentation/screens/student_management_screen.dart';
+import 'package:church_management_system/features/servant/presentation/screens/servant_list_screen.dart';
+import 'package:church_management_system/features/servant/presentation/screens/servant_detail_screen.dart';
+import 'package:church_management_system/features/servant/presentation/screens/add_edit_servant_screen.dart';
+import 'package:church_management_system/features/team/presentation/screens/team_management_screen.dart';
+import 'package:church_management_system/features/team/presentation/screens/team_members_screen.dart';
 import 'package:flutter/material.dart';
 
 class AppRouter {

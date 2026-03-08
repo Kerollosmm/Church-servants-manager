@@ -1,7 +1,7 @@
-import 'package:church_managment_system/features/auth/data/models/auth_user.dart';
-import 'package:church_managment_system/features/student/data/models/student_model.dart';
-import 'package:church_managment_system/features/servant/data/models/servant_models.dart';
-import 'package:church_managment_system/features/team/data/models/team_model.dart';
+import 'package:church_management_system/features/auth/data/models/auth_user.dart';
+import 'package:church_management_system/features/student/data/models/student_model.dart';
+import 'package:church_management_system/features/servant/data/models/servant_models.dart';
+import 'package:church_management_system/features/team/data/models/team_model.dart';
 
 class StudentDetailArgs {
   final AuthUser actor;

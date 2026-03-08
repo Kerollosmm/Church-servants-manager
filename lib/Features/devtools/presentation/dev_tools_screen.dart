@@ -1,4 +1,4 @@
-import 'package:church_managment_system/core/utils/data_seeder.dart';
+import 'package:church_management_system/core/utils/data_seeder.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 

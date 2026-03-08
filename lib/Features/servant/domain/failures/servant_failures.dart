@@ -1,4 +1,4 @@
-import 'package:church_managment_system/core/utils/exception_matchers.dart';
+import 'package:church_management_system/core/utils/exception_matchers.dart';
 import 'package:equatable/equatable.dart';
 
 /// Base class for all servant-related failures.

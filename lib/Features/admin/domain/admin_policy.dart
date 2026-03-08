@@ -1,5 +1,5 @@
-import 'package:church_managment_system/features/auth/data/models/auth_user.dart';
-import 'package:church_managment_system/core/constants/enums.dart';
+import 'package:church_management_system/features/auth/data/models/auth_user.dart';
+import 'package:church_management_system/core/constants/enums.dart';
 
 /// Central place for admin authorization checks in the app.
 /// Keep it pure (no Firebase, no UI) so it’s reusable & testable.

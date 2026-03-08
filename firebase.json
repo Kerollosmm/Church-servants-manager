@@ -1,1 +1,26 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"church-6eb05","appId":"1:527209708828:android:ed3ed10b7a5aeb6d0b8ed9","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"church-6eb05","configurations":{"android":"1:527209708828:android:ed3ed10b7a5aeb6d0b8ed9","ios":"1:527209708828:ios:7cd18dca976d42300b8ed9","web":"1:527209708828:web:a2f65df706f7aab70b8ed9"}}}}}}
+{
+  "functions": {
+    "source": "functions"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "church-6eb05",
+          "appId": "1:527209708828:android:ed3ed10b7a5aeb6d0b8ed9",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "church-6eb05",
+          "configurations": {
+            "android": "1:527209708828:android:ed3ed10b7a5aeb6d0b8ed9",
+            "ios": "1:527209708828:ios:7cd18dca976d42300b8ed9",
+            "web": "1:527209708828:web:a2f65df706f7aab70b8ed9"
+          }
+        }
+      }
+    }
+  }
+}

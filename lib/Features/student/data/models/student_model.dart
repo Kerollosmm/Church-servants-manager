@@ -1,5 +1,5 @@
-import 'package:church_managment_system/core/constants/enums.dart';
-import 'package:church_managment_system/core/utils/json_converters.dart';
+import 'package:church_management_system/core/constants/enums.dart';
+import 'package:church_management_system/core/utils/json_converters.dart';
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 
@@ -43,7 +43,33 @@ class StudentModel with _$StudentModel {
 
   /// Convenience factory for Firestore documents with separate docId.
   factory StudentModel.fromMap(Map<String, dynamic> data, String docId) {
-    return StudentModel.fromJson({...data, 'docID': docId});
+    String? readString(String key) {
+      final value = data[key];
+      if (value == null) {
+        return null;
+      }
+      if (value is String) {
+        return value;
+      }
+      return value.toString();
+    }
+
+    return StudentModel.fromJson({
+      ...data,
+      'uid': readString('uid') ?? '',
+      'docID': readString('docID') ?? docId,
+      'name': readString('name') ?? '',
+      'mobile': readString('mobile') ?? '',
+      'team_name': readString('team_name') ?? '',
+      'mother_number': readString('mother_number') ?? '',
+      'father_number': readString('father_number') ?? '',
+      'school_college': readString('school_college'),
+      'address': readString('address'),
+      'father_of_confession': readString('father_of_confession') ?? '',
+      'notes': readString('notes'),
+      'classId': readString('classId'),
+      'imageUrl': readString('imageUrl'),
+    });
   }
 
   /// Converts to Firestore-compatible map.
