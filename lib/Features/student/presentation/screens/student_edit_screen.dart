@@ -30,6 +30,7 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
   late int _grade;
   late UserRole _selectedRole;
   DateTime? _birthdate;
+  bool _isSubmitting = false;
 
   @override
   void initState() {
@@ -87,6 +88,9 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
   }
 
   void _submit(StudentFormTeamsState teamsState) {
+    if (_isSubmitting) {
+      return;
+    }
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -121,6 +125,8 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
       );
       return;
     }
+
+    setState(() => _isSubmitting = true);
 
     final mappedGroup = Group.values.firstWhere(
       (value) => value.name == selectedTeam.groupId,
@@ -199,9 +205,15 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
           if (state is StudentDataLoaded &&
               state.mutationStatus == StudentMutationStatus.success &&
               state.successMessage != null) {
+            if (mounted) {
+              setState(() => _isSubmitting = false);
+            }
             AppSnackbars.showSuccess(context, state.successMessage!);
             Navigator.pop(context);
           } else if (state is StudentDataError) {
+            if (mounted) {
+              setState(() => _isSubmitting = false);
+            }
             AppSnackbars.showError(context, state.message);
           }
         },
@@ -260,14 +272,20 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
                         onPickBirthdate: _pickBirthdate,
                       ),
                       AppSpacing.gapMd,
-                      FilledButton.icon(
-                        key: const Key('submit_student_button'),
-                        onPressed: () => _submit(teamsState),
-                        icon: Icon(isEditing ? Icons.save_outlined : Icons.add),
-                        label: Text(
-                          isEditing ? 'حفظ التعديلات' : 'إنشاء مخدوم',
-                        ),
-                      ),
+                       FilledButton.icon(
+                         key: const Key('submit_student_button'),
+                         onPressed: _isSubmitting ? null : () => _submit(teamsState),
+                         icon: _isSubmitting
+                             ? const SizedBox(
+                                 width: 18,
+                                 height: 18,
+                                 child: CircularProgressIndicator(strokeWidth: 2),
+                               )
+                             : Icon(isEditing ? Icons.save_outlined : Icons.add),
+                         label: Text(
+                           isEditing ? 'حفظ التعديلات' : 'إنشاء مخدوم',
+                         ),
+                       ),
                     ],
                   ),
                 );

@@ -1,4 +1,6 @@
 import 'package:church_management_system/core/routing/app_router.dart';
+import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
+import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
 import 'package:church_management_system/features/admin/data/admin_team_membership_service.dart';
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
 import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
@@ -44,6 +46,7 @@ void configureDependencies() {
   getIt.registerLazySingleton<AdminUserProvisioningService>(
     () => ClientAdminUserProvisioningService(
       userProfileStore: getIt<AuthUserProfileStore>(),
+      authService: getIt<AuthService>(),
     ),
   );
 
@@ -63,6 +66,15 @@ void configureDependencies() {
   );
   getIt.registerLazySingleton<StudentQueryService>(
     () => StudentQueryService(firestore: getIt()),
+  );
+  getIt.registerLazySingleton<AttendanceRepository>(
+    () => AttendanceRepository(
+      firestore: getIt(),
+      studentQueryService: getIt<StudentQueryService>(),
+    ),
+  );
+  getIt.registerLazySingleton<IAttendanceRepository>(
+    () => getIt<AttendanceRepository>(),
   );
   getIt.registerLazySingleton<StudentLinkedUserSyncService>(
     () => StudentLinkedUserSyncService(firestore: getIt()),

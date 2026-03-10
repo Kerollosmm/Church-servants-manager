@@ -41,3 +41,29 @@ class TeamMembersArgs {
 
   const TeamMembersArgs({required this.actor, required this.team});
 }
+
+class AttendanceTakingArgs {
+  final AuthUser actor;
+  final String teamId;
+  final String sessionId;
+
+  const AttendanceTakingArgs({
+    required this.actor,
+    required this.teamId,
+    required this.sessionId,
+  });
+}
+
+class StudentAttendanceArgs {
+  final AuthUser actor;
+  final String studentId;
+  final String studentName;
+  final String? filterTeamId;
+
+  const StudentAttendanceArgs({
+    required this.actor,
+    required this.studentId,
+    required this.studentName,
+    this.filterTeamId,
+  });
+}

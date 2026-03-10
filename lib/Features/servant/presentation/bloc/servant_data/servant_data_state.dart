@@ -2,45 +2,89 @@ import 'package:church_management_system/features/servant/data/models/servant_mo
 import 'package:church_management_system/features/servant/domain/failures/servant_failures.dart';
 import 'package:equatable/equatable.dart';
 
-/// Sealed states for ServantDataCubit with exhaustive switch support.
 sealed class ServantDataState extends Equatable {
   const ServantDataState();
 
   @override
-  List<Object?> get props => [];
+  List<Object?> get props => const [];
 }
 
-/// Initial state - no data loaded yet.
+enum ServantMutationStatus { idle, inProgress, success, failure }
+
 final class ServantDataInitial extends ServantDataState {
   const ServantDataInitial();
 }
 
-/// Loading state - fetching data.
 final class ServantDataLoading extends ServantDataState {
-  const ServantDataLoading();
+  const ServantDataLoading({
+    this.previousServants = const <ServantModel>[],
+    this.isRefresh = false,
+    this.includeArchived = false,
+  });
+
+  final List<ServantModel> previousServants;
+  final bool isRefresh;
+  final bool includeArchived;
+
+  bool get hasPreviousServants => previousServants.isNotEmpty;
+
+  @override
+  List<Object?> get props => [previousServants, isRefresh, includeArchived];
 }
 
-/// Loaded state - servants fetched successfully.
 final class ServantDataLoaded extends ServantDataState {
-  final List<ServantModel> servants;
-  final String? currentFilterTeamName;
-  final String? currentQuery;
-  final bool hasMore;
-  final bool isLoadingMore;
-
   const ServantDataLoaded({
     required this.servants,
     this.currentFilterTeamName,
     this.currentQuery,
     this.hasMore = false,
     this.isLoadingMore = false,
+    this.includeArchived = false,
+    this.mutationStatus = ServantMutationStatus.idle,
+    this.feedbackMessage,
   });
 
-  /// Get servant count.
+  final List<ServantModel> servants;
+  final String? currentFilterTeamName;
+  final String? currentQuery;
+  final bool hasMore;
+  final bool isLoadingMore;
+  final bool includeArchived;
+  final ServantMutationStatus mutationStatus;
+  final String? feedbackMessage;
+
   int get count => servants.length;
 
-  /// Check if empty.
   bool get isEmpty => servants.isEmpty;
+
+  ServantDataLoaded copyWith({
+    List<ServantModel>? servants,
+    String? currentFilterTeamName,
+    bool clearCurrentFilterTeamName = false,
+    String? currentQuery,
+    bool clearCurrentQuery = false,
+    bool? hasMore,
+    bool? isLoadingMore,
+    bool? includeArchived,
+    ServantMutationStatus? mutationStatus,
+    String? feedbackMessage,
+    bool clearFeedbackMessage = false,
+  }) {
+    return ServantDataLoaded(
+      servants: servants ?? this.servants,
+      currentFilterTeamName: clearCurrentFilterTeamName
+          ? null
+          : (currentFilterTeamName ?? this.currentFilterTeamName),
+      currentQuery: clearCurrentQuery ? null : (currentQuery ?? this.currentQuery),
+      hasMore: hasMore ?? this.hasMore,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      includeArchived: includeArchived ?? this.includeArchived,
+      mutationStatus: mutationStatus ?? this.mutationStatus,
+      feedbackMessage: clearFeedbackMessage
+          ? null
+          : (feedbackMessage ?? this.feedbackMessage),
+    );
+  }
 
   @override
   List<Object?> get props => [
@@ -49,28 +93,19 @@ final class ServantDataLoaded extends ServantDataState {
     currentQuery,
     hasMore,
     isLoadingMore,
+    includeArchived,
+    mutationStatus,
+    feedbackMessage,
   ];
 }
 
-/// Error state - operation failed.
 final class ServantDataError extends ServantDataState {
-  final ServantFailure failure;
-
   const ServantDataError(this.failure);
 
-  /// Helper to get the failure message.
+  final ServantFailure failure;
+
   String get message => failure.message;
 
   @override
   List<Object?> get props => [failure];
-}
-
-/// Success state for CRUD operations.
-final class ServantDataOperationSuccess extends ServantDataState {
-  final String message;
-
-  const ServantDataOperationSuccess(this.message);
-
-  @override
-  List<Object?> get props => [message];
 }

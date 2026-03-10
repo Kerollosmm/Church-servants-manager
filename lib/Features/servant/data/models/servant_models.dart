@@ -50,6 +50,18 @@ class ServantModel with _$ServantModel {
     /// Optional notes about the servant.
     String? notes,
 
+    @Default(false) bool isArchived,
+
+    @_TimestampConverter() DateTime? archivedAt,
+
+    String? archivedByUserId,
+
+    String? archiveReason,
+
+    @_TimestampConverter() DateTime? restoredAt,
+
+    String? restoredByUserId,
+
     /// Assigned team/class ID within the servant's group.
     String? assignedTeamId,
   }) = _ServantModel;
@@ -103,4 +115,6 @@ class ServantModel with _$ServantModel {
 
   /// Converts to Firestore-compatible map.
   Map<String, dynamic> toMap() => toJson();
+
+  bool get isActive => !isArchived;
 }

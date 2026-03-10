@@ -47,9 +47,18 @@ class AdminTeamService {
     required String servantDocId,
     required Map<String, dynamic> servantData,
   }) {
+    if (team.isArchived) {
+      throw StateError('Cannot assign a servant to an archived team');
+    }
+
     final role = (servantData['role'] as String?)?.trim().toLowerCase();
     if (role != UserRole.servant.name) {
       throw StateError('Selected user is not a servant');
+    }
+
+    final isArchived = servantData['isArchived'] == true;
+    if (isArchived) {
+      throw StateError('Selected servant is archived');
     }
 
     final groupId = (servantData['groupId'] as String?)?.trim();
@@ -229,6 +238,10 @@ class AdminTeamService {
     required TeamModel team,
     required List<StudentModel> selectedStudents,
   }) async {
+    if (team.isArchived) {
+      throw StateError('Cannot manage members for an archived team');
+    }
+
     await _membershipService.setStudentsForTeam(
       actor: actor,
       team: team,

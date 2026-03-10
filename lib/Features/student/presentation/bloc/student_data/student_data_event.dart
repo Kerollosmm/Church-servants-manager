@@ -10,11 +10,13 @@ final class StudentsLoadRequested extends StudentDataEvent {
   final AuthUser actor;
   final int limit;
   final String? teamId;
+  final bool includeArchived;
 
   const StudentsLoadRequested({
     required this.actor,
     this.limit = 50,
     this.teamId,
+    this.includeArchived = false,
   });
 }
 
@@ -23,11 +25,13 @@ final class StudentsSearchRequested extends StudentDataEvent {
   final AuthUser actor;
   final String query;
   final String? teamId;
+  final bool includeArchived;
 
   const StudentsSearchRequested({
     required this.actor,
     required this.query,
     this.teamId,
+    this.includeArchived = false,
   });
 }
 
@@ -54,7 +58,7 @@ final class StudentUpdated extends StudentDataEvent {
   const StudentUpdated({required this.actor, required this.student});
 }
 
-/// Delete a student by document ID.
+/// Archive a student by document ID.
 final class StudentDeleted extends StudentDataEvent {
   final AuthUser actor;
   final String docId;
@@ -62,11 +66,22 @@ final class StudentDeleted extends StudentDataEvent {
   const StudentDeleted({required this.actor, required this.docId});
 }
 
+final class StudentRestored extends StudentDataEvent {
+  final AuthUser actor;
+  final String docId;
+
+  const StudentRestored({required this.actor, required this.docId});
+}
+
 /// Refresh students (re-fetch with current filter).
 final class StudentsRefreshRequested extends StudentDataEvent {
   final AuthUser actor;
+  final bool includeArchived;
 
-  const StudentsRefreshRequested({required this.actor});
+  const StudentsRefreshRequested({
+    required this.actor,
+    this.includeArchived = false,
+  });
 }
 
 /// Stop active Firestore listening and clear in-memory list cache.

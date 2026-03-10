@@ -13,6 +13,16 @@ _$AuthUserImpl _$$AuthUserImplFromJson(Map<String, dynamic> json) =>
       name: json['name'] as String,
       role: $enumDecode(_$UserRoleEnumMap, json['role']),
       isEmailVerified: json['isEmailVerified'] as bool? ?? false,
+      isArchived: json['isArchived'] as bool? ?? false,
+      archivedAt:
+          const FirestoreTimestampConverter().fromJson(json['archivedAt']),
+      archivedByUserId: json['archivedByUserId'] as String?,
+      archiveReason: json['archiveReason'] as String?,
+      restoredAt:
+          const FirestoreTimestampConverter().fromJson(json['restoredAt']),
+      restoredByUserId: json['restoredByUserId'] as String?,
+      restorePendingPasswordReset:
+          json['restorePendingPasswordReset'] as bool? ?? false,
       groupId: json['groupId'] as String?,
       assignedTeamIds: (json['assignedTeamIds'] as List<dynamic>?)
               ?.map((e) => e as String)
@@ -28,6 +38,15 @@ Map<String, dynamic> _$$AuthUserImplToJson(_$AuthUserImpl instance) =>
       'name': instance.name,
       'role': _$UserRoleEnumMap[instance.role]!,
       'isEmailVerified': instance.isEmailVerified,
+      'isArchived': instance.isArchived,
+      'archivedAt':
+          const FirestoreTimestampConverter().toJson(instance.archivedAt),
+      'archivedByUserId': instance.archivedByUserId,
+      'archiveReason': instance.archiveReason,
+      'restoredAt':
+          const FirestoreTimestampConverter().toJson(instance.restoredAt),
+      'restoredByUserId': instance.restoredByUserId,
+      'restorePendingPasswordReset': instance.restorePendingPasswordReset,
       'groupId': instance.groupId,
       'assignedTeamIds': instance.assignedTeamIds,
       'assignedTeamId': instance.assignedTeamId,

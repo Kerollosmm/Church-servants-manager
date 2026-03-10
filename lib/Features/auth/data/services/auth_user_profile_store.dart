@@ -46,12 +46,58 @@ class AuthUserProfileStore {
         'isEmailVerified': appUser.isEmailVerified,
         'updatedAt': FieldValue.serverTimestamp(),
       };
+
+      if (appUser.isArchived) {
+        payload['isArchived'] = true;
+      }
+      if (appUser.archivedAt != null) {
+        payload['archivedAt'] = appUser.archivedAt;
+      }
+      if (appUser.archivedByUserId != null && appUser.archivedByUserId!.isNotEmpty) {
+        payload['archivedByUserId'] = appUser.archivedByUserId;
+      }
+      if (appUser.archiveReason != null && appUser.archiveReason!.isNotEmpty) {
+        payload['archiveReason'] = appUser.archiveReason;
+      }
+      if (appUser.restoredAt != null) {
+        payload['restoredAt'] = appUser.restoredAt;
+      }
+      if (appUser.restoredByUserId != null && appUser.restoredByUserId!.isNotEmpty) {
+        payload['restoredByUserId'] = appUser.restoredByUserId;
+      }
+      if (appUser.restorePendingPasswordReset) {
+        payload['restorePendingPasswordReset'] = true;
+      }
+      if (appUser.groupId != null && appUser.groupId!.isNotEmpty) {
+        payload['groupId'] = appUser.groupId;
+      }
+      if (appUser.assignedTeamIds.isNotEmpty) {
+        payload['assignedTeamIds'] = appUser.assignedTeamIds;
+      }
+      if (appUser.assignedTeamId != null && appUser.assignedTeamId!.isNotEmpty) {
+        payload['assignedTeamId'] = appUser.assignedTeamId;
+      }
+
       await _db
           .collection(FirestoreCollections.users)
           .doc(appUser.uid)
           .set(payload, SetOptions(merge: true));
     } catch (e) {
       throw GenericAuthException('Failed to save user data: $e');
+    }
+  }
+
+  Future<void> updateUserFields(
+    String uid,
+    Map<String, dynamic> fields,
+  ) async {
+    try {
+      await _db
+          .collection(FirestoreCollections.users)
+          .doc(uid)
+          .set({...fields, 'updatedAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
+    } catch (e) {
+      throw GenericAuthException('Failed to update user data: $e');
     }
   }
 

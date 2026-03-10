@@ -141,6 +141,58 @@ void main() {
     await bloc.close();
   });
 
+  test('search with changed team reloads the student stream for the new team', () async {
+    final admin = actor(UserRole.admin);
+    final team1Controller = StreamController<List<StudentModel>>.broadcast();
+    final team2Controller = StreamController<List<StudentModel>>.broadcast();
+
+    when(
+      () => getStudentsStream(actor: admin, teamId: 'team1'),
+    ).thenAnswer((_) => team1Controller.stream);
+    when(
+      () => getStudentsStream(actor: admin, teamId: 'team2'),
+    ).thenAnswer((_) => team2Controller.stream);
+
+    final bloc = StudentDataBloc(
+      studentRepository: repository,
+      getStudentsStream: getStudentsStream,
+      canMutateStudent: canMutateStudent,
+      adminUserProvisioningService: adminUserProvisioningService,
+    );
+
+    final expectation = expectLater(
+      bloc.stream,
+      emitsInOrder([
+        isA<StudentDataLoading>(),
+        isA<StudentDataLoaded>().having(
+          (s) => s.currentFilterTeamId,
+          'team',
+          'team1',
+        ),
+        isA<StudentDataLoading>(),
+        isA<StudentDataLoaded>()
+            .having((s) => s.currentFilterTeamId, 'team', 'team2')
+            .having((s) => s.students.single.docID, 'student', 's2'),
+      ]),
+    );
+
+    bloc.add(StudentsLoadRequested(actor: admin, teamId: 'team1'));
+    await Future<void>.delayed(Duration.zero);
+    team1Controller.add([student(id: 's1')]);
+    await Future<void>.delayed(Duration.zero);
+
+    bloc.add(
+      StudentsSearchRequested(actor: admin, query: 'Student', teamId: 'team2'),
+    );
+    await Future<void>.delayed(Duration.zero);
+    team2Controller.add([student(id: 's2')]);
+
+    await expectation;
+    await team1Controller.close();
+    await team2Controller.close();
+    await bloc.close();
+  });
+
   test('create emits not-allowed when actor cannot mutate student', () async {
     final servant = actor(UserRole.servant);
     final newStudent = student();
@@ -392,4 +444,76 @@ void main() {
       await bloc.close();
     },
   );
+
+  test('delete archives linked user and emits success message', () async {
+    final adminActor = actor(UserRole.admin);
+    final existing = student(id: 's3');
+
+    when(() => repository.getStudentById('s3')).thenAnswer((_) async => existing);
+    when(() => canMutateStudent(adminActor, existing)).thenReturn(true);
+    when(() => repository.deleteStudent('s3')).thenAnswer((_) async {});
+    when(
+      () => adminUserProvisioningService.archiveUser(uid: 's3'),
+    ).thenAnswer((_) async {});
+
+    final bloc = StudentDataBloc(
+      studentRepository: repository,
+      getStudentsStream: getStudentsStream,
+      canMutateStudent: canMutateStudent,
+      adminUserProvisioningService: adminUserProvisioningService,
+    );
+
+    final expectation = expectLater(
+      bloc.stream,
+      emits(
+        isA<StudentDataLoaded>().having(
+          (s) => s.successMessage,
+          'successMessage',
+          'تمت أرشفة المخدوم بنجاح',
+        ),
+      ),
+    );
+
+    bloc.add(StudentDeleted(actor: adminActor, docId: 's3'));
+    await expectation;
+    verify(() => adminUserProvisioningService.archiveUser(uid: 's3')).called(1);
+    await bloc.close();
+  });
+
+  test('restore re-enables linked account and emits success message', () async {
+    final adminActor = actor(UserRole.admin);
+    final archived = student(id: 's4').copyWith(isArchived: true);
+
+    when(
+      () => repository.getStudentById('s4', includeArchived: true),
+    ).thenAnswer((_) async => archived);
+    when(() => repository.restoreStudent('s4')).thenAnswer((_) async {});
+    when(
+      () => adminUserProvisioningService.restoreUser(uid: 's4'),
+    ).thenAnswer((_) async {});
+
+    final bloc = StudentDataBloc(
+      studentRepository: repository,
+      getStudentsStream: getStudentsStream,
+      canMutateStudent: canMutateStudent,
+      adminUserProvisioningService: adminUserProvisioningService,
+    );
+
+    final expectation = expectLater(
+      bloc.stream,
+      emits(
+        isA<StudentDataLoaded>().having(
+          (s) => s.successMessage,
+          'successMessage',
+          'تمت استعادة المخدوم بنجاح',
+        ),
+      ),
+    );
+
+    bloc.add(StudentRestored(actor: adminActor, docId: 's4'));
+    await expectation;
+    verify(() => repository.restoreStudent('s4')).called(1);
+    verify(() => adminUserProvisioningService.restoreUser(uid: 's4')).called(1);
+    await bloc.close();
+  });
 }

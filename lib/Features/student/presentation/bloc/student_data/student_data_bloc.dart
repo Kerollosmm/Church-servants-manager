@@ -31,6 +31,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
   String? _lastFilterGroupId;
   String? _lastFilterTeamId;
   String? _lastQuery;
+  bool _includeArchived = false;
 
   StudentDataBloc({
     required StudentDataRepository studentRepository,
@@ -47,6 +48,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     on<StudentCreated>(_onCreateStudent);
     on<StudentUpdated>(_onUpdateStudent);
     on<StudentDeleted>(_onDeleteStudent);
+    on<StudentRestored>(_onRestoreStudent);
     on<StudentsRefreshRequested>(_onRefreshStudents);
     on<StudentsListeningStopped>(_onStopListening);
     on<_StudentsStreamUpdated>(_onStreamUpdated);
@@ -67,7 +69,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
 
     final completer = Completer<void>();
     _pendingRefreshCompleter = completer;
-    add(StudentsRefreshRequested(actor: actor));
+    add(StudentsRefreshRequested(actor: actor, includeArchived: _includeArchived));
     return completer.future.timeout(
       const Duration(seconds: 10),
       onTimeout: () {
@@ -90,10 +92,15 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
   Future<void> _subscribeToStudents({
     required AuthUser actor,
     String? teamId,
+    bool includeArchived = false,
   }) async {
     await _cancelStudentsSubscription();
 
-    final stream = _getStudentsStream(actor: actor, teamId: teamId);
+    final stream = _getStudentsStream(
+      actor: actor,
+      teamId: teamId,
+      includeArchived: includeArchived,
+    );
 
     if (stream == null) {
       add(const _StudentsStreamUpdated([]));
@@ -149,6 +156,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
         currentFilterGroupId: _lastFilterGroupId,
         currentFilterTeamId: _lastFilterTeamId,
         currentQuery: query,
+        includeArchived: _includeArchived,
         mutationStatus: mutationStatus,
         successMessage: successMessage,
       ),
@@ -256,11 +264,17 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
       StudentDataLoading(
         previousStudents: _resolveVisibleStudents(_lastQuery),
         isRefresh: _allStudents.isNotEmpty,
+        includeArchived: event.includeArchived,
       ),
     );
     _setCurrentFilters(groupId: event.actor.groupId, teamId: event.teamId);
+    _includeArchived = event.includeArchived;
 
-    await _subscribeToStudents(actor: event.actor, teamId: event.teamId);
+    await _subscribeToStudents(
+      actor: event.actor,
+      teamId: event.teamId,
+      includeArchived: event.includeArchived,
+    );
   }
 
   void _onStreamUpdated(
@@ -287,11 +301,33 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     Emitter<StudentDataState> emit,
   ) async {
     final query = event.query.trim();
+    final previousQuery = _lastQuery;
+    final previousTeamId = _lastFilterTeamId;
+    final previousIncludeArchived = _includeArchived;
+    final nextTeamId = event.teamId;
+    _includeArchived = event.includeArchived;
     _setCurrentFilters(
-      groupId: _lastFilterGroupId,
-      teamId: _lastFilterTeamId,
+      groupId: event.actor.groupId,
+      teamId: nextTeamId,
       query: query,
     );
+
+    if (previousTeamId != nextTeamId ||
+        previousIncludeArchived != event.includeArchived) {
+      emit(
+        StudentDataLoading(
+          previousStudents: _resolveVisibleStudents(previousQuery),
+          isRefresh: _allStudents.isNotEmpty,
+          includeArchived: event.includeArchived,
+        ),
+      );
+      await _subscribeToStudents(
+        actor: event.actor,
+        teamId: nextTeamId,
+        includeArchived: event.includeArchived,
+      );
+      return;
+    }
 
     final students = _resolveVisibleStudents(query);
     _emitLoadedState(emit, students: students, query: query);
@@ -400,9 +436,40 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
         return;
       }
       await _studentRepository.deleteStudent(event.docId);
-      _emitSuccessWithData(emit, 'تم حذف المخدوم بنجاح');
+      if (existing.uid.trim().isNotEmpty) {
+        await _adminUserProvisioningService.archiveUser(uid: existing.uid.trim());
+      }
+      _emitSuccessWithData(emit, 'تمت أرشفة المخدوم بنجاح');
     } catch (e) {
-      _emitError(emit, 'تعذر حذف المخدوم', e);
+      _emitError(emit, 'تعذر أرشفة المخدوم', e);
+    }
+  }
+
+  Future<void> _onRestoreStudent(
+    StudentRestored event,
+    Emitter<StudentDataState> emit,
+  ) async {
+    try {
+      final existing = await _studentRepository.getStudentById(
+        event.docId,
+        includeArchived: true,
+      );
+      if (existing == null) {
+        emit(const StudentDataError('لم يتم العثور على المخدوم.'));
+        return;
+      }
+      if (event.actor.role != UserRole.admin) {
+        _emitNotAllowed(emit);
+        return;
+      }
+
+      await _studentRepository.restoreStudent(event.docId);
+      if (existing.uid.trim().isNotEmpty) {
+        await _adminUserProvisioningService.restoreUser(uid: existing.uid.trim());
+      }
+      _emitSuccessWithData(emit, 'تمت استعادة المخدوم بنجاح');
+    } catch (e) {
+      _emitError(emit, 'تعذر استعادة المخدوم', e);
     }
   }
 
@@ -414,6 +481,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
       StudentDataLoading(
         previousStudents: _resolveVisibleStudents(_lastQuery),
         isRefresh: _allStudents.isNotEmpty,
+        includeArchived: event.includeArchived,
       ),
     );
     _setCurrentFilters(
@@ -421,7 +489,12 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
       teamId: _lastFilterTeamId,
       query: _lastQuery,
     );
-    await _subscribeToStudents(actor: event.actor, teamId: _lastFilterTeamId);
+    _includeArchived = event.includeArchived;
+    await _subscribeToStudents(
+      actor: event.actor,
+      teamId: _lastFilterTeamId,
+      includeArchived: event.includeArchived,
+    );
   }
 
   Future<void> _onStopListening(
@@ -431,6 +504,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     await _cancelStudentsSubscription();
     _allStudents = const [];
     _setCurrentFilters();
+    _includeArchived = false;
     emit(const StudentDataInitial());
     _completePendingRefresh();
   }

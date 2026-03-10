@@ -1,7 +1,12 @@
+import 'package:church_management_system/features/admin/data/admin_team_service.dart';
+import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/student/data/repos/student_data_repository.dart';
+import 'package:church_management_system/features/team/data/models/team_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+
+enum TeamMembersMutationStatus { idle, success, failure }
 
 class TeamMembersState {
   final bool isLoading;
@@ -11,6 +16,8 @@ class TeamMembersState {
   final Set<String> selectedStudentIds;
   final bool loadedFromCache;
   final String? errorMessage;
+  final TeamMembersMutationStatus mutationStatus;
+  final String? feedbackMessage;
 
   const TeamMembersState({
     this.isLoading = false,
@@ -20,6 +27,8 @@ class TeamMembersState {
     this.selectedStudentIds = const <String>{},
     this.loadedFromCache = false,
     this.errorMessage,
+    this.mutationStatus = TeamMembersMutationStatus.idle,
+    this.feedbackMessage,
   });
 
   List<StudentModel> get visibleStudents {
@@ -27,11 +36,9 @@ class TeamMembersState {
     if (query.isEmpty) {
       return students;
     }
-    return students
-        .where((student) {
-          return student.name.toLowerCase().contains(query);
-        })
-        .toList(growable: false);
+    return students.where((student) {
+      return student.name.toLowerCase().contains(query);
+    }).toList(growable: false);
   }
 
   int get selectedCount => selectedStudentIds.length;
@@ -44,7 +51,10 @@ class TeamMembersState {
     Set<String>? selectedStudentIds,
     bool? loadedFromCache,
     String? errorMessage,
+    TeamMembersMutationStatus? mutationStatus,
+    String? feedbackMessage,
     bool clearErrorMessage = false,
+    bool clearFeedbackMessage = false,
   }) {
     return TeamMembersState(
       isLoading: isLoading ?? this.isLoading,
@@ -56,16 +66,32 @@ class TeamMembersState {
       errorMessage: clearErrorMessage
           ? null
           : (errorMessage ?? this.errorMessage),
+      mutationStatus: mutationStatus ?? this.mutationStatus,
+      feedbackMessage: clearFeedbackMessage
+          ? null
+          : (feedbackMessage ?? this.feedbackMessage),
     );
   }
 }
 
 class TeamMembersCubit extends Cubit<TeamMembersState> {
-  TeamMembersCubit({required StudentDataRepository studentRepository})
-    : _studentRepository = studentRepository,
-      super(const TeamMembersState(isLoading: true));
+  TeamMembersCubit({
+    required StudentDataRepository studentRepository,
+    required AdminTeamService adminTeamService,
+  }) : _studentRepository = studentRepository,
+       _adminTeamService = adminTeamService,
+       super(const TeamMembersState(isLoading: true));
 
   final StudentDataRepository _studentRepository;
+  final AdminTeamService _adminTeamService;
+
+  TeamMembersState _clearMutationFeedback(TeamMembersState value) {
+    return value.copyWith(
+      mutationStatus: TeamMembersMutationStatus.idle,
+      clearErrorMessage: true,
+      clearFeedbackMessage: true,
+    );
+  }
 
   Future<void> load({required String groupId, required String teamId}) async {
     emit(const TeamMembersState(isLoading: true));
@@ -103,7 +129,7 @@ class TeamMembersCubit extends Cubit<TeamMembersState> {
   }
 
   void search(String query) {
-    emit(state.copyWith(searchQuery: query, clearErrorMessage: true));
+    emit(_clearMutationFeedback(state).copyWith(searchQuery: query));
   }
 
   void toggleSelection(String studentId, bool isSelected) {
@@ -113,7 +139,7 @@ class TeamMembersCubit extends Cubit<TeamMembersState> {
     } else {
       selected.remove(studentId);
     }
-    emit(state.copyWith(selectedStudentIds: selected, clearErrorMessage: true));
+    emit(_clearMutationFeedback(state).copyWith(selectedStudentIds: selected));
   }
 
   List<StudentModel> selectedStudents() {
@@ -123,11 +149,46 @@ class TeamMembersCubit extends Cubit<TeamMembersState> {
         .toList(growable: false);
   }
 
-  void markSavingStarted() {
-    emit(state.copyWith(isSaving: true, clearErrorMessage: true));
-  }
+  Future<void> saveMembers({
+    required AuthUser actor,
+    required TeamModel team,
+  }) async {
+    if (state.isSaving) return;
 
-  void markSavingFinished() {
-    emit(state.copyWith(isSaving: false, clearErrorMessage: true));
+    emit(
+      _clearMutationFeedback(state).copyWith(
+        isSaving: true,
+        clearErrorMessage: true,
+      ),
+    );
+
+    try {
+      await _adminTeamService.setStudentsForTeam(
+        actor: actor,
+        team: team,
+        selectedStudents: selectedStudents(),
+      );
+      emit(
+        state.copyWith(
+          isSaving: false,
+          mutationStatus: TeamMembersMutationStatus.success,
+          feedbackMessage: 'تم تحديث أعضاء الفريق بنجاح',
+        ),
+      );
+    } catch (error) {
+      if (kDebugMode) {
+        debugPrint(
+          'TeamMembersCubit: failed to save team members '
+          '(${error.runtimeType})',
+        );
+      }
+      emit(
+        state.copyWith(
+          isSaving: false,
+          mutationStatus: TeamMembersMutationStatus.failure,
+          feedbackMessage: 'تعذر تحديث أعضاء الفريق. حاول مرة أخرى.',
+        ),
+      );
+    }
   }
 }

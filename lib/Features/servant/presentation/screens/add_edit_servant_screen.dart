@@ -58,10 +58,6 @@ class _AddEditServantScreenState extends State<AddEditServantScreen> {
     }
   }
 
-  String? _requiredField(String? value) {
-    return value == null || value.trim().isEmpty ? 'مطلوب' : null;
-  }
-
   String? _passwordValidator(String? value) {
     return value == null || value.length < 6
         ? 'يجب أن تكون 6 أحرف على الأقل'
@@ -118,10 +114,16 @@ class _AddEditServantScreenState extends State<AddEditServantScreen> {
 
     return BlocListener<ServantDataCubit, ServantDataState>(
       listener: (context, state) {
-        if (state is ServantDataOperationSuccess) {
+        if (state is ServantDataLoaded &&
+            state.mutationStatus == ServantMutationStatus.success &&
+            state.feedbackMessage != null) {
           Navigator.pop(context);
         } else if (state is ServantDataError) {
           AppSnackbars.showError(context, state.message);
+        } else if (state is ServantDataLoaded &&
+            state.mutationStatus == ServantMutationStatus.failure &&
+            state.feedbackMessage != null) {
+          AppSnackbars.showError(context, state.feedbackMessage!);
         }
       },
       child: Scaffold(
@@ -137,18 +139,17 @@ class _AddEditServantScreenState extends State<AddEditServantScreen> {
                   phoneController: _controllers.phone,
                   emailController: _controllers.email,
                   passwordController: _controllers.password,
-                  isEditing: isEditing,
-                  selectedRole: _selectedRole,
-                  selectedGroup: _selectedGroup,
-                  onRoleChanged: (value) {
-                    setState(() => _selectedRole = value);
-                  },
-                  onGroupChanged: (value) {
-                    setState(() => _selectedGroup = value);
-                  },
-                  requiredField: _requiredField,
-                  passwordValidator: _passwordValidator,
-                ),
+                   isEditing: isEditing,
+                   selectedRole: _selectedRole,
+                   selectedGroup: _selectedGroup,
+                   onRoleChanged: (value) {
+                     setState(() => _selectedRole = value);
+                   },
+                   onGroupChanged: (value) {
+                     setState(() => _selectedGroup = value);
+                   },
+                   passwordValidator: _passwordValidator,
+                 ),
                 AppSpacing.gapMd,
                 ServantSecondaryDetailsSection(
                   fatherOfConfessionController:
@@ -159,10 +160,24 @@ class _AddEditServantScreenState extends State<AddEditServantScreen> {
                   onPickBirthdate: _pickBirthdate,
                 ),
                 AppSpacing.gapMd,
-                FilledButton.icon(
-                  onPressed: _submit,
-                  icon: Icon(isEditing ? Icons.save_outlined : Icons.add),
-                  label: Text(isEditing ? 'حفظ التعديلات' : 'إنشاء خادم'),
+                BlocBuilder<ServantDataCubit, ServantDataState>(
+                  builder: (context, state) {
+                    final isSubmitting = state is ServantDataLoading ||
+                        (state is ServantDataLoaded &&
+                            state.mutationStatus ==
+                                ServantMutationStatus.inProgress);
+                    return FilledButton.icon(
+                      onPressed: isSubmitting ? null : _submit,
+                      icon: isSubmitting
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : Icon(isEditing ? Icons.save_outlined : Icons.add),
+                      label: Text(isEditing ? 'حفظ التعديلات' : 'إنشاء خادم'),
+                    );
+                  },
                 ),
               ],
             ),

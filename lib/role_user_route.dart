@@ -76,6 +76,13 @@ class RoleUserRoute extends StatelessWidget {
             );
           }
 
+          if (state is AuthArchived) {
+            return _ArchivedAccountScreen(
+              message: state.message,
+              email: state.email,
+            );
+          }
+
           // Authenticated - route based on role
           if (state is AuthAuthenticated || state is AuthDegraded) {
             final role = state is AuthAuthenticated
@@ -133,6 +140,49 @@ class _AdminRefreshRequiredScreen extends StatelessWidget {
                   context.read<AuthBloc>().add(const AuthEventSignOut());
                 },
                 child: const Text('تسجيل الخروج'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ArchivedAccountScreen extends StatelessWidget {
+  const _ArchivedAccountScreen({required this.message, this.email});
+
+  final String message;
+  final String? email;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('تم إيقاف الحساب')),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.lock_person_outlined, size: 56),
+              const SizedBox(height: 12),
+              const Text(
+                'هذا الحساب غير متاح حاليا',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(message, textAlign: TextAlign.center),
+              if (email != null && email!.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(email!, textAlign: TextAlign.center),
+              ],
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () {
+                  context.read<AuthBloc>().add(const AuthEventSignOut());
+                },
+                child: const Text('العودة لتسجيل الدخول'),
               ),
             ],
           ),

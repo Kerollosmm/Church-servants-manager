@@ -25,6 +25,8 @@ class StudentDataRepository implements IStudentRepository {
 
   CollectionReference<Map<String, dynamic>> get _studentsCollection =>
       _firestore.collection(FirestoreCollections.students);
+  CollectionReference<Map<String, dynamic>> get _usersCollection =>
+      _firestore.collection(FirestoreCollections.users);
 
   Future<void> syncLinkedUserRoleFromStudent({
     required StudentModel updatedStudent,
@@ -47,29 +49,43 @@ class StudentDataRepository implements IStudentRepository {
   }
 
   @override
-  Future<StudentModel?> getStudentById(String docId) async {
-    return _queryService.getStudentById(docId);
+  Future<StudentModel?> getStudentById(
+    String docId, {
+    bool includeArchived = false,
+  }) async {
+    return _queryService.getStudentById(docId, includeArchived: includeArchived);
   }
 
   @override
-  Future<StudentModel?> getStudentByUid(String uid) async {
-    return _queryService.getStudentByUid(uid);
+  Future<StudentModel?> getStudentByUid(
+    String uid, {
+    bool includeArchived = false,
+  }) async {
+    return _queryService.getStudentByUid(uid, includeArchived: includeArchived);
   }
 
   @override
   Future<List<StudentModel>> getAllStudents({
     int limit = 10,
     DocumentSnapshot? lastDocument,
+    bool includeArchived = false,
   }) async {
     return _queryService.getAllStudents(
       limit: limit,
       lastDocument: lastDocument,
+      includeArchived: includeArchived,
     );
   }
 
   @override
-  Future<List<StudentModel>> getStudentsByClass(String classId) async {
-    return _queryService.getStudentsByClass(classId);
+  Future<List<StudentModel>> getStudentsByClass(
+    String classId, {
+    bool includeArchived = false,
+  }) async {
+    return _queryService.getStudentsByClass(
+      classId,
+      includeArchived: includeArchived,
+    );
   }
 
   @override
@@ -78,13 +94,25 @@ class StudentDataRepository implements IStudentRepository {
   }
 
   @override
-  Future<List<StudentModel>> getStudentsByGroup(String groupName) async {
-    return _queryService.getStudentsByGroup(groupName);
+  Future<List<StudentModel>> getStudentsByGroup(
+    String groupName, {
+    bool includeArchived = false,
+  }) async {
+    return _queryService.getStudentsByGroup(
+      groupName,
+      includeArchived: includeArchived,
+    );
   }
 
   Future<({List<StudentModel> students, bool isFromCache})>
-  getStudentsByGroupWithFallback(String groupName) async {
-    return _queryService.getStudentsByGroupWithFallback(groupName);
+  getStudentsByGroupWithFallback(
+    String groupName, {
+    bool includeArchived = false,
+  }) async {
+    return _queryService.getStudentsByGroupWithFallback(
+      groupName,
+      includeArchived: includeArchived,
+    );
   }
 
   @override
@@ -134,9 +162,68 @@ class StudentDataRepository implements IStudentRepository {
   @override
   Future<void> deleteStudent(String docId) async {
     try {
-      // Note: We are not deleting the associated User record here automatically
-      // as that might delete a valid user account. We just delete the student profile.
-      await _studentsCollection.doc(docId).delete();
+      final doc = await _studentsCollection.doc(docId).get();
+      final data = doc.data();
+      if (!doc.exists || data == null) {
+        return;
+      }
+
+      final student = StudentModel.fromMap(data, doc.id);
+      final batch = _firestore.batch();
+
+      batch.set(doc.reference, {
+        'isArchived': true,
+        'archivedAt': FieldValue.serverTimestamp(),
+        'archivedByUserId': 'system',
+        'restoredAt': FieldValue.delete(),
+        'restoredByUserId': FieldValue.delete(),
+      }, SetOptions(merge: true));
+
+      final normalizedUid = student.uid.trim();
+      if (normalizedUid.isNotEmpty) {
+        batch.set(_usersCollection.doc(normalizedUid), {
+          'isArchived': true,
+          'archivedAt': FieldValue.serverTimestamp(),
+          'restorePendingPasswordReset': false,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
+
+      await batch.commit();
+    } catch (e) {
+      throw mapExceptionToStudentFailure(e);
+    }
+  }
+
+  Future<void> restoreStudent(String docId) async {
+    try {
+      final doc = await _studentsCollection.doc(docId).get();
+      final data = doc.data();
+      if (!doc.exists || data == null) {
+        return;
+      }
+
+      final student = StudentModel.fromMap(data, doc.id);
+      final batch = _firestore.batch();
+
+      batch.set(doc.reference, {
+        'isArchived': false,
+        'restoredAt': FieldValue.serverTimestamp(),
+        'restoredByUserId': 'system',
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      final normalizedUid = student.uid.trim();
+      if (normalizedUid.isNotEmpty) {
+        batch.set(_usersCollection.doc(normalizedUid), {
+          'isArchived': false,
+          'restorePendingPasswordReset': true,
+          'restoredAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
+
+      await batch.commit();
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
     }
@@ -150,22 +237,40 @@ class StudentDataRepository implements IStudentRepository {
   // Stream-based queries (real-time)
 
   @override
-  Stream<List<StudentModel>> watchAllStudents() {
-    return _queryService.watchAllStudents();
+  Stream<List<StudentModel>> watchAllStudents({bool includeArchived = false}) {
+    return _queryService.watchAllStudents(includeArchived: includeArchived);
   }
 
   @override
-  Stream<List<StudentModel>> watchStudentsByClass(String classId) {
-    return _queryService.watchStudentsByClass(classId);
+  Stream<List<StudentModel>> watchStudentsByClass(
+    String classId, {
+    bool includeArchived = false,
+  }) {
+    return _queryService.watchStudentsByClass(
+      classId,
+      includeArchived: includeArchived,
+    );
   }
 
   @override
-  Stream<List<StudentModel>> watchStudentsByClasses(List<String> classIds) {
-    return _queryService.watchStudentsByClasses(classIds);
+  Stream<List<StudentModel>> watchStudentsByClasses(
+    List<String> classIds, {
+    bool includeArchived = false,
+  }) {
+    return _queryService.watchStudentsByClasses(
+      classIds,
+      includeArchived: includeArchived,
+    );
   }
 
   @override
-  Stream<List<StudentModel>> watchStudentsByGroup(String groupName) {
-    return _queryService.watchStudentsByGroup(groupName);
+  Stream<List<StudentModel>> watchStudentsByGroup(
+    String groupName, {
+    bool includeArchived = false,
+  }) {
+    return _queryService.watchStudentsByGroup(
+      groupName,
+      includeArchived: includeArchived,
+    );
   }
 }

@@ -28,6 +28,13 @@ class AuthUnauthenticated extends AuthState {
   const AuthUnauthenticated();
 }
 
+class AuthArchived extends AuthState {
+  final String message;
+  final String? email;
+
+  const AuthArchived({required this.message, this.email});
+}
+
 class AuthNeedsVerification extends AuthState {
   const AuthNeedsVerification();
 }

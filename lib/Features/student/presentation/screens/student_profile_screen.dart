@@ -27,6 +27,15 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
   }
 
   @override
+  void didUpdateWidget(covariant StudentProfileScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.user.uid != widget.user.uid ||
+        oldWidget.user.isEmailVerified != widget.user.isEmailVerified) {
+      context.read<StudentProfileCubit>().loadProfile(widget.user);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(

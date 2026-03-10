@@ -16,10 +16,12 @@ final class StudentDataInitial extends StudentDataState {
 final class StudentDataLoading extends StudentDataState {
   final List<StudentModel> previousStudents;
   final bool isRefresh;
+  final bool includeArchived;
 
   const StudentDataLoading({
     this.previousStudents = const <StudentModel>[],
     this.isRefresh = false,
+    this.includeArchived = false,
   });
 
   bool get hasPreviousStudents => previousStudents.isNotEmpty;
@@ -31,6 +33,7 @@ final class StudentDataLoaded extends StudentDataState {
   final String? currentFilterGroupId;
   final String? currentFilterTeamId;
   final String? currentQuery;
+  final bool includeArchived;
   final StudentMutationStatus mutationStatus;
 
   /// Optional one-shot message signaling a successful CRUD operation.
@@ -41,6 +44,7 @@ final class StudentDataLoaded extends StudentDataState {
     this.currentFilterGroupId,
     this.currentFilterTeamId,
     this.currentQuery,
+    this.includeArchived = false,
     this.mutationStatus = StudentMutationStatus.idle,
     this.successMessage,
   });
@@ -59,6 +63,7 @@ final class StudentDataLoaded extends StudentDataState {
           currentFilterGroupId == other.currentFilterGroupId &&
           currentFilterTeamId == other.currentFilterTeamId &&
           currentQuery == other.currentQuery &&
+          includeArchived == other.includeArchived &&
           mutationStatus == other.mutationStatus &&
           successMessage == other.successMessage &&
           const ListEquality<StudentModel>().equals(students, other.students);
@@ -69,6 +74,7 @@ final class StudentDataLoaded extends StudentDataState {
     currentFilterGroupId,
     currentFilterTeamId,
     currentQuery,
+    includeArchived,
     mutationStatus,
     successMessage,
   );

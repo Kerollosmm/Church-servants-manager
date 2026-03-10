@@ -27,6 +27,14 @@ _$StudentModelImpl _$$StudentModelImplFromJson(Map<String, dynamic> json) =>
           const FirestoreTimestampConverter().fromJson(json['birthdate']),
       fatherOfConfession: json['father_of_confession'] as String,
       notes: json['notes'] as String?,
+      isArchived: json['isArchived'] as bool? ?? false,
+      archivedAt:
+          const FirestoreTimestampConverter().fromJson(json['archivedAt']),
+      archivedByUserId: json['archivedByUserId'] as String?,
+      archiveReason: json['archiveReason'] as String?,
+      restoredAt:
+          const FirestoreTimestampConverter().fromJson(json['restoredAt']),
+      restoredByUserId: json['restoredByUserId'] as String?,
       classId: json['classId'] as String?,
     );
 
@@ -50,6 +58,14 @@ Map<String, dynamic> _$$StudentModelImplToJson(_$StudentModelImpl instance) =>
           const FirestoreTimestampConverter().toJson(instance.birthdate),
       'father_of_confession': instance.fatherOfConfession,
       'notes': instance.notes,
+      'isArchived': instance.isArchived,
+      'archivedAt':
+          const FirestoreTimestampConverter().toJson(instance.archivedAt),
+      'archivedByUserId': instance.archivedByUserId,
+      'archiveReason': instance.archiveReason,
+      'restoredAt':
+          const FirestoreTimestampConverter().toJson(instance.restoredAt),
+      'restoredByUserId': instance.restoredByUserId,
       'classId': instance.classId,
     };
 

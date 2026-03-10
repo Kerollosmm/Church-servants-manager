@@ -36,6 +36,12 @@ class AdminGate extends StatelessWidget {
           return _AdminRequiresFreshSession(message: state.message);
         }
 
+        if (state is AuthArchived) {
+          return const Scaffold(
+            body: Center(child: Text('هذا الحساب غير متاح حاليا.')),
+          );
+        }
+
         return const Scaffold(body: Center(child: Text('Not signed in')));
       },
     );

@@ -13,15 +13,25 @@ class GetStudentsStreamUseCase {
 
   /// Returns a stream or `null` if the actor has no access.
   /// Uses [shareReplay] to ensure multiple listeners share the same active Firestore subscription.
-  Stream<List<StudentModel>>? call({required AuthUser actor, String? teamId}) {
+  Stream<List<StudentModel>>? call({
+    required AuthUser actor,
+    String? teamId,
+    bool includeArchived = false,
+  }) {
+    if (actor.isArchived) return null;
     Stream<List<StudentModel>>? stream;
 
     switch (actor.role) {
       case UserRole.admin:
         if (teamId != null && teamId.isNotEmpty) {
-          stream = _repository.watchStudentsByClass(teamId);
+          stream = _repository.watchStudentsByClass(
+            teamId,
+            includeArchived: includeArchived,
+          );
         } else {
-          stream = _repository.watchAllStudents();
+          stream = _repository.watchAllStudents(
+            includeArchived: includeArchived,
+          );
         }
         break;
 
@@ -30,16 +40,28 @@ class GetStudentsStreamUseCase {
         if (assignedTeamIds.isNotEmpty) {
           if (teamId != null && teamId.isNotEmpty) {
             if (!assignedTeamIds.contains(teamId)) return null;
-            stream = _repository.watchStudentsByClass(teamId);
+            stream = _repository.watchStudentsByClass(
+              teamId,
+              includeArchived: includeArchived,
+            );
           } else if (assignedTeamIds.length == 1) {
-            stream = _repository.watchStudentsByClass(assignedTeamIds.first);
+            stream = _repository.watchStudentsByClass(
+              assignedTeamIds.first,
+              includeArchived: includeArchived,
+            );
           } else {
-            stream = _repository.watchStudentsByClasses(assignedTeamIds);
+            stream = _repository.watchStudentsByClasses(
+              assignedTeamIds,
+              includeArchived: includeArchived,
+            );
           }
         } else {
           final groupId = actor.groupId;
           if (groupId == null || groupId.isEmpty) return null;
-          stream = _repository.watchStudentsByGroup(groupId);
+          stream = _repository.watchStudentsByGroup(
+            groupId,
+            includeArchived: includeArchived,
+          );
         }
         break;
 

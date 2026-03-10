@@ -57,6 +57,12 @@ class EmailNotVerifiedFailure extends AuthFailure {
   ]);
 }
 
+class ArchivedAccountFailure extends AuthFailure {
+  const ArchivedAccountFailure([
+    super.message = 'This account has been archived. Please contact an admin.',
+  ]);
+}
+
 class PasswordResetFailure extends AuthFailure {
   const PasswordResetFailure([
     super.message = 'Failed to send password reset email. Please try again.',

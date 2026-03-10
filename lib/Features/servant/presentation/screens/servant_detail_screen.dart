@@ -6,7 +6,10 @@ import 'package:church_management_system/core/widgets/common/app_detail_section_
 import 'package:church_management_system/core/widgets/common/app_info_banner.dart';
 import 'package:church_management_system/core/widgets/common/app_key_value_row.dart';
 import 'package:church_management_system/core/widgets/common/app_profile_header_card.dart';
+import 'package:church_management_system/core/widgets/dialogs/generic_dialog.dart';
+import 'package:church_management_system/features/servant/presentation/bloc/servant_data/servant_data_cubit.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class ServantDetailScreen extends StatelessWidget {
   final ServantDetailArgs args;
@@ -22,12 +25,14 @@ class ServantDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final servant = args.servant;
     final canEdit = _canEdit();
+    final canArchive = canEdit && !servant.isArchived;
+    final canRestore = canEdit && servant.isArchived;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('تفاصيل الخادم'), // Servant Details
         actions: [
-          if (canEdit)
+          if (canEdit && !servant.isArchived)
             IconButton(
               icon: const Icon(Icons.edit_outlined),
               tooltip: 'تعديل', // Edit
@@ -40,6 +45,58 @@ class ServantDetailScreen extends StatelessWidget {
                     servant: servant,
                   ),
                 );
+              },
+            ),
+          if (canArchive)
+            IconButton(
+              icon: const Icon(Icons.archive_outlined),
+              tooltip: 'أرشفة',
+              onPressed: () async {
+                final shouldArchive = await showGenericDialog<bool>(
+                  context: context,
+                  title: 'أرشفة الخادم؟',
+                  content:
+                      'سيتم إيقاف حساب ${servant.name} وإزالته من القوائم النشطة حتى تتم استعادته.',
+                  optionBuilder: () => {'إلغاء': false, 'أرشفة': true},
+                );
+                if (shouldArchive != true || !context.mounted) return;
+                await context.read<ServantDataCubit>().deleteServant(
+                  actor: args.actor,
+                  docId: servant.docID,
+                );
+                if (!context.mounted) return;
+                final currentState = context.read<ServantDataCubit>().state;
+                if (currentState is ServantDataLoaded &&
+                    currentState.mutationStatus ==
+                        ServantMutationStatus.success) {
+                  Navigator.pop(context, true);
+                }
+              },
+            ),
+          if (canRestore)
+            IconButton(
+              icon: const Icon(Icons.unarchive_outlined),
+              tooltip: 'استعادة',
+              onPressed: () async {
+                final shouldRestore = await showGenericDialog<bool>(
+                  context: context,
+                  title: 'استعادة الخادم؟',
+                  content:
+                      'سيتم استعادة ${servant.name} وإرسال بريد إعادة تعيين كلمة المرور للحساب المرتبط. يلزم تعيين الفريق يدويا بعد الاستعادة.',
+                  optionBuilder: () => {'إلغاء': false, 'استعادة': true},
+                );
+                if (shouldRestore != true || !context.mounted) return;
+                await context.read<ServantDataCubit>().restoreServant(
+                  actor: args.actor,
+                  docId: servant.docID,
+                );
+                if (!context.mounted) return;
+                final currentState = context.read<ServantDataCubit>().state;
+                if (currentState is ServantDataLoaded &&
+                    currentState.mutationStatus ==
+                        ServantMutationStatus.success) {
+                  Navigator.pop(context, true);
+                }
               },
             ),
         ],
@@ -97,8 +154,12 @@ class ServantDetailScreen extends StatelessWidget {
           ),
           AppSpacing.gapMd,
           AppInfoBanner(
-            icon: Icons.cloud_done,
-            message: canEdit ? 'صلاحية المسؤول: تعديل' : 'عرض فقط',
+            icon: servant.isArchived ? Icons.archive_outlined : Icons.cloud_done,
+            message: servant.isArchived
+                ? 'هذا الخادم مؤرشف حاليا ويحتاج إلى إعادة تعيين فريق بعد الاستعادة.'
+                : canEdit
+                ? 'صلاحية المسؤول: تعديل'
+                : 'عرض فقط',
           ),
         ],
       ),

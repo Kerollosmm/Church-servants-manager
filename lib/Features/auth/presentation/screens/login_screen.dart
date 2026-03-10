@@ -1,6 +1,7 @@
 import 'package:church_management_system/core/constants/routes.dart';
 import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
+import 'package:church_management_system/core/utils/validators.dart';
 import 'package:church_management_system/core/widgets/app_logo.dart';
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
 import 'package:church_management_system/core/widgets/gradient_border_container.dart';
@@ -128,15 +129,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             label: 'البريد الإلكتروني',
                             prefixIcon: Icons.email_outlined,
                             keyboardType: TextInputType.emailAddress,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'البريد الإلكتروني مطلوب';
-                              }
-                              if (!value.contains('@')) {
-                                return 'أدخل بريدا إلكترونيا صحيحا';
-                              }
-                              return null;
-                            },
+                            validator: Validators.validateEmailArabic,
                           ),
                           AppSpacing.gapMd,
 
@@ -158,15 +151,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 });
                               },
                             ),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'كلمة المرور مطلوبة';
-                              }
-                              if (value.length < 6) {
-                                return 'يجب أن تكون كلمة المرور 6 أحرف على الأقل';
-                              }
-                              return null;
-                            },
+                            validator: Validators.validatePasswordArabic,
                           ),
                           AppSpacing.gapSm,
 

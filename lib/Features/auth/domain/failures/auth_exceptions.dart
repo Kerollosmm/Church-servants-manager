@@ -13,6 +13,14 @@ class InvalidEmailAuthException implements Exception {}
 // Email Verification Exceptions
 class EmailNotVerifiedAuthException implements Exception {}
 
+class ArchivedAccountAuthException implements Exception {
+  final String? message;
+  const ArchivedAccountAuthException([this.message]);
+
+  @override
+  String toString() => message ?? 'This account has been archived';
+}
+
 // Generic Exceptions
 class GenericAuthException implements Exception {
   final String? message;

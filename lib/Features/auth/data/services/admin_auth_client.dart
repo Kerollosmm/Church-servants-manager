@@ -18,6 +18,10 @@ abstract class AdminAuthClient {
   });
 
   Future<void> rollbackCreatedUser({required String uid});
+
+  Future<void> archiveUser({required String uid});
+
+  Future<void> restoreUser({required String uid});
 }
 
 class FirebaseAdminAuthClient implements AdminAuthClient {
@@ -84,6 +88,28 @@ class FirebaseAdminAuthClient implements AdminAuthClient {
     try {
       await _callable(
         'rollbackPrivilegedUser',
+      ).call<Map<String, dynamic>>(AdminUserRollbackRequest(uid: uid).toJson());
+    } on FirebaseFunctionsException catch (error) {
+      _mapFunctionsException(error);
+    }
+  }
+
+  @override
+  Future<void> archiveUser({required String uid}) async {
+    try {
+      await _callable(
+        'archiveManagedUser',
+      ).call<Map<String, dynamic>>(AdminUserRollbackRequest(uid: uid).toJson());
+    } on FirebaseFunctionsException catch (error) {
+      _mapFunctionsException(error);
+    }
+  }
+
+  @override
+  Future<void> restoreUser({required String uid}) async {
+    try {
+      await _callable(
+        'restoreManagedUser',
       ).call<Map<String, dynamic>>(AdminUserRollbackRequest(uid: uid).toJson());
     } on FirebaseFunctionsException catch (error) {
       _mapFunctionsException(error);

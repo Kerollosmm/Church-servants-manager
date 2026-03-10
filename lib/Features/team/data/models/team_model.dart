@@ -1,9 +1,12 @@
+import 'package:church_management_system/core/utils/json_converters.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 // ignore_for_file: invalid_annotation_target
 
 part 'team_model.freezed.dart';
 part 'team_model.g.dart';
+
+typedef _TimestampConverter = FirestoreTimestampConverter;
 
 @freezed
 class TeamModel with _$TeamModel {
@@ -24,6 +27,18 @@ class TeamModel with _$TeamModel {
 
     /// Denormalized servant name for display.
     String? assignedServantName,
+
+    @Default(false) bool isArchived,
+
+    @_TimestampConverter() DateTime? archivedAt,
+
+    String? archivedByUserId,
+
+    String? archiveReason,
+
+    @_TimestampConverter() DateTime? restoredAt,
+
+    String? restoredByUserId,
   }) = _TeamModel;
 
   /// Creates a TeamModel from JSON.
@@ -59,4 +74,6 @@ class TeamModel with _$TeamModel {
     map.remove('id');
     return map;
   }
+
+  bool get isActive => !isArchived;
 }

@@ -92,7 +92,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         controller: _nameController,
                         label: 'الاسم الكامل',
                         prefixIcon: Icons.person_outline,
-                        validator: Validators.validateName,
+                        validator: Validators.validateNameArabic,
                       ),
                       AppSpacing.gapMd,
 
@@ -101,7 +101,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         label: 'البريد الإلكتروني',
                         prefixIcon: Icons.email_outlined,
                         keyboardType: TextInputType.emailAddress,
-                        validator: Validators.validateEmail,
+                        validator: Validators.validateEmailArabic,
                       ),
                       AppSpacing.gapMd,
 
@@ -122,7 +122,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             });
                           },
                         ),
-                        validator: Validators.validatePassword,
+                        validator: Validators.validatePasswordArabic,
                       ),
                       AppSpacing.gapLg,
 

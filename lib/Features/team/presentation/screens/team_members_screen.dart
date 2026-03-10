@@ -3,8 +3,8 @@ import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
 import 'package:church_management_system/core/widgets/common/app_info_banner.dart';
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
+import 'package:church_management_system/features/admin/data/admin_team_service.dart';
 import 'package:church_management_system/features/student/data/repos/student_data_repository.dart';
-import 'package:church_management_system/features/team/presentation/bloc/team_cubit.dart';
 import 'package:church_management_system/features/team/presentation/bloc/team_members_cubit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -31,20 +31,7 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
     final membersCubit = context.read<TeamMembersCubit>();
     if (membersCubit.state.isSaving) return;
 
-    final team = widget.args.team;
-    final actor = widget.args.actor;
-    final selectedStudents = membersCubit.selectedStudents();
-
-    membersCubit.markSavingStarted();
-    try {
-      await context.read<TeamCubit>().setTeamMembers(
-        actor: actor,
-        team: team,
-        students: selectedStudents,
-      );
-    } catch (_) {
-      membersCubit.markSavingFinished();
-    }
+    await membersCubit.saveMembers(actor: widget.args.actor, team: widget.args.team);
   }
 
   @override
@@ -54,24 +41,16 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
     return BlocProvider(
       create: (context) => TeamMembersCubit(
         studentRepository: context.read<StudentDataRepository>(),
+        adminTeamService: context.read<AdminTeamService>(),
       )..load(groupId: team.groupId, teamId: team.id),
-      child: BlocListener<TeamCubit, TeamState>(
+      child: BlocListener<TeamMembersCubit, TeamMembersState>(
         listener: (context, state) {
-          final membersCubit = context.read<TeamMembersCubit>();
-          if (state is TeamError) {
-            membersCubit.markSavingFinished();
-            AppSnackbars.showError(context, state.message);
-          }
-          if (state is TeamLoaded &&
-              state.feedbackMessage != null &&
-              state.mutationStatus == TeamMutationStatus.failure) {
-            membersCubit.markSavingFinished();
+          if (state.feedbackMessage != null &&
+              state.mutationStatus == TeamMembersMutationStatus.failure) {
             AppSnackbars.showError(context, state.feedbackMessage!);
           }
-          if (state is TeamLoaded &&
-              state.feedbackMessage != null &&
-              state.mutationStatus == TeamMutationStatus.success) {
-            membersCubit.markSavingFinished();
+          if (state.feedbackMessage != null &&
+              state.mutationStatus == TeamMembersMutationStatus.success) {
             AppSnackbars.showSuccess(
               context,
               state.feedbackMessage!,

@@ -1,13 +1,22 @@
 import 'package:church_management_system/core/constants/routes.dart';
 import 'package:church_management_system/features/admin/presentation/widget/admin_gate.dart';
+import 'package:church_management_system/features/attendance/presentation/screens/attendance_history_screen.dart';
+import 'package:church_management_system/features/attendance/presentation/screens/attendance_session_create_screen.dart';
+import 'package:church_management_system/features/attendance/presentation/screens/attendance_taking_screen.dart';
+import 'package:church_management_system/features/attendance/presentation/screens/student_attendance_screen.dart';
 import 'package:church_management_system/features/admin/presentation/screens/admin_dashboard_screen.dart';
 import 'package:church_management_system/features/auth/presentation/screens/forgot_password_screen.dart';
 import 'package:church_management_system/features/auth/presentation/screens/login_screen.dart';
 import 'package:church_management_system/features/auth/presentation/screens/register_screen.dart';
+import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
 
 import 'package:church_management_system/core/routing/route_args.dart';
 import 'package:church_management_system/core/widgets/not_found_screen.dart';
 import 'package:church_management_system/features/devtools/presentation/dev_tools_screen.dart';
+import 'package:church_management_system/features/student/data/repos/student_data_repository.dart';
+import 'package:church_management_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
+import 'package:church_management_system/features/student/domain/usecases/get_students_stream_usecase.dart';
+import 'package:church_management_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
 import 'package:church_management_system/features/student/presentation/screens/student_detail_screen.dart';
 import 'package:church_management_system/features/student/presentation/screens/student_edit_screen.dart';
 import 'package:church_management_system/features/student/presentation/screens/student_management_screen.dart';
@@ -17,6 +26,7 @@ import 'package:church_management_system/features/servant/presentation/screens/a
 import 'package:church_management_system/features/team/presentation/screens/team_management_screen.dart';
 import 'package:church_management_system/features/team/presentation/screens/team_members_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class AppRouter {
   Route<dynamic> _buildPageRoute({
@@ -48,6 +58,19 @@ class AppRouter {
     return _buildMessageRoute(settings: settings, message: invalidMessage);
   }
 
+  Widget _withStudentDataBloc(BuildContext context, Widget child) {
+    return BlocProvider(
+      create: (_) => StudentDataBloc(
+        studentRepository: context.read<StudentDataRepository>(),
+        getStudentsStream: context.read<GetStudentsStreamUseCase>(),
+        canMutateStudent: context.read<CanMutateStudentUseCase>(),
+        adminUserProvisioningService: context
+            .read<AdminUserProvisioningService>(),
+      ),
+      child: child,
+    );
+  }
+
   Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
       case login:
@@ -67,19 +90,26 @@ class AppRouter {
         );
       case studentList:
         return _buildPageRoute(
-          builder: (_) => const StudentManagementScreen(),
+          builder: (context) =>
+              _withStudentDataBloc(context, const StudentManagementScreen()),
           settings: settings,
         );
       case studentDetail:
         return _buildArgsValidatedRoute<StudentDetailArgs>(
           settings: settings,
-          builder: (args) => StudentDetailScreen(args: args),
+          builder: (args) => Builder(
+            builder: (context) =>
+                _withStudentDataBloc(context, StudentDetailScreen(args: args)),
+          ),
           invalidMessage: 'Invalid student data',
         );
       case studentEdit:
         return _buildArgsValidatedRoute<StudentEditArgs>(
           settings: settings,
-          builder: (args) => StudentEditScreen(args: args),
+          builder: (args) => Builder(
+            builder: (context) =>
+                _withStudentDataBloc(context, StudentEditScreen(args: args)),
+          ),
           invalidMessage: 'Invalid student data',
         );
       // Servant Routes
@@ -122,6 +152,28 @@ class AppRouter {
         return _buildPageRoute(
           builder: (_) => const AdminGate(child: AdminDashboardScreen()),
           settings: settings,
+        );
+      case attendanceSessionCreate:
+        return _buildPageRoute(
+          builder: (_) => const AttendanceSessionCreateScreen(),
+          settings: settings,
+        );
+      case attendanceTaking:
+        return _buildArgsValidatedRoute<AttendanceTakingArgs>(
+          settings: settings,
+          builder: (args) => AttendanceTakingScreen(args: args),
+          invalidMessage: 'Invalid attendance session data',
+        );
+      case attendanceHistory:
+        return _buildPageRoute(
+          builder: (_) => const AttendanceHistoryScreen(),
+          settings: settings,
+        );
+      case studentAttendance:
+        return _buildArgsValidatedRoute<StudentAttendanceArgs>(
+          settings: settings,
+          builder: (args) => StudentAttendanceScreen(args: args),
+          invalidMessage: 'Invalid student attendance data',
         );
 
       default:

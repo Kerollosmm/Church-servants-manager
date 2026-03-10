@@ -5,6 +5,8 @@ import 'package:church_management_system/features/servant/domain/failures/servan
 import 'package:church_management_system/features/servant/domain/repo/i_servant_repository.dart';
 import '../models/servant_models.dart';
 
+typedef _ServantDoc = QueryDocumentSnapshot<Map<String, dynamic>>;
+
 class ServantsPage {
   final List<ServantModel> servants;
   final DocumentSnapshot<Map<String, dynamic>>? lastDocument;
@@ -37,9 +39,39 @@ class ServantDataRepository implements IServantRepository {
     return _servantsQuery.orderBy('name');
   }
 
+  ServantModel? _servantFromData(
+    Map<String, dynamic> data,
+    String docId,
+    bool includeArchived,
+  ) {
+    final servant = ServantModel.fromMap(data, docId);
+    if (!includeArchived && servant.isArchived) {
+      return null;
+    }
+    return servant;
+  }
+
+  List<ServantModel> _servantsFromDocs(
+    List<_ServantDoc> docs,
+    bool includeArchived,
+  ) {
+    final servants = <ServantModel>[];
+    for (final doc in docs) {
+      final servant = _servantFromData(
+        doc.data(),
+        doc.id,
+        includeArchived,
+      );
+      if (servant != null) {
+        servants.add(servant);
+      }
+    }
+    return servants;
+  }
+
   Map<String, dynamic> _normalizeServantWriteData(ServantModel servant) {
     final data = servant.toMap();
-    data['role'] = servant.role.name;
+        data['role'] = servant.role.name;
 
     if (servant.role != UserRole.servant) {
       // Clear servant-only scoping fields when user is no longer a servant.
@@ -52,14 +84,17 @@ class ServantDataRepository implements IServantRepository {
   }
 
   @override
-  Future<ServantModel?> getServantById(String docId) async {
+  Future<ServantModel?> getServantById(
+    String docId, {
+    bool includeArchived = false,
+  }) async {
     try {
       final doc = await _usersCollection.doc(docId).get();
       if (doc.exists && doc.data() != null) {
         // Verify this user has servant role
         final data = doc.data()!;
         if (data['role'] != UserRole.servant.name) return null;
-        return ServantModel.fromMap(data, doc.id);
+        return _servantFromData(data, doc.id, includeArchived);
       }
       return null;
     } catch (e) {
@@ -68,13 +103,20 @@ class ServantDataRepository implements IServantRepository {
   }
 
   @override
-  Future<ServantModel?> getServantByUid(String uid) async {
+  Future<ServantModel?> getServantByUid(
+    String uid, {
+    bool includeArchived = false,
+  }) async {
     try {
       final canonicalDoc = await _usersCollection.doc(uid).get();
       if (canonicalDoc.exists && canonicalDoc.data() != null) {
         final data = canonicalDoc.data()!;
         if (data['role'] == UserRole.servant.name) {
-          return ServantModel.fromMap(data, canonicalDoc.id);
+          return _servantFromData(
+            data,
+            canonicalDoc.id,
+            includeArchived,
+          );
         }
       }
 
@@ -84,14 +126,21 @@ class ServantDataRepository implements IServantRepository {
           .get();
       if (snapshot.docs.isEmpty) return null;
       final doc = snapshot.docs.first;
-      return ServantModel.fromMap(doc.data(), doc.id);
+      return _servantFromData(
+        doc.data(),
+        doc.id,
+        includeArchived,
+      );
     } catch (e) {
       throw mapExceptionToServantFailure(e);
     }
   }
 
   Future<({List<ServantModel> servants, bool isFromCache})>
-  getServantsByGroupWithFallback(String groupId) async {
+  getServantsByGroupWithFallback(
+    String groupId, {
+    bool includeArchived = false,
+  }) async {
     try {
       final cacheSnapshot = await _usersCollection
           .where('role', isEqualTo: UserRole.servant.name)
@@ -99,9 +148,10 @@ class ServantDataRepository implements IServantRepository {
           .get(const GetOptions(source: Source.cache));
       if (cacheSnapshot.docs.isNotEmpty) {
         return (
-          servants: cacheSnapshot.docs
-              .map((doc) => ServantModel.fromMap(doc.data(), doc.id))
-              .toList(growable: false),
+          servants: _servantsFromDocs(
+            cacheSnapshot.docs,
+            includeArchived,
+          ),
           isFromCache: true,
         );
       }
@@ -113,9 +163,10 @@ class ServantDataRepository implements IServantRepository {
           .where('groupId', isEqualTo: groupId)
           .get(const GetOptions(source: Source.server));
       return (
-        servants: serverSnapshot.docs
-            .map((doc) => ServantModel.fromMap(doc.data(), doc.id))
-            .toList(growable: false),
+        servants: _servantsFromDocs(
+          serverSnapshot.docs,
+          includeArchived,
+        ),
         isFromCache: false,
       );
     } catch (e) {
@@ -127,6 +178,7 @@ class ServantDataRepository implements IServantRepository {
   Future<List<ServantModel>> getAllServants({
     int limit = 20,
     DocumentSnapshot? lastDocument,
+    bool includeArchived = false,
   }) async {
     Query<Map<String, dynamic>> query = _sortedServantsQuery();
 
@@ -143,9 +195,10 @@ class ServantDataRepository implements IServantRepository {
         const GetOptions(source: Source.cache),
       );
       if (cacheSnapshot.docs.isNotEmpty) {
-        return cacheSnapshot.docs
-            .map((doc) => ServantModel.fromMap(doc.data(), doc.id))
-            .toList();
+        return _servantsFromDocs(
+          cacheSnapshot.docs,
+          includeArchived,
+        );
       }
     } catch (_) {}
 
@@ -153,9 +206,10 @@ class ServantDataRepository implements IServantRepository {
       final serverSnapshot = await query.get(
         const GetOptions(source: Source.server),
       );
-      return serverSnapshot.docs
-          .map((doc) => ServantModel.fromMap(doc.data(), doc.id))
-          .toList();
+      return _servantsFromDocs(
+        serverSnapshot.docs,
+        includeArchived,
+      );
     } catch (e) {
       throw mapExceptionToServantFailure(e);
     }
@@ -164,6 +218,7 @@ class ServantDataRepository implements IServantRepository {
   Future<ServantsPage> getServantsPage({
     int limit = 50,
     DocumentSnapshot<Map<String, dynamic>>? lastDocument,
+    bool includeArchived = false,
   }) async {
     try {
       Query<Map<String, dynamic>> query = _sortedServantsQuery().limit(
@@ -180,9 +235,10 @@ class ServantDataRepository implements IServantRepository {
       final pageDocs = hasMore ? docs.take(limit).toList() : docs;
 
       return ServantsPage(
-        servants: pageDocs
-            .map((doc) => ServantModel.fromMap(doc.data(), doc.id))
-            .toList(growable: false),
+        servants: _servantsFromDocs(
+          pageDocs,
+          includeArchived,
+        ),
         lastDocument: pageDocs.isEmpty ? lastDocument : pageDocs.last,
         hasMore: hasMore,
       );
@@ -192,7 +248,10 @@ class ServantDataRepository implements IServantRepository {
   }
 
   @override
-  Future<List<ServantModel>> getServantsByTeam(String teamName) async {
+  Future<List<ServantModel>> getServantsByTeam(
+    String teamName, {
+    bool includeArchived = false,
+  }) async {
     try {
       try {
         final cacheSnapshot = await _usersCollection
@@ -201,9 +260,10 @@ class ServantDataRepository implements IServantRepository {
             .get(const GetOptions(source: Source.cache));
 
         if (cacheSnapshot.docs.isNotEmpty) {
-          return cacheSnapshot.docs
-              .map((doc) => ServantModel.fromMap(doc.data(), doc.id))
-              .toList();
+          return _servantsFromDocs(
+            cacheSnapshot.docs,
+            includeArchived,
+          );
         }
       } catch (_) {}
 
@@ -212,9 +272,7 @@ class ServantDataRepository implements IServantRepository {
           .where('groupId', isEqualTo: teamName)
           .get(const GetOptions(source: Source.server));
 
-      return snapshot.docs
-          .map((doc) => ServantModel.fromMap(doc.data(), doc.id))
-          .toList();
+      return _servantsFromDocs(snapshot.docs, includeArchived);
     } catch (e) {
       throw mapExceptionToServantFailure(e);
     }
@@ -224,9 +282,12 @@ class ServantDataRepository implements IServantRepository {
   Future<List<ServantModel>> searchServants(
     String query, {
     int limit = 20,
+    bool includeArchived = false,
   }) async {
     try {
-      if (query.isEmpty) return getAllServants(limit: limit);
+      if (query.isEmpty) {
+        return getAllServants(limit: limit, includeArchived: includeArchived);
+      }
 
       final snapshot = await _sortedServantsQuery()
           .startAt([query])
@@ -234,20 +295,16 @@ class ServantDataRepository implements IServantRepository {
           .limit(limit)
           .get();
 
-      return snapshot.docs
-          .map((doc) => ServantModel.fromMap(doc.data(), doc.id))
-          .toList();
+      return _servantsFromDocs(snapshot.docs, includeArchived);
     } catch (e) {
       throw mapExceptionToServantFailure(e);
     }
   }
 
   @override
-  Stream<List<ServantModel>> getServantsStream() {
+  Stream<List<ServantModel>> getServantsStream({bool includeArchived = false}) {
     return _sortedServantsQuery().snapshots().map((snapshot) {
-      return snapshot.docs.map((doc) {
-        return ServantModel.fromMap(doc.data(), doc.id);
-      }).toList();
+      return _servantsFromDocs(snapshot.docs, includeArchived);
     });
   }
 
@@ -310,8 +367,29 @@ class ServantDataRepository implements IServantRepository {
   @override
   Future<void> deleteServant(String docId) async {
     try {
-      // Option 1: Actually delete the user document
-      await _usersCollection.doc(docId).delete();
+      await _usersCollection.doc(docId).set({
+        'isArchived': true,
+        'archivedAt': FieldValue.serverTimestamp(),
+        'archivedByUserId': 'system',
+        'restorePendingPasswordReset': false,
+        'assignedTeamId': FieldValue.delete(),
+        'assignedTeamIds': FieldValue.delete(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      throw mapExceptionToServantFailure(e);
+    }
+  }
+
+  @override
+  Future<void> restoreServant(String docId) async {
+    try {
+      await _usersCollection.doc(docId).set({
+        'isArchived': false,
+        'restorePendingPasswordReset': true,
+        'restoredAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     } catch (e) {
       throw mapExceptionToServantFailure(e);
     }

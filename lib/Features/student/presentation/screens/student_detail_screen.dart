@@ -23,12 +23,46 @@ class StudentDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final student = args.student;
     final canEdit = _canEdit();
+    final canRestore = args.actor.role == UserRole.admin && student.isArchived;
+    final canArchive = canEdit && !student.isArchived;
 
-    return Scaffold(
-      appBar: AppBar(
+    return BlocListener<StudentDataBloc, StudentDataState>(
+      listener: (context, state) {
+        if (state is StudentDataError) {
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(SnackBar(content: Text(state.message)));
+        }
+        if (state is StudentDataLoaded &&
+            state.mutationStatus == StudentMutationStatus.success &&
+            state.successMessage != null &&
+            (state.successMessage!.contains('أرشفة') ||
+                state.successMessage!.contains('استعادة'))) {
+          Navigator.pop(context, true);
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
         title: const Text('Student Details'),
         actions: [
-          if (canEdit)
+          if (canEdit && !student.isArchived)
+            IconButton(
+              icon: const Icon(Icons.fact_check_outlined),
+              tooltip: 'Attendance',
+              onPressed: () {
+                Navigator.pushNamed(
+                  context,
+                  studentAttendance,
+                  arguments: StudentAttendanceArgs(
+                    actor: args.actor,
+                    studentId: student.docID,
+                    studentName: student.name,
+                    filterTeamId: student.classId,
+                  ),
+                );
+              },
+            ),
+          if (canEdit && !student.isArchived)
             IconButton(
               icon: const Icon(Icons.edit_outlined),
               tooltip: 'Edit',
@@ -43,17 +77,17 @@ class StudentDetailScreen extends StatelessWidget {
                 );
               },
             ),
-          if (canEdit)
+          if (canArchive)
             IconButton(
-              icon: const Icon(Icons.delete_outline),
-              tooltip: 'Delete',
+              icon: const Icon(Icons.archive_outlined),
+              tooltip: 'Archive',
               onPressed: () async {
                 final shouldDelete = await showGenericDialog<bool>(
                   context: context,
-                  title: 'Delete Student?',
+                  title: 'أرشفة المخدوم؟',
                   content:
-                      'This will permanently delete ${student.name}. This cannot be undone.',
-                  optionBuilder: () => {'Cancel': false, 'Delete': true},
+                      'سيتم إخفاء ${student.name} من القوائم النشطة مع الاحتفاظ بالسجل التاريخي.',
+                  optionBuilder: () => {'إلغاء': false, 'أرشفة': true},
                 );
 
                 if (shouldDelete != true) return;
@@ -62,7 +96,27 @@ class StudentDetailScreen extends StatelessWidget {
                 context.read<StudentDataBloc>().add(
                   StudentDeleted(actor: args.actor, docId: student.docID),
                 );
-                Navigator.pop(context);
+              },
+            ),
+          if (canRestore)
+            IconButton(
+              icon: const Icon(Icons.unarchive_outlined),
+              tooltip: 'Restore',
+              onPressed: () async {
+                final shouldRestore = await showGenericDialog<bool>(
+                  context: context,
+                  title: 'استعادة المخدوم؟',
+                  content:
+                      'سيتم استعادة ${student.name} وإرسال بريد إعادة تعيين كلمة المرور للحساب المرتبط إن وجد.',
+                  optionBuilder: () => {'إلغاء': false, 'استعادة': true},
+                );
+
+                if (shouldRestore != true) return;
+                if (!context.mounted) return;
+
+                context.read<StudentDataBloc>().add(
+                  StudentRestored(actor: args.actor, docId: student.docID),
+                );
               },
             ),
         ],
@@ -126,12 +180,15 @@ class StudentDetailScreen extends StatelessWidget {
           ),
           AppSpacing.gapMd,
           AppInfoBanner(
-            icon: Icons.cloud_done,
-            message: canEdit
+            icon: student.isArchived ? Icons.archive_outlined : Icons.cloud_done,
+            message: student.isArchived
+                ? 'هذا المخدوم مؤرشف حاليا.'
+                : canEdit
                 ? 'Manage access: ${_roleLabel(args.actor.role)}'
                 : 'Read-only view',
           ),
         ],
+      ),
       ),
     );
   }

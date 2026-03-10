@@ -47,3 +47,13 @@ class AuthEventForgotPassword extends AuthEvent {
 class AuthEventRefreshUser extends AuthEvent {
   const AuthEventRefreshUser();
 }
+
+class _AuthEventSessionChanged extends AuthEvent {
+  final AuthUser? user;
+
+  const _AuthEventSessionChanged(this.user);
+}
+
+class _AuthEventSessionError extends AuthEvent {
+  const _AuthEventSessionError();
+}

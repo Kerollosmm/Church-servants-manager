@@ -63,14 +63,14 @@ class StudentBasicsSection extends StatelessWidget {
           controller: nameController,
           labelText: 'الاسم الكامل',
           prefixIcon: Icons.person_outline,
-          validator: Validators.validateName,
+          validator: Validators.validateNameArabic,
         ),
         AppSpacing.gapMd,
         AppTextFormField(
           controller: mobileController,
           labelText: 'رقم الهاتف',
           prefixIcon: Icons.phone_outlined,
-          validator: Validators.validatePhone,
+          validator: Validators.validatePhoneArabic,
         ),
         if (!isEditing) ...[
           AppSpacing.gapMd,
@@ -78,9 +78,7 @@ class StudentBasicsSection extends StatelessWidget {
             controller: emailController,
             labelText: 'البريد الإلكتروني',
             prefixIcon: Icons.email_outlined,
-            validator: (value) => value == null || value.trim().isEmpty
-                ? 'مطلوب لإنشاء حساب'
-                : null,
+            validator: Validators.validateEmailArabic,
           ),
           AppSpacing.gapMd,
           AppTextFormField(
@@ -88,9 +86,7 @@ class StudentBasicsSection extends StatelessWidget {
             labelText: 'كلمة المرور',
             prefixIcon: Icons.lock_outline,
             obscureText: true,
-            validator: (value) => value == null || value.length < 6
-                ? 'يجب أن تكون 6 أحرف على الأقل'
-                : null,
+            validator: Validators.validatePasswordArabic,
           ),
         ],
         if (_canEditRole) ...[
@@ -226,14 +222,14 @@ class StudentFamilySection extends StatelessWidget {
           controller: motherPhoneController,
           labelText: 'هاتف الأم',
           prefixIcon: Icons.phone_outlined,
-          validator: Validators.validatePhone,
+          validator: Validators.validatePhoneArabic,
         ),
         AppSpacing.gapMd,
         AppTextFormField(
           controller: fatherPhoneController,
           labelText: 'هاتف الأب',
           prefixIcon: Icons.phone_outlined,
-          validator: Validators.validatePhone,
+          validator: Validators.validatePhoneArabic,
         ),
       ],
     );
@@ -276,7 +272,7 @@ class StudentAdditionalSection extends StatelessWidget {
           controller: fatherOfConfessionController,
           labelText: 'أب الاعتراف',
           prefixIcon: Icons.church_outlined,
-          validator: Validators.validateName,
+          validator: Validators.validateNameArabic,
         ),
         AppSpacing.gapMd,
         AppTextFormField(

@@ -17,6 +17,7 @@ class TeamCubit extends Cubit<TeamState> {
   final AdminTeamService _adminTeamService;
   List<TeamModel> _currentTeams = const [];
   String? _selectedTeamId;
+  bool _includeArchived = false;
 
   TeamCubit({
     required TeamRepository teamRepository,
@@ -50,6 +51,7 @@ class TeamCubit extends Cubit<TeamState> {
   Future<void> _runTeamLoad({
     required Future<List<TeamModel>> Function() action,
     String? selectedTeamId,
+    bool includeArchived = false,
     required String errorContext,
     required String errorMessage,
   }) async {
@@ -58,6 +60,7 @@ class TeamCubit extends Cubit<TeamState> {
       final teams = await action();
       _currentTeams = teams;
       _selectedTeamId = selectedTeamId;
+      _includeArchived = includeArchived;
       emit(TeamLoaded(teams: teams, selectedTeamId: selectedTeamId));
     } catch (e) {
       if (kDebugMode) {
@@ -88,7 +91,10 @@ class TeamCubit extends Cubit<TeamState> {
     try {
       await action();
       if (reloadGroupId != null) {
-        final teams = await _teamRepository.getTeamsByGroup(reloadGroupId);
+        final teams = await _teamRepository.getTeamsByGroup(
+          reloadGroupId,
+          includeArchived: _includeArchived,
+        );
         _currentTeams = teams;
       }
       emit(
@@ -108,19 +114,30 @@ class TeamCubit extends Cubit<TeamState> {
   }
 
   /// Load teams for a specific group/year.
-  Future<void> loadTeamsByGroup(String groupId, {String? defaultTeamId}) async {
+  Future<void> loadTeamsByGroup(
+    String groupId, {
+    String? defaultTeamId,
+    bool includeArchived = false,
+  }) async {
     await _runTeamLoad(
-      action: () => _teamRepository.getTeamsByGroup(groupId),
+      action: () => _teamRepository.getTeamsByGroup(
+        groupId,
+        includeArchived: includeArchived,
+      ),
       selectedTeamId: defaultTeamId,
+      includeArchived: includeArchived,
       errorContext: 'Failed to load teams',
       errorMessage: 'تعذر تحميل الفرق. تحقق من الاتصال وحاول مرة أخرى.',
     );
   }
 
   /// Load all teams across all groups (admin use).
-  Future<void> loadAllTeams() async {
+  Future<void> loadAllTeams({bool includeArchived = false}) async {
     await _runTeamLoad(
-      action: _teamRepository.getAllTeams,
+      action: () => _teamRepository.getAllTeams(
+        includeArchived: includeArchived,
+      ),
+      includeArchived: includeArchived,
       errorContext: 'Failed to load all teams',
       errorMessage: 'تعذر تحميل الفرق. تحقق من الاتصال وحاول مرة أخرى.',
     );
@@ -152,9 +169,19 @@ class TeamCubit extends Cubit<TeamState> {
   Future<void> deleteTeam(String teamId, String groupId) async {
     await _runTeamMutation(
       action: () => _teamRepository.deleteTeam(teamId),
-      successMessage: 'تم حذف الفريق بنجاح',
-      errorContext: 'Failed to delete team',
-      errorMessage: 'تعذر حذف الفريق. حاول مرة أخرى.',
+      successMessage: 'تمت أرشفة الفريق بنجاح',
+      errorContext: 'Failed to archive team',
+      errorMessage: 'تعذر أرشفة الفريق. حاول مرة أخرى.',
+      reloadGroupId: groupId,
+    );
+  }
+
+  Future<void> restoreTeam(String teamId, String groupId) async {
+    await _runTeamMutation(
+      action: () => _teamRepository.restoreTeam(teamId),
+      successMessage: 'تمت استعادة الفريق بنجاح',
+      errorContext: 'Failed to restore team',
+      errorMessage: 'تعذر استعادة الفريق. حاول مرة أخرى.',
       reloadGroupId: groupId,
     );
   }

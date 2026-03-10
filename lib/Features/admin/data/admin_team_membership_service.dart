@@ -81,6 +81,7 @@ class AdminTeamMembershipService {
             .where('classId', isEqualTo: classId)
             .get();
         final memberIds = membersSnap.docs
+            .where((studentDoc) => studentDoc.data()['isArchived'] != true)
             .map((studentDoc) => studentDoc.id)
             .toList(growable: false);
         batch.set(_classes.doc(classId), {
@@ -95,7 +96,10 @@ class AdminTeamMembershipService {
 
   Future<Set<String>> _getCurrentTeamMemberIds(String teamId) async {
     final snapshot = await _students.where('classId', isEqualTo: teamId).get();
-    return snapshot.docs.map((d) => d.id).toSet();
+    return snapshot.docs
+        .where((doc) => doc.data()['isArchived'] != true)
+        .map((d) => d.id)
+        .toSet();
   }
 
   Future<List<StudentModel>> _loadStudentsByIds(List<String> ids) async {
@@ -109,7 +113,9 @@ class AdminTeamMembershipService {
           .where(FieldPath.documentId, whereIn: slice)
           .get();
       for (final doc in snap.docs) {
-        result.add(StudentModel.fromMap(doc.data(), doc.id));
+        final student = StudentModel.fromMap(doc.data(), doc.id);
+        if (student.isArchived) continue;
+        result.add(student);
       }
     }
 

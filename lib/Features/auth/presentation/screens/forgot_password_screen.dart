@@ -1,5 +1,6 @@
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
+import 'package:church_management_system/core/utils/validators.dart';
 import 'package:church_management_system/features/auth/presentation/widgets/auth_header.dart';
 import 'package:church_management_system/features/auth/presentation/widgets/auth_form_card.dart';
 import 'package:church_management_system/features/auth/presentation/widgets/auth_submit_button.dart';
@@ -83,15 +84,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         label: 'البريد الإلكتروني',
                         prefixIcon: Icons.email_outlined,
                         keyboardType: TextInputType.emailAddress,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'البريد الإلكتروني مطلوب';
-                          }
-                          if (!value.contains('@')) {
-                            return 'أدخل بريدا إلكترونيا صحيحا';
-                          }
-                          return null;
-                        },
+                        validator: Validators.validateEmailArabic,
                       ),
                       AppSpacing.gapLg,
 

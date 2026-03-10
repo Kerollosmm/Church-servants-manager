@@ -34,6 +34,14 @@ mixin _$TeamModel {
 
   /// Denormalized servant name for display.
   String? get assignedServantName => throw _privateConstructorUsedError;
+  bool get isArchived => throw _privateConstructorUsedError;
+  @_TimestampConverter()
+  DateTime? get archivedAt => throw _privateConstructorUsedError;
+  String? get archivedByUserId => throw _privateConstructorUsedError;
+  String? get archiveReason => throw _privateConstructorUsedError;
+  @_TimestampConverter()
+  DateTime? get restoredAt => throw _privateConstructorUsedError;
+  String? get restoredByUserId => throw _privateConstructorUsedError;
 
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
   @JsonKey(ignore: true)
@@ -51,7 +59,13 @@ abstract class $TeamModelCopyWith<$Res> {
       String name,
       String groupId,
       String? assignedServantId,
-      String? assignedServantName});
+      String? assignedServantName,
+      bool isArchived,
+      @_TimestampConverter() DateTime? archivedAt,
+      String? archivedByUserId,
+      String? archiveReason,
+      @_TimestampConverter() DateTime? restoredAt,
+      String? restoredByUserId});
 }
 
 /// @nodoc
@@ -72,6 +86,12 @@ class _$TeamModelCopyWithImpl<$Res, $Val extends TeamModel>
     Object? groupId = null,
     Object? assignedServantId = freezed,
     Object? assignedServantName = freezed,
+    Object? isArchived = null,
+    Object? archivedAt = freezed,
+    Object? archivedByUserId = freezed,
+    Object? archiveReason = freezed,
+    Object? restoredAt = freezed,
+    Object? restoredByUserId = freezed,
   }) {
     return _then(_value.copyWith(
       id: null == id
@@ -94,6 +114,30 @@ class _$TeamModelCopyWithImpl<$Res, $Val extends TeamModel>
           ? _value.assignedServantName
           : assignedServantName // ignore: cast_nullable_to_non_nullable
               as String?,
+      isArchived: null == isArchived
+          ? _value.isArchived
+          : isArchived // ignore: cast_nullable_to_non_nullable
+              as bool,
+      archivedAt: freezed == archivedAt
+          ? _value.archivedAt
+          : archivedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      archivedByUserId: freezed == archivedByUserId
+          ? _value.archivedByUserId
+          : archivedByUserId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      archiveReason: freezed == archiveReason
+          ? _value.archiveReason
+          : archiveReason // ignore: cast_nullable_to_non_nullable
+              as String?,
+      restoredAt: freezed == restoredAt
+          ? _value.restoredAt
+          : restoredAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      restoredByUserId: freezed == restoredByUserId
+          ? _value.restoredByUserId
+          : restoredByUserId // ignore: cast_nullable_to_non_nullable
+              as String?,
     ) as $Val);
   }
 }
@@ -111,7 +155,13 @@ abstract class _$$TeamModelImplCopyWith<$Res>
       String name,
       String groupId,
       String? assignedServantId,
-      String? assignedServantName});
+      String? assignedServantName,
+      bool isArchived,
+      @_TimestampConverter() DateTime? archivedAt,
+      String? archivedByUserId,
+      String? archiveReason,
+      @_TimestampConverter() DateTime? restoredAt,
+      String? restoredByUserId});
 }
 
 /// @nodoc
@@ -130,6 +180,12 @@ class __$$TeamModelImplCopyWithImpl<$Res>
     Object? groupId = null,
     Object? assignedServantId = freezed,
     Object? assignedServantName = freezed,
+    Object? isArchived = null,
+    Object? archivedAt = freezed,
+    Object? archivedByUserId = freezed,
+    Object? archiveReason = freezed,
+    Object? restoredAt = freezed,
+    Object? restoredByUserId = freezed,
   }) {
     return _then(_$TeamModelImpl(
       id: null == id
@@ -152,6 +208,30 @@ class __$$TeamModelImplCopyWithImpl<$Res>
           ? _value.assignedServantName
           : assignedServantName // ignore: cast_nullable_to_non_nullable
               as String?,
+      isArchived: null == isArchived
+          ? _value.isArchived
+          : isArchived // ignore: cast_nullable_to_non_nullable
+              as bool,
+      archivedAt: freezed == archivedAt
+          ? _value.archivedAt
+          : archivedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      archivedByUserId: freezed == archivedByUserId
+          ? _value.archivedByUserId
+          : archivedByUserId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      archiveReason: freezed == archiveReason
+          ? _value.archiveReason
+          : archiveReason // ignore: cast_nullable_to_non_nullable
+              as String?,
+      restoredAt: freezed == restoredAt
+          ? _value.restoredAt
+          : restoredAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      restoredByUserId: freezed == restoredByUserId
+          ? _value.restoredByUserId
+          : restoredByUserId // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }
@@ -164,7 +244,13 @@ class _$TeamModelImpl extends _TeamModel {
       required this.name,
       required this.groupId,
       this.assignedServantId,
-      this.assignedServantName})
+      this.assignedServantName,
+      this.isArchived = false,
+      @_TimestampConverter() this.archivedAt,
+      this.archivedByUserId,
+      this.archiveReason,
+      @_TimestampConverter() this.restoredAt,
+      this.restoredByUserId})
       : super._();
 
   factory _$TeamModelImpl.fromJson(Map<String, dynamic> json) =>
@@ -189,10 +275,25 @@ class _$TeamModelImpl extends _TeamModel {
   /// Denormalized servant name for display.
   @override
   final String? assignedServantName;
+  @override
+  @JsonKey()
+  final bool isArchived;
+  @override
+  @_TimestampConverter()
+  final DateTime? archivedAt;
+  @override
+  final String? archivedByUserId;
+  @override
+  final String? archiveReason;
+  @override
+  @_TimestampConverter()
+  final DateTime? restoredAt;
+  @override
+  final String? restoredByUserId;
 
   @override
   String toString() {
-    return 'TeamModel(id: $id, name: $name, groupId: $groupId, assignedServantId: $assignedServantId, assignedServantName: $assignedServantName)';
+    return 'TeamModel(id: $id, name: $name, groupId: $groupId, assignedServantId: $assignedServantId, assignedServantName: $assignedServantName, isArchived: $isArchived, archivedAt: $archivedAt, archivedByUserId: $archivedByUserId, archiveReason: $archiveReason, restoredAt: $restoredAt, restoredByUserId: $restoredByUserId)';
   }
 
   @override
@@ -206,13 +307,36 @@ class _$TeamModelImpl extends _TeamModel {
             (identical(other.assignedServantId, assignedServantId) ||
                 other.assignedServantId == assignedServantId) &&
             (identical(other.assignedServantName, assignedServantName) ||
-                other.assignedServantName == assignedServantName));
+                other.assignedServantName == assignedServantName) &&
+            (identical(other.isArchived, isArchived) ||
+                other.isArchived == isArchived) &&
+            (identical(other.archivedAt, archivedAt) ||
+                other.archivedAt == archivedAt) &&
+            (identical(other.archivedByUserId, archivedByUserId) ||
+                other.archivedByUserId == archivedByUserId) &&
+            (identical(other.archiveReason, archiveReason) ||
+                other.archiveReason == archiveReason) &&
+            (identical(other.restoredAt, restoredAt) ||
+                other.restoredAt == restoredAt) &&
+            (identical(other.restoredByUserId, restoredByUserId) ||
+                other.restoredByUserId == restoredByUserId));
   }
 
   @JsonKey(ignore: true)
   @override
   int get hashCode => Object.hash(
-      runtimeType, id, name, groupId, assignedServantId, assignedServantName);
+      runtimeType,
+      id,
+      name,
+      groupId,
+      assignedServantId,
+      assignedServantName,
+      isArchived,
+      archivedAt,
+      archivedByUserId,
+      archiveReason,
+      restoredAt,
+      restoredByUserId);
 
   @JsonKey(ignore: true)
   @override
@@ -234,7 +358,13 @@ abstract class _TeamModel extends TeamModel {
       required final String name,
       required final String groupId,
       final String? assignedServantId,
-      final String? assignedServantName}) = _$TeamModelImpl;
+      final String? assignedServantName,
+      final bool isArchived,
+      @_TimestampConverter() final DateTime? archivedAt,
+      final String? archivedByUserId,
+      final String? archiveReason,
+      @_TimestampConverter() final DateTime? restoredAt,
+      final String? restoredByUserId}) = _$TeamModelImpl;
   const _TeamModel._() : super._();
 
   factory _TeamModel.fromJson(Map<String, dynamic> json) =
@@ -260,6 +390,20 @@ abstract class _TeamModel extends TeamModel {
 
   /// Denormalized servant name for display.
   String? get assignedServantName;
+  @override
+  bool get isArchived;
+  @override
+  @_TimestampConverter()
+  DateTime? get archivedAt;
+  @override
+  String? get archivedByUserId;
+  @override
+  String? get archiveReason;
+  @override
+  @_TimestampConverter()
+  DateTime? get restoredAt;
+  @override
+  String? get restoredByUserId;
   @override
   @JsonKey(ignore: true)
   _$$TeamModelImplCopyWith<_$TeamModelImpl> get copyWith =>

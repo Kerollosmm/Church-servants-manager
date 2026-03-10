@@ -19,7 +19,9 @@ class AuthErrorMapper {
         case 'invalid-email':
           return const InvalidEmailFailure();
         case 'user-disabled':
-          return const GenericAuthFailure('This account has been disabled');
+          return const GenericAuthFailure(
+            'تم إيقاف هذا الحساب. تواصل مع الإدارة.',
+          );
         default:
           return GenericAuthFailure(e.message ?? e.code);
       }
@@ -34,6 +36,11 @@ class AuthErrorMapper {
     if (e is InvalidEmailAuthException) return const InvalidEmailFailure();
     if (e is EmailNotVerifiedAuthException) {
       return const EmailNotVerifiedFailure();
+    }
+    if (e is ArchivedAccountAuthException) {
+      return ArchivedAccountFailure(
+        e.message ?? 'تمت أرشفة هذا الحساب. تواصل مع الإدارة.',
+      );
     }
     if (e is UserNotLoggedInAuthException) {
       return const UserNotLoggedInFailure();

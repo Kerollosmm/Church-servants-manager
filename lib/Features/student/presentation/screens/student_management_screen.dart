@@ -8,10 +8,12 @@ import 'package:church_management_system/core/widgets/app_empty_state.dart';
 import 'package:church_management_system/core/widgets/cards/person_list_card.dart';
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
 import 'package:church_management_system/core/widgets/search/live_search_panel.dart';
+import 'package:church_management_system/features/admin/data/admin_team_service.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
 import 'package:church_management_system/features/team/data/models/team_model.dart';
+import 'package:church_management_system/features/team/data/repos/team_repository.dart';
 import 'package:church_management_system/features/team/presentation/bloc/team_cubit.dart';
 import 'package:church_management_system/features/team/presentation/widgets/team_dropdown.dart';
 import 'package:flutter/material.dart';
@@ -28,6 +30,7 @@ class StudentManagementScreen extends StatefulWidget {
 class _StudentManagementScreenState extends State<StudentManagementScreen> {
   final TextEditingController _searchController = TextEditingController();
   String? _selectedTeamId;
+  bool _showArchived = false;
   late final StudentDataBloc _studentDataBloc;
   late final TeamCubit _teamCubit;
 
@@ -35,7 +38,10 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
   void initState() {
     super.initState();
     _studentDataBloc = context.read<StudentDataBloc>();
-    _teamCubit = context.read<TeamCubit>();
+    _teamCubit = TeamCubit(
+      teamRepository: context.read<TeamRepository>(),
+      adminTeamService: context.read<AdminTeamService>(),
+    );
     final actor = _currentActorOrNull();
     if (actor != null) {
       _selectedTeamId =
@@ -44,7 +50,11 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
           ? actor.effectiveAssignedTeamIds.first
           : null;
       _studentDataBloc.add(
-        StudentsLoadRequested(actor: actor, teamId: _selectedTeamId),
+        StudentsLoadRequested(
+          actor: actor,
+          teamId: _selectedTeamId,
+          includeArchived: _showArchived,
+        ),
       );
       _loadTeamsForActor(actor);
     }
@@ -53,6 +63,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
   @override
   void dispose() {
     _studentDataBloc.add(const StudentsListeningStopped());
+    _teamCubit.close();
     _searchController.dispose();
     super.dispose();
   }
@@ -75,7 +86,12 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
 
   void _dispatchSearch(AuthUser actor, String query, {String? teamId}) {
     context.read<StudentDataBloc>().add(
-      StudentsSearchRequested(actor: actor, query: query, teamId: teamId),
+      StudentsSearchRequested(
+        actor: actor,
+        query: query,
+        teamId: teamId,
+        includeArchived: _showArchived,
+      ),
     );
   }
 
@@ -87,9 +103,33 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
       _dispatchSearch(actor, query, teamId: teamId);
     } else {
       context.read<StudentDataBloc>().add(
-        StudentsLoadRequested(actor: actor, teamId: teamId),
+        StudentsLoadRequested(
+          actor: actor,
+          teamId: teamId,
+          includeArchived: _showArchived,
+        ),
       );
     }
+  }
+
+  Future<void> _openStudentEditor(AuthUser actor, {StudentModel? student}) async {
+    final result = await Navigator.pushNamed(
+      context,
+      studentEdit,
+      arguments: StudentEditArgs(actor: actor, student: student),
+    );
+    if (!mounted || result != true) return;
+    await context.read<StudentDataBloc>().refresh(actor);
+  }
+
+  Future<void> _openStudentDetail(AuthUser actor, StudentModel student) async {
+    final result = await Navigator.pushNamed(
+      context,
+      studentDetail,
+      arguments: StudentDetailArgs(actor: actor, student: student),
+    );
+    if (!mounted || result != true) return;
+    await context.read<StudentDataBloc>().refresh(actor);
   }
 
   void _loadTeamsForActor(AuthUser actor) {
@@ -148,58 +188,74 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
         }
         final assignedTeamIds = actor.effectiveAssignedTeamIds;
 
-        return Scaffold(
-          appBar: AppBar(
-            title: Text(
-              actor.role == UserRole.admin ? 'إدارة المخدومين' : 'مخدومي',
-            ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.refresh),
-                tooltip: 'تحديث',
-                onPressed: () {
-                  context.read<StudentDataBloc>().refresh(actor);
-                },
+        return BlocProvider<TeamCubit>.value(
+          value: _teamCubit,
+          child: Scaffold(
+            appBar: AppBar(
+              title: Text(
+                _showArchived
+                    ? 'المخدومون المؤرشفون'
+                    : (actor.role == UserRole.admin ? 'إدارة المخدومين' : 'مخدومي'),
               ),
-            ],
-          ),
-          floatingActionButton: _canManage(actor)
-              ? FloatingActionButton.extended(
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  tooltip: 'تحديث',
                   onPressed: () {
-                    Navigator.pushNamed(
-                      context,
-                      studentEdit,
-                      arguments: StudentEditArgs(actor: actor),
+                    context.read<StudentDataBloc>().refresh(actor);
+                  },
+                ),
+                IconButton(
+                  icon: Icon(
+                    _showArchived ? Icons.unarchive_outlined : Icons.archive_outlined,
+                  ),
+                  tooltip: _showArchived ? 'إخفاء المؤرشف' : 'عرض المؤرشف',
+                  onPressed: () {
+                    setState(() => _showArchived = !_showArchived);
+                    context.read<StudentDataBloc>().add(
+                      StudentsLoadRequested(
+                        actor: actor,
+                        teamId: _selectedTeamId,
+                        includeArchived: _showArchived,
+                      ),
                     );
                   },
-                  icon: const Icon(Icons.person_add),
-                  label: const Text('إضافة مخدوم'),
-                )
-              : null,
-          body: BlocConsumer<StudentDataBloc, StudentDataState>(
-            listener: (context, state) {
-              if (state is StudentDataError) {
-                AppSnackbars.showError(context, state.message);
-              }
-              if (state is StudentDataLoaded && state.successMessage != null) {
-                if (state.mutationStatus != StudentMutationStatus.success) {
-                  return;
+                ),
+              ],
+            ),
+            floatingActionButton: _canManage(actor)
+                ? FloatingActionButton.extended(
+                    onPressed: () {
+                      _openStudentEditor(actor);
+                    },
+                    icon: const Icon(Icons.person_add),
+                    label: const Text('إضافة مخدوم'),
+                  )
+                : null,
+            body: BlocConsumer<StudentDataBloc, StudentDataState>(
+              listener: (context, state) {
+                if (state is StudentDataError) {
+                  AppSnackbars.showError(context, state.message);
                 }
-                AppSnackbars.showSuccess(
-                  context,
-                  state.successMessage!,
-                  backgroundColor: AppColors.secondary,
-                );
-              }
-            },
-            builder: (context, state) {
-              final viewData = _buildViewData(state);
+                if (state is StudentDataLoaded && state.successMessage != null) {
+                  if (state.mutationStatus != StudentMutationStatus.success) {
+                    return;
+                  }
+                  AppSnackbars.showSuccess(
+                    context,
+                    state.successMessage!,
+                    backgroundColor: AppColors.secondary,
+                  );
+                }
+              },
+              builder: (context, state) {
+                final viewData = _buildViewData(state);
 
-              return RefreshIndicator(
-                onRefresh: () => context.read<StudentDataBloc>().refresh(actor),
-                child: CustomScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  slivers: [
+                return RefreshIndicator(
+                  onRefresh: () => context.read<StudentDataBloc>().refresh(actor),
+                  child: CustomScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    slivers: [
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(
@@ -290,8 +346,12 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                       SliverFillRemaining(
                         hasScrollBody: false,
                         child: AppEmptyState(
-                          title: 'لا يوجد مخدومون',
-                          subtitle: 'جرّب بحثا مختلفا أو حدّث القائمة.',
+                          title: _showArchived
+                              ? 'لا يوجد مخدومون مؤرشفون'
+                              : 'لا يوجد مخدومون',
+                          subtitle: _showArchived
+                              ? 'عند أرشفة مخدوم سيظهر هنا.'
+                              : 'جرّب بحثا مختلفا أو حدّث القائمة.',
                           onRefresh: () =>
                               context.read<StudentDataBloc>().refresh(actor),
                         ),
@@ -311,14 +371,16 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                               key: ValueKey(student.docID),
                               actor: actor,
                               student: student,
+                              onTap: () => _openStudentDetail(actor, student),
                             ),
                           );
                         }, childCount: viewData.students.length),
                       ),
-                  ],
-                ),
-              );
-            },
+                    ],
+                  ),
+                );
+              },
+            ),
           ),
         );
       },
@@ -343,21 +405,23 @@ class _StudentListViewData {
 class _StudentCard extends StatelessWidget {
   final AuthUser actor;
   final StudentModel student;
+  final VoidCallback onTap;
 
-  const _StudentCard({super.key, required this.actor, required this.student});
+  const _StudentCard({
+    super.key,
+    required this.actor,
+    required this.student,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return PersonListCard(
       name: student.name,
-      subtitle: 'المجموعة ${student.group.name} • الصف ${student.grade}',
-      onTap: () {
-        Navigator.pushNamed(
-          context,
-          studentDetail,
-          arguments: StudentDetailArgs(actor: actor, student: student),
-        );
-      },
+      subtitle: student.isArchived
+          ? 'مؤرشف'
+          : 'المجموعة ${student.group.name} • الصف ${student.grade}',
+      onTap: onTap,
     );
   }
 }

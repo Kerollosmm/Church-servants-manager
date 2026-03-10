@@ -58,6 +58,14 @@ mixin _$ServantModel {
 
   /// Optional notes about the servant.
   String? get notes => throw _privateConstructorUsedError;
+  bool get isArchived => throw _privateConstructorUsedError;
+  @_TimestampConverter()
+  DateTime? get archivedAt => throw _privateConstructorUsedError;
+  String? get archivedByUserId => throw _privateConstructorUsedError;
+  String? get archiveReason => throw _privateConstructorUsedError;
+  @_TimestampConverter()
+  DateTime? get restoredAt => throw _privateConstructorUsedError;
+  String? get restoredByUserId => throw _privateConstructorUsedError;
 
   /// Assigned team/class ID within the servant's group.
   String? get assignedTeamId => throw _privateConstructorUsedError;
@@ -87,6 +95,12 @@ abstract class $ServantModelCopyWith<$Res> {
       @JsonKey(name: 'father_of_confession') String? fatherOfConfession,
       @_TimestampConverter() DateTime? birthdate,
       String? notes,
+      bool isArchived,
+      @_TimestampConverter() DateTime? archivedAt,
+      String? archivedByUserId,
+      String? archiveReason,
+      @_TimestampConverter() DateTime? restoredAt,
+      String? restoredByUserId,
       String? assignedTeamId});
 }
 
@@ -115,6 +129,12 @@ class _$ServantModelCopyWithImpl<$Res, $Val extends ServantModel>
     Object? fatherOfConfession = freezed,
     Object? birthdate = freezed,
     Object? notes = freezed,
+    Object? isArchived = null,
+    Object? archivedAt = freezed,
+    Object? archivedByUserId = freezed,
+    Object? archiveReason = freezed,
+    Object? restoredAt = freezed,
+    Object? restoredByUserId = freezed,
     Object? assignedTeamId = freezed,
   }) {
     return _then(_value.copyWith(
@@ -166,6 +186,30 @@ class _$ServantModelCopyWithImpl<$Res, $Val extends ServantModel>
           ? _value.notes
           : notes // ignore: cast_nullable_to_non_nullable
               as String?,
+      isArchived: null == isArchived
+          ? _value.isArchived
+          : isArchived // ignore: cast_nullable_to_non_nullable
+              as bool,
+      archivedAt: freezed == archivedAt
+          ? _value.archivedAt
+          : archivedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      archivedByUserId: freezed == archivedByUserId
+          ? _value.archivedByUserId
+          : archivedByUserId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      archiveReason: freezed == archiveReason
+          ? _value.archiveReason
+          : archiveReason // ignore: cast_nullable_to_non_nullable
+              as String?,
+      restoredAt: freezed == restoredAt
+          ? _value.restoredAt
+          : restoredAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      restoredByUserId: freezed == restoredByUserId
+          ? _value.restoredByUserId
+          : restoredByUserId // ignore: cast_nullable_to_non_nullable
+              as String?,
       assignedTeamId: freezed == assignedTeamId
           ? _value.assignedTeamId
           : assignedTeamId // ignore: cast_nullable_to_non_nullable
@@ -195,6 +239,12 @@ abstract class _$$ServantModelImplCopyWith<$Res>
       @JsonKey(name: 'father_of_confession') String? fatherOfConfession,
       @_TimestampConverter() DateTime? birthdate,
       String? notes,
+      bool isArchived,
+      @_TimestampConverter() DateTime? archivedAt,
+      String? archivedByUserId,
+      String? archiveReason,
+      @_TimestampConverter() DateTime? restoredAt,
+      String? restoredByUserId,
       String? assignedTeamId});
 }
 
@@ -221,6 +271,12 @@ class __$$ServantModelImplCopyWithImpl<$Res>
     Object? fatherOfConfession = freezed,
     Object? birthdate = freezed,
     Object? notes = freezed,
+    Object? isArchived = null,
+    Object? archivedAt = freezed,
+    Object? archivedByUserId = freezed,
+    Object? archiveReason = freezed,
+    Object? restoredAt = freezed,
+    Object? restoredByUserId = freezed,
     Object? assignedTeamId = freezed,
   }) {
     return _then(_$ServantModelImpl(
@@ -272,6 +328,30 @@ class __$$ServantModelImplCopyWithImpl<$Res>
           ? _value.notes
           : notes // ignore: cast_nullable_to_non_nullable
               as String?,
+      isArchived: null == isArchived
+          ? _value.isArchived
+          : isArchived // ignore: cast_nullable_to_non_nullable
+              as bool,
+      archivedAt: freezed == archivedAt
+          ? _value.archivedAt
+          : archivedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      archivedByUserId: freezed == archivedByUserId
+          ? _value.archivedByUserId
+          : archivedByUserId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      archiveReason: freezed == archiveReason
+          ? _value.archiveReason
+          : archiveReason // ignore: cast_nullable_to_non_nullable
+              as String?,
+      restoredAt: freezed == restoredAt
+          ? _value.restoredAt
+          : restoredAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      restoredByUserId: freezed == restoredByUserId
+          ? _value.restoredByUserId
+          : restoredByUserId // ignore: cast_nullable_to_non_nullable
+              as String?,
       assignedTeamId: freezed == assignedTeamId
           ? _value.assignedTeamId
           : assignedTeamId // ignore: cast_nullable_to_non_nullable
@@ -296,6 +376,12 @@ class _$ServantModelImpl extends _ServantModel {
       @JsonKey(name: 'father_of_confession') this.fatherOfConfession,
       @_TimestampConverter() this.birthdate,
       this.notes,
+      this.isArchived = false,
+      @_TimestampConverter() this.archivedAt,
+      this.archivedByUserId,
+      this.archiveReason,
+      @_TimestampConverter() this.restoredAt,
+      this.restoredByUserId,
       this.assignedTeamId})
       : super._();
 
@@ -353,6 +439,21 @@ class _$ServantModelImpl extends _ServantModel {
   /// Optional notes about the servant.
   @override
   final String? notes;
+  @override
+  @JsonKey()
+  final bool isArchived;
+  @override
+  @_TimestampConverter()
+  final DateTime? archivedAt;
+  @override
+  final String? archivedByUserId;
+  @override
+  final String? archiveReason;
+  @override
+  @_TimestampConverter()
+  final DateTime? restoredAt;
+  @override
+  final String? restoredByUserId;
 
   /// Assigned team/class ID within the servant's group.
   @override
@@ -360,7 +461,7 @@ class _$ServantModelImpl extends _ServantModel {
 
   @override
   String toString() {
-    return 'ServantModel(uid: $uid, docID: $docID, name: $name, role: $role, email: $email, phone: $phone, imageUrl: $imageUrl, teamName: $teamName, isEmailVerified: $isEmailVerified, fatherOfConfession: $fatherOfConfession, birthdate: $birthdate, notes: $notes, assignedTeamId: $assignedTeamId)';
+    return 'ServantModel(uid: $uid, docID: $docID, name: $name, role: $role, email: $email, phone: $phone, imageUrl: $imageUrl, teamName: $teamName, isEmailVerified: $isEmailVerified, fatherOfConfession: $fatherOfConfession, birthdate: $birthdate, notes: $notes, isArchived: $isArchived, archivedAt: $archivedAt, archivedByUserId: $archivedByUserId, archiveReason: $archiveReason, restoredAt: $restoredAt, restoredByUserId: $restoredByUserId, assignedTeamId: $assignedTeamId)';
   }
 
   @override
@@ -385,27 +486,46 @@ class _$ServantModelImpl extends _ServantModel {
             (identical(other.birthdate, birthdate) ||
                 other.birthdate == birthdate) &&
             (identical(other.notes, notes) || other.notes == notes) &&
+            (identical(other.isArchived, isArchived) ||
+                other.isArchived == isArchived) &&
+            (identical(other.archivedAt, archivedAt) ||
+                other.archivedAt == archivedAt) &&
+            (identical(other.archivedByUserId, archivedByUserId) ||
+                other.archivedByUserId == archivedByUserId) &&
+            (identical(other.archiveReason, archiveReason) ||
+                other.archiveReason == archiveReason) &&
+            (identical(other.restoredAt, restoredAt) ||
+                other.restoredAt == restoredAt) &&
+            (identical(other.restoredByUserId, restoredByUserId) ||
+                other.restoredByUserId == restoredByUserId) &&
             (identical(other.assignedTeamId, assignedTeamId) ||
                 other.assignedTeamId == assignedTeamId));
   }
 
   @JsonKey(ignore: true)
   @override
-  int get hashCode => Object.hash(
-      runtimeType,
-      uid,
-      docID,
-      name,
-      role,
-      email,
-      phone,
-      imageUrl,
-      teamName,
-      isEmailVerified,
-      fatherOfConfession,
-      birthdate,
-      notes,
-      assignedTeamId);
+  int get hashCode => Object.hashAll([
+        runtimeType,
+        uid,
+        docID,
+        name,
+        role,
+        email,
+        phone,
+        imageUrl,
+        teamName,
+        isEmailVerified,
+        fatherOfConfession,
+        birthdate,
+        notes,
+        isArchived,
+        archivedAt,
+        archivedByUserId,
+        archiveReason,
+        restoredAt,
+        restoredByUserId,
+        assignedTeamId
+      ]);
 
   @JsonKey(ignore: true)
   @override
@@ -435,6 +555,12 @@ abstract class _ServantModel extends ServantModel {
       @JsonKey(name: 'father_of_confession') final String? fatherOfConfession,
       @_TimestampConverter() final DateTime? birthdate,
       final String? notes,
+      final bool isArchived,
+      @_TimestampConverter() final DateTime? archivedAt,
+      final String? archivedByUserId,
+      final String? archiveReason,
+      @_TimestampConverter() final DateTime? restoredAt,
+      final String? restoredByUserId,
       final String? assignedTeamId}) = _$ServantModelImpl;
   const _ServantModel._() : super._();
 
@@ -492,6 +618,20 @@ abstract class _ServantModel extends ServantModel {
 
   /// Optional notes about the servant.
   String? get notes;
+  @override
+  bool get isArchived;
+  @override
+  @_TimestampConverter()
+  DateTime? get archivedAt;
+  @override
+  String? get archivedByUserId;
+  @override
+  String? get archiveReason;
+  @override
+  @_TimestampConverter()
+  DateTime? get restoredAt;
+  @override
+  String? get restoredByUserId;
   @override
 
   /// Assigned team/class ID within the servant's group.

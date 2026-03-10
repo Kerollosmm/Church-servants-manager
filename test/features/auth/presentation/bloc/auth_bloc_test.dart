@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/data/services/auth_service.dart';
@@ -23,6 +25,7 @@ void main() {
 
   setUp(() {
     authService = MockAuthService();
+    when(() => authService.authStateChanges).thenAnswer((_) => const Stream.empty());
   });
 
   test('emits loading then authenticated on successful sign in', () async {
@@ -218,6 +221,63 @@ void main() {
 
     bloc.add(const AuthEventRefreshUser());
     await expectation;
+    await bloc.close();
+  });
+
+  test('emits archived when resolved user is archived on startup', () async {
+    final archivedUser = AuthUser(
+      uid: 'u1',
+      email: 'archived@example.com',
+      name: 'Archived User',
+      role: UserRole.student,
+      isEmailVerified: true,
+      isArchived: true,
+    );
+
+    when(() => authService.currentUser).thenReturn(archivedUser);
+    when(() => authService.reloadUser()).thenAnswer((_) async {});
+    when(
+      () => authService.getCurrentAppUser(forceRefresh: true),
+    ).thenAnswer((_) async => archivedUser);
+
+    final bloc = AuthBloc(authService: authService);
+    final expectation = expectLater(
+      bloc.stream,
+      emitsInOrder([
+        isA<AuthLoading>(),
+        isA<AuthArchived>().having(
+          (s) => s.email,
+          'email',
+          'archived@example.com',
+        ),
+      ]),
+    );
+
+    bloc.add(const AuthEventCheckStatus());
+    await expectation;
+    await bloc.close();
+  });
+
+  test('reacts to live auth session stream updates after bootstrap', () async {
+    final controller = StreamController<AuthUser?>.broadcast();
+    when(() => authService.authStateChanges).thenAnswer((_) => controller.stream);
+    when(() => authService.currentUser).thenReturn(null);
+
+    final bloc = AuthBloc(authService: authService);
+    controller.add(null);
+    final expectation = expectLater(
+      bloc.stream,
+      emitsInOrder([
+        isA<AuthAuthenticated>().having((s) => s.user.uid, 'uid', 'u1'),
+        isA<AuthUnauthenticated>(),
+      ]),
+    );
+
+    controller.add(testUser());
+    controller.add(null);
+
+    await expectation;
+    await controller.close();
     await bloc.close();
   });
 }

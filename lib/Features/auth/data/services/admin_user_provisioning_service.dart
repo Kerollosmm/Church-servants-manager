@@ -1,6 +1,7 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/auth/data/services/admin_auth_client.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
+import 'package:church_management_system/features/auth/data/services/auth_service.dart';
 import 'package:church_management_system/features/auth/data/services/auth_user_profile_store.dart';
 import 'package:church_management_system/features/auth/domain/failures/auth_failures.dart';
 import 'package:church_management_system/features/auth/domain/failures/auth_exceptions.dart';
@@ -18,17 +19,24 @@ abstract class AdminUserProvisioningService {
     required String email,
     required String password,
   });
+
+  Future<void> archiveUser({required String uid});
+
+  Future<void> restoreUser({required String uid});
 }
 
 class ClientAdminUserProvisioningService
     implements AdminUserProvisioningService {
   ClientAdminUserProvisioningService({
     required AuthUserProfileStore userProfileStore,
+    required AuthService authService,
     AdminAuthClient? adminAuthClient,
   }) : _userProfileStore = userProfileStore,
+       _authService = authService,
        _adminAuthClient = adminAuthClient ?? FirebaseAdminAuthClient();
 
   final AuthUserProfileStore _userProfileStore;
+  final AuthService _authService;
   final AdminAuthClient _adminAuthClient;
 
   @override
@@ -107,6 +115,36 @@ class ClientAdminUserProvisioningService
 
       if (e is AuthFailure) rethrow;
       throw GenericAuthException('Rollback failed: $e');
+    }
+  }
+
+  @override
+  Future<void> archiveUser({required String uid}) async {
+    try {
+      await _adminAuthClient.archiveUser(uid: uid);
+      await _userProfileStore.updateUserFields(uid, {
+        'isArchived': true,
+        'restorePendingPasswordReset': false,
+      });
+    } catch (e) {
+      if (e is AuthFailure) rethrow;
+      throw GenericAuthException('Archive failed: $e');
+    }
+  }
+
+  @override
+  Future<void> restoreUser({required String uid}) async {
+    try {
+      final user = await _userProfileStore.fetchUser(uid);
+      await _adminAuthClient.restoreUser(uid: uid);
+      await _userProfileStore.updateUserFields(uid, {
+        'isArchived': false,
+        'restorePendingPasswordReset': true,
+      });
+      await _authService.sendPasswordResetEmail(user.email);
+    } catch (e) {
+      if (e is AuthFailure) rethrow;
+      throw GenericAuthException('Restore failed: $e');
     }
   }
 }

@@ -25,6 +25,10 @@ class TeamServerFailure extends TeamFailure {
   const TeamServerFailure([super.message = 'Server error occurred']);
 }
 
+class TeamValidationFailure extends TeamFailure {
+  const TeamValidationFailure(super.message);
+}
+
 /// Thrown when an unexpected error occurs.
 class GenericTeamFailure extends TeamFailure {
   const GenericTeamFailure(super.message);
@@ -32,12 +36,20 @@ class GenericTeamFailure extends TeamFailure {
 
 /// Helper to map exceptions to team failures.
 TeamFailure mapExceptionToTeamFailure(Object e) {
+  if (e is TeamFailure) {
+    return e;
+  }
+
   if (isPermissionDeniedException(e)) {
     return const TeamPermissionDeniedFailure();
   }
 
   if (isNotFoundException(e)) {
     return const TeamNotFoundFailure();
+  }
+
+  if (e is StateError) {
+    return TeamValidationFailure(e.message);
   }
 
   return GenericTeamFailure(e.toString());

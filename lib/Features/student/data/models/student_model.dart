@@ -33,6 +33,13 @@ class StudentModel with _$StudentModel {
     @JsonKey(name: 'father_of_confession') required String fatherOfConfession,
     required String? notes,
 
+    @Default(false) bool isArchived,
+    @_TimestampConverter() DateTime? archivedAt,
+    String? archivedByUserId,
+    String? archiveReason,
+    @_TimestampConverter() DateTime? restoredAt,
+    String? restoredByUserId,
+
     /// Class ID for efficient querying - enables single query instead of N+1.
     String? classId,
   }) = _StudentModel;
@@ -74,4 +81,6 @@ class StudentModel with _$StudentModel {
 
   /// Converts to Firestore-compatible map.
   Map<String, dynamic> toMap() => toJson();
+
+  bool get isActive => !isArchived;
 }

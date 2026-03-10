@@ -42,8 +42,34 @@ class FirebaseAuthProvider implements AuthProvider {
         _userCache.clear();
         return null;
       }
-      return await getUserData(user.uid);
+      return await getUserData(user.uid, forceRefresh: true);
     });
+  }
+
+  Future<AuthUser> _clearRestorePendingPasswordResetIfNeeded(
+    AuthUser user,
+  ) async {
+    if (!user.restorePendingPasswordReset) {
+      return user;
+    }
+
+    final updatedUser = user.copyWith(restorePendingPasswordReset: false);
+    await _userProfileStore.updateUserFields(user.uid, {
+      'restorePendingPasswordReset': false,
+    });
+    _userCache[updatedUser.uid] = updatedUser;
+    return updatedUser;
+  }
+
+  Future<void> _signOutSilently(String uid) async {
+    _userCache.remove(uid);
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      return;
+    }
+    if (currentUser.uid == uid) {
+      await _auth.signOut();
+    }
   }
 
   @override
@@ -57,9 +83,20 @@ class FirebaseAuthProvider implements AuthProvider {
       final user = _auth.currentUser;
       if (user != null) {
         if (!user.emailVerified) {
+          await _signOutSilently(user.uid);
           throw EmailNotVerifiedAuthException();
         }
-        return await getUserData(user.uid);
+
+        var appUser = await getUserData(user.uid, forceRefresh: true);
+        if (appUser.isArchived) {
+          await _signOutSilently(user.uid);
+          throw const ArchivedAccountAuthException(
+            'تمت أرشفة هذا الحساب. تواصل مع الإدارة.',
+          );
+        }
+
+        appUser = await _clearRestorePendingPasswordResetIfNeeded(appUser);
+        return appUser;
       } else {
         throw UserNotLoggedInAuthException();
       }
@@ -255,8 +292,28 @@ class FirebaseAuthProvider implements AuthProvider {
       // Use default source first to allow Firestore to serve from local cache
       // when available, then fall back to explicit cache on failures.
       final user = await _userProfileStore.fetchUser(uid);
-      _userCache[uid] = user;
-      return user;
+      final firebaseUser = _auth.currentUser;
+      final syncedUser =
+          firebaseUser != null && firebaseUser.uid == uid
+          ? user.copyWith(
+              email: firebaseUser.email ?? user.email,
+              name: firebaseUser.displayName?.trim().isNotEmpty == true
+                  ? firebaseUser.displayName!.trim()
+                  : user.name,
+              isEmailVerified: firebaseUser.emailVerified,
+            )
+          : user;
+
+      if (syncedUser != user) {
+        await _userProfileStore.saveUser(syncedUser);
+      }
+
+      final resolvedUser = await _clearRestorePendingPasswordResetIfNeeded(
+        syncedUser,
+      );
+
+      _userCache[uid] = resolvedUser;
+      return resolvedUser;
     } catch (e) {
       if (e is UserNotFoundAuthException) rethrow;
       throw GenericAuthException('Failed to fetch user data: $e');

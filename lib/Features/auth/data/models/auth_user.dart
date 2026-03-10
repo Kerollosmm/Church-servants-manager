@@ -1,9 +1,12 @@
 import 'package:church_management_system/core/constants/enums.dart';
+import 'package:church_management_system/core/utils/json_converters.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:firebase_auth/firebase_auth.dart' show User;
 
 part 'auth_user.freezed.dart';
 part 'auth_user.g.dart';
+
+typedef _TimestampConverter = FirestoreTimestampConverter;
 
 @freezed
 class AuthUser with _$AuthUser {
@@ -15,6 +18,13 @@ class AuthUser with _$AuthUser {
     required String name,
     required UserRole role,
     @Default(false) bool isEmailVerified,
+    @Default(false) bool isArchived,
+    @_TimestampConverter() DateTime? archivedAt,
+    String? archivedByUserId,
+    String? archiveReason,
+    @_TimestampConverter() DateTime? restoredAt,
+    String? restoredByUserId,
+    @Default(false) bool restorePendingPasswordReset,
     String? groupId,
     @Default(<String>[]) List<String> assignedTeamIds,
     String? assignedTeamId,
@@ -50,6 +60,8 @@ class AuthUser with _$AuthUser {
 
   String? get primaryAssignedTeamId =>
       effectiveAssignedTeamIds.isEmpty ? null : effectiveAssignedTeamIds.first;
+
+  bool get isActive => !isArchived;
 
   /// Convert to JSON for Firestore (wrapper to match existing usage if needed,
   /// though toJson is automatically generated)

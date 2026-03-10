@@ -11,3 +11,7 @@ const String devTools = '/dev-tools';
 const String teamManagement = '/teams';
 const String teamMembers = '/teams/members';
 const String adminScreen = '/admin';
+const String attendanceSessionCreate = '/attendance/session/create';
+const String attendanceTaking = '/attendance/taking';
+const String attendanceHistory = '/attendance/history';
+const String studentAttendance = '/attendance/student';

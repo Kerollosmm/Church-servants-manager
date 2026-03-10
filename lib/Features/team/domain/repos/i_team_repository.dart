@@ -3,19 +3,25 @@ import 'package:church_management_system/features/team/data/models/team_model.da
 /// Interface for team repository operations.
 abstract class ITeamRepository {
   /// Get all teams for a specific group/year.
-  Future<List<TeamModel>> getTeamsByGroup(String groupId);
+  Future<List<TeamModel>> getTeamsByGroup(
+    String groupId, {
+    bool includeArchived = false,
+  });
 
   /// Watch all teams for a specific group/year.
-  Stream<List<TeamModel>> watchTeamsByGroup(String groupId);
+  Stream<List<TeamModel>> watchTeamsByGroup(
+    String groupId, {
+    bool includeArchived = false,
+  });
 
   /// Get all teams across all groups.
-  Future<List<TeamModel>> getAllTeams();
+  Future<List<TeamModel>> getAllTeams({bool includeArchived = false});
 
   /// Watch all teams across all groups.
-  Stream<List<TeamModel>> watchAllTeams();
+  Stream<List<TeamModel>> watchAllTeams({bool includeArchived = false});
 
   /// Get a single team by its document ID.
-  Future<TeamModel?> getTeamById(String id);
+  Future<TeamModel?> getTeamById(String id, {bool includeArchived = false});
 
   /// Create a new team. Returns the Firestore document ID.
   Future<String> createTeam(TeamModel team);
@@ -25,4 +31,7 @@ abstract class ITeamRepository {
 
   /// Delete a team by its document ID.
   Future<void> deleteTeam(String id);
+
+  /// Restore an archived team by its document ID.
+  Future<void> restoreTeam(String id);
 }

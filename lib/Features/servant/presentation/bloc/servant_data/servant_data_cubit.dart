@@ -1,22 +1,17 @@
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
 import 'package:church_management_system/features/servant/data/models/servant_models.dart';
 import 'package:church_management_system/features/servant/data/repo/servant_data_repository.dart';
 import 'package:church_management_system/features/servant/domain/failures/servant_failures.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'servant_data_state.dart';
 
 export 'servant_data_state.dart';
 
-/// Cubit for managing Servant data operations (CRUD).
 class ServantDataCubit extends Cubit<ServantDataState> {
-  final ServantDataRepository _repository;
-  final AdminUserProvisioningService _adminUserProvisioningService;
-
   ServantDataCubit({
     required ServantDataRepository repository,
     required AdminUserProvisioningService adminUserProvisioningService,
@@ -24,8 +19,12 @@ class ServantDataCubit extends Cubit<ServantDataState> {
        _adminUserProvisioningService = adminUserProvisioningService,
        super(const ServantDataInitial());
 
+  final ServantDataRepository _repository;
+  final AdminUserProvisioningService _adminUserProvisioningService;
+
   String? _lastQuery;
   int _lastLimit = 50;
+  bool _includeArchived = false;
   List<ServantModel> _allServants = [];
   bool _hasMore = true;
   bool _isLoadingMore = false;
@@ -48,57 +47,98 @@ class ServantDataCubit extends Cubit<ServantDataState> {
     return false;
   }
 
+  void _emitLoading() {
+    emit(
+      ServantDataLoading(
+        previousServants: List<ServantModel>.from(_allServants),
+        isRefresh: _allServants.isNotEmpty,
+        includeArchived: _includeArchived,
+      ),
+    );
+  }
+
+  void _emitLoaded({
+    bool isLoadingMore = false,
+    ServantMutationStatus mutationStatus = ServantMutationStatus.idle,
+    String? feedbackMessage,
+  }) {
+    emit(
+      ServantDataLoaded(
+        servants: _sortByName(List<ServantModel>.from(_allServants)),
+        currentQuery: _lastQuery,
+        hasMore: (_lastQuery == null || _lastQuery!.isEmpty) && _hasMore,
+        isLoadingMore: isLoadingMore,
+        includeArchived: _includeArchived,
+        mutationStatus: mutationStatus,
+        feedbackMessage: feedbackMessage,
+      ),
+    );
+  }
+
+  void _emitMutationFailure(Object error) {
+    final failure = _mapFailure(error);
+    if (_allServants.isNotEmpty) {
+      _emitLoaded(
+        mutationStatus: ServantMutationStatus.failure,
+        feedbackMessage: failure.message,
+      );
+      return;
+    }
+    emit(ServantDataError(failure));
+  }
+
   Future<void> loadServants({
     required AuthUser actor,
     int limit = 50,
     bool forceRefresh = false,
+    bool includeArchived = false,
   }) async {
     if (!_ensureAdmin(actor)) return;
 
-    if (!forceRefresh &&
-        state is ServantDataLoaded &&
-        _allServants.isNotEmpty) {
+    _includeArchived = includeArchived;
+    if (!forceRefresh && state is ServantDataLoaded && _allServants.isNotEmpty) {
       _lastLimit = limit <= 0 ? _lastLimit : limit;
       _lastQuery = null;
       _emitLoaded();
       return;
     }
 
-    emit(const ServantDataLoading());
+    _emitLoading();
     try {
       _setPaginationDefaults(limit: limit);
       await _loadFirstPage();
       _emitLoaded();
     } catch (e) {
-      emit(ServantDataError(_mapFailure(e)));
+      _emitMutationFailure(e);
     }
   }
 
   Future<void> searchServants({
     required AuthUser actor,
     required String query,
+    bool includeArchived = false,
   }) async {
     if (!_ensureAdmin(actor)) return;
 
-    emit(const ServantDataLoading());
+    _includeArchived = includeArchived;
+    _emitLoading();
     try {
       _lastQuery = query;
       final normalizedQuery = query.toLowerCase();
-      final filteredServants = _allServants
-          .where(
-            (servant) => servant.name.toLowerCase().contains(normalizedQuery),
-          )
-          .toList();
+      final filteredServants = _allServants.where((servant) {
+        return servant.name.toLowerCase().contains(normalizedQuery);
+      }).toList(growable: false);
       emit(
         ServantDataLoaded(
           servants: _sortByName(filteredServants),
           currentQuery: query,
           hasMore: false,
           isLoadingMore: false,
+          includeArchived: _includeArchived,
         ),
       );
     } catch (e) {
-      emit(ServantDataError(_mapFailure(e)));
+      _emitMutationFailure(e);
     }
   }
 
@@ -111,7 +151,7 @@ class ServantDataCubit extends Cubit<ServantDataState> {
     if (!_ensureAdmin(actor)) return;
     final previousLoaded = _loadedState;
     AuthUser? createdAuthUser;
-    emit(const ServantDataLoading());
+    _emitLoaded(mutationStatus: ServantMutationStatus.inProgress);
     try {
       createdAuthUser = await _createServantAuthUser(
         servant: servant,
@@ -136,7 +176,10 @@ class ServantDataCubit extends Cubit<ServantDataState> {
       if (!didOptimisticUpdate) {
         await _reloadFromServer(actor);
       }
-      emit(const ServantDataOperationSuccess('تم إنشاء الخادم بنجاح'));
+      _emitLoaded(
+        mutationStatus: ServantMutationStatus.success,
+        feedbackMessage: 'تم إنشاء الخادم بنجاح',
+      );
     } catch (e) {
       if (createdAuthUser != null &&
           email != null &&
@@ -150,19 +193,15 @@ class ServantDataCubit extends Cubit<ServantDataState> {
             password: password,
           );
         } catch (rollbackError) {
-          emit(
-            ServantDataError(
-              _mapFailure(
-                Exception(
-                  'Create servant failed and rollback was incomplete: $rollbackError',
-                ),
-              ),
+          _emitMutationFailure(
+            Exception(
+              'Create servant failed and rollback was incomplete: $rollbackError',
             ),
           );
           return;
         }
       }
-      emit(ServantDataError(_mapFailure(e)));
+      _emitMutationFailure(e);
     }
   }
 
@@ -171,15 +210,16 @@ class ServantDataCubit extends Cubit<ServantDataState> {
     required ServantModel servant,
   }) async {
     if (!_ensureAdmin(actor)) return;
-    emit(const ServantDataLoading());
+    _emitLoaded(mutationStatus: ServantMutationStatus.inProgress);
     try {
       await _repository.updateServant(servant);
-      // Always reload from server to ensure the list is fresh and accurate,
-      // especially after role changes where the servant may no longer appear.
       await _reloadFromServer(actor);
-      emit(const ServantDataOperationSuccess('تم تحديث بيانات الخادم بنجاح'));
+      _emitLoaded(
+        mutationStatus: ServantMutationStatus.success,
+        feedbackMessage: 'تم تحديث بيانات الخادم بنجاح',
+      );
     } catch (e) {
-      emit(ServantDataError(_mapFailure(e)));
+      _emitMutationFailure(e);
     }
   }
 
@@ -189,9 +229,13 @@ class ServantDataCubit extends Cubit<ServantDataState> {
   }) async {
     if (!_ensureAdmin(actor)) return;
     final previousLoaded = _loadedState;
-    emit(const ServantDataLoading());
+    _emitLoaded(mutationStatus: ServantMutationStatus.inProgress);
     try {
+      final existing = await _repository.getServantById(docId, includeArchived: true);
       await _repository.deleteServant(docId);
+      if (existing?.uid?.trim().isNotEmpty == true) {
+        await _adminUserProvisioningService.archiveUser(uid: existing!.uid!.trim());
+      }
       final didOptimisticUpdate = _tryEmitOptimisticUpdate(previousLoaded, (
         servants,
       ) {
@@ -201,21 +245,52 @@ class ServantDataCubit extends Cubit<ServantDataState> {
       if (!didOptimisticUpdate) {
         await _reloadFromServer(actor);
       }
-      emit(const ServantDataOperationSuccess('تم حذف الخادم بنجاح'));
+      _emitLoaded(
+        mutationStatus: ServantMutationStatus.success,
+        feedbackMessage: 'تمت أرشفة الخادم بنجاح',
+      );
     } catch (e) {
-      emit(ServantDataError(_mapFailure(e)));
+      _emitMutationFailure(e);
+    }
+  }
+
+  Future<void> restoreServant({
+    required AuthUser actor,
+    required String docId,
+  }) async {
+    if (!_ensureAdmin(actor)) return;
+    _emitLoaded(mutationStatus: ServantMutationStatus.inProgress);
+    try {
+      final existing = await _repository.getServantById(docId, includeArchived: true);
+      if (existing == null) {
+        _emitMutationFailure(const GenericServantFailure('لم يتم العثور على الخادم.'));
+        return;
+      }
+      await _repository.restoreServant(docId);
+      final normalizedUid = existing.uid?.trim();
+      if (normalizedUid != null && normalizedUid.isNotEmpty) {
+        await _adminUserProvisioningService.restoreUser(uid: normalizedUid);
+      }
+      await _reloadFromServer(actor);
+      _emitLoaded(
+        mutationStatus: ServantMutationStatus.success,
+        feedbackMessage:
+            'تمت استعادة الخادم بنجاح. يجب على المسؤول إعادة تعيين الفريق يدويا.',
+      );
+    } catch (e) {
+      _emitMutationFailure(e);
     }
   }
 
   Future<void> refreshServants({required AuthUser actor}) async {
     if (!_ensureAdmin(actor)) return;
-
-    // Force a fresh fetch from the server
     await _reloadFromServer(actor);
-
-    // Re-apply search locally if a query was active
     if (_lastQuery != null && _lastQuery!.isNotEmpty) {
-      await searchServants(actor: actor, query: _lastQuery!);
+      await searchServants(
+        actor: actor,
+        query: _lastQuery!,
+        includeArchived: _includeArchived,
+      );
     }
   }
 
@@ -231,11 +306,10 @@ class ServantDataCubit extends Cubit<ServantDataState> {
       final page = await _repository.getServantsPage(
         limit: _lastLimit,
         lastDocument: _lastDocument,
+        includeArchived: _includeArchived,
       );
 
-      final byId = <String, ServantModel>{
-        for (final s in _allServants) s.docID: s,
-      };
+      final byId = <String, ServantModel>{for (final s in _allServants) s.docID: s};
       for (final servant in page.servants) {
         byId[servant.docID] = servant;
       }
@@ -247,16 +321,24 @@ class ServantDataCubit extends Cubit<ServantDataState> {
       _emitLoaded();
     } catch (e) {
       _isLoadingMore = false;
-      emit(ServantDataError(_mapFailure(e)));
+      _emitMutationFailure(e);
     }
   }
 
   Future<void> _reloadFromServer(AuthUser actor) {
-    return loadServants(actor: actor, limit: _lastLimit, forceRefresh: true);
+    return loadServants(
+      actor: actor,
+      limit: _lastLimit,
+      forceRefresh: true,
+      includeArchived: _includeArchived,
+    );
   }
 
   Future<void> _loadFirstPage() async {
-    final page = await _repository.getServantsPage(limit: _lastLimit);
+    final page = await _repository.getServantsPage(
+      limit: _lastLimit,
+      includeArchived: _includeArchived,
+    );
     _allServants = page.servants;
     _hasMore = page.hasMore;
     _lastDocument = page.lastDocument;
@@ -275,10 +357,7 @@ class ServantDataCubit extends Cubit<ServantDataState> {
     String? email,
     String? password,
   }) async {
-    if (email == null ||
-        email.isEmpty ||
-        password == null ||
-        password.isEmpty) {
+    if (email == null || email.isEmpty || password == null || password.isEmpty) {
       return null;
     }
     return _adminUserProvisioningService.createUser(
@@ -306,10 +385,13 @@ class ServantDataCubit extends Cubit<ServantDataState> {
     var updated = update(List<ServantModel>.from(previousLoaded.servants));
     updated = _sortByName(updated);
     emit(
-      ServantDataLoaded(
+      previousLoaded.copyWith(
         servants: updated,
         hasMore: _hasMore,
         isLoadingMore: _isLoadingMore,
+        includeArchived: _includeArchived,
+        mutationStatus: ServantMutationStatus.idle,
+        clearFeedbackMessage: true,
       ),
     );
     return true;
@@ -330,17 +412,6 @@ class ServantDataCubit extends Cubit<ServantDataState> {
       (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
     );
     return servants;
-  }
-
-  void _emitLoaded({bool isLoadingMore = false}) {
-    emit(
-      ServantDataLoaded(
-        servants: _sortByName(List<ServantModel>.from(_allServants)),
-        currentQuery: _lastQuery,
-        hasMore: (_lastQuery == null || _lastQuery!.isEmpty) && _hasMore,
-        isLoadingMore: isLoadingMore,
-      ),
-    );
   }
 
   List<ServantModel> _upsertServant(

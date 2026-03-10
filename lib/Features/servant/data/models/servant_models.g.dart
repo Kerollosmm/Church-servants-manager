@@ -23,6 +23,14 @@ _$ServantModelImpl _$$ServantModelImplFromJson(Map<String, dynamic> json) =>
       birthdate:
           const FirestoreTimestampConverter().fromJson(json['birthdate']),
       notes: json['notes'] as String?,
+      isArchived: json['isArchived'] as bool? ?? false,
+      archivedAt:
+          const FirestoreTimestampConverter().fromJson(json['archivedAt']),
+      archivedByUserId: json['archivedByUserId'] as String?,
+      archiveReason: json['archiveReason'] as String?,
+      restoredAt:
+          const FirestoreTimestampConverter().fromJson(json['restoredAt']),
+      restoredByUserId: json['restoredByUserId'] as String?,
       assignedTeamId: json['assignedTeamId'] as String?,
     );
 
@@ -41,5 +49,13 @@ Map<String, dynamic> _$$ServantModelImplToJson(_$ServantModelImpl instance) =>
       'birthdate':
           const FirestoreTimestampConverter().toJson(instance.birthdate),
       'notes': instance.notes,
+      'isArchived': instance.isArchived,
+      'archivedAt':
+          const FirestoreTimestampConverter().toJson(instance.archivedAt),
+      'archivedByUserId': instance.archivedByUserId,
+      'archiveReason': instance.archiveReason,
+      'restoredAt':
+          const FirestoreTimestampConverter().toJson(instance.restoredAt),
+      'restoredByUserId': instance.restoredByUserId,
       'assignedTeamId': instance.assignedTeamId,
     };

@@ -15,16 +15,37 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/Users/$(callerUid())).data;
     }
 
+    function userPublicProfileKeys() {
+      return [
+        'uid',
+        'name',
+        'email',
+        'role',
+        'isEmailVerified',
+        'updatedAt',
+      ];
+    }
+
     function getUserRole() {
       return callerUser().role;
     }
 
     function isAdmin() {
-      return isSignedIn() && getUserRole() == 'admin';
+      return isSignedIn() && callerUser().isArchived != true && getUserRole() == 'admin';
     }
 
     function isServant() {
-      return isSignedIn() && getUserRole() == 'servant';
+      return isSignedIn() && callerUser().isArchived != true && getUserRole() == 'servant';
+    }
+
+    function teamIsActive(teamId) {
+      let teamDoc = get(/databases/$(database)/documents/Classes/$(teamId));
+      return teamDoc.data != null && teamDoc.data.isArchived != true;
+    }
+
+    function studentIsActive(studentId) {
+      let studentDoc = get(/databases/$(database)/documents/Students/$(studentId));
+      return studentDoc.data != null && studentDoc.data.isArchived != true;
     }
 
     function servantCanReadStudent() {
@@ -42,6 +63,114 @@ service cloud.firestore {
       );
     }
 
+    function servantCanManageTeam(teamId) {
+      let user = callerUser();
+      let assignedTeamIds = user.assignedTeamIds;
+
+      return isServant() && (
+        user.assignedTeamId == teamId ||
+        (assignedTeamIds != null && teamId in assignedTeamIds)
+      );
+    }
+
+    function servantCanManageStudentPayload(studentData) {
+      let user = callerUser();
+      let studentGroup = studentData.group;
+      let studentClassId = studentData.classId;
+      let assignedTeamIds = user.assignedTeamIds;
+
+      return isServant() && studentData.isArchived != true && (
+        (studentGroup != null && user.groupId != null && studentGroup == user.groupId) ||
+        (studentClassId != null && (
+          studentClassId == user.assignedTeamId ||
+          (assignedTeamIds != null && studentClassId in assignedTeamIds)
+        ))
+      );
+    }
+
+    function validSelfUserCreate(userId) {
+      return callerUid() == userId &&
+        request.resource.data.keys().hasOnly(userPublicProfileKeys()) &&
+        request.resource.data.uid == userId &&
+        request.resource.data.role == 'student' &&
+        request.resource.data.name is string &&
+        request.resource.data.name.size() > 0 &&
+        request.resource.data.email is string &&
+        request.resource.data.email.size() > 0 &&
+        request.resource.data.isEmailVerified is bool;
+    }
+
+    function validSelfUserUpdate(userId) {
+      return callerUid() == userId &&
+        request.resource.data.uid == resource.data.uid &&
+        request.resource.data.role == resource.data.role &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'name',
+          'email',
+          'isEmailVerified',
+          'updatedAt',
+        ]) &&
+        request.resource.data.name is string &&
+        request.resource.data.name.size() > 0 &&
+        request.resource.data.email is string &&
+        request.resource.data.email.size() > 0 &&
+        request.resource.data.isEmailVerified is bool;
+    }
+
+    function sessionAcceptsMarks(teamId, sessionId) {
+      let session = get(
+        /databases/$(database)/documents/Classes/$(teamId)/attendance_sessions/$(sessionId)
+      ).data;
+
+      return session != null &&
+        teamIsActive(teamId) &&
+        session.isClosed != true &&
+        request.time >= session.startsAt &&
+        request.time < session.endsAt;
+    }
+
+    function validAttendanceSessionPayload(teamId) {
+      return request.resource.data.keys().hasOnly([
+          'teamId',
+          'teamNameSnapshot',
+          'title',
+          'dateKey',
+          'startsAt',
+          'endsAt',
+          'durationMinutes',
+          'createdByUserId',
+          'createdByName',
+          'createdAt',
+          'updatedAt',
+          'isClosed',
+          'studentIdsSnapshot',
+          'studentNameSnapshots',
+        ]) &&
+        request.resource.data.teamId == teamId &&
+        request.resource.data.createdByUserId == callerUid() &&
+        request.resource.data.durationMinutes is int &&
+        request.resource.data.durationMinutes > 0;
+    }
+
+    function validAttendanceMarkPayload(studentId) {
+      return request.resource.data.keys().hasOnly([
+          'studentNameSnapshot',
+          'status',
+          'markedByUserId',
+          'markedByName',
+          'markedAt',
+          'updatedAt',
+          'note',
+        ]) &&
+        studentIsActive(studentId) &&
+        request.resource.data.markedByUserId == callerUid() &&
+        request.resource.data.markedByName is string &&
+        request.resource.data.markedByName.size() > 0 &&
+        request.resource.data.studentNameSnapshot is string &&
+        request.resource.data.studentNameSnapshot.size() > 0 &&
+        request.resource.data.status in ['present', 'late'];
+    }
+
     // ─── Users ─────────────────────────────────────────────────────
     match /Users/{userId} {
       // Users can read their own doc; admins can read any user.
@@ -49,14 +178,11 @@ service cloud.firestore {
 
       // Only admins can create new user docs (for admin-created accounts).
       // Users can create their own doc on first sign-up.
-      allow create: if isSignedIn() && (callerUid() == userId || isAdmin());
+      allow create: if isSignedIn() && (isAdmin() || validSelfUserCreate(userId));
 
       // Users can update their own non-role fields.
       // Admins can update any user doc (including role changes).
-      allow update: if isSignedIn() && (
-        isAdmin() ||
-        (callerUid() == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']))
-      );
+      allow update: if isSignedIn() && (isAdmin() || validSelfUserUpdate(userId));
 
       // Only admins can delete user docs.
       allow delete: if isAdmin();
@@ -74,13 +200,23 @@ service cloud.firestore {
       );
 
       // Only admins and servants can create students.
-      allow create: if isSignedIn() && (isAdmin() || isServant());
+      allow create: if isSignedIn() && (
+        isAdmin() ||
+        (
+          servantCanManageStudentPayload(request.resource.data) &&
+          request.resource.data.role == 'student'
+        )
+      );
 
       // Admins and servants can update students.
       // Servants cannot change a student's role — only admins.
       allow update: if isSignedIn() && (
         isAdmin() ||
-        (isServant() && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']))
+        (
+          servantCanManageStudentPayload(resource.data) &&
+          servantCanManageStudentPayload(request.resource.data) &&
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'uid'])
+        )
       );
 
       // Only admins can delete students.
@@ -95,6 +231,24 @@ service cloud.firestore {
 
       // Only admins can create, update, or delete classes/teams.
       allow create, update, delete: if isAdmin();
+
+      match /attendance_sessions/{sessionId} {
+        allow read: if isSignedIn() && (isAdmin() || servantCanManageTeam(classId));
+        allow create: if teamIsActive(classId) && (
+          isAdmin() ||
+          servantCanManageTeam(classId)
+        ) && validAttendanceSessionPayload(classId);
+        allow update, delete: if isAdmin();
+
+        match /marks/{studentId} {
+          allow read: if isSignedIn() && (isAdmin() || servantCanManageTeam(classId));
+          allow create, update: if (isAdmin() || servantCanManageTeam(classId)) &&
+            sessionAcceptsMarks(classId, sessionId) &&
+            validAttendanceMarkPayload(studentId);
+          allow delete: if (isAdmin() || servantCanManageTeam(classId)) &&
+            sessionAcceptsMarks(classId, sessionId);
+        }
+      }
     }
   }
 }

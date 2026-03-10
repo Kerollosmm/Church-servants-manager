@@ -46,6 +46,14 @@ class AdminDashboardScreen extends StatelessWidget {
             AppSpacing.gapSm,
             _tile(
               context,
+              icon: Icons.fact_check_outlined,
+              title: 'الحضور',
+              subtitle: 'إدارة الجلسات ومتابعة الحضور',
+              route: attendanceHistory,
+            ),
+            AppSpacing.gapSm,
+            _tile(
+              context,
               icon: Icons.supervisor_account_outlined,
               title: 'الخدام',
               subtitle: 'إدارة بيانات الخدام',

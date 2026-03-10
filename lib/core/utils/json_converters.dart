@@ -9,6 +9,7 @@ class FirestoreTimestampConverter implements JsonConverter<DateTime?, dynamic> {
   @override
   DateTime? fromJson(dynamic json) {
     if (json == null) return null;
+    if (json is DateTime) return json;
     if (json is Timestamp) return json.toDate();
     if (json is String) return DateTime.tryParse(json);
     if (json is int) return DateTime.fromMillisecondsSinceEpoch(json);
@@ -18,6 +19,23 @@ class FirestoreTimestampConverter implements JsonConverter<DateTime?, dynamic> {
   @override
   dynamic toJson(DateTime? date) {
     if (date == null) return null;
+    return Timestamp.fromDate(date);
+  }
+}
+
+/// Converts Firestore Timestamp to/from a non-nullable Dart DateTime.
+class RequiredFirestoreTimestampConverter
+    implements JsonConverter<DateTime, dynamic> {
+  const RequiredFirestoreTimestampConverter();
+
+  @override
+  DateTime fromJson(dynamic json) {
+    return const FirestoreTimestampConverter().fromJson(json) ??
+        DateTime.fromMillisecondsSinceEpoch(0);
+  }
+
+  @override
+  dynamic toJson(DateTime date) {
     return Timestamp.fromDate(date);
   }
 }

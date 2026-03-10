@@ -25,6 +25,15 @@ mixin _$AuthUser {
   String get name => throw _privateConstructorUsedError;
   UserRole get role => throw _privateConstructorUsedError;
   bool get isEmailVerified => throw _privateConstructorUsedError;
+  bool get isArchived => throw _privateConstructorUsedError;
+  @_TimestampConverter()
+  DateTime? get archivedAt => throw _privateConstructorUsedError;
+  String? get archivedByUserId => throw _privateConstructorUsedError;
+  String? get archiveReason => throw _privateConstructorUsedError;
+  @_TimestampConverter()
+  DateTime? get restoredAt => throw _privateConstructorUsedError;
+  String? get restoredByUserId => throw _privateConstructorUsedError;
+  bool get restorePendingPasswordReset => throw _privateConstructorUsedError;
   String? get groupId => throw _privateConstructorUsedError;
   List<String> get assignedTeamIds => throw _privateConstructorUsedError;
   String? get assignedTeamId => throw _privateConstructorUsedError;
@@ -46,6 +55,13 @@ abstract class $AuthUserCopyWith<$Res> {
       String name,
       UserRole role,
       bool isEmailVerified,
+      bool isArchived,
+      @_TimestampConverter() DateTime? archivedAt,
+      String? archivedByUserId,
+      String? archiveReason,
+      @_TimestampConverter() DateTime? restoredAt,
+      String? restoredByUserId,
+      bool restorePendingPasswordReset,
       String? groupId,
       List<String> assignedTeamIds,
       String? assignedTeamId});
@@ -69,6 +85,13 @@ class _$AuthUserCopyWithImpl<$Res, $Val extends AuthUser>
     Object? name = null,
     Object? role = null,
     Object? isEmailVerified = null,
+    Object? isArchived = null,
+    Object? archivedAt = freezed,
+    Object? archivedByUserId = freezed,
+    Object? archiveReason = freezed,
+    Object? restoredAt = freezed,
+    Object? restoredByUserId = freezed,
+    Object? restorePendingPasswordReset = null,
     Object? groupId = freezed,
     Object? assignedTeamIds = null,
     Object? assignedTeamId = freezed,
@@ -93,6 +116,34 @@ class _$AuthUserCopyWithImpl<$Res, $Val extends AuthUser>
       isEmailVerified: null == isEmailVerified
           ? _value.isEmailVerified
           : isEmailVerified // ignore: cast_nullable_to_non_nullable
+              as bool,
+      isArchived: null == isArchived
+          ? _value.isArchived
+          : isArchived // ignore: cast_nullable_to_non_nullable
+              as bool,
+      archivedAt: freezed == archivedAt
+          ? _value.archivedAt
+          : archivedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      archivedByUserId: freezed == archivedByUserId
+          ? _value.archivedByUserId
+          : archivedByUserId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      archiveReason: freezed == archiveReason
+          ? _value.archiveReason
+          : archiveReason // ignore: cast_nullable_to_non_nullable
+              as String?,
+      restoredAt: freezed == restoredAt
+          ? _value.restoredAt
+          : restoredAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      restoredByUserId: freezed == restoredByUserId
+          ? _value.restoredByUserId
+          : restoredByUserId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      restorePendingPasswordReset: null == restorePendingPasswordReset
+          ? _value.restorePendingPasswordReset
+          : restorePendingPasswordReset // ignore: cast_nullable_to_non_nullable
               as bool,
       groupId: freezed == groupId
           ? _value.groupId
@@ -124,6 +175,13 @@ abstract class _$$AuthUserImplCopyWith<$Res>
       String name,
       UserRole role,
       bool isEmailVerified,
+      bool isArchived,
+      @_TimestampConverter() DateTime? archivedAt,
+      String? archivedByUserId,
+      String? archiveReason,
+      @_TimestampConverter() DateTime? restoredAt,
+      String? restoredByUserId,
+      bool restorePendingPasswordReset,
       String? groupId,
       List<String> assignedTeamIds,
       String? assignedTeamId});
@@ -145,6 +203,13 @@ class __$$AuthUserImplCopyWithImpl<$Res>
     Object? name = null,
     Object? role = null,
     Object? isEmailVerified = null,
+    Object? isArchived = null,
+    Object? archivedAt = freezed,
+    Object? archivedByUserId = freezed,
+    Object? archiveReason = freezed,
+    Object? restoredAt = freezed,
+    Object? restoredByUserId = freezed,
+    Object? restorePendingPasswordReset = null,
     Object? groupId = freezed,
     Object? assignedTeamIds = null,
     Object? assignedTeamId = freezed,
@@ -169,6 +234,34 @@ class __$$AuthUserImplCopyWithImpl<$Res>
       isEmailVerified: null == isEmailVerified
           ? _value.isEmailVerified
           : isEmailVerified // ignore: cast_nullable_to_non_nullable
+              as bool,
+      isArchived: null == isArchived
+          ? _value.isArchived
+          : isArchived // ignore: cast_nullable_to_non_nullable
+              as bool,
+      archivedAt: freezed == archivedAt
+          ? _value.archivedAt
+          : archivedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      archivedByUserId: freezed == archivedByUserId
+          ? _value.archivedByUserId
+          : archivedByUserId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      archiveReason: freezed == archiveReason
+          ? _value.archiveReason
+          : archiveReason // ignore: cast_nullable_to_non_nullable
+              as String?,
+      restoredAt: freezed == restoredAt
+          ? _value.restoredAt
+          : restoredAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      restoredByUserId: freezed == restoredByUserId
+          ? _value.restoredByUserId
+          : restoredByUserId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      restorePendingPasswordReset: null == restorePendingPasswordReset
+          ? _value.restorePendingPasswordReset
+          : restorePendingPasswordReset // ignore: cast_nullable_to_non_nullable
               as bool,
       groupId: freezed == groupId
           ? _value.groupId
@@ -195,6 +288,13 @@ class _$AuthUserImpl extends _AuthUser {
       required this.name,
       required this.role,
       this.isEmailVerified = false,
+      this.isArchived = false,
+      @_TimestampConverter() this.archivedAt,
+      this.archivedByUserId,
+      this.archiveReason,
+      @_TimestampConverter() this.restoredAt,
+      this.restoredByUserId,
+      this.restorePendingPasswordReset = false,
       this.groupId,
       final List<String> assignedTeamIds = const <String>[],
       this.assignedTeamId})
@@ -216,6 +316,24 @@ class _$AuthUserImpl extends _AuthUser {
   @JsonKey()
   final bool isEmailVerified;
   @override
+  @JsonKey()
+  final bool isArchived;
+  @override
+  @_TimestampConverter()
+  final DateTime? archivedAt;
+  @override
+  final String? archivedByUserId;
+  @override
+  final String? archiveReason;
+  @override
+  @_TimestampConverter()
+  final DateTime? restoredAt;
+  @override
+  final String? restoredByUserId;
+  @override
+  @JsonKey()
+  final bool restorePendingPasswordReset;
+  @override
   final String? groupId;
   final List<String> _assignedTeamIds;
   @override
@@ -231,7 +349,7 @@ class _$AuthUserImpl extends _AuthUser {
 
   @override
   String toString() {
-    return 'AuthUser(uid: $uid, email: $email, name: $name, role: $role, isEmailVerified: $isEmailVerified, groupId: $groupId, assignedTeamIds: $assignedTeamIds, assignedTeamId: $assignedTeamId)';
+    return 'AuthUser(uid: $uid, email: $email, name: $name, role: $role, isEmailVerified: $isEmailVerified, isArchived: $isArchived, archivedAt: $archivedAt, archivedByUserId: $archivedByUserId, archiveReason: $archiveReason, restoredAt: $restoredAt, restoredByUserId: $restoredByUserId, restorePendingPasswordReset: $restorePendingPasswordReset, groupId: $groupId, assignedTeamIds: $assignedTeamIds, assignedTeamId: $assignedTeamId)';
   }
 
   @override
@@ -245,6 +363,22 @@ class _$AuthUserImpl extends _AuthUser {
             (identical(other.role, role) || other.role == role) &&
             (identical(other.isEmailVerified, isEmailVerified) ||
                 other.isEmailVerified == isEmailVerified) &&
+            (identical(other.isArchived, isArchived) ||
+                other.isArchived == isArchived) &&
+            (identical(other.archivedAt, archivedAt) ||
+                other.archivedAt == archivedAt) &&
+            (identical(other.archivedByUserId, archivedByUserId) ||
+                other.archivedByUserId == archivedByUserId) &&
+            (identical(other.archiveReason, archiveReason) ||
+                other.archiveReason == archiveReason) &&
+            (identical(other.restoredAt, restoredAt) ||
+                other.restoredAt == restoredAt) &&
+            (identical(other.restoredByUserId, restoredByUserId) ||
+                other.restoredByUserId == restoredByUserId) &&
+            (identical(other.restorePendingPasswordReset,
+                    restorePendingPasswordReset) ||
+                other.restorePendingPasswordReset ==
+                    restorePendingPasswordReset) &&
             (identical(other.groupId, groupId) || other.groupId == groupId) &&
             const DeepCollectionEquality()
                 .equals(other._assignedTeamIds, _assignedTeamIds) &&
@@ -261,6 +395,13 @@ class _$AuthUserImpl extends _AuthUser {
       name,
       role,
       isEmailVerified,
+      isArchived,
+      archivedAt,
+      archivedByUserId,
+      archiveReason,
+      restoredAt,
+      restoredByUserId,
+      restorePendingPasswordReset,
       groupId,
       const DeepCollectionEquality().hash(_assignedTeamIds),
       assignedTeamId);
@@ -286,6 +427,13 @@ abstract class _AuthUser extends AuthUser {
       required final String name,
       required final UserRole role,
       final bool isEmailVerified,
+      final bool isArchived,
+      @_TimestampConverter() final DateTime? archivedAt,
+      final String? archivedByUserId,
+      final String? archiveReason,
+      @_TimestampConverter() final DateTime? restoredAt,
+      final String? restoredByUserId,
+      final bool restorePendingPasswordReset,
       final String? groupId,
       final List<String> assignedTeamIds,
       final String? assignedTeamId}) = _$AuthUserImpl;
@@ -304,6 +452,22 @@ abstract class _AuthUser extends AuthUser {
   UserRole get role;
   @override
   bool get isEmailVerified;
+  @override
+  bool get isArchived;
+  @override
+  @_TimestampConverter()
+  DateTime? get archivedAt;
+  @override
+  String? get archivedByUserId;
+  @override
+  String? get archiveReason;
+  @override
+  @_TimestampConverter()
+  DateTime? get restoredAt;
+  @override
+  String? get restoredByUserId;
+  @override
+  bool get restorePendingPasswordReset;
   @override
   String? get groupId;
   @override

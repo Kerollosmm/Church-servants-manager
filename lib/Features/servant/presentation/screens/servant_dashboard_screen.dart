@@ -126,6 +126,14 @@ class ServantDashboardScreen extends StatelessWidget {
               label: const Text('إدارة مخدومي الفريق'),
             ),
             AppSpacing.gapSm,
+            OutlinedButton.icon(
+              onPressed: () {
+                Navigator.pushNamed(context, attendanceHistory);
+              },
+              icon: const Icon(Icons.fact_check_outlined),
+              label: const Text('تسجيل الحضور'),
+            ),
+            AppSpacing.gapSm,
             const AppInfoBanner(
               icon: Icons.refresh,
               message: 'اسحب لأسفل لتحديث بياناتك الحالية.',

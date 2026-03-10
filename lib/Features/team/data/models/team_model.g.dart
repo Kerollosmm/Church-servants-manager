@@ -13,6 +13,14 @@ _$TeamModelImpl _$$TeamModelImplFromJson(Map<String, dynamic> json) =>
       groupId: json['groupId'] as String,
       assignedServantId: json['assignedServantId'] as String?,
       assignedServantName: json['assignedServantName'] as String?,
+      isArchived: json['isArchived'] as bool? ?? false,
+      archivedAt:
+          const FirestoreTimestampConverter().fromJson(json['archivedAt']),
+      archivedByUserId: json['archivedByUserId'] as String?,
+      archiveReason: json['archiveReason'] as String?,
+      restoredAt:
+          const FirestoreTimestampConverter().fromJson(json['restoredAt']),
+      restoredByUserId: json['restoredByUserId'] as String?,
     );
 
 Map<String, dynamic> _$$TeamModelImplToJson(_$TeamModelImpl instance) =>
@@ -22,4 +30,12 @@ Map<String, dynamic> _$$TeamModelImplToJson(_$TeamModelImpl instance) =>
       'groupId': instance.groupId,
       'assignedServantId': instance.assignedServantId,
       'assignedServantName': instance.assignedServantName,
+      'isArchived': instance.isArchived,
+      'archivedAt':
+          const FirestoreTimestampConverter().toJson(instance.archivedAt),
+      'archivedByUserId': instance.archivedByUserId,
+      'archiveReason': instance.archiveReason,
+      'restoredAt':
+          const FirestoreTimestampConverter().toJson(instance.restoredAt),
+      'restoredByUserId': instance.restoredByUserId,
     };

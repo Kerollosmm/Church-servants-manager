@@ -1,6 +1,7 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
+import 'package:church_management_system/core/utils/validators.dart';
 import 'package:church_management_system/core/widgets/form/app_dropdown_field.dart';
 import 'package:church_management_system/core/widgets/form/app_text_form_field.dart';
 import 'package:church_management_system/core/widgets/form/date_picker_field.dart';
@@ -19,7 +20,6 @@ class ServantPrimaryDetailsSection extends StatelessWidget {
     required this.selectedGroup,
     required this.onRoleChanged,
     required this.onGroupChanged,
-    required this.requiredField,
     required this.passwordValidator,
   });
 
@@ -32,7 +32,6 @@ class ServantPrimaryDetailsSection extends StatelessWidget {
   final Group selectedGroup;
   final ValueChanged<UserRole> onRoleChanged;
   final ValueChanged<Group> onGroupChanged;
-  final String? Function(String?) requiredField;
   final String? Function(String?) passwordValidator;
 
   @override
@@ -47,21 +46,23 @@ class ServantPrimaryDetailsSection extends StatelessWidget {
           controller: nameController,
           labelText: 'الاسم',
           prefixIcon: Icons.person_outline,
-          validator: requiredField,
+          validator: Validators.validateNameArabic,
         ),
         AppSpacing.gapMd,
         AppTextFormField(
           controller: phoneController,
           labelText: 'رقم الهاتف',
           prefixIcon: Icons.phone_outlined,
-          validator: requiredField,
+          validator: Validators.validatePhoneArabic,
         ),
         AppSpacing.gapMd,
         AppTextFormField(
           controller: emailController,
           labelText: isEditing ? 'البريد الإلكتروني (اختياري)' : 'البريد الإلكتروني',
           prefixIcon: Icons.email_outlined,
-          validator: isEditing ? null : requiredField,
+          validator: isEditing
+              ? Validators.validateOptionalEmailArabic
+              : Validators.validateEmailArabic,
         ),
         if (!isEditing) ...[
           AppSpacing.gapMd,

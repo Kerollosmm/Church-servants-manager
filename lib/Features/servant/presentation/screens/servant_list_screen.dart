@@ -27,15 +27,17 @@ class ServantListScreen extends StatefulWidget {
 class _ServantListScreenState extends State<ServantListScreen> {
   final TextEditingController _searchController = TextEditingController();
   Timer? _searchDebounce;
-  List<ServantModel> _lastLoadedServants = const <ServantModel>[];
-  bool _hasLoadedServants = false;
+  bool _showArchived = false;
 
   @override
   void initState() {
     super.initState();
     final actor = _currentActorOrNull();
     if (actor != null) {
-      context.read<ServantDataCubit>().loadServants(actor: actor);
+      context.read<ServantDataCubit>().loadServants(
+        actor: actor,
+        includeArchived: _showArchived,
+      );
     }
   }
 
@@ -59,31 +61,43 @@ class _ServantListScreenState extends State<ServantListScreen> {
       context.read<ServantDataCubit>().searchServants(
         actor: actor,
         query: value,
+        includeArchived: _showArchived,
       );
     });
   }
 
   void _clearSearch(AuthUser actor) {
     _searchController.clear();
-    context.read<ServantDataCubit>().searchServants(actor: actor, query: '');
+    context.read<ServantDataCubit>().searchServants(
+      actor: actor,
+      query: '',
+      includeArchived: _showArchived,
+    );
   }
 
   Future<void> _refresh(AuthUser actor) async {
     await context.read<ServantDataCubit>().refreshServants(actor: actor);
   }
 
+  Future<void> _openServantDetail(AuthUser actor, ServantModel servant) async {
+    final result = await Navigator.pushNamed(
+      context,
+      servantDetail,
+      arguments: ServantDetailArgs(actor: actor, servant: servant),
+    );
+    if (!mounted || result != true) return;
+    await _refresh(actor);
+  }
+
   bool _canManage(AuthUser actor) => actor.role == UserRole.admin;
 
   _ServantListViewData _buildViewData(ServantDataState state) {
     final isLoading = state is ServantDataLoading;
-    if (state is ServantDataLoaded) {
-      _lastLoadedServants = state.servants;
-      _hasLoadedServants = true;
-    }
-
-    final servants = state is ServantDataLoaded
-        ? state.servants
-        : (_hasLoadedServants ? _lastLoadedServants : const <ServantModel>[]);
+    final servants = switch (state) {
+      ServantDataLoaded() => state.servants,
+      ServantDataLoading() => state.previousServants,
+      _ => const <ServantModel>[],
+    };
     final loadedState = state is ServantDataLoaded ? state : null;
     final showInitialLoading = isLoading && servants.isEmpty;
     final showEmptyState = state is ServantDataLoaded && state.servants.isEmpty;
@@ -121,8 +135,21 @@ class _ServantListScreenState extends State<ServantListScreen> {
 
         return Scaffold(
           appBar: AppBar(
-            title: const Text('الخدام'), // Arabic: Servants
+            title: Text(_showArchived ? 'الخدام المؤرشفون' : 'الخدام'),
             actions: [
+              IconButton(
+                icon: Icon(
+                  _showArchived ? Icons.unarchive_outlined : Icons.archive_outlined,
+                ),
+                tooltip: _showArchived ? 'إخفاء المؤرشف' : 'عرض المؤرشف',
+                onPressed: () {
+                  setState(() => _showArchived = !_showArchived);
+                  context.read<ServantDataCubit>().loadServants(
+                    actor: actor,
+                    includeArchived: _showArchived,
+                  );
+                },
+              ),
               IconButton(
                 icon: const Icon(Icons.refresh),
                 tooltip: 'تحديث', // Refresh
@@ -152,12 +179,19 @@ class _ServantListScreenState extends State<ServantListScreen> {
               if (state is ServantDataError) {
                 AppSnackbars.showError(context, state.message);
               }
-              if (state is ServantDataOperationSuccess) {
+              if (state is ServantDataLoaded &&
+                  state.feedbackMessage != null &&
+                  state.mutationStatus == ServantMutationStatus.success) {
                 AppSnackbars.showSuccess(
                   context,
-                  state.message,
+                  state.feedbackMessage!,
                   backgroundColor: AppColors.secondary,
                 );
+              }
+              if (state is ServantDataLoaded &&
+                  state.feedbackMessage != null &&
+                  state.mutationStatus == ServantMutationStatus.failure) {
+                AppSnackbars.showError(context, state.feedbackMessage!);
               }
             },
             builder: (context, state) {
@@ -191,6 +225,7 @@ class _ServantListScreenState extends State<ServantListScreen> {
                                 context.read<ServantDataCubit>().searchServants(
                                   actor: actor,
                                   query: v,
+                                  includeArchived: _showArchived,
                                 );
                               },
                               onClear: () => _clearSearch(actor),
@@ -208,7 +243,7 @@ class _ServantListScreenState extends State<ServantListScreen> {
                       SliverFillRemaining(
                         hasScrollBody: false,
                         child: AppEmptyState(
-                          title: 'لا يوجد خدام',
+                          title: _showArchived ? 'لا يوجد خدام مؤرشفون' : 'لا يوجد خدام',
                           subtitle: 'جرب البحث مرة أخرى أو قم بتحديث القائمة.',
                           refreshLabel: 'تحديث',
                           onRefresh: () => _refresh(actor),
@@ -225,7 +260,11 @@ class _ServantListScreenState extends State<ServantListScreen> {
                               AppSpacing.md,
                               AppSpacing.md,
                             ),
-                            child: ServantCard(actor: actor, servant: servant),
+                            child: ServantCard(
+                              actor: actor,
+                              servant: servant,
+                              onTap: () => _openServantDetail(actor, servant),
+                            ),
                           );
                         }, childCount: viewData.servants.length),
                       ),
@@ -306,21 +345,23 @@ class _LoadMoreServantsButton extends StatelessWidget {
 class ServantCard extends StatelessWidget {
   final AuthUser actor;
   final ServantModel servant;
+  final VoidCallback onTap;
 
-  const ServantCard({super.key, required this.actor, required this.servant});
+  const ServantCard({
+    super.key,
+    required this.actor,
+    required this.servant,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return PersonListCard(
       name: servant.name,
-      subtitle: 'المجموعة: ${servant.teamName ?? '--'}',
-      onTap: () {
-        Navigator.pushNamed(
-          context,
-          servantDetail,
-          arguments: ServantDetailArgs(actor: actor, servant: servant),
-        );
-      },
+      subtitle: servant.isArchived
+          ? 'خادم مؤرشف'
+          : 'المجموعة: ${servant.teamName ?? '--'}',
+      onTap: onTap,
     );
   }
 }

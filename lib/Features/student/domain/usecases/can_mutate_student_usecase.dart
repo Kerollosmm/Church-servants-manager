@@ -8,6 +8,7 @@ class CanMutateStudentUseCase {
   const CanMutateStudentUseCase();
 
   bool call(AuthUser actor, StudentModel student) {
+    if (actor.isArchived || student.isArchived) return false;
     if (actor.role == UserRole.admin) return true;
     if (actor.role == UserRole.servant) {
       final assignedTeamIds = actor.effectiveAssignedTeamIds;

@@ -2,6 +2,7 @@ import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/role_user_route.dart';
 import 'package:church_management_system/core/routing/app_router.dart';
 import 'package:church_management_system/core/theme/app_theme.dart';
+import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
 import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
 import 'package:church_management_system/features/auth/data/services/auth_service.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
@@ -11,10 +12,8 @@ import 'package:church_management_system/features/servant/presentation/bloc/serv
 import 'package:church_management_system/features/student/data/repos/student_data_repository.dart';
 import 'package:church_management_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
 import 'package:church_management_system/features/student/domain/usecases/get_students_stream_usecase.dart';
-import 'package:church_management_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
 import 'package:church_management_system/features/student/presentation/bloc/student_profile/student_profile_cubit.dart';
 import 'package:church_management_system/features/team/data/repos/team_repository.dart';
-import 'package:church_management_system/features/team/presentation/bloc/team_cubit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -47,6 +46,9 @@ class ChurchApp extends StatelessWidget {
         RepositoryProvider<CanMutateStudentUseCase>.value(
           value: getIt<CanMutateStudentUseCase>(),
         ),
+        RepositoryProvider<IAttendanceRepository>.value(
+          value: getIt<IAttendanceRepository>(),
+        ),
       ],
       child: MultiBlocProvider(
         providers: [
@@ -54,15 +56,6 @@ class ChurchApp extends StatelessWidget {
             create: (context) =>
                 AuthBloc(authService: context.read<AuthService>())
                   ..add(const AuthEventCheckStatus()),
-          ),
-          BlocProvider(
-            create: (context) => StudentDataBloc(
-              studentRepository: context.read<StudentDataRepository>(),
-              getStudentsStream: context.read<GetStudentsStreamUseCase>(),
-              canMutateStudent: context.read<CanMutateStudentUseCase>(),
-              adminUserProvisioningService: context
-                  .read<AdminUserProvisioningService>(),
-            ),
           ),
           BlocProvider(
             create: (context) => StudentProfileCubit(
@@ -74,12 +67,6 @@ class ChurchApp extends StatelessWidget {
               repository: context.read<ServantDataRepository>(),
               adminUserProvisioningService: context
                   .read<AdminUserProvisioningService>(),
-            ),
-          ),
-          BlocProvider(
-            create: (context) => TeamCubit(
-              teamRepository: context.read<TeamRepository>(),
-              adminTeamService: context.read<AdminTeamService>(),
             ),
           ),
         ],
