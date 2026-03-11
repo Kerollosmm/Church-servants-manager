@@ -8,7 +8,7 @@
 PRODUCT_NAME = csms
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.csms.csms
+PRODUCT_BUNDLE_IDENTIFIER = com.example.church_managment_system
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2026 com.csms. All rights reserved.
