@@ -33,8 +33,7 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
     super.initState();
     _takingCubit = AttendanceTakingCubit(
       repository: context.read<IAttendanceRepository>(),
-    )
-      ..initialize(teamId: widget.args.teamId, sessionId: widget.args.sessionId);
+    )..initialize(teamId: widget.args.teamId, sessionId: widget.args.sessionId);
     _sessionAdminCubit = AttendanceSessionAdminCubit(
       repository: context.read<IAttendanceRepository>(),
     );
@@ -104,56 +103,6 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
     );
   }
 
-  Future<void> _openNoteEditor(AttendanceRosterItem item) async {
-    final controller = TextEditingController(text: item.note ?? '');
-    final result = await showDialog<_AttendanceNoteEditResult>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(item.note?.trim().isNotEmpty == true ? 'Edit note' : 'Add note'),
-          content: TextField(
-            controller: controller,
-            minLines: 3,
-            maxLines: 5,
-            decoration: const InputDecoration(
-              hintText: 'Optional attendance note',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(
-                context,
-              ).pop(const _AttendanceNoteEditResult.clear()),
-              child: const Text('Clear note'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(
-                context,
-              ).pop(_AttendanceNoteEditResult.save(controller.text)),
-              child: const Text('Save'),
-            ),
-          ],
-        );
-      },
-    );
-    controller.dispose();
-
-    if (!mounted || result == null) {
-      return;
-    }
-
-    await _takingCubit.updateMarkNote(
-      actor: widget.args.actor,
-      item: item,
-      note: result.clear ? '' : result.note,
-    );
-  }
-
   String _bannerMessage(AttendanceSession session) {
     if (session.isReopenedForAdminEdit) {
       return _isAdmin
@@ -181,7 +130,9 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
     return MultiBlocProvider(
       providers: [
         BlocProvider<AttendanceTakingCubit>.value(value: _takingCubit),
-        BlocProvider<AttendanceSessionAdminCubit>.value(value: _sessionAdminCubit),
+        BlocProvider<AttendanceSessionAdminCubit>.value(
+          value: _sessionAdminCubit,
+        ),
       ],
       child: MultiBlocListener(
         listeners: [
@@ -196,7 +147,8 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
               return prevMessage != currentMessage && currentMessage != null;
             },
             listener: (context, state) {
-              if (state is AttendanceTakingLoaded && state.mutationError != null) {
+              if (state is AttendanceTakingLoaded &&
+                  state.mutationError != null) {
                 AppSnackbars.showError(context, state.mutationError!);
               }
               if (state is AttendanceTakingError) {
@@ -204,7 +156,10 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
               }
             },
           ),
-          BlocListener<AttendanceSessionAdminCubit, AttendanceSessionAdminState>(
+          BlocListener<
+            AttendanceSessionAdminCubit,
+            AttendanceSessionAdminState
+          >(
             listener: (context, state) {
               if (state is AttendanceSessionAdminError) {
                 AppSnackbars.showError(context, state.message);
@@ -223,7 +178,8 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
         child: BlocBuilder<AttendanceTakingCubit, AttendanceTakingState>(
           builder: (context, state) {
             final loadedState = state is AttendanceTakingLoaded ? state : null;
-            final title = loadedState != null &&
+            final title =
+                loadedState != null &&
                     loadedState.session.title?.isNotEmpty == true
                 ? loadedState.session.title!
                 : 'Attendance';
@@ -232,7 +188,8 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
               appBar: AppBar(
                 title: Text(title),
                 actions: [
-                  if (loadedState != null && _canEditSession(loadedState.session))
+                  if (loadedState != null &&
+                      _canEditSession(loadedState.session))
                     IconButton(
                       tooltip: 'Mark remaining present',
                       icon: const Icon(Icons.done_all_outlined),
@@ -242,7 +199,9 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
                               actor: widget.args.actor,
                             ),
                     ),
-                  if (_isAdmin && loadedState != null && _canReopenSession(loadedState.session))
+                  if (_isAdmin &&
+                      loadedState != null &&
+                      _canReopenSession(loadedState.session))
                     IconButton(
                       tooltip: 'Reopen for correction',
                       icon: const Icon(Icons.lock_open_outlined),
@@ -263,81 +222,85 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
               ),
               body: switch (state) {
                 AttendanceTakingLoading() => const Center(
-                    child: CircularProgressIndicator(),
-                  ),
+                  child: CircularProgressIndicator(),
+                ),
                 AttendanceTakingError() => Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(AppSpacing.lg),
-                      child: Text(state.message, textAlign: TextAlign.center),
-                    ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: Text(state.message, textAlign: TextAlign.center),
                   ),
+                ),
                 AttendanceTakingLoaded() => Builder(
-                    builder: (context) {
-                      final loaded = state;
-                      final canEditSession = _canEditSession(loaded.session);
+                  builder: (context) {
+                    final loaded = state;
+                    final canEditSession = _canEditSession(loaded.session);
 
-                      return Column(
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.all(AppSpacing.md),
-                            child: Column(
-                              children: [
-                                AppInfoBanner(
-                                  icon: _bannerIcon(loaded.session),
-                                  message: _bannerMessage(loaded.session),
-                                ),
-                                AppSpacing.gapSm,
-                                _SessionHeaderCard(session: loaded.session),
-                              ],
-                            ),
+                    return Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          child: Column(
+                            children: [
+                              AppInfoBanner(
+                                icon: _bannerIcon(loaded.session),
+                                message: _bannerMessage(loaded.session),
+                              ),
+                              AppSpacing.gapSm,
+                              _SessionHeaderCard(session: loaded.session),
+                            ],
                           ),
-                          Expanded(
-                            child: loaded.roster.isEmpty
-                                ? const Center(
-                                    child: Text('No students are included in this session.'),
-                                  )
-                                : ListView.separated(
-                                    padding: const EdgeInsets.fromLTRB(
-                                      AppSpacing.md,
-                                      0,
-                                      AppSpacing.md,
-                                      AppSpacing.md,
-                                    ),
-                                    itemBuilder: (context, index) {
-                                      final item = loaded.roster[index];
-                                      return _AttendanceRosterCard(
-                                        item: item,
-                                        isMutating: loaded.isMutating,
-                                        canEditSession: canEditSession,
-                                        statusColor: _statusColor(item.effectiveStatus),
-                                        statusLabel: _statusLabel(item.effectiveStatus),
-                                        onMarkPresent: () => _takingCubit.markPresent(
-                                          actor: widget.args.actor,
-                                          item: item,
-                                        ),
-                                        onMarkLate: () => _takingCubit.markLate(
-                                          actor: widget.args.actor,
-                                          item: item,
-                                        ),
-                                        onClear: item.isMarked
-                                            ? () => _takingCubit.clearMark(
-                                                actor: widget.args.actor,
-                                                item: item,
-                                              )
-                                            : null,
-                                        onEditNote: item.isMarked && canEditSession
-                                            ? () => _openNoteEditor(item)
-                                            : null,
-                                      );
-                                    },
-                                    separatorBuilder: (_, _) => AppSpacing.gapSm,
-                                    itemCount: loaded.roster.length,
+                        ),
+                        Expanded(
+                          child: loaded.roster.isEmpty
+                              ? const Center(
+                                  child: Text(
+                                    'No students are included in this session.',
                                   ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
+                                )
+                              : ListView.separated(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    AppSpacing.md,
+                                    0,
+                                    AppSpacing.md,
+                                    AppSpacing.md,
+                                  ),
+                                  itemBuilder: (context, index) {
+                                    final item = loaded.roster[index];
+                                    return _AttendanceRosterCard(
+                                      item: item,
+                                      isMutating: loaded.isMutating,
+                                      canEditSession: canEditSession,
+                                      statusColor: _statusColor(
+                                        item.effectiveStatus,
+                                      ),
+                                      statusLabel: _statusLabel(
+                                        item.effectiveStatus,
+                                      ),
+                                      onMarkPresent: () =>
+                                          _takingCubit.markPresent(
+                                            actor: widget.args.actor,
+                                            item: item,
+                                          ),
+                                      onMarkLate: () => _takingCubit.markLate(
+                                        actor: widget.args.actor,
+                                        item: item,
+                                      ),
+                                      onClear: item.isMarked
+                                          ? () => _takingCubit.clearMark(
+                                              actor: widget.args.actor,
+                                              item: item,
+                                            )
+                                          : null,
+                                    );
+                                  },
+                                  separatorBuilder: (_, _) => AppSpacing.gapSm,
+                                  itemCount: loaded.roster.length,
+                                ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
                 _ => const SizedBox.shrink(),
               },
             );
@@ -358,7 +321,6 @@ class _AttendanceRosterCard extends StatelessWidget {
     required this.onMarkPresent,
     required this.onMarkLate,
     this.onClear,
-    this.onEditNote,
   });
 
   final AttendanceRosterItem item;
@@ -369,7 +331,6 @@ class _AttendanceRosterCard extends StatelessWidget {
   final VoidCallback onMarkPresent;
   final VoidCallback onMarkLate;
   final VoidCallback? onClear;
-  final VoidCallback? onEditNote;
 
   @override
   Widget build(BuildContext context) {
@@ -446,12 +407,6 @@ class _AttendanceRosterCard extends StatelessWidget {
                       icon: const Icon(Icons.clear),
                       label: const Text('Clear'),
                     ),
-                  if (item.isMarked && onEditNote != null)
-                    TextButton.icon(
-                      onPressed: isMutating ? null : onEditNote,
-                      icon: const Icon(Icons.sticky_note_2_outlined),
-                      label: Text(hasNote ? 'Edit note' : 'Add note'),
-                    ),
                 ],
               ),
             ],
@@ -477,9 +432,9 @@ class _SessionHeaderCard extends StatelessWidget {
           children: [
             Text(
               session.teamNameSnapshot ?? 'Team',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
             AppSpacing.gapXs,
             Text('Starts: ${_formatDateTime(session.startsAt)}'),
@@ -497,21 +452,6 @@ class _SessionHeaderCard extends StatelessWidget {
       ),
     );
   }
-}
-
-class _AttendanceNoteEditResult {
-  const _AttendanceNoteEditResult._({
-    required this.note,
-    required this.clear,
-  });
-
-  const _AttendanceNoteEditResult.clear() : this._(note: '', clear: true);
-
-  const _AttendanceNoteEditResult.save(String note)
-    : this._(note: note, clear: false);
-
-  final String note;
-  final bool clear;
 }
 
 String _formatDateTime(DateTime value) {
