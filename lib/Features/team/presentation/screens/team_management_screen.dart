@@ -7,10 +7,10 @@ import 'package:church_management_system/core/widgets/common/app_state_message.d
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
+import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_management_system/features/team/data/models/team_model.dart';
 import 'package:church_management_system/features/team/data/repos/team_repository.dart';
 import 'package:church_management_system/features/team/presentation/bloc/team_cubit.dart';
-import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_management_system/features/team/presentation/widgets/assign_servant_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -27,12 +27,14 @@ class _TeamManagementScreenState extends State<TeamManagementScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
   late final TeamCubit _teamCubit;
-  final _groups = Group.values;
+  final List<Group> _groups = Group.values;
   bool _showArchived = false;
 
   AuthUser? _currentActor() {
-    final s = context.read<AuthBloc>().state;
-    if (s is AuthAuthenticated) return s.user;
+    final authState = context.read<AuthBloc>().state;
+    if (authState is AuthAuthenticated) {
+      return authState.user;
+    }
     return null;
   }
 
@@ -45,7 +47,6 @@ class _TeamManagementScreenState extends State<TeamManagementScreen>
     );
     _tabController = TabController(length: _groups.length, vsync: this);
     _tabController.addListener(_onTabChanged);
-    // Load teams for the first tab
     _loadTeamsForCurrentTab();
   }
 
@@ -58,14 +59,16 @@ class _TeamManagementScreenState extends State<TeamManagementScreen>
   }
 
   void _onTabChanged() {
-    if (!_tabController.indexIsChanging) {
-      _loadTeamsForCurrentTab();
-    }
+    if (_tabController.indexIsChanging) return;
+    _loadTeamsForCurrentTab();
   }
 
-  void _loadTeamsForCurrentTab() {
+  Future<void> _loadTeamsForCurrentTab() {
     final groupId = _groups[_tabController.index].name;
-    _teamCubit.loadTeamsByGroup(groupId, includeArchived: _showArchived);
+    return _teamCubit.loadTeamsByGroup(
+      groupId,
+      includeArchived: _showArchived,
+    );
   }
 
   String _groupLabel(Group group) {
@@ -79,100 +82,125 @@ class _TeamManagementScreenState extends State<TeamManagementScreen>
     }
   }
 
-  void _showAddTeamDialog() {
+  Future<void> _showAddTeamDialog() async {
     final groupId = _groups[_tabController.index].name;
-    _showTeamNameDialog(
+    final name = await _showTeamNameDialog(
       title: 'إضافة فريق إلى ${_groupLabel(_groups[_tabController.index])}',
       actionLabel: 'إنشاء',
       hintText: 'مثال: فريق مارمرقس',
-      onSave: (name) {
-        _teamCubit.createTeam(
-          TeamModel(id: '', name: name, groupId: groupId),
-        );
-      },
     );
+    if (!mounted || name == null) return;
+
+    await _teamCubit.createTeam(TeamModel(id: '', name: name, groupId: groupId));
   }
 
-  void _showEditTeamDialog(TeamModel team) {
-    _showTeamNameDialog(
+  Future<void> _showEditTeamDialog(TeamModel team) async {
+    final name = await _showTeamNameDialog(
       title: 'تعديل الفريق',
       actionLabel: 'حفظ',
       initialName: team.name,
-      onSave: (name) {
-        _teamCubit.updateTeam(team.copyWith(name: name));
-      },
     );
+    if (!mounted || name == null || name == team.name) return;
+
+    await _teamCubit.updateTeam(team.copyWith(name: name));
   }
 
-  void _showTeamNameDialog({
+  Future<void> _closeTeamNameDialog(
+    BuildContext dialogContext, {
+    String? result,
+  }) async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    await Future<void>.delayed(const Duration(milliseconds: 16));
+    if (!dialogContext.mounted) return;
+    Navigator.of(dialogContext).pop(result);
+  }
+
+  Future<String?> _showTeamNameDialog({
     required String title,
     required String actionLabel,
     String initialName = '',
     String? hintText,
-    required ValueChanged<String> onSave,
-  }) {
+  }) async {
     final nameController = TextEditingController(text: initialName);
-
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(title),
-        content: TextField(
-          controller: nameController,
-          autofocus: true,
-          decoration: InputDecoration(
-            labelText: 'اسم الفريق',
-            hintText: hintText,
-          ),
-          textCapitalization: TextCapitalization.words,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('إلغاء'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final name = nameController.text.trim();
-              if (name.isEmpty) return;
-              onSave(name);
-              Navigator.pop(dialogContext);
-            },
-            child: Text(actionLabel),
-          ),
-        ],
-      ),
-    ).then((_) => nameController.dispose());
+    try {
+      return await showDialog<String>(
+        context: context,
+        requestFocus: false,
+        builder: (dialogContext) {
+          return AlertDialog(
+            title: Text(title),
+            content: TextField(
+              controller: nameController,
+              autofocus: false,
+              textInputAction: TextInputAction.done,
+              textCapitalization: TextCapitalization.words,
+              onTapOutside: (_) {
+                FocusManager.instance.primaryFocus?.unfocus();
+              },
+              onSubmitted: (value) async {
+                final trimmed = value.trim();
+                if (trimmed.isEmpty) return;
+                await _closeTeamNameDialog(dialogContext, result: trimmed);
+              },
+              decoration: InputDecoration(
+                labelText: 'اسم الفريق',
+                hintText: hintText,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () async {
+                  await _closeTeamNameDialog(dialogContext);
+                },
+                child: const Text('إلغاء'),
+              ),
+              FilledButton(
+                onPressed: () async {
+                  final name = nameController.text.trim();
+                  if (name.isEmpty) return;
+                  await _closeTeamNameDialog(dialogContext, result: name);
+                },
+                child: Text(actionLabel),
+              ),
+            ],
+          );
+        },
+      );
+    } finally {
+      nameController.dispose();
+    }
   }
 
-  void _confirmDeleteTeam(TeamModel team) {
-    showDialog(
+  Future<void> _confirmDeleteTeam(TeamModel team) async {
+    final shouldArchive = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('أرشفة الفريق'),
-        content: Text(
-          'سيتم إخفاء "${team.name}" من القوائم النشطة مع الاحتفاظ بالسجل التاريخي.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('إلغاء'),
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('أرشفة الفريق'),
+          content: Text(
+            'سيتم إخفاء "${team.name}" من القوائم النشطة مع الاحتفاظ بالسجل التاريخي.',
           ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            onPressed: () {
-              _teamCubit.deleteTeam(team.id, team.groupId);
-              Navigator.pop(dialogContext);
-            },
-            child: const Text('أرشفة'),
-          ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('أرشفة'),
+            ),
+          ],
+        );
+      },
     );
+
+    if (!mounted || shouldArchive != true) return;
+    await _teamCubit.deleteTeam(team.id, team.groupId);
   }
 
-  void _restoreTeam(TeamModel team) {
-    _teamCubit.restoreTeam(team.id, team.groupId);
+  Future<void> _restoreTeam(TeamModel team) async {
+    await _teamCubit.restoreTeam(team.id, team.groupId);
   }
 
   void _openManageMembers(TeamModel team) {
@@ -181,8 +209,8 @@ class _TeamManagementScreenState extends State<TeamManagementScreen>
       AppSnackbars.showError(context, 'لم يتم العثور على مستخدم مسجل الدخول.');
       return;
     }
-    Navigator.pushNamed(
-      context,
+
+    Navigator.of(context).pushNamed(
       teamMembers,
       arguments: TeamMembersArgs(actor: actor, team: team),
     );
@@ -195,12 +223,14 @@ class _TeamManagementScreenState extends State<TeamManagementScreen>
       return;
     }
 
-    showDialog(
+    showDialog<void>(
       context: context,
-      builder: (_) => BlocProvider<TeamCubit>.value(
-        value: _teamCubit,
-        child: AssignServantDialog(actor: actor, team: team),
-      ),
+      builder: (_) {
+        return BlocProvider<TeamCubit>.value(
+          value: _teamCubit,
+          child: AssignServantDialog(actor: actor, team: team),
+        );
+      },
     );
   }
 
@@ -217,10 +247,14 @@ class _TeamManagementScreenState extends State<TeamManagementScreen>
             IconButton(
               tooltip: _showArchived ? 'إخفاء المؤرشف' : 'عرض المؤرشف',
               icon: Icon(
-                _showArchived ? Icons.unarchive_outlined : Icons.archive_outlined,
+                _showArchived
+                    ? Icons.unarchive_outlined
+                    : Icons.archive_outlined,
               ),
               onPressed: () {
-                setState(() => _showArchived = !_showArchived);
+                setState(() {
+                  _showArchived = !_showArchived;
+                });
                 _loadTeamsForCurrentTab();
               },
             ),
@@ -230,7 +264,7 @@ class _TeamManagementScreenState extends State<TeamManagementScreen>
             labelColor: AppColors.white,
             unselectedLabelColor: AppColors.white.withValues(alpha: 0.7),
             indicatorColor: AppColors.white,
-            tabs: _groups.map((g) => Tab(text: _groupLabel(g))).toList(),
+            tabs: _groups.map((group) => Tab(text: _groupLabel(group))).toList(),
           ),
         ),
         floatingActionButton: FloatingActionButton.extended(
@@ -240,75 +274,77 @@ class _TeamManagementScreenState extends State<TeamManagementScreen>
         ),
         body: BlocConsumer<TeamCubit, TeamState>(
           listener: (context, state) {
-          if (state is TeamError) {
-            AppSnackbars.showError(context, state.message);
-          }
-          if (state is TeamLoaded &&
-              state.feedbackMessage != null &&
-              state.mutationStatus == TeamMutationStatus.success) {
-            AppSnackbars.showSuccess(
-              context,
-              state.feedbackMessage!,
-              backgroundColor: AppColors.secondary,
-            );
-          }
-          if (state is TeamLoaded &&
-              state.feedbackMessage != null &&
-              state.mutationStatus == TeamMutationStatus.failure) {
-            AppSnackbars.showError(context, state.feedbackMessage!);
-          }
-        },
-          builder: (context, state) {
-          if (state is TeamLoading || state is TeamInitial) {
-            return const Center(child: CircularProgressIndicator());
-          }
+            if (state is TeamError) {
+              AppSnackbars.showError(context, state.message);
+            }
 
-          if (state is TeamLoaded) {
-            final teams = state.teams;
-            if (teams.isEmpty) {
-              return AppStateMessage(
-                icon: _showArchived
-                    ? Icons.archive_outlined
-                    : Icons.group_work_outlined,
-                title: _showArchived ? 'لا توجد فرق مؤرشفة' : 'لا توجد فرق بعد',
-                message: _showArchived
-                    ? 'عند أرشفة فريق سيظهر هنا.'
-                    : 'اضغط + لإنشاء فريق لهذه السنة.',
+            if (state is TeamLoaded &&
+                state.feedbackMessage != null &&
+                state.mutationStatus == TeamMutationStatus.success) {
+              AppSnackbars.showSuccess(
+                context,
+                state.feedbackMessage!,
+                backgroundColor: AppColors.secondary,
               );
             }
 
-            return RefreshIndicator(
-              onRefresh: () async => _loadTeamsForCurrentTab(),
-              child: ListView.separated(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                itemCount: teams.length,
-                separatorBuilder: (_, _) => AppSpacing.gapSm,
-                itemBuilder: (context, index) {
-                  final team = teams[index];
-                  return _TeamCard(
-                    team: team,
-                    onEdit: () => _showEditTeamDialog(team),
-                    onDelete: () => _confirmDeleteTeam(team),
-                    onRestore: () => _restoreTeam(team),
-                    onAssignServant: () => _showAssignServantDialog(team),
-                    onManageMembers: () => _openManageMembers(team),
-                  );
-                },
-              ),
-            );
-          }
+            if (state is TeamLoaded &&
+                state.feedbackMessage != null &&
+                state.mutationStatus == TeamMutationStatus.failure) {
+              AppSnackbars.showError(context, state.feedbackMessage!);
+            }
+          },
+          builder: (context, state) {
+            if (state is TeamLoading || state is TeamInitial) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-          if (state is TeamError) {
-            return AppStateMessage(
-              icon: Icons.error_outline,
-              iconColor: AppColors.error,
-              title: 'تعذر تحميل الفرق',
-              message: state.message,
-              onRetry: _loadTeamsForCurrentTab,
-            );
-          }
+            if (state is TeamLoaded) {
+              final teams = state.teams;
+              if (teams.isEmpty) {
+                return AppStateMessage(
+                  icon: _showArchived
+                      ? Icons.archive_outlined
+                      : Icons.group_work_outlined,
+                  title: _showArchived ? 'لا توجد فرق مؤرشفة' : 'لا توجد فرق بعد',
+                  message: _showArchived
+                      ? 'عند أرشفة فريق سيظهر هنا.'
+                      : 'اضغط + لإنشاء فريق لهذه السنة.',
+                );
+              }
 
-          return const SizedBox.shrink();
+              return RefreshIndicator(
+                onRefresh: _loadTeamsForCurrentTab,
+                child: ListView.separated(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  itemCount: teams.length,
+                  separatorBuilder: (_, _) => AppSpacing.gapSm,
+                  itemBuilder: (context, index) {
+                    final team = teams[index];
+                    return _TeamCard(
+                      team: team,
+                      onEdit: () => _showEditTeamDialog(team),
+                      onDelete: () => _confirmDeleteTeam(team),
+                      onRestore: () => _restoreTeam(team),
+                      onAssignServant: () => _showAssignServantDialog(team),
+                      onManageMembers: () => _openManageMembers(team),
+                    );
+                  },
+                ),
+              );
+            }
+
+            if (state is TeamError) {
+              return AppStateMessage(
+                icon: Icons.error_outline,
+                iconColor: AppColors.error,
+                title: 'تعذر تحميل الفرق',
+                message: state.message,
+                onRetry: _loadTeamsForCurrentTab,
+              );
+            }
+
+            return const SizedBox.shrink();
           },
         ),
       ),
@@ -317,13 +353,6 @@ class _TeamManagementScreenState extends State<TeamManagementScreen>
 }
 
 class _TeamCard extends StatelessWidget {
-  final TeamModel team;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
-  final VoidCallback onRestore;
-  final VoidCallback onAssignServant;
-  final VoidCallback onManageMembers;
-
   const _TeamCard({
     required this.team,
     required this.onEdit,
@@ -332,6 +361,20 @@ class _TeamCard extends StatelessWidget {
     required this.onAssignServant,
     required this.onManageMembers,
   });
+
+  final TeamModel team;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+  final VoidCallback onRestore;
+  final VoidCallback onAssignServant;
+  final VoidCallback onManageMembers;
+
+  void _scheduleMenuAction(BuildContext context, VoidCallback action) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!context.mounted) return;
+      action();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -374,22 +417,38 @@ class _TeamCard extends StatelessWidget {
               ),
         trailing: PopupMenuButton<String>(
           onSelected: (value) {
-            if (value == 'members') onManageMembers();
-            if (value == 'assign') onAssignServant();
-            if (value == 'edit') onEdit();
-            if (value == 'delete') onDelete();
-            if (value == 'restore') onRestore();
+            switch (value) {
+              case 'members':
+                _scheduleMenuAction(context, onManageMembers);
+                break;
+              case 'assign':
+                _scheduleMenuAction(context, onAssignServant);
+                break;
+              case 'edit':
+                _scheduleMenuAction(context, onEdit);
+                break;
+              case 'delete':
+                _scheduleMenuAction(context, onDelete);
+                break;
+              case 'restore':
+                _scheduleMenuAction(context, onRestore);
+                break;
+            }
           },
-          itemBuilder: (_) => team.isArchived
-              ? const [
-                  PopupMenuItem(value: 'restore', child: Text('استعادة')),
-                ]
-              : const [
-                  PopupMenuItem(value: 'members', child: Text('إدارة الأعضاء')),
-                  PopupMenuItem(value: 'assign', child: Text('تعيين خادم')),
-                  PopupMenuItem(value: 'edit', child: Text('تعديل')),
-                  PopupMenuItem(value: 'delete', child: Text('أرشفة')),
-                ],
+          itemBuilder: (_) {
+            if (team.isArchived) {
+              return const [
+                PopupMenuItem(value: 'restore', child: Text('استعادة')),
+              ];
+            }
+
+            return const [
+              PopupMenuItem(value: 'members', child: Text('إدارة الأعضاء')),
+              PopupMenuItem(value: 'assign', child: Text('تعيين خادم')),
+              PopupMenuItem(value: 'edit', child: Text('تعديل')),
+              PopupMenuItem(value: 'delete', child: Text('أرشفة')),
+            ];
+          },
         ),
       ),
     );

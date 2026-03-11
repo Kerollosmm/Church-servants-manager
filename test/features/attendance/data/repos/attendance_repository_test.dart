@@ -60,6 +60,7 @@ void main() {
 
   AttendanceSession buildSession({
     bool isClosed = false,
+    bool reopenedForAdminEdit = false,
     DateTime? startsAt,
     DateTime? endsAt,
   }) {
@@ -79,6 +80,12 @@ void main() {
       createdAt: sessionStartsAt,
       updatedAt: sessionStartsAt,
       isClosed: isClosed,
+      isReopenedForAdminEdit: reopenedForAdminEdit,
+      reopenedAt: reopenedForAdminEdit
+          ? sessionStartsAt.add(const Duration(hours: 1))
+          : null,
+      reopenedByUserId: reopenedForAdminEdit ? admin.uid : null,
+      reopenedByName: reopenedForAdminEdit ? admin.name : null,
       studentIdsSnapshot: const ['student-1'],
       studentNameSnapshots: const {'student-1': 'Mina'},
     );
@@ -263,6 +270,207 @@ void main() {
       ),
       throwsA(isA<AttendanceSessionClosedFailure>()),
     );
+  });
+
+  test('reopenSession stamps correction metadata for admins', () async {
+    await seedStudent(student(id: 'student-1', name: 'Mina'));
+    final closedSession = buildSession(
+      isClosed: true,
+      startsAt: currentTime.subtract(const Duration(hours: 2)),
+      endsAt: currentTime.subtract(const Duration(hours: 1, minutes: 30)),
+    );
+    await seedSession(closedSession);
+
+    await repository.reopenSession(
+      teamId: closedSession.teamId,
+      sessionId: closedSession.id,
+      reopenedBy: admin,
+    );
+
+    final doc = await firestore
+        .collection('Classes')
+        .doc(closedSession.teamId)
+        .collection('attendance_sessions')
+        .doc(closedSession.id)
+        .get();
+
+    expect(doc.data()!['isReopenedForAdminEdit'], isTrue);
+    expect(doc.data()!['reopenedByUserId'], admin.uid);
+    expect(doc.data()!['reopenedByName'], admin.name);
+    expect(doc.data()!['reopenedAt'], isNotNull);
+  });
+
+  test('closeSession clears correction metadata on reopened sessions', () async {
+    await seedStudent(student(id: 'student-1', name: 'Mina'));
+    final reopenedSession = buildSession(
+      isClosed: true,
+      reopenedForAdminEdit: true,
+      startsAt: currentTime.subtract(const Duration(hours: 2)),
+      endsAt: currentTime.subtract(const Duration(hours: 1, minutes: 30)),
+    );
+    await seedSession(reopenedSession);
+
+    await repository.closeSession(
+      teamId: reopenedSession.teamId,
+      sessionId: reopenedSession.id,
+      closedBy: admin,
+    );
+
+    final doc = await firestore
+        .collection('Classes')
+        .doc(reopenedSession.teamId)
+        .collection('attendance_sessions')
+        .doc(reopenedSession.id)
+        .get();
+
+    expect(doc.data()!['isClosed'], isTrue);
+    expect(doc.data()!['isReopenedForAdminEdit'], isFalse);
+    expect(doc.data()!.containsKey('reopenedAt'), isFalse);
+    expect(doc.data()!.containsKey('reopenedByUserId'), isFalse);
+    expect(doc.data()!.containsKey('reopenedByName'), isFalse);
+  });
+
+  test('admin can mark attendance in reopened closed sessions', () async {
+    await seedStudent(student(id: 'student-1', name: 'Mina'));
+    final reopenedSession = buildSession(
+      isClosed: true,
+      reopenedForAdminEdit: true,
+      startsAt: currentTime.subtract(const Duration(hours: 2)),
+      endsAt: currentTime.subtract(const Duration(hours: 1, minutes: 30)),
+    );
+    await seedSession(reopenedSession);
+
+    await repository.markStudentPresent(
+      teamId: reopenedSession.teamId,
+      sessionId: reopenedSession.id,
+      studentId: 'student-1',
+      studentNameSnapshot: 'Mina',
+      markedBy: admin,
+    );
+
+    final markDoc = await firestore
+        .collection('Classes')
+        .doc(reopenedSession.teamId)
+        .collection('attendance_sessions')
+        .doc(reopenedSession.id)
+        .collection('marks')
+        .doc('student-1')
+        .get();
+
+    expect(markDoc.exists, isTrue);
+    expect(markDoc.data()!['status'], AttendanceMarkStatus.present.name);
+  });
+
+  test('servant cannot mark attendance in reopened closed sessions', () async {
+    await seedStudent(student(id: 'student-1', name: 'Mina'));
+    final reopenedSession = buildSession(
+      isClosed: true,
+      reopenedForAdminEdit: true,
+      startsAt: currentTime.subtract(const Duration(hours: 2)),
+      endsAt: currentTime.subtract(const Duration(hours: 1, minutes: 30)),
+    );
+    await seedSession(reopenedSession);
+
+    expect(
+      () => repository.markStudentPresent(
+        teamId: reopenedSession.teamId,
+        sessionId: reopenedSession.id,
+        studentId: 'student-1',
+        studentNameSnapshot: 'Mina',
+        markedBy: servant,
+      ),
+      throwsA(isA<AttendanceSessionClosedFailure>()),
+    );
+  });
+
+  test('updateStudentMarkNote writes and clears optional mark notes', () async {
+    await seedStudent(student(id: 'student-1', name: 'Mina'));
+    final session = await repository.createSession(
+      teamId: 'team-1',
+      teamNameSnapshot: 'Team A',
+      startsAt: currentTime,
+      durationMinutes: 30,
+      createdBy: admin,
+      title: 'Wednesday',
+    );
+
+    await repository.markStudentPresent(
+      teamId: session.teamId,
+      sessionId: session.id,
+      studentId: 'student-1',
+      studentNameSnapshot: 'Mina',
+      markedBy: servant,
+    );
+
+    await repository.updateStudentMarkNote(
+      teamId: session.teamId,
+      sessionId: session.id,
+      studentId: 'student-1',
+      requestedBy: servant,
+      note: 'Late because of traffic',
+    );
+
+    final markRef = firestore
+        .collection('Classes')
+        .doc(session.teamId)
+        .collection('attendance_sessions')
+        .doc(session.id)
+        .collection('marks')
+        .doc('student-1');
+    final markedDoc = await markRef.get();
+    expect(markedDoc.data()!['note'], 'Late because of traffic');
+
+    await repository.updateStudentMarkNote(
+      teamId: session.teamId,
+      sessionId: session.id,
+      studentId: 'student-1',
+      requestedBy: servant,
+      note: '',
+    );
+
+    final clearedDoc = await markRef.get();
+    expect(clearedDoc.data()!.containsKey('note'), isFalse);
+  });
+
+  test('changing mark status preserves the existing note when note is omitted', () async {
+    await seedStudent(student(id: 'student-1', name: 'Mina'));
+    final session = await repository.createSession(
+      teamId: 'team-1',
+      teamNameSnapshot: 'Team A',
+      startsAt: currentTime,
+      durationMinutes: 30,
+      createdBy: admin,
+      title: 'Wednesday',
+    );
+
+    await repository.markStudentPresent(
+      teamId: session.teamId,
+      sessionId: session.id,
+      studentId: 'student-1',
+      studentNameSnapshot: 'Mina',
+      markedBy: servant,
+      note: 'Initial note',
+    );
+
+    await repository.markStudentLate(
+      teamId: session.teamId,
+      sessionId: session.id,
+      studentId: 'student-1',
+      studentNameSnapshot: 'Mina',
+      markedBy: servant,
+    );
+
+    final markDoc = await firestore
+        .collection('Classes')
+        .doc(session.teamId)
+        .collection('attendance_sessions')
+        .doc(session.id)
+        .collection('marks')
+        .doc('student-1')
+        .get();
+
+    expect(markDoc.data()!['status'], AttendanceMarkStatus.late.name);
+    expect(markDoc.data()!['note'], 'Initial note');
   });
 
   test('watchSessionRoster derives absent automatically after close', () async {

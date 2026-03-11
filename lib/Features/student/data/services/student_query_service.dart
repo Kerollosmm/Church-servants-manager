@@ -227,21 +227,24 @@ class StudentQueryService {
   getStudentsByGroupWithFallback(
     String groupName, {
     bool includeArchived = false,
+    bool forceServer = false,
   }) async {
-    try {
-      final cacheSnapshot = await _studentsCollection
-          .where('group', isEqualTo: groupName)
-          .get(const GetOptions(source: Source.cache));
-      if (cacheSnapshot.docs.isNotEmpty) {
-        return (
-          students: _applyArchivedFilter(
-            mapStudentDocs(cacheSnapshot.docs),
-            includeArchived,
-          ),
-          isFromCache: true,
-        );
-      }
-    } catch (_) {}
+    if (!forceServer) {
+      try {
+        final cacheSnapshot = await _studentsCollection
+            .where('group', isEqualTo: groupName)
+            .get(const GetOptions(source: Source.cache));
+        if (cacheSnapshot.docs.isNotEmpty) {
+          return (
+            students: _applyArchivedFilter(
+              mapStudentDocs(cacheSnapshot.docs),
+              includeArchived,
+            ),
+            isFromCache: true,
+          );
+        }
+      } catch (_) {}
+    }
 
     try {
       final serverSnapshot = await _studentsByGroupQuery(

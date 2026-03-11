@@ -22,6 +22,12 @@ abstract class IAttendanceRepository {
     required AuthUser closedBy,
   });
 
+  Future<void> reopenSession({
+    required String teamId,
+    required String sessionId,
+    required AuthUser reopenedBy,
+  });
+
   Stream<List<AttendanceSession>> watchSessionsForTeam(String teamId);
 
   Stream<AttendanceSession?> watchActiveSessionForTeam(String teamId);
@@ -59,6 +65,14 @@ abstract class IAttendanceRepository {
     required String sessionId,
     required String studentId,
     required AuthUser requestedBy,
+  });
+
+  Future<void> updateStudentMarkNote({
+    required String teamId,
+    required String sessionId,
+    required String studentId,
+    required AuthUser requestedBy,
+    String? note,
   });
 
   Future<void> markAllPresentForRemainingStudents({

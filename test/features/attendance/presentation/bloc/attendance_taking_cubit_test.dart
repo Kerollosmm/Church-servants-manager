@@ -18,6 +18,14 @@ void main() {
   late MockAttendanceRepository repository;
   late StreamController<AttendanceRosterSnapshot> controller;
 
+  final admin = const AuthUser(
+    uid: 'admin-1',
+    email: 'admin@example.com',
+    name: 'Admin',
+    role: UserRole.admin,
+    isEmailVerified: true,
+  );
+
   final servant = const AuthUser(
     uid: 'servant-1',
     email: 'servant@example.com',
@@ -28,7 +36,10 @@ void main() {
     assignedTeamId: 'team-1',
   );
 
-  AttendanceSession buildSession({required bool isClosed}) {
+  AttendanceSession buildSession({
+    required bool isClosed,
+    bool reopenedForAdminEdit = false,
+  }) {
     return AttendanceSession(
       id: 'session-1',
       teamId: 'team-1',
@@ -45,6 +56,10 @@ void main() {
       createdAt: DateTime(2026, 3, 9, 18, 0),
       updatedAt: DateTime(2026, 3, 9, 18, 0),
       isClosed: isClosed,
+      isReopenedForAdminEdit: reopenedForAdminEdit,
+      reopenedAt: reopenedForAdminEdit ? DateTime(2026, 3, 10, 10, 0) : null,
+      reopenedByUserId: reopenedForAdminEdit ? admin.uid : null,
+      reopenedByName: reopenedForAdminEdit ? admin.name : null,
       studentIdsSnapshot: const ['student-1'],
       studentNameSnapshots: const {'student-1': 'Mina'},
     );
@@ -53,6 +68,7 @@ void main() {
   AttendanceRosterItem buildRosterItem({
     required AttendanceSession session,
     required AttendanceEffectiveStatus status,
+    String? note,
   }) {
     return AttendanceRosterItem(
       studentId: 'student-1',
@@ -67,8 +83,10 @@ void main() {
       effectiveStatus: status,
       isMarked: status == AttendanceEffectiveStatus.present ||
           status == AttendanceEffectiveStatus.late,
+      markedByName: status == AttendanceEffectiveStatus.unmarked ? null : 'Servant',
+      note: note,
       isSessionOpen: !session.isClosed,
-      canEdit: !session.isClosed,
+      canEdit: !session.isClosed || session.isReopenedForAdminEdit,
       sortOrder: 0,
     );
   }
@@ -154,7 +172,7 @@ void main() {
     expect(cubit.state, isA<AttendanceTakingLoaded>());
     expect(
       (cubit.state as AttendanceTakingLoaded).mutationError,
-      'انتهى وقت تسجيل الحضور لهذه الجلسة.',
+      'This attendance session is read-only right now.',
     );
     verifyNever(
       () => repository.markStudentPresent(
@@ -165,6 +183,159 @@ void main() {
         markedBy: servant,
       ),
     );
+    await cubit.close();
+  });
+
+  test('admin can mutate a reopened closed session', () async {
+    final reopenedSession = buildSession(
+      isClosed: true,
+      reopenedForAdminEdit: true,
+    );
+    when(
+      () => repository.markStudentPresent(
+        teamId: 'team-1',
+        sessionId: 'session-1',
+        studentId: 'student-1',
+        studentNameSnapshot: 'Mina',
+        markedBy: admin,
+      ),
+    ).thenAnswer((_) async {});
+
+    final cubit = AttendanceTakingCubit(
+      repository: repository,
+      nowProvider: () => DateTime(2026, 3, 10, 10, 5),
+    );
+    cubit.initialize(teamId: 'team-1', sessionId: 'session-1');
+    controller.add(
+      AttendanceRosterSnapshot(
+        session: reopenedSession,
+        roster: [
+          buildRosterItem(
+            session: reopenedSession,
+            status: AttendanceEffectiveStatus.absent,
+          ),
+        ],
+      ),
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    await cubit.markPresent(
+      actor: admin,
+      item: buildRosterItem(
+        session: reopenedSession,
+        status: AttendanceEffectiveStatus.absent,
+      ),
+    );
+
+    verify(
+      () => repository.markStudentPresent(
+        teamId: 'team-1',
+        sessionId: 'session-1',
+        studentId: 'student-1',
+        studentNameSnapshot: 'Mina',
+        markedBy: admin,
+      ),
+    ).called(1);
+    await cubit.close();
+  });
+
+  test('servant cannot mutate a reopened closed session', () async {
+    final reopenedSession = buildSession(
+      isClosed: true,
+      reopenedForAdminEdit: true,
+    );
+    final cubit = AttendanceTakingCubit(
+      repository: repository,
+      nowProvider: () => DateTime(2026, 3, 10, 10, 5),
+    );
+    cubit.initialize(teamId: 'team-1', sessionId: 'session-1');
+    controller.add(
+      AttendanceRosterSnapshot(
+        session: reopenedSession,
+        roster: [
+          buildRosterItem(
+            session: reopenedSession,
+            status: AttendanceEffectiveStatus.absent,
+          ),
+        ],
+      ),
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    await cubit.markPresent(
+      actor: servant,
+      item: buildRosterItem(
+        session: reopenedSession,
+        status: AttendanceEffectiveStatus.absent,
+      ),
+    );
+
+    expect(
+      (cubit.state as AttendanceTakingLoaded).mutationError,
+      'This attendance session is read-only right now.',
+    );
+    verifyNever(
+      () => repository.markStudentPresent(
+        teamId: 'team-1',
+        sessionId: 'session-1',
+        studentId: 'student-1',
+        studentNameSnapshot: 'Mina',
+        markedBy: servant,
+      ),
+    );
+    await cubit.close();
+  });
+
+  test('updateMarkNote delegates to repository when session is editable', () async {
+    final openSession = buildSession(isClosed: false);
+    when(
+      () => repository.updateStudentMarkNote(
+        teamId: 'team-1',
+        sessionId: 'session-1',
+        studentId: 'student-1',
+        requestedBy: servant,
+        note: 'Needs follow-up',
+      ),
+    ).thenAnswer((_) async {});
+
+    final cubit = AttendanceTakingCubit(
+      repository: repository,
+      nowProvider: () => DateTime(2026, 3, 9, 18, 10),
+    );
+    cubit.initialize(teamId: 'team-1', sessionId: 'session-1');
+    controller.add(
+      AttendanceRosterSnapshot(
+        session: openSession,
+        roster: [
+          buildRosterItem(
+            session: openSession,
+            status: AttendanceEffectiveStatus.present,
+            note: 'Old note',
+          ),
+        ],
+      ),
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    await cubit.updateMarkNote(
+      actor: servant,
+      item: buildRosterItem(
+        session: openSession,
+        status: AttendanceEffectiveStatus.present,
+        note: 'Old note',
+      ),
+      note: 'Needs follow-up',
+    );
+
+    verify(
+      () => repository.updateStudentMarkNote(
+        teamId: 'team-1',
+        sessionId: 'session-1',
+        studentId: 'student-1',
+        requestedBy: servant,
+        note: 'Needs follow-up',
+      ),
+    ).called(1);
     await cubit.close();
   });
 

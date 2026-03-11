@@ -6,6 +6,7 @@ abstract class ITeamRepository {
   Future<List<TeamModel>> getTeamsByGroup(
     String groupId, {
     bool includeArchived = false,
+    bool forceServer = false,
   });
 
   /// Watch all teams for a specific group/year.
@@ -15,7 +16,7 @@ abstract class ITeamRepository {
   });
 
   /// Get all teams across all groups.
-  Future<List<TeamModel>> getAllTeams({bool includeArchived = false});
+  Future<List<TeamModel>> getAllTeams({bool includeArchived = false, bool forceServer = false});
 
   /// Watch all teams across all groups.
   Stream<List<TeamModel>> watchAllTeams({bool includeArchived = false});

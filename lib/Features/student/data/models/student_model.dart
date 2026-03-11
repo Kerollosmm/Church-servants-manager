@@ -32,6 +32,8 @@ class StudentModel with _$StudentModel {
     @_TimestampConverter() required DateTime? birthdate,
     @JsonKey(name: 'father_of_confession') required String fatherOfConfession,
     required String? notes,
+    @_TimestampConverter() DateTime? createdAt,
+    @_TimestampConverter() DateTime? updatedAt,
 
     @Default(false) bool isArchived,
     @_TimestampConverter() DateTime? archivedAt,

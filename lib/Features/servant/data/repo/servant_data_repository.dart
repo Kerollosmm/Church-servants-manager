@@ -71,7 +71,9 @@ class ServantDataRepository implements IServantRepository {
 
   Map<String, dynamic> _normalizeServantWriteData(ServantModel servant) {
     final data = servant.toMap();
-        data['role'] = servant.role.name;
+    data['role'] = servant.role.name;
+    data.remove('createdAt');
+    data.remove('updatedAt');
 
     if (servant.role != UserRole.servant) {
       // Clear servant-only scoping fields when user is no longer a servant.
@@ -322,7 +324,18 @@ class ServantDataRepository implements IServantRepository {
             : normalizedUid,
       );
       final data = _normalizeServantWriteData(normalizedServant);
-      await _usersCollection.doc(docId).set(data, SetOptions(merge: true));
+      final docRef = _usersCollection.doc(docId);
+      await _firestore.runTransaction((transaction) async {
+        final existing = await transaction.get(docRef);
+        final payload = <String, dynamic>{
+          ...data,
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+        if (!existing.exists) {
+          payload['createdAt'] = FieldValue.serverTimestamp();
+        }
+        transaction.set(docRef, payload, SetOptions(merge: true));
+      });
       return docId;
     } catch (e) {
       throw mapExceptionToServantFailure(e);
@@ -333,10 +346,18 @@ class ServantDataRepository implements IServantRepository {
   Future<void> upsertServant(ServantModel servant) async {
     try {
       final data = _normalizeServantWriteData(servant);
-
-      await _usersCollection
-          .doc(servant.docID)
-          .set(data, SetOptions(merge: true));
+      final docRef = _usersCollection.doc(servant.docID);
+      await _firestore.runTransaction((transaction) async {
+        final existing = await transaction.get(docRef);
+        final payload = <String, dynamic>{
+          ...data,
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+        if (!existing.exists) {
+          payload['createdAt'] = FieldValue.serverTimestamp();
+        }
+        transaction.set(docRef, payload, SetOptions(merge: true));
+      });
     } catch (e) {
       throw mapExceptionToServantFailure(e);
     }
@@ -346,7 +367,10 @@ class ServantDataRepository implements IServantRepository {
   Future<void> updateServant(ServantModel servant) async {
     try {
       final data = _normalizeServantWriteData(servant);
-      await _usersCollection.doc(servant.docID).update(data);
+      await _usersCollection.doc(servant.docID).update({
+        ...data,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
     } catch (e) {
       throw mapExceptionToServantFailure(e);
     }
@@ -358,7 +382,10 @@ class ServantDataRepository implements IServantRepository {
     Map<String, dynamic> fields,
   ) async {
     try {
-      await _usersCollection.doc(docId).update(fields);
+      await _usersCollection.doc(docId).update({
+        ...fields,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
     } catch (e) {
       throw mapExceptionToServantFailure(e);
     }

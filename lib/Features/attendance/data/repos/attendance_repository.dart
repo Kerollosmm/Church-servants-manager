@@ -133,8 +133,12 @@ class AttendanceRepository implements IAttendanceRepository {
     }
   }
 
-  void _assertSessionWritable(AttendanceSession session, DateTime now) {
-    if (!session.isOpenAt(now)) {
+  void _assertSessionWritable({
+    required AttendanceSession session,
+    required DateTime now,
+    required AuthUser actor,
+  }) {
+    if (!session.canRoleEdit(role: actor.role, now: now)) {
       throw const AttendanceSessionClosedFailure();
     }
   }
@@ -291,8 +295,9 @@ class AttendanceRepository implements IAttendanceRepository {
           isMarked: mark != null,
           markedAt: mark?.markedAt,
           markedByName: mark?.markedByName,
+          note: mark?.note,
           isSessionOpen: isSessionOpen,
-          canEdit: isSessionOpen,
+          canEdit: isSessionOpen || session.isReopenedForAdminEdit,
           sortOrder: index,
         ),
       );
@@ -378,7 +383,11 @@ class AttendanceRepository implements IAttendanceRepository {
       await assertUserCanManageAttendance(user: markedBy, teamId: teamId);
       final session = await _getRequiredSession(teamId: teamId, sessionId: sessionId);
       _assertStudentInSession(session, studentId);
-      _assertSessionWritable(session, _nowProvider());
+      _assertSessionWritable(
+        session: session,
+        now: _nowProvider(),
+        actor: markedBy,
+      );
 
       final markRef = _markDoc(teamId, sessionId, studentId);
       final existing = await markRef.get();
@@ -386,19 +395,22 @@ class AttendanceRepository implements IAttendanceRepository {
       final effectiveStudentName = studentNameSnapshot.trim().isNotEmpty
           ? studentNameSnapshot.trim()
           : (session.studentNameSnapshots[studentId] ?? 'مخدوم');
-      final normalizedNote = note?.trim();
-
-      await markRef.set({
+      final payload = <String, dynamic>{
         'studentNameSnapshot': effectiveStudentName,
         'status': status.name,
         'markedByUserId': markedBy.uid,
         'markedByName': markedBy.name,
         'markedAt': existingMarkedAt ?? FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
-        'note': normalizedNote == null || normalizedNote.isEmpty
+      };
+      if (note != null) {
+        final normalizedNote = note.trim();
+        payload['note'] = normalizedNote.isEmpty
             ? FieldValue.delete()
-            : normalizedNote,
-      }, SetOptions(merge: true));
+            : normalizedNote;
+      }
+
+      await markRef.set(payload, SetOptions(merge: true));
     } catch (error) {
       if (error is AttendanceFailure) rethrow;
       throw mapExceptionToAttendanceFailure(error);
@@ -505,12 +517,47 @@ class AttendanceRepository implements IAttendanceRepository {
     try {
       _assertAdmin(closedBy);
       final session = await _getRequiredSession(teamId: teamId, sessionId: sessionId);
-      if (session.isClosed) {
+      if (session.isClosed && !session.isReopenedForAdminEdit) {
         return;
       }
 
       await _sessionDoc(teamId, sessionId).update({
         'isClosed': true,
+        'isReopenedForAdminEdit': false,
+        'reopenedAt': FieldValue.delete(),
+        'reopenedByUserId': FieldValue.delete(),
+        'reopenedByName': FieldValue.delete(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (error) {
+      if (error is AttendanceFailure) rethrow;
+      throw mapExceptionToAttendanceFailure(error);
+    }
+  }
+
+  @override
+  Future<void> reopenSession({
+    required String teamId,
+    required String sessionId,
+    required AuthUser reopenedBy,
+  }) async {
+    try {
+      _assertAdmin(reopenedBy);
+      final session = await _getRequiredSession(teamId: teamId, sessionId: sessionId);
+      if (session.isReopenedForAdminEdit) {
+        return;
+      }
+      if (!session.isEffectivelyClosedAt(_nowProvider())) {
+        throw const AttendanceValidationFailure(
+          'يمكن فقط إعادة فتح جلسات الحضور المغلقة.',
+        );
+      }
+
+      await _sessionDoc(teamId, sessionId).update({
+        'isReopenedForAdminEdit': true,
+        'reopenedAt': FieldValue.serverTimestamp(),
+        'reopenedByUserId': reopenedBy.uid,
+        'reopenedByName': reopenedBy.name,
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (error) {
@@ -530,7 +577,10 @@ class AttendanceRepository implements IAttendanceRepository {
   @override
   Stream<AttendanceSession?> watchActiveSessionForTeam(String teamId) {
     return Rx.combineLatest2(
-      watchSessionsForTeam(teamId),
+      _sessionsCol(teamId)
+          .where('isClosed', isEqualTo: false)
+          .snapshots()
+          .map(_mapSessionsSnapshot),
       _watchClock(),
       (List<AttendanceSession> sessions, DateTime now) {
         for (final session in sessions) {
@@ -621,8 +671,49 @@ class AttendanceRepository implements IAttendanceRepository {
       await assertUserCanManageAttendance(user: requestedBy, teamId: teamId);
       final session = await _getRequiredSession(teamId: teamId, sessionId: sessionId);
       _assertStudentInSession(session, studentId);
-      _assertSessionWritable(session, _nowProvider());
+      _assertSessionWritable(
+        session: session,
+        now: _nowProvider(),
+        actor: requestedBy,
+      );
       await _markDoc(teamId, sessionId, studentId).delete();
+    } catch (error) {
+      if (error is AttendanceFailure) rethrow;
+      throw mapExceptionToAttendanceFailure(error);
+    }
+  }
+
+  @override
+  Future<void> updateStudentMarkNote({
+    required String teamId,
+    required String sessionId,
+    required String studentId,
+    required AuthUser requestedBy,
+    String? note,
+  }) async {
+    try {
+      await assertUserCanManageAttendance(user: requestedBy, teamId: teamId);
+      final session = await _getRequiredSession(teamId: teamId, sessionId: sessionId);
+      _assertStudentInSession(session, studentId);
+      _assertSessionWritable(
+        session: session,
+        now: _nowProvider(),
+        actor: requestedBy,
+      );
+
+      final markRef = _markDoc(teamId, sessionId, studentId);
+      final existing = await markRef.get();
+      if (!existing.exists || existing.data() == null) {
+        throw const AttendanceValidationFailure(
+          'يرجى تسجيل الحضور قبل حفظ أي ملاحظة.',
+        );
+      }
+
+      final normalizedNote = note?.trim() ?? '';
+      await markRef.set({
+        'note': normalizedNote.isEmpty ? FieldValue.delete() : normalizedNote,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     } catch (error) {
       if (error is AttendanceFailure) rethrow;
       throw mapExceptionToAttendanceFailure(error);
@@ -638,7 +729,11 @@ class AttendanceRepository implements IAttendanceRepository {
     try {
       await assertUserCanManageAttendance(user: markedBy, teamId: teamId);
       final session = await _getRequiredSession(teamId: teamId, sessionId: sessionId);
-      _assertSessionWritable(session, _nowProvider());
+      _assertSessionWritable(
+        session: session,
+        now: _nowProvider(),
+        actor: markedBy,
+      );
 
       final existingMarks = await _marksCol(teamId, sessionId).get();
       final alreadyMarkedIds = existingMarks.docs.map((doc) => doc.id).toSet();

@@ -23,6 +23,10 @@ _$ServantModelImpl _$$ServantModelImplFromJson(Map<String, dynamic> json) =>
       birthdate:
           const FirestoreTimestampConverter().fromJson(json['birthdate']),
       notes: json['notes'] as String?,
+      createdAt:
+          const FirestoreTimestampConverter().fromJson(json['createdAt']),
+      updatedAt:
+          const FirestoreTimestampConverter().fromJson(json['updatedAt']),
       isArchived: json['isArchived'] as bool? ?? false,
       archivedAt:
           const FirestoreTimestampConverter().fromJson(json['archivedAt']),
@@ -49,6 +53,10 @@ Map<String, dynamic> _$$ServantModelImplToJson(_$ServantModelImpl instance) =>
       'birthdate':
           const FirestoreTimestampConverter().toJson(instance.birthdate),
       'notes': instance.notes,
+      'createdAt':
+          const FirestoreTimestampConverter().toJson(instance.createdAt),
+      'updatedAt':
+          const FirestoreTimestampConverter().toJson(instance.updatedAt),
       'isArchived': instance.isArchived,
       'archivedAt':
           const FirestoreTimestampConverter().toJson(instance.archivedAt),

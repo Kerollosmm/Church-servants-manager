@@ -58,6 +58,10 @@ mixin _$ServantModel {
 
   /// Optional notes about the servant.
   String? get notes => throw _privateConstructorUsedError;
+  @_TimestampConverter()
+  DateTime? get createdAt => throw _privateConstructorUsedError;
+  @_TimestampConverter()
+  DateTime? get updatedAt => throw _privateConstructorUsedError;
   bool get isArchived => throw _privateConstructorUsedError;
   @_TimestampConverter()
   DateTime? get archivedAt => throw _privateConstructorUsedError;
@@ -95,6 +99,8 @@ abstract class $ServantModelCopyWith<$Res> {
       @JsonKey(name: 'father_of_confession') String? fatherOfConfession,
       @_TimestampConverter() DateTime? birthdate,
       String? notes,
+      @_TimestampConverter() DateTime? createdAt,
+      @_TimestampConverter() DateTime? updatedAt,
       bool isArchived,
       @_TimestampConverter() DateTime? archivedAt,
       String? archivedByUserId,
@@ -129,6 +135,8 @@ class _$ServantModelCopyWithImpl<$Res, $Val extends ServantModel>
     Object? fatherOfConfession = freezed,
     Object? birthdate = freezed,
     Object? notes = freezed,
+    Object? createdAt = freezed,
+    Object? updatedAt = freezed,
     Object? isArchived = null,
     Object? archivedAt = freezed,
     Object? archivedByUserId = freezed,
@@ -186,6 +194,14 @@ class _$ServantModelCopyWithImpl<$Res, $Val extends ServantModel>
           ? _value.notes
           : notes // ignore: cast_nullable_to_non_nullable
               as String?,
+      createdAt: freezed == createdAt
+          ? _value.createdAt
+          : createdAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      updatedAt: freezed == updatedAt
+          ? _value.updatedAt
+          : updatedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
       isArchived: null == isArchived
           ? _value.isArchived
           : isArchived // ignore: cast_nullable_to_non_nullable
@@ -239,6 +255,8 @@ abstract class _$$ServantModelImplCopyWith<$Res>
       @JsonKey(name: 'father_of_confession') String? fatherOfConfession,
       @_TimestampConverter() DateTime? birthdate,
       String? notes,
+      @_TimestampConverter() DateTime? createdAt,
+      @_TimestampConverter() DateTime? updatedAt,
       bool isArchived,
       @_TimestampConverter() DateTime? archivedAt,
       String? archivedByUserId,
@@ -271,6 +289,8 @@ class __$$ServantModelImplCopyWithImpl<$Res>
     Object? fatherOfConfession = freezed,
     Object? birthdate = freezed,
     Object? notes = freezed,
+    Object? createdAt = freezed,
+    Object? updatedAt = freezed,
     Object? isArchived = null,
     Object? archivedAt = freezed,
     Object? archivedByUserId = freezed,
@@ -328,6 +348,14 @@ class __$$ServantModelImplCopyWithImpl<$Res>
           ? _value.notes
           : notes // ignore: cast_nullable_to_non_nullable
               as String?,
+      createdAt: freezed == createdAt
+          ? _value.createdAt
+          : createdAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      updatedAt: freezed == updatedAt
+          ? _value.updatedAt
+          : updatedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
       isArchived: null == isArchived
           ? _value.isArchived
           : isArchived // ignore: cast_nullable_to_non_nullable
@@ -376,6 +404,8 @@ class _$ServantModelImpl extends _ServantModel {
       @JsonKey(name: 'father_of_confession') this.fatherOfConfession,
       @_TimestampConverter() this.birthdate,
       this.notes,
+      @_TimestampConverter() this.createdAt,
+      @_TimestampConverter() this.updatedAt,
       this.isArchived = false,
       @_TimestampConverter() this.archivedAt,
       this.archivedByUserId,
@@ -440,6 +470,12 @@ class _$ServantModelImpl extends _ServantModel {
   @override
   final String? notes;
   @override
+  @_TimestampConverter()
+  final DateTime? createdAt;
+  @override
+  @_TimestampConverter()
+  final DateTime? updatedAt;
+  @override
   @JsonKey()
   final bool isArchived;
   @override
@@ -461,7 +497,7 @@ class _$ServantModelImpl extends _ServantModel {
 
   @override
   String toString() {
-    return 'ServantModel(uid: $uid, docID: $docID, name: $name, role: $role, email: $email, phone: $phone, imageUrl: $imageUrl, teamName: $teamName, isEmailVerified: $isEmailVerified, fatherOfConfession: $fatherOfConfession, birthdate: $birthdate, notes: $notes, isArchived: $isArchived, archivedAt: $archivedAt, archivedByUserId: $archivedByUserId, archiveReason: $archiveReason, restoredAt: $restoredAt, restoredByUserId: $restoredByUserId, assignedTeamId: $assignedTeamId)';
+    return 'ServantModel(uid: $uid, docID: $docID, name: $name, role: $role, email: $email, phone: $phone, imageUrl: $imageUrl, teamName: $teamName, isEmailVerified: $isEmailVerified, fatherOfConfession: $fatherOfConfession, birthdate: $birthdate, notes: $notes, createdAt: $createdAt, updatedAt: $updatedAt, isArchived: $isArchived, archivedAt: $archivedAt, archivedByUserId: $archivedByUserId, archiveReason: $archiveReason, restoredAt: $restoredAt, restoredByUserId: $restoredByUserId, assignedTeamId: $assignedTeamId)';
   }
 
   @override
@@ -486,6 +522,10 @@ class _$ServantModelImpl extends _ServantModel {
             (identical(other.birthdate, birthdate) ||
                 other.birthdate == birthdate) &&
             (identical(other.notes, notes) || other.notes == notes) &&
+            (identical(other.createdAt, createdAt) ||
+                other.createdAt == createdAt) &&
+            (identical(other.updatedAt, updatedAt) ||
+                other.updatedAt == updatedAt) &&
             (identical(other.isArchived, isArchived) ||
                 other.isArchived == isArchived) &&
             (identical(other.archivedAt, archivedAt) ||
@@ -518,6 +558,8 @@ class _$ServantModelImpl extends _ServantModel {
         fatherOfConfession,
         birthdate,
         notes,
+        createdAt,
+        updatedAt,
         isArchived,
         archivedAt,
         archivedByUserId,
@@ -555,6 +597,8 @@ abstract class _ServantModel extends ServantModel {
       @JsonKey(name: 'father_of_confession') final String? fatherOfConfession,
       @_TimestampConverter() final DateTime? birthdate,
       final String? notes,
+      @_TimestampConverter() final DateTime? createdAt,
+      @_TimestampConverter() final DateTime? updatedAt,
       final bool isArchived,
       @_TimestampConverter() final DateTime? archivedAt,
       final String? archivedByUserId,
@@ -618,6 +662,12 @@ abstract class _ServantModel extends ServantModel {
 
   /// Optional notes about the servant.
   String? get notes;
+  @override
+  @_TimestampConverter()
+  DateTime? get createdAt;
+  @override
+  @_TimestampConverter()
+  DateTime? get updatedAt;
   @override
   bool get isArchived;
   @override

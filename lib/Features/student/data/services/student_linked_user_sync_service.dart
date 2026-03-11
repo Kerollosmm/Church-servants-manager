@@ -16,6 +16,14 @@ class StudentLinkedUserSyncService {
   CollectionReference<Map<String, dynamic>> get _usersCollection =>
       _firestore.collection(FirestoreCollections.users);
 
+  Map<String, dynamic> _buildStudentUpdatePayload(StudentModel student) {
+    final data = student.toMap();
+    data.remove('createdAt');
+    data.remove('updatedAt');
+    data['updatedAt'] = FieldValue.serverTimestamp();
+    return data;
+  }
+
   Map<String, dynamic> buildLinkedUserRolePatch({
     required StudentModel updatedStudent,
     required UserRole previousRole,
@@ -78,7 +86,7 @@ class StudentLinkedUserSyncService {
       if (updatedStudent.role == previousRole) {
         await _studentsCollection
             .doc(updatedStudent.docID)
-            .update(updatedStudent.toMap());
+            .update(_buildStudentUpdatePayload(updatedStudent));
         return;
       }
 
@@ -91,7 +99,7 @@ class StudentLinkedUserSyncService {
       final batch = _firestore.batch();
       batch.update(
         _studentsCollection.doc(updatedStudent.docID),
-        updatedStudent.toMap(),
+        _buildStudentUpdatePayload(updatedStudent),
       );
       batch.set(
         _usersCollection.doc(uid),

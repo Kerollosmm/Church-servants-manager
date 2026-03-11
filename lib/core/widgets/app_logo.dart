@@ -12,6 +12,13 @@ class AppLogo extends StatelessWidget {
       width: size,
       height: size,
       fit: BoxFit.contain,
+      errorBuilder: (context, error, stackTrace) {
+        return Icon(
+          Icons.church_outlined,
+          size: size,
+          color: Theme.of(context).colorScheme.primary,
+        );
+      },
     );
   }
 }

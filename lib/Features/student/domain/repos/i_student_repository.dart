@@ -45,7 +45,7 @@ abstract class IStudentRepository {
 
   /// Archive a student by document ID.
   /// Throws [StudentFailure] on error.
-  Future<void> deleteStudent(String docId);
+  Future<void> deleteStudent(String docId, {required String actorId});
 
   /// Upsert a student (create or update).
   Future<void> upsertStudent(StudentModel student);

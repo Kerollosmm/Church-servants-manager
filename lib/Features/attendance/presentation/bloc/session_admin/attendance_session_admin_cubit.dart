@@ -22,7 +22,11 @@ class AttendanceSessionAdminCubit extends Cubit<AttendanceSessionAdminState> {
   }) async {
     final normalizedTeamId = teamId.trim();
     if (normalizedTeamId.isEmpty) {
-      emit(const AttendanceSessionAdminError('يجب اختيار الفريق قبل إنشاء الجلسة.'));
+      emit(
+        const AttendanceSessionAdminError(
+          'يجب اختيار الفريق قبل إنشاء الجلسة.',
+        ),
+      );
       return;
     }
     if (durationMinutes <= 0 || durationMinutes > 480) {
@@ -44,6 +48,7 @@ class AttendanceSessionAdminCubit extends Cubit<AttendanceSessionAdminState> {
         createdBy: actor,
         title: title,
       );
+      if (isClosed) return;
       emit(
         AttendanceSessionAdminSuccess(
           session: session,
@@ -58,6 +63,7 @@ class AttendanceSessionAdminCubit extends Cubit<AttendanceSessionAdminState> {
         );
         debugPrintStack(stackTrace: stackTrace);
       }
+      if (isClosed) return;
       final failure = mapExceptionToAttendanceFailure(error);
       emit(AttendanceSessionAdminError(failure.message));
     }
@@ -74,8 +80,13 @@ class AttendanceSessionAdminCubit extends Cubit<AttendanceSessionAdminState> {
         teamId: teamId,
         sessionId: sessionId,
       );
+      if (isClosed) return;
       if (existingSession == null) {
-        emit(const AttendanceSessionAdminError('تعذر العثور على جلسة الحضور.'));
+        emit(
+          const AttendanceSessionAdminError(
+            'تعذر العثور على جلسة الحضور.',
+          ),
+        );
         return;
       }
 
@@ -85,13 +96,20 @@ class AttendanceSessionAdminCubit extends Cubit<AttendanceSessionAdminState> {
         closedBy: actor,
       );
 
+      if (isClosed) return;
       emit(
         AttendanceSessionAdminSuccess(
           session: existingSession.copyWith(
             isClosed: true,
+            isReopenedForAdminEdit: false,
+            reopenedAt: null,
+            reopenedByUserId: null,
+            reopenedByName: null,
             updatedAt: DateTime.now(),
           ),
-          message: 'تم إغلاق جلسة الحضور.',
+          message: existingSession.isReopenedForAdminEdit
+              ? 'تم إغلاق وضع التعديل الخاص بالإدارة.'
+              : 'تم إغلاق جلسة الحضور.',
         ),
       );
     } catch (error, stackTrace) {
@@ -102,6 +120,61 @@ class AttendanceSessionAdminCubit extends Cubit<AttendanceSessionAdminState> {
         );
         debugPrintStack(stackTrace: stackTrace);
       }
+      if (isClosed) return;
+      final failure = mapExceptionToAttendanceFailure(error);
+      emit(AttendanceSessionAdminError(failure.message));
+    }
+  }
+
+  Future<void> reopenSession({
+    required AuthUser actor,
+    required String teamId,
+    required String sessionId,
+  }) async {
+    emit(const AttendanceSessionAdminLoading());
+    try {
+      final existingSession = await _repository.getSessionById(
+        teamId: teamId,
+        sessionId: sessionId,
+      );
+      if (isClosed) return;
+      if (existingSession == null) {
+        emit(
+          const AttendanceSessionAdminError(
+            'تعذر العثور على جلسة الحضور.',
+          ),
+        );
+        return;
+      }
+
+      await _repository.reopenSession(
+        teamId: teamId,
+        sessionId: sessionId,
+        reopenedBy: actor,
+      );
+
+      if (isClosed) return;
+      emit(
+        AttendanceSessionAdminSuccess(
+          session: existingSession.copyWith(
+            isReopenedForAdminEdit: true,
+            reopenedAt: DateTime.now(),
+            reopenedByUserId: actor.uid,
+            reopenedByName: actor.name,
+            updatedAt: DateTime.now(),
+          ),
+          message: 'تم إعادة فتح جلسة الحضور للتعديل.',
+        ),
+      );
+    } catch (error, stackTrace) {
+      if (kDebugMode) {
+        debugPrint(
+          'AttendanceSessionAdminCubit: reopenSession failed '
+          '(${error.runtimeType})',
+        );
+        debugPrintStack(stackTrace: stackTrace);
+      }
+      if (isClosed) return;
       final failure = mapExceptionToAttendanceFailure(error);
       emit(AttendanceSessionAdminError(failure.message));
     }

@@ -44,6 +44,10 @@ mixin _$StudentModel {
   @JsonKey(name: 'father_of_confession')
   String get fatherOfConfession => throw _privateConstructorUsedError;
   String? get notes => throw _privateConstructorUsedError;
+  @_TimestampConverter()
+  DateTime? get createdAt => throw _privateConstructorUsedError;
+  @_TimestampConverter()
+  DateTime? get updatedAt => throw _privateConstructorUsedError;
   bool get isArchived => throw _privateConstructorUsedError;
   @_TimestampConverter()
   DateTime? get archivedAt => throw _privateConstructorUsedError;
@@ -86,6 +90,8 @@ abstract class $StudentModelCopyWith<$Res> {
       @_TimestampConverter() DateTime? birthdate,
       @JsonKey(name: 'father_of_confession') String fatherOfConfession,
       String? notes,
+      @_TimestampConverter() DateTime? createdAt,
+      @_TimestampConverter() DateTime? updatedAt,
       bool isArchived,
       @_TimestampConverter() DateTime? archivedAt,
       String? archivedByUserId,
@@ -125,6 +131,8 @@ class _$StudentModelCopyWithImpl<$Res, $Val extends StudentModel>
     Object? birthdate = freezed,
     Object? fatherOfConfession = null,
     Object? notes = freezed,
+    Object? createdAt = freezed,
+    Object? updatedAt = freezed,
     Object? isArchived = null,
     Object? archivedAt = freezed,
     Object? archivedByUserId = freezed,
@@ -202,6 +210,14 @@ class _$StudentModelCopyWithImpl<$Res, $Val extends StudentModel>
           ? _value.notes
           : notes // ignore: cast_nullable_to_non_nullable
               as String?,
+      createdAt: freezed == createdAt
+          ? _value.createdAt
+          : createdAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      updatedAt: freezed == updatedAt
+          ? _value.updatedAt
+          : updatedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
       isArchived: null == isArchived
           ? _value.isArchived
           : isArchived // ignore: cast_nullable_to_non_nullable
@@ -260,6 +276,8 @@ abstract class _$$StudentModelImplCopyWith<$Res>
       @_TimestampConverter() DateTime? birthdate,
       @JsonKey(name: 'father_of_confession') String fatherOfConfession,
       String? notes,
+      @_TimestampConverter() DateTime? createdAt,
+      @_TimestampConverter() DateTime? updatedAt,
       bool isArchived,
       @_TimestampConverter() DateTime? archivedAt,
       String? archivedByUserId,
@@ -297,6 +315,8 @@ class __$$StudentModelImplCopyWithImpl<$Res>
     Object? birthdate = freezed,
     Object? fatherOfConfession = null,
     Object? notes = freezed,
+    Object? createdAt = freezed,
+    Object? updatedAt = freezed,
     Object? isArchived = null,
     Object? archivedAt = freezed,
     Object? archivedByUserId = freezed,
@@ -374,6 +394,14 @@ class __$$StudentModelImplCopyWithImpl<$Res>
           ? _value.notes
           : notes // ignore: cast_nullable_to_non_nullable
               as String?,
+      createdAt: freezed == createdAt
+          ? _value.createdAt
+          : createdAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      updatedAt: freezed == updatedAt
+          ? _value.updatedAt
+          : updatedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
       isArchived: null == isArchived
           ? _value.isArchived
           : isArchived // ignore: cast_nullable_to_non_nullable
@@ -427,6 +455,8 @@ class _$StudentModelImpl extends _StudentModel {
       @_TimestampConverter() required this.birthdate,
       @JsonKey(name: 'father_of_confession') required this.fatherOfConfession,
       required this.notes,
+      @_TimestampConverter() this.createdAt,
+      @_TimestampConverter() this.updatedAt,
       this.isArchived = false,
       @_TimestampConverter() this.archivedAt,
       this.archivedByUserId,
@@ -481,6 +511,12 @@ class _$StudentModelImpl extends _StudentModel {
   @override
   final String? notes;
   @override
+  @_TimestampConverter()
+  final DateTime? createdAt;
+  @override
+  @_TimestampConverter()
+  final DateTime? updatedAt;
+  @override
   @JsonKey()
   final bool isArchived;
   @override
@@ -502,7 +538,7 @@ class _$StudentModelImpl extends _StudentModel {
 
   @override
   String toString() {
-    return 'StudentModel(uid: $uid, docID: $docID, name: $name, imageUrl: $imageUrl, role: $role, mobile: $mobile, group: $group, teamName: $teamName, motherPhone: $motherPhone, fatherPhone: $fatherPhone, grade: $grade, educationStage: $educationStage, school: $school, address: $address, birthdate: $birthdate, fatherOfConfession: $fatherOfConfession, notes: $notes, isArchived: $isArchived, archivedAt: $archivedAt, archivedByUserId: $archivedByUserId, archiveReason: $archiveReason, restoredAt: $restoredAt, restoredByUserId: $restoredByUserId, classId: $classId)';
+    return 'StudentModel(uid: $uid, docID: $docID, name: $name, imageUrl: $imageUrl, role: $role, mobile: $mobile, group: $group, teamName: $teamName, motherPhone: $motherPhone, fatherPhone: $fatherPhone, grade: $grade, educationStage: $educationStage, school: $school, address: $address, birthdate: $birthdate, fatherOfConfession: $fatherOfConfession, notes: $notes, createdAt: $createdAt, updatedAt: $updatedAt, isArchived: $isArchived, archivedAt: $archivedAt, archivedByUserId: $archivedByUserId, archiveReason: $archiveReason, restoredAt: $restoredAt, restoredByUserId: $restoredByUserId, classId: $classId)';
   }
 
   @override
@@ -534,6 +570,10 @@ class _$StudentModelImpl extends _StudentModel {
             (identical(other.fatherOfConfession, fatherOfConfession) ||
                 other.fatherOfConfession == fatherOfConfession) &&
             (identical(other.notes, notes) || other.notes == notes) &&
+            (identical(other.createdAt, createdAt) ||
+                other.createdAt == createdAt) &&
+            (identical(other.updatedAt, updatedAt) ||
+                other.updatedAt == updatedAt) &&
             (identical(other.isArchived, isArchived) ||
                 other.isArchived == isArchived) &&
             (identical(other.archivedAt, archivedAt) ||
@@ -570,6 +610,8 @@ class _$StudentModelImpl extends _StudentModel {
         birthdate,
         fatherOfConfession,
         notes,
+        createdAt,
+        updatedAt,
         isArchived,
         archivedAt,
         archivedByUserId,
@@ -614,6 +656,8 @@ abstract class _StudentModel extends StudentModel {
       @JsonKey(name: 'father_of_confession')
       required final String fatherOfConfession,
       required final String? notes,
+      @_TimestampConverter() final DateTime? createdAt,
+      @_TimestampConverter() final DateTime? updatedAt,
       final bool isArchived,
       @_TimestampConverter() final DateTime? archivedAt,
       final String? archivedByUserId,
@@ -667,6 +711,12 @@ abstract class _StudentModel extends StudentModel {
   String get fatherOfConfession;
   @override
   String? get notes;
+  @override
+  @_TimestampConverter()
+  DateTime? get createdAt;
+  @override
+  @_TimestampConverter()
+  DateTime? get updatedAt;
   @override
   bool get isArchived;
   @override

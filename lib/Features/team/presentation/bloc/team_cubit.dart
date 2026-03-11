@@ -26,6 +26,11 @@ class TeamCubit extends Cubit<TeamState> {
        _adminTeamService = adminTeamService,
        super(const TeamInitial());
 
+  void _safeEmit(TeamState state) {
+    if (isClosed) return;
+    emit(state);
+  }
+
   void _emitUserFacingError(
     String contextLabel,
     Object error,
@@ -35,7 +40,7 @@ class TeamCubit extends Cubit<TeamState> {
       debugPrint('TeamCubit: $contextLabel (${error.runtimeType})');
     }
     if (_currentTeams.isNotEmpty) {
-      emit(
+      _safeEmit(
         TeamLoaded(
           teams: _currentTeams,
           selectedTeamId: _selectedTeamId,
@@ -45,7 +50,7 @@ class TeamCubit extends Cubit<TeamState> {
       );
       return;
     }
-    emit(TeamError(userMessage));
+    _safeEmit(TeamError(userMessage));
   }
 
   Future<void> _runTeamLoad({
@@ -55,18 +60,19 @@ class TeamCubit extends Cubit<TeamState> {
     required String errorContext,
     required String errorMessage,
   }) async {
-    emit(const TeamLoading());
+    _safeEmit(const TeamLoading());
     try {
       final teams = await action();
+      if (isClosed) return;
       _currentTeams = teams;
       _selectedTeamId = selectedTeamId;
       _includeArchived = includeArchived;
-      emit(TeamLoaded(teams: teams, selectedTeamId: selectedTeamId));
+      _safeEmit(TeamLoaded(teams: teams, selectedTeamId: selectedTeamId));
     } catch (e) {
       if (kDebugMode) {
         debugPrint('TeamCubit: $errorContext (${e.runtimeType})');
       }
-      emit(TeamError(errorMessage));
+      _safeEmit(TeamError(errorMessage));
     }
   }
 
@@ -78,7 +84,7 @@ class TeamCubit extends Cubit<TeamState> {
     String? reloadGroupId,
   }) async {
     if (_currentTeams.isNotEmpty) {
-      emit(
+      _safeEmit(
         TeamLoaded(
           teams: _currentTeams,
           selectedTeamId: _selectedTeamId,
@@ -86,18 +92,21 @@ class TeamCubit extends Cubit<TeamState> {
         ),
       );
     } else {
-      emit(const TeamLoading());
+      _safeEmit(const TeamLoading());
     }
     try {
       await action();
+      if (isClosed) return;
       if (reloadGroupId != null) {
         final teams = await _teamRepository.getTeamsByGroup(
           reloadGroupId,
           includeArchived: _includeArchived,
+          forceServer: true,
         );
+        if (isClosed) return;
         _currentTeams = teams;
       }
-      emit(
+      _safeEmit(
         TeamLoaded(
           teams: _currentTeams,
           selectedTeamId: _selectedTeamId,
@@ -106,7 +115,9 @@ class TeamCubit extends Cubit<TeamState> {
         ),
       );
       if (reloadGroupId == null && _currentTeams.isEmpty) {
-        emit(TeamLoaded(teams: _currentTeams, selectedTeamId: _selectedTeamId));
+        _safeEmit(
+          TeamLoaded(teams: _currentTeams, selectedTeamId: _selectedTeamId),
+        );
       }
     } catch (e) {
       _emitUserFacingError(errorContext, e, errorMessage);
@@ -191,7 +202,7 @@ class TeamCubit extends Cubit<TeamState> {
     _selectedTeamId = teamId;
     final currentState = state;
     if (currentState is TeamLoaded) {
-      emit(
+      _safeEmit(
         currentState.copyWith(
           selectedTeamId: teamId,
           mutationStatus: TeamMutationStatus.idle,

@@ -102,4 +102,46 @@ void main() {
     );
     await cubit.close();
   });
+
+  test('reopenSession emits loading then success', () async {
+    final closedSession = session.copyWith(
+      isClosed: true,
+      updatedAt: DateTime(2026, 3, 10, 8, 0),
+    );
+    when(
+      () => repository.getSessionById(
+        teamId: 'team-1',
+        sessionId: 'session-1',
+      ),
+    ).thenAnswer((_) async => closedSession);
+    when(
+      () => repository.reopenSession(
+        teamId: 'team-1',
+        sessionId: 'session-1',
+        reopenedBy: admin,
+      ),
+    ).thenAnswer((_) async {});
+
+    final cubit = AttendanceSessionAdminCubit(repository: repository);
+    final expectation = expectLater(
+      cubit.stream,
+      emitsInOrder([
+        isA<AttendanceSessionAdminLoading>(),
+        isA<AttendanceSessionAdminSuccess>().having(
+          (state) => state.session.isReopenedForAdminEdit,
+          'reopened',
+          isTrue,
+        ),
+      ]),
+    );
+
+    await cubit.reopenSession(
+      actor: admin,
+      teamId: 'team-1',
+      sessionId: 'session-1',
+    );
+
+    await expectation;
+    await cubit.close();
+  });
 }

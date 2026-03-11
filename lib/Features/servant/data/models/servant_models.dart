@@ -49,6 +49,8 @@ class ServantModel with _$ServantModel {
 
     /// Optional notes about the servant.
     String? notes,
+    @_TimestampConverter() DateTime? createdAt,
+    @_TimestampConverter() DateTime? updatedAt,
 
     @Default(false) bool isArchived,
 

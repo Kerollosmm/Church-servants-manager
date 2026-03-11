@@ -1,3 +1,4 @@
+import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/utils/json_converters.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
@@ -26,6 +27,10 @@ class AttendanceSession with _$AttendanceSession {
     @_RequiredTimestampConverter() required DateTime createdAt,
     @_RequiredTimestampConverter() required DateTime updatedAt,
     @Default(false) bool isClosed,
+    @Default(false) bool isReopenedForAdminEdit,
+    @FirestoreTimestampConverter() DateTime? reopenedAt,
+    String? reopenedByUserId,
+    String? reopenedByName,
     @Default(<String>[]) List<String> studentIdsSnapshot,
     @Default(<String, String>{}) Map<String, String> studentNameSnapshots,
   }) = _AttendanceSession;
@@ -110,6 +115,10 @@ class AttendanceSession with _$AttendanceSession {
       'createdAt': converter.fromJson(data['createdAt']) ?? startsAt,
       'updatedAt': converter.fromJson(data['updatedAt']) ?? startsAt,
       'isClosed': readBool('isClosed'),
+      'isReopenedForAdminEdit': readBool('isReopenedForAdminEdit'),
+      'reopenedAt': converter.fromJson(data['reopenedAt']),
+      'reopenedByUserId': readString('reopenedByUserId'),
+      'reopenedByName': readString('reopenedByName'),
       'studentIdsSnapshot': readStringList('studentIdsSnapshot'),
       'studentNameSnapshots': readStringMap('studentNameSnapshots'),
     });
@@ -121,6 +130,19 @@ class AttendanceSession with _$AttendanceSession {
 
   bool isEffectivelyClosedAt(DateTime now) {
     return isClosed || !now.isBefore(endsAt);
+  }
+
+  bool canRoleEdit({
+    required UserRole role,
+    required DateTime now,
+  }) {
+    if (role == UserRole.admin) {
+      return isOpenAt(now) || isReopenedForAdminEdit;
+    }
+    if (role == UserRole.servant) {
+      return isOpenAt(now);
+    }
+    return false;
   }
 
   static String buildDateKey(DateTime date) {

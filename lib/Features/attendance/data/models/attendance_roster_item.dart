@@ -13,6 +13,7 @@ class AttendanceRosterItem extends Equatable {
     required this.isMarked,
     this.markedAt,
     this.markedByName,
+    this.note,
     required this.isSessionOpen,
     required this.canEdit,
     required this.sortOrder,
@@ -27,6 +28,7 @@ class AttendanceRosterItem extends Equatable {
   final bool isMarked;
   final DateTime? markedAt;
   final String? markedByName;
+  final String? note;
   final bool isSessionOpen;
   final bool canEdit;
   final int sortOrder;
@@ -61,6 +63,8 @@ class AttendanceRosterItem extends Equatable {
     bool clearMarkedAt = false,
     String? markedByName,
     bool clearMarkedByName = false,
+    String? note,
+    bool clearNote = false,
     bool? isSessionOpen,
     bool? canEdit,
     int? sortOrder,
@@ -77,6 +81,7 @@ class AttendanceRosterItem extends Equatable {
       markedByName: clearMarkedByName
           ? null
           : (markedByName ?? this.markedByName),
+      note: clearNote ? null : (note ?? this.note),
       isSessionOpen: isSessionOpen ?? this.isSessionOpen,
       canEdit: canEdit ?? this.canEdit,
       sortOrder: sortOrder ?? this.sortOrder,
@@ -94,6 +99,7 @@ class AttendanceRosterItem extends Equatable {
     isMarked,
     markedAt,
     markedByName,
+    note,
     isSessionOpen,
     canEdit,
     sortOrder,

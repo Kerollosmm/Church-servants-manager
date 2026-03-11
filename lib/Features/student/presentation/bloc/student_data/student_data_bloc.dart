@@ -435,7 +435,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
         _emitNotAllowed(emit);
         return;
       }
-      await _studentRepository.deleteStudent(event.docId);
+      await _studentRepository.deleteStudent(event.docId, actorId: event.actor.uid);
       if (existing.uid.trim().isNotEmpty) {
         await _adminUserProvisioningService.archiveUser(uid: existing.uid.trim());
       }
@@ -463,7 +463,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
         return;
       }
 
-      await _studentRepository.restoreStudent(event.docId);
+      await _studentRepository.restoreStudent(event.docId, actorId: event.actor.uid);
       if (existing.uid.trim().isNotEmpty) {
         await _adminUserProvisioningService.restoreUser(uid: existing.uid.trim());
       }

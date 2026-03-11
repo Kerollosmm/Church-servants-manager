@@ -36,8 +36,12 @@ class AuthUserProfileStore {
     }
   }
 
-  Future<void> saveUser(AuthUser appUser) async {
+  Future<void> saveUser(AuthUser appUser, {bool isNew = false}) async {
     try {
+      final docRef = _db
+          .collection(FirestoreCollections.users)
+          .doc(appUser.uid);
+      
       final payload = <String, dynamic>{
         'uid': appUser.uid,
         'name': appUser.name,
@@ -78,10 +82,11 @@ class AuthUserProfileStore {
         payload['assignedTeamId'] = appUser.assignedTeamId;
       }
 
-      await _db
-          .collection(FirestoreCollections.users)
-          .doc(appUser.uid)
-          .set(payload, SetOptions(merge: true));
+      if (isNew) {
+        payload['createdAt'] = FieldValue.serverTimestamp();
+      }
+
+      await docRef.set(payload, SetOptions(merge: true));
     } catch (e) {
       throw GenericAuthException('Failed to save user data: $e');
     }

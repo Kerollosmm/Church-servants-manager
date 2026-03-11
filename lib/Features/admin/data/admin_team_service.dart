@@ -36,6 +36,15 @@ class AdminTeamService {
   DocumentReference<Map<String, dynamic>> _userRef(String userId) =>
       _users.doc(userId);
 
+  /// Safe Firestore field reader — avoids _AssertionError from `as String?`
+  /// casts when Firestore stores the value as a non-String type.
+  String? _readString(Map<String, dynamic> data, String key) {
+    final value = data[key];
+    if (value == null) return null;
+    if (value is String) return value;
+    return value.toString();
+  }
+
   void _assertAdmin(AuthUser actor) {
     if (actor.role != UserRole.admin) {
       throw StateError('Permission denied: admin only');
@@ -51,7 +60,9 @@ class AdminTeamService {
       throw StateError('Cannot assign a servant to an archived team');
     }
 
-    final role = (servantData['role'] as String?)?.trim().toLowerCase();
+    // Use safe _readString to avoid _AssertionError / TypeError when the
+    // Firestore field is stored as a non-String type (e.g. null, int).
+    final role = _readString(servantData, 'role')?.trim().toLowerCase();
     if (role != UserRole.servant.name) {
       throw StateError('Selected user is not a servant');
     }
@@ -61,7 +72,7 @@ class AdminTeamService {
       throw StateError('Selected servant is archived');
     }
 
-    final groupId = (servantData['groupId'] as String?)?.trim();
+    final groupId = _readString(servantData, 'groupId')?.trim();
     if (groupId == null || groupId.isEmpty) {
       throw StateError(
         'Selected servant ($servantDocId) is missing group assignment',
@@ -98,22 +109,20 @@ class AdminTeamService {
     return ids;
   }
 
-  Future<void> _removeTeamFromServant(
+  void _removeTeamFromServant(
     Transaction transaction,
     DocumentReference<Map<String, dynamic>> servantRef,
+    Map<String, dynamic> servantData,
     String teamId,
-  ) async {
-    final servantSnap = await transaction.get(servantRef);
-    if (servantSnap.exists) {
-      final teamIds = _extractAssignedTeamIds(
-        servantSnap.data() ?? <String, dynamic>{},
-      )..removeWhere((id) => id == teamId);
-      transaction.set(
-        servantRef,
-        _servantAssignmentPatch(teamIds),
-        SetOptions(merge: true),
-      );
-    }
+  ) {
+    final teamIds = _extractAssignedTeamIds(
+      servantData,
+    )..removeWhere((id) => id == teamId);
+    transaction.set(
+      servantRef,
+      _servantAssignmentPatch(teamIds),
+      SetOptions(merge: true),
+    );
   }
 
   Map<String, dynamic> _servantAssignmentPatch(List<String> teamIds) {
@@ -155,16 +164,27 @@ class AdminTeamService {
       }
 
       final teamData = teamSnap.data() ?? <String, dynamic>{};
-      final oldServantId = (teamData['assignedServantId'] as String?)?.trim();
+      final oldServantId = _readString(teamData, 'assignedServantId')?.trim();
       final oldServantRef = oldServantId == null || oldServantId.isEmpty
           ? null
           : _userRef(oldServantId);
+      final shouldRemoveOldServant =
+          oldServantRef != null && oldServantId != servant.docID;
 
       final newServantSnap = await transaction.get(newServantRef);
       final newServantData = newServantSnap.data();
       if (!newServantSnap.exists || newServantData == null) {
         throw StateError('Servant not found');
       }
+
+      Map<String, dynamic>? oldServantData;
+      if (shouldRemoveOldServant) {
+        final oldServantSnap = await transaction.get(oldServantRef);
+        if (oldServantSnap.exists) {
+          oldServantData = oldServantSnap.data() ?? <String, dynamic>{};
+        }
+      }
+
       _validateServantForTeam(
         team: team,
         servantDocId: servant.docID,
@@ -178,13 +198,17 @@ class AdminTeamService {
 
       transaction.update(teamRef, {
         'assignedServantId': servant.docID,
-        'assignedServantName':
-            (newServantData['name'] as String?) ?? servant.name,
+        'assignedServantName': _readString(newServantData, 'name') ?? servant.name,
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      if (oldServantRef != null && oldServantId != servant.docID) {
-        await _removeTeamFromServant(transaction, oldServantRef, team.id);
+      if (shouldRemoveOldServant && oldServantData != null) {
+        _removeTeamFromServant(
+          transaction,
+          oldServantRef,
+          oldServantData,
+          team.id,
+        );
       }
 
       transaction.set(newServantRef, {
@@ -210,10 +234,18 @@ class AdminTeamService {
       }
 
       final data = teamSnap.data() ?? <String, dynamic>{};
-      final oldServantId = (data['assignedServantId'] as String?)?.trim();
+      final oldServantId = _readString(data, 'assignedServantId')?.trim();
       final oldServantRef = oldServantId == null || oldServantId.isEmpty
           ? null
           : _userRef(oldServantId);
+      Map<String, dynamic>? oldServantData;
+
+      if (oldServantRef != null) {
+        final oldServantSnap = await transaction.get(oldServantRef);
+        if (oldServantSnap.exists) {
+          oldServantData = oldServantSnap.data() ?? <String, dynamic>{};
+        }
+      }
 
       transaction.update(teamRef, {
         'assignedServantId': FieldValue.delete(),
@@ -221,8 +253,8 @@ class AdminTeamService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      if (oldServantRef != null) {
-        await _removeTeamFromServant(transaction, oldServantRef, team.id);
+      if (oldServantRef != null && oldServantData != null) {
+        _removeTeamFromServant(transaction, oldServantRef, oldServantData, team.id);
       }
     });
   }

@@ -93,12 +93,17 @@ class TeamMembersCubit extends Cubit<TeamMembersState> {
     );
   }
 
-  Future<void> load({required String groupId, required String teamId}) async {
+  Future<void> load({
+    required String groupId,
+    required String teamId,
+    bool forceServer = false,
+  }) async {
     emit(const TeamMembersState(isLoading: true));
 
     try {
       final result = await _studentRepository.getStudentsByGroupWithFallback(
         groupId,
+        forceServer: forceServer,
       );
       final students = [...result.students]
         ..sort((a, b) => a.name.compareTo(b.name));

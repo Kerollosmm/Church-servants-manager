@@ -178,6 +178,22 @@ class StudentDetailScreen extends StatelessWidget {
               _InfoRow(label: 'Notes', value: _optional(student.notes)),
             ],
           ),
+          if (args.actor.role == UserRole.admin) ...[
+            AppSpacing.gapMd,
+            _InfoSection(
+              title: 'Metadata',
+              children: [
+                _InfoRow(
+                  label: 'Created At',
+                  value: _formatDateTime(student.createdAt),
+                ),
+                _InfoRow(
+                  label: 'Updated At',
+                  value: _formatDateTime(student.updatedAt),
+                ),
+              ],
+            ),
+          ],
           AppSpacing.gapMd,
           AppInfoBanner(
             icon: student.isArchived ? Icons.archive_outlined : Icons.cloud_done,
@@ -202,6 +218,16 @@ class StudentDetailScreen extends StatelessWidget {
     final month = date.month.toString().padLeft(2, '0');
     final day = date.day.toString().padLeft(2, '0');
     return '$year-$month-$day';
+  }
+
+  static String _formatDateTime(DateTime? dateTime) {
+    if (dateTime == null) return '--';
+    final year = dateTime.year.toString().padLeft(4, '0');
+    final month = dateTime.month.toString().padLeft(2, '0');
+    final day = dateTime.day.toString().padLeft(2, '0');
+    final hour = dateTime.hour.toString().padLeft(2, '0');
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    return '$year-$month-$day $hour:$minute';
   }
 
   static String _roleLabel(UserRole role) {

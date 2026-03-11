@@ -28,6 +28,13 @@ class StudentDataRepository implements IStudentRepository {
   CollectionReference<Map<String, dynamic>> get _usersCollection =>
       _firestore.collection(FirestoreCollections.users);
 
+  Map<String, dynamic> _buildStudentWriteData(StudentModel student) {
+    final data = student.toMap();
+    data.remove('createdAt');
+    data.remove('updatedAt');
+    return data;
+  }
+
   Future<void> syncLinkedUserRoleFromStudent({
     required StudentModel updatedStudent,
     required UserRole previousRole,
@@ -108,10 +115,12 @@ class StudentDataRepository implements IStudentRepository {
   getStudentsByGroupWithFallback(
     String groupName, {
     bool includeArchived = false,
+    bool forceServer = false,
   }) async {
     return _queryService.getStudentsByGroupWithFallback(
       groupName,
       includeArchived: includeArchived,
+      forceServer: forceServer,
     );
   }
 
@@ -132,7 +141,18 @@ class StudentDataRepository implements IStudentRepository {
           ? _studentsCollection.doc(student.docID)
           : _studentsCollection.doc();
       final finalStudent = student.copyWith(docID: docRef.id);
-      await docRef.set(finalStudent.toMap());
+      final data = _buildStudentWriteData(finalStudent);
+      await _firestore.runTransaction((transaction) async {
+        final existing = await transaction.get(docRef);
+        final payload = <String, dynamic>{
+          ...data,
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+        if (!existing.exists) {
+          payload['createdAt'] = FieldValue.serverTimestamp();
+        }
+        transaction.set(docRef, payload, SetOptions(merge: true));
+      });
       return docRef.id;
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
@@ -143,7 +163,10 @@ class StudentDataRepository implements IStudentRepository {
   Future<void> updateStudent(StudentModel student) async {
     try {
       final docRef = _studentsCollection.doc(student.docID);
-      await docRef.update(student.toMap());
+      await docRef.update({
+        ..._buildStudentWriteData(student),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
     }
@@ -153,14 +176,25 @@ class StudentDataRepository implements IStudentRepository {
   Future<void> upsertStudent(StudentModel student) async {
     try {
       final docRef = _studentsCollection.doc(student.docID);
-      await docRef.set(student.toMap(), SetOptions(merge: true));
+      final data = _buildStudentWriteData(student);
+      await _firestore.runTransaction((transaction) async {
+        final existing = await transaction.get(docRef);
+        final payload = <String, dynamic>{
+          ...data,
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+        if (!existing.exists) {
+          payload['createdAt'] = FieldValue.serverTimestamp();
+        }
+        transaction.set(docRef, payload, SetOptions(merge: true));
+      });
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
     }
   }
 
   @override
-  Future<void> deleteStudent(String docId) async {
+  Future<void> deleteStudent(String docId, {required String actorId}) async {
     try {
       final doc = await _studentsCollection.doc(docId).get();
       final data = doc.data();
@@ -174,7 +208,8 @@ class StudentDataRepository implements IStudentRepository {
       batch.set(doc.reference, {
         'isArchived': true,
         'archivedAt': FieldValue.serverTimestamp(),
-        'archivedByUserId': 'system',
+        'archivedByUserId': actorId,
+        'updatedAt': FieldValue.serverTimestamp(),
         'restoredAt': FieldValue.delete(),
         'restoredByUserId': FieldValue.delete(),
       }, SetOptions(merge: true));
@@ -195,7 +230,7 @@ class StudentDataRepository implements IStudentRepository {
     }
   }
 
-  Future<void> restoreStudent(String docId) async {
+  Future<void> restoreStudent(String docId, {required String actorId}) async {
     try {
       final doc = await _studentsCollection.doc(docId).get();
       final data = doc.data();
@@ -209,7 +244,7 @@ class StudentDataRepository implements IStudentRepository {
       batch.set(doc.reference, {
         'isArchived': false,
         'restoredAt': FieldValue.serverTimestamp(),
-        'restoredByUserId': 'system',
+        'restoredByUserId': actorId,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 

@@ -26,6 +26,11 @@ _$AttendanceSessionImpl _$$AttendanceSessionImplFromJson(
       updatedAt: const RequiredFirestoreTimestampConverter()
           .fromJson(json['updatedAt']),
       isClosed: json['isClosed'] as bool? ?? false,
+      isReopenedForAdminEdit: json['isReopenedForAdminEdit'] as bool? ?? false,
+      reopenedAt:
+          const FirestoreTimestampConverter().fromJson(json['reopenedAt']),
+      reopenedByUserId: json['reopenedByUserId'] as String?,
+      reopenedByName: json['reopenedByName'] as String?,
       studentIdsSnapshot: (json['studentIdsSnapshot'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
@@ -57,6 +62,11 @@ Map<String, dynamic> _$$AttendanceSessionImplToJson(
       'updatedAt': const RequiredFirestoreTimestampConverter()
           .toJson(instance.updatedAt),
       'isClosed': instance.isClosed,
+      'isReopenedForAdminEdit': instance.isReopenedForAdminEdit,
+      'reopenedAt':
+          const FirestoreTimestampConverter().toJson(instance.reopenedAt),
+      'reopenedByUserId': instance.reopenedByUserId,
+      'reopenedByName': instance.reopenedByName,
       'studentIdsSnapshot': instance.studentIdsSnapshot,
       'studentNameSnapshots': instance.studentNameSnapshots,
     };

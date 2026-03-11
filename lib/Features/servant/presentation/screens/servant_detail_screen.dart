@@ -152,6 +152,22 @@ class ServantDetailScreen extends StatelessWidget {
               ), // Notes
             ],
           ),
+          if (args.actor.role == UserRole.admin) ...[
+            AppSpacing.gapMd,
+            _InfoSection(
+              title: 'Metadata',
+              children: [
+                _InfoRow(
+                  label: 'Created At',
+                  value: _formatDateTime(servant.createdAt),
+                ),
+                _InfoRow(
+                  label: 'Updated At',
+                  value: _formatDateTime(servant.updatedAt),
+                ),
+              ],
+            ),
+          ],
           AppSpacing.gapMd,
           AppInfoBanner(
             icon: servant.isArchived ? Icons.archive_outlined : Icons.cloud_done,
@@ -175,6 +191,16 @@ class ServantDetailScreen extends StatelessWidget {
     final month = date.month.toString().padLeft(2, '0');
     final day = date.day.toString().padLeft(2, '0');
     return '$year-$month-$day';
+  }
+
+  static String _formatDateTime(DateTime? dateTime) {
+    if (dateTime == null) return '--';
+    final year = dateTime.year.toString().padLeft(4, '0');
+    final month = dateTime.month.toString().padLeft(2, '0');
+    final day = dateTime.day.toString().padLeft(2, '0');
+    final hour = dateTime.hour.toString().padLeft(2, '0');
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    return '$year-$month-$day $hour:$minute';
   }
 }
 

@@ -37,6 +37,11 @@ mixin _$AttendanceSession {
   @_RequiredTimestampConverter()
   DateTime get updatedAt => throw _privateConstructorUsedError;
   bool get isClosed => throw _privateConstructorUsedError;
+  bool get isReopenedForAdminEdit => throw _privateConstructorUsedError;
+  @FirestoreTimestampConverter()
+  DateTime? get reopenedAt => throw _privateConstructorUsedError;
+  String? get reopenedByUserId => throw _privateConstructorUsedError;
+  String? get reopenedByName => throw _privateConstructorUsedError;
   List<String> get studentIdsSnapshot => throw _privateConstructorUsedError;
   Map<String, String> get studentNameSnapshots =>
       throw _privateConstructorUsedError;
@@ -67,6 +72,10 @@ abstract class $AttendanceSessionCopyWith<$Res> {
       @_RequiredTimestampConverter() DateTime createdAt,
       @_RequiredTimestampConverter() DateTime updatedAt,
       bool isClosed,
+      bool isReopenedForAdminEdit,
+      @FirestoreTimestampConverter() DateTime? reopenedAt,
+      String? reopenedByUserId,
+      String? reopenedByName,
       List<String> studentIdsSnapshot,
       Map<String, String> studentNameSnapshots});
 }
@@ -97,6 +106,10 @@ class _$AttendanceSessionCopyWithImpl<$Res, $Val extends AttendanceSession>
     Object? createdAt = null,
     Object? updatedAt = null,
     Object? isClosed = null,
+    Object? isReopenedForAdminEdit = null,
+    Object? reopenedAt = freezed,
+    Object? reopenedByUserId = freezed,
+    Object? reopenedByName = freezed,
     Object? studentIdsSnapshot = null,
     Object? studentNameSnapshots = null,
   }) {
@@ -153,6 +166,22 @@ class _$AttendanceSessionCopyWithImpl<$Res, $Val extends AttendanceSession>
           ? _value.isClosed
           : isClosed // ignore: cast_nullable_to_non_nullable
               as bool,
+      isReopenedForAdminEdit: null == isReopenedForAdminEdit
+          ? _value.isReopenedForAdminEdit
+          : isReopenedForAdminEdit // ignore: cast_nullable_to_non_nullable
+              as bool,
+      reopenedAt: freezed == reopenedAt
+          ? _value.reopenedAt
+          : reopenedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      reopenedByUserId: freezed == reopenedByUserId
+          ? _value.reopenedByUserId
+          : reopenedByUserId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      reopenedByName: freezed == reopenedByName
+          ? _value.reopenedByName
+          : reopenedByName // ignore: cast_nullable_to_non_nullable
+              as String?,
       studentIdsSnapshot: null == studentIdsSnapshot
           ? _value.studentIdsSnapshot
           : studentIdsSnapshot // ignore: cast_nullable_to_non_nullable
@@ -187,6 +216,10 @@ abstract class _$$AttendanceSessionImplCopyWith<$Res>
       @_RequiredTimestampConverter() DateTime createdAt,
       @_RequiredTimestampConverter() DateTime updatedAt,
       bool isClosed,
+      bool isReopenedForAdminEdit,
+      @FirestoreTimestampConverter() DateTime? reopenedAt,
+      String? reopenedByUserId,
+      String? reopenedByName,
       List<String> studentIdsSnapshot,
       Map<String, String> studentNameSnapshots});
 }
@@ -215,6 +248,10 @@ class __$$AttendanceSessionImplCopyWithImpl<$Res>
     Object? createdAt = null,
     Object? updatedAt = null,
     Object? isClosed = null,
+    Object? isReopenedForAdminEdit = null,
+    Object? reopenedAt = freezed,
+    Object? reopenedByUserId = freezed,
+    Object? reopenedByName = freezed,
     Object? studentIdsSnapshot = null,
     Object? studentNameSnapshots = null,
   }) {
@@ -271,6 +308,22 @@ class __$$AttendanceSessionImplCopyWithImpl<$Res>
           ? _value.isClosed
           : isClosed // ignore: cast_nullable_to_non_nullable
               as bool,
+      isReopenedForAdminEdit: null == isReopenedForAdminEdit
+          ? _value.isReopenedForAdminEdit
+          : isReopenedForAdminEdit // ignore: cast_nullable_to_non_nullable
+              as bool,
+      reopenedAt: freezed == reopenedAt
+          ? _value.reopenedAt
+          : reopenedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      reopenedByUserId: freezed == reopenedByUserId
+          ? _value.reopenedByUserId
+          : reopenedByUserId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      reopenedByName: freezed == reopenedByName
+          ? _value.reopenedByName
+          : reopenedByName // ignore: cast_nullable_to_non_nullable
+              as String?,
       studentIdsSnapshot: null == studentIdsSnapshot
           ? _value._studentIdsSnapshot
           : studentIdsSnapshot // ignore: cast_nullable_to_non_nullable
@@ -300,6 +353,10 @@ class _$AttendanceSessionImpl extends _AttendanceSession {
       @_RequiredTimestampConverter() required this.createdAt,
       @_RequiredTimestampConverter() required this.updatedAt,
       this.isClosed = false,
+      this.isReopenedForAdminEdit = false,
+      @FirestoreTimestampConverter() this.reopenedAt,
+      this.reopenedByUserId,
+      this.reopenedByName,
       final List<String> studentIdsSnapshot = const <String>[],
       final Map<String, String> studentNameSnapshots =
           const <String, String>{}})
@@ -341,6 +398,16 @@ class _$AttendanceSessionImpl extends _AttendanceSession {
   @override
   @JsonKey()
   final bool isClosed;
+  @override
+  @JsonKey()
+  final bool isReopenedForAdminEdit;
+  @override
+  @FirestoreTimestampConverter()
+  final DateTime? reopenedAt;
+  @override
+  final String? reopenedByUserId;
+  @override
+  final String? reopenedByName;
   final List<String> _studentIdsSnapshot;
   @override
   @JsonKey()
@@ -363,7 +430,7 @@ class _$AttendanceSessionImpl extends _AttendanceSession {
 
   @override
   String toString() {
-    return 'AttendanceSession(id: $id, teamId: $teamId, teamNameSnapshot: $teamNameSnapshot, title: $title, dateKey: $dateKey, startsAt: $startsAt, endsAt: $endsAt, durationMinutes: $durationMinutes, createdByUserId: $createdByUserId, createdByName: $createdByName, createdAt: $createdAt, updatedAt: $updatedAt, isClosed: $isClosed, studentIdsSnapshot: $studentIdsSnapshot, studentNameSnapshots: $studentNameSnapshots)';
+    return 'AttendanceSession(id: $id, teamId: $teamId, teamNameSnapshot: $teamNameSnapshot, title: $title, dateKey: $dateKey, startsAt: $startsAt, endsAt: $endsAt, durationMinutes: $durationMinutes, createdByUserId: $createdByUserId, createdByName: $createdByName, createdAt: $createdAt, updatedAt: $updatedAt, isClosed: $isClosed, isReopenedForAdminEdit: $isReopenedForAdminEdit, reopenedAt: $reopenedAt, reopenedByUserId: $reopenedByUserId, reopenedByName: $reopenedByName, studentIdsSnapshot: $studentIdsSnapshot, studentNameSnapshots: $studentNameSnapshots)';
   }
 
   @override
@@ -392,6 +459,14 @@ class _$AttendanceSessionImpl extends _AttendanceSession {
                 other.updatedAt == updatedAt) &&
             (identical(other.isClosed, isClosed) ||
                 other.isClosed == isClosed) &&
+            (identical(other.isReopenedForAdminEdit, isReopenedForAdminEdit) ||
+                other.isReopenedForAdminEdit == isReopenedForAdminEdit) &&
+            (identical(other.reopenedAt, reopenedAt) ||
+                other.reopenedAt == reopenedAt) &&
+            (identical(other.reopenedByUserId, reopenedByUserId) ||
+                other.reopenedByUserId == reopenedByUserId) &&
+            (identical(other.reopenedByName, reopenedByName) ||
+                other.reopenedByName == reopenedByName) &&
             const DeepCollectionEquality()
                 .equals(other._studentIdsSnapshot, _studentIdsSnapshot) &&
             const DeepCollectionEquality()
@@ -400,23 +475,28 @@ class _$AttendanceSessionImpl extends _AttendanceSession {
 
   @JsonKey(ignore: true)
   @override
-  int get hashCode => Object.hash(
-      runtimeType,
-      id,
-      teamId,
-      teamNameSnapshot,
-      title,
-      dateKey,
-      startsAt,
-      endsAt,
-      durationMinutes,
-      createdByUserId,
-      createdByName,
-      createdAt,
-      updatedAt,
-      isClosed,
-      const DeepCollectionEquality().hash(_studentIdsSnapshot),
-      const DeepCollectionEquality().hash(_studentNameSnapshots));
+  int get hashCode => Object.hashAll([
+        runtimeType,
+        id,
+        teamId,
+        teamNameSnapshot,
+        title,
+        dateKey,
+        startsAt,
+        endsAt,
+        durationMinutes,
+        createdByUserId,
+        createdByName,
+        createdAt,
+        updatedAt,
+        isClosed,
+        isReopenedForAdminEdit,
+        reopenedAt,
+        reopenedByUserId,
+        reopenedByName,
+        const DeepCollectionEquality().hash(_studentIdsSnapshot),
+        const DeepCollectionEquality().hash(_studentNameSnapshots)
+      ]);
 
   @JsonKey(ignore: true)
   @override
@@ -448,6 +528,10 @@ abstract class _AttendanceSession extends AttendanceSession {
           @_RequiredTimestampConverter() required final DateTime createdAt,
           @_RequiredTimestampConverter() required final DateTime updatedAt,
           final bool isClosed,
+          final bool isReopenedForAdminEdit,
+          @FirestoreTimestampConverter() final DateTime? reopenedAt,
+          final String? reopenedByUserId,
+          final String? reopenedByName,
           final List<String> studentIdsSnapshot,
           final Map<String, String> studentNameSnapshots}) =
       _$AttendanceSessionImpl;
@@ -486,6 +570,15 @@ abstract class _AttendanceSession extends AttendanceSession {
   DateTime get updatedAt;
   @override
   bool get isClosed;
+  @override
+  bool get isReopenedForAdminEdit;
+  @override
+  @FirestoreTimestampConverter()
+  DateTime? get reopenedAt;
+  @override
+  String? get reopenedByUserId;
+  @override
+  String? get reopenedByName;
   @override
   List<String> get studentIdsSnapshot;
   @override

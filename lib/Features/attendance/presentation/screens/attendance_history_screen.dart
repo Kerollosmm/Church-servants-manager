@@ -131,6 +131,14 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
     );
   }
 
+  Future<void> _reopenSession(AuthUser actor, AttendanceSession session) {
+    return _sessionAdminCubit.reopenSession(
+      actor: actor,
+      teamId: session.teamId,
+      sessionId: session.id,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<AuthBloc, AuthState>(
@@ -330,9 +338,24 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                                     padding: const EdgeInsets.only(
                                       bottom: AppSpacing.md,
                                     ),
-                                    child: _SessionHistoryCard(
+                                    child: _ManagedSessionHistoryCard(
+                                      actor: actor,
                                       session: session,
                                       isActive: activeSession?.id == session.id,
+                                      canReopen:
+                                          actor.role == UserRole.admin &&
+                                          session.isEffectivelyClosedAt(
+                                            DateTime.now(),
+                                          ) &&
+                                          !session.isReopenedForAdminEdit,
+                                      onReopen:
+                                          actor.role == UserRole.admin &&
+                                              session.isEffectivelyClosedAt(
+                                                DateTime.now(),
+                                              ) &&
+                                              !session.isReopenedForAdminEdit
+                                          ? () => _reopenSession(actor, session)
+                                          : null,
                                       onTap: () {
                                         Navigator.pushNamed(
                                           context,
@@ -436,6 +459,7 @@ class _ActiveSessionCard extends StatelessWidget {
   }
 }
 
+// ignore: unused_element
 class _SessionHistoryCard extends StatelessWidget {
   const _SessionHistoryCard({
     required this.session,
@@ -465,6 +489,100 @@ class _SessionHistoryCard extends StatelessWidget {
           '${_formatDateTime(session.startsAt)} - ${_formatTime(session.endsAt)}',
         ),
         trailing: Chip(label: Text(isActive ? 'مفتوحة' : 'مغلقة')),
+      ),
+    );
+  }
+}
+
+class _ManagedSessionHistoryCard extends StatelessWidget {
+  const _ManagedSessionHistoryCard({
+    required this.actor,
+    required this.session,
+    required this.isActive,
+    required this.onTap,
+    this.canReopen = false,
+    this.onReopen,
+  });
+
+  final AuthUser actor;
+  final AttendanceSession session;
+  final bool isActive;
+  final VoidCallback onTap;
+  final bool canReopen;
+  final VoidCallback? onReopen;
+
+  @override
+  Widget build(BuildContext context) {
+    final statusLabel = session.isReopenedForAdminEdit
+        ? 'Correction open'
+        : (isActive ? 'Ù…ÙØªÙˆØ­Ø©' : 'Ù…ØºÙ„Ù‚Ø©');
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.sm),
+        child: Column(
+          children: [
+            ListTile(
+              onTap: onTap,
+              leading: CircleAvatar(
+                backgroundColor:
+                    isActive ? const Color(0xFFE9F7EF) : const Color(0xFFF3F4F6),
+                child: Icon(
+                  isActive ? Icons.schedule : Icons.history,
+                  color: isActive ? AppColors.secondary : AppColors.primary,
+                ),
+              ),
+              title: Text(
+                session.title?.isNotEmpty == true
+                    ? session.title!
+                    : 'Attendance Session',
+              ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '${_formatDateTime(session.startsAt)} - ${_formatTime(session.endsAt)}',
+                  ),
+                  if (session.isReopenedForAdminEdit &&
+                      session.reopenedByName != null &&
+                      session.reopenedByName!.isNotEmpty)
+                    Text(
+                      'Reopened by ${session.reopenedByName}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                ],
+              ),
+              trailing: Chip(label: Text(statusLabel)),
+            ),
+            if (canReopen && onReopen != null)
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: onReopen,
+                  icon: const Icon(Icons.lock_open_outlined),
+                  label: const Text('Reopen for correction'),
+                ),
+              ),
+            if (actor.role == UserRole.admin && session.isReopenedForAdminEdit)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.xs,
+                  ),
+                  child: Text(
+                    'Admin correction mode is active for this session.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.secondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

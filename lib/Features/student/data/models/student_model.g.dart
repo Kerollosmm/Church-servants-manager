@@ -27,6 +27,10 @@ _$StudentModelImpl _$$StudentModelImplFromJson(Map<String, dynamic> json) =>
           const FirestoreTimestampConverter().fromJson(json['birthdate']),
       fatherOfConfession: json['father_of_confession'] as String,
       notes: json['notes'] as String?,
+      createdAt:
+          const FirestoreTimestampConverter().fromJson(json['createdAt']),
+      updatedAt:
+          const FirestoreTimestampConverter().fromJson(json['updatedAt']),
       isArchived: json['isArchived'] as bool? ?? false,
       archivedAt:
           const FirestoreTimestampConverter().fromJson(json['archivedAt']),
@@ -58,6 +62,10 @@ Map<String, dynamic> _$$StudentModelImplToJson(_$StudentModelImpl instance) =>
           const FirestoreTimestampConverter().toJson(instance.birthdate),
       'father_of_confession': instance.fatherOfConfession,
       'notes': instance.notes,
+      'createdAt':
+          const FirestoreTimestampConverter().toJson(instance.createdAt),
+      'updatedAt':
+          const FirestoreTimestampConverter().toJson(instance.updatedAt),
       'isArchived': instance.isArchived,
       'archivedAt':
           const FirestoreTimestampConverter().toJson(instance.archivedAt),

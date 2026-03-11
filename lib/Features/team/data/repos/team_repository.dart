@@ -148,22 +148,25 @@ class TeamRepository implements ITeamRepository {
   Future<List<TeamModel>> getTeamsByGroup(
     String groupId, {
     bool includeArchived = false,
+    bool forceServer = false,
   }) async {
     try {
-      try {
-        final cacheSnapshot = await _classesCollection
-            .where('groupId', isEqualTo: groupId)
-            .get(const GetOptions(source: Source.cache));
+      if (!forceServer) {
+        try {
+          final cacheSnapshot = await _classesCollection
+              .where('groupId', isEqualTo: groupId)
+              .get(const GetOptions(source: Source.cache));
 
-        if (cacheSnapshot.docs.isNotEmpty) {
-          final teams = _teamsFromDocs(
-            cacheSnapshot.docs,
-            includeArchived: includeArchived,
-          );
-          teams.sort((a, b) => a.name.compareTo(b.name));
-          return teams;
-        }
-      } catch (_) {}
+          if (cacheSnapshot.docs.isNotEmpty) {
+            final teams = _teamsFromDocs(
+              cacheSnapshot.docs,
+              includeArchived: includeArchived,
+            );
+            teams.sort((a, b) => a.name.compareTo(b.name));
+            return teams;
+          }
+        } catch (_) {}
+      }
 
       final snapshot = await _classesCollection
           .where('groupId', isEqualTo: groupId)
@@ -198,25 +201,27 @@ class TeamRepository implements ITeamRepository {
   }
 
   @override
-  Future<List<TeamModel>> getAllTeams({bool includeArchived = false}) async {
+  Future<List<TeamModel>> getAllTeams({bool includeArchived = false, bool forceServer = false}) async {
     try {
-      try {
-        final cacheSnapshot = await _classesCollection.get(
-          const GetOptions(source: Source.cache),
-        );
-        if (cacheSnapshot.docs.isNotEmpty) {
-          final teams = _teamsFromDocs(
-            cacheSnapshot.docs,
-            includeArchived: includeArchived,
+      if (!forceServer) {
+        try {
+          final cacheSnapshot = await _classesCollection.get(
+            const GetOptions(source: Source.cache),
           );
-          teams.sort((a, b) {
-            final groupCompare = a.groupId.compareTo(b.groupId);
-            if (groupCompare != 0) return groupCompare;
-            return a.name.compareTo(b.name);
-          });
-          return teams;
-        }
-      } catch (_) {}
+          if (cacheSnapshot.docs.isNotEmpty) {
+            final teams = _teamsFromDocs(
+              cacheSnapshot.docs,
+              includeArchived: includeArchived,
+            );
+            teams.sort((a, b) {
+              final groupCompare = a.groupId.compareTo(b.groupId);
+              if (groupCompare != 0) return groupCompare;
+              return a.name.compareTo(b.name);
+            });
+            return teams;
+          }
+        } catch (_) {}
+      }
 
       final snapshot = await _classesCollection.get(
         const GetOptions(source: Source.server),

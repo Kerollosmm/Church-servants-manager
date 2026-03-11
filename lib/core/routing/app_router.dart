@@ -1,5 +1,7 @@
 import 'package:church_management_system/core/constants/routes.dart';
+import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/admin/presentation/widget/admin_gate.dart';
+import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_management_system/features/attendance/presentation/screens/attendance_history_screen.dart';
 import 'package:church_management_system/features/attendance/presentation/screens/attendance_session_create_screen.dart';
 import 'package:church_management_system/features/attendance/presentation/screens/attendance_taking_screen.dart';
@@ -155,18 +157,18 @@ class AppRouter {
         );
       case attendanceSessionCreate:
         return _buildPageRoute(
-          builder: (_) => const AttendanceSessionCreateScreen(),
+          builder: (_) => const _AttendanceGate(child: AttendanceSessionCreateScreen()),
           settings: settings,
         );
       case attendanceTaking:
         return _buildArgsValidatedRoute<AttendanceTakingArgs>(
           settings: settings,
-          builder: (args) => AttendanceTakingScreen(args: args),
+          builder: (args) => _AttendanceGate(child: AttendanceTakingScreen(args: args)),
           invalidMessage: 'Invalid attendance session data',
         );
       case attendanceHistory:
         return _buildPageRoute(
-          builder: (_) => const AttendanceHistoryScreen(),
+          builder: (_) => const _AttendanceGate(child: AttendanceHistoryScreen()),
           settings: settings,
         );
       case studentAttendance:
@@ -182,5 +184,33 @@ class AppRouter {
           settings: settings,
         );
     }
+  }
+}
+
+class _AttendanceGate extends StatelessWidget {
+  final Widget child;
+  const _AttendanceGate({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, state) {
+        if (state is AuthAuthenticated) {
+          final role = state.user.role;
+          if (role == UserRole.admin || role == UserRole.servant) {
+            return child;
+          }
+        } else if (state is AuthDegraded) {
+          final role = state.user.role;
+          if (role == UserRole.admin || role == UserRole.servant) {
+            return child;
+          }
+        }
+        return Scaffold(
+          appBar: AppBar(title: const Text('Access Denied')),
+          body: const Center(child: Text('You do not have permission to view this screen.')),
+        );
+      },
+    );
   }
 }

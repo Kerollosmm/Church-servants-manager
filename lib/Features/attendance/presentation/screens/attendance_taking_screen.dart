@@ -1,10 +1,11 @@
-import 'package:church_management_system/core/routing/route_args.dart';
 import 'package:church_management_system/core/constants/enums.dart';
+import 'package:church_management_system/core/routing/route_args.dart';
 import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
 import 'package:church_management_system/core/widgets/common/app_info_banner.dart';
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
+import 'package:church_management_system/features/attendance/data/models/attendance_roster_item.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
 import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_cubit.dart';
@@ -46,6 +47,21 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
     super.dispose();
   }
 
+  bool get _isAdmin => widget.args.actor.role == UserRole.admin;
+
+  bool _canEditSession(AttendanceSession session) {
+    return session.canRoleEdit(
+      role: widget.args.actor.role,
+      now: DateTime.now(),
+    );
+  }
+
+  bool _canReopenSession(AttendanceSession session) {
+    return _isAdmin &&
+        session.isEffectivelyClosedAt(DateTime.now()) &&
+        !session.isReopenedForAdminEdit;
+  }
+
   Color _statusColor(AttendanceEffectiveStatus status) {
     switch (status) {
       case AttendanceEffectiveStatus.present:
@@ -62,22 +78,102 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
   String _statusLabel(AttendanceEffectiveStatus status) {
     switch (status) {
       case AttendanceEffectiveStatus.present:
-        return 'حاضر';
+        return 'Present';
       case AttendanceEffectiveStatus.late:
-        return 'متأخر';
+        return 'Late';
       case AttendanceEffectiveStatus.absent:
-        return 'غائب';
+        return 'Absent';
       case AttendanceEffectiveStatus.unmarked:
-        return 'غير محدد';
+        return 'Unmarked';
     }
   }
 
-  Future<void> _closeSession(AttendanceTakingLoaded state) {
+  Future<void> _closeSession(AttendanceSession session) {
     return _sessionAdminCubit.closeSession(
       actor: widget.args.actor,
-      teamId: state.session.teamId,
-      sessionId: state.session.id,
+      teamId: session.teamId,
+      sessionId: session.id,
     );
+  }
+
+  Future<void> _reopenSession(AttendanceSession session) {
+    return _sessionAdminCubit.reopenSession(
+      actor: widget.args.actor,
+      teamId: session.teamId,
+      sessionId: session.id,
+    );
+  }
+
+  Future<void> _openNoteEditor(AttendanceRosterItem item) async {
+    final controller = TextEditingController(text: item.note ?? '');
+    final result = await showDialog<_AttendanceNoteEditResult>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(item.note?.trim().isNotEmpty == true ? 'Edit note' : 'Add note'),
+          content: TextField(
+            controller: controller,
+            minLines: 3,
+            maxLines: 5,
+            decoration: const InputDecoration(
+              hintText: 'Optional attendance note',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(
+                context,
+              ).pop(const _AttendanceNoteEditResult.clear()),
+              child: const Text('Clear note'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(
+                context,
+              ).pop(_AttendanceNoteEditResult.save(controller.text)),
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+    controller.dispose();
+
+    if (!mounted || result == null) {
+      return;
+    }
+
+    await _takingCubit.updateMarkNote(
+      actor: widget.args.actor,
+      item: item,
+      note: result.clear ? '' : result.note,
+    );
+  }
+
+  String _bannerMessage(AttendanceSession session) {
+    if (session.isReopenedForAdminEdit) {
+      return _isAdmin
+          ? 'Admin correction mode is active. You can update marks and notes for exceptions.'
+          : 'This session was reopened for admin correction. Servants can view it, but cannot edit it.';
+    }
+    if (session.isOpenAt(DateTime.now())) {
+      return 'This session is open. You can mark students as present or late.';
+    }
+    return 'This session is closed. Any unmarked student is counted as absent.';
+  }
+
+  IconData _bannerIcon(AttendanceSession session) {
+    if (session.isReopenedForAdminEdit) {
+      return Icons.lock_open_outlined;
+    }
+    if (session.isOpenAt(DateTime.now())) {
+      return Icons.schedule;
+    }
+    return Icons.lock_clock;
   }
 
   @override
@@ -130,15 +226,15 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
             final title = loadedState != null &&
                     loadedState.session.title?.isNotEmpty == true
                 ? loadedState.session.title!
-                : 'تسجيل الحضور';
+                : 'Attendance';
 
             return Scaffold(
               appBar: AppBar(
                 title: Text(title),
                 actions: [
-                  if (loadedState != null && loadedState.session.isOpenAt(DateTime.now()))
+                  if (loadedState != null && _canEditSession(loadedState.session))
                     IconButton(
-                      tooltip: 'تحديد الباقي حاضر',
+                      tooltip: 'Mark remaining present',
                       icon: const Icon(Icons.done_all_outlined),
                       onPressed: loadedState.isMutating
                           ? null
@@ -146,13 +242,22 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
                               actor: widget.args.actor,
                             ),
                     ),
-                  if (widget.args.actor.role == UserRole.admin &&
-                      loadedState != null &&
-                      loadedState.session.isOpenAt(DateTime.now()))
+                  if (_isAdmin && loadedState != null && _canReopenSession(loadedState.session))
                     IconButton(
-                      tooltip: 'إغلاق الجلسة',
+                      tooltip: 'Reopen for correction',
+                      icon: const Icon(Icons.lock_open_outlined),
+                      onPressed: () => _reopenSession(loadedState.session),
+                    ),
+                  if (_isAdmin &&
+                      loadedState != null &&
+                      (loadedState.session.isOpenAt(DateTime.now()) ||
+                          loadedState.session.isReopenedForAdminEdit))
+                    IconButton(
+                      tooltip: loadedState.session.isReopenedForAdminEdit
+                          ? 'Close correction mode'
+                          : 'Close session',
                       icon: const Icon(Icons.lock_outline),
-                      onPressed: () => _closeSession(loadedState),
+                      onPressed: () => _closeSession(loadedState.session),
                     ),
                 ],
               ),
@@ -169,141 +274,188 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
                 AttendanceTakingLoaded() => Builder(
                     builder: (context) {
                       final loaded = state;
+                      final canEditSession = _canEditSession(loaded.session);
+
                       return Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(AppSpacing.md),
-                        child: Column(
-                          children: [
-                            AppInfoBanner(
-                              icon: loaded.session.isOpenAt(DateTime.now())
-                                  ? Icons.schedule
-                                  : Icons.lock_clock,
-                              message: loaded.session.isOpenAt(DateTime.now())
-                                  ? 'الجلسة مفتوحة الآن. يمكنك تحديد حاضر أو متأخر فقط.'
-                                  : 'الجلسة مغلقة الآن. أي مخدوم غير محدد يظهر كغائب تلقائيا.',
-                            ),
-                            AppSpacing.gapSm,
-                            _SessionHeaderCard(session: loaded.session),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        child: loaded.roster.isEmpty
-                            ? const Center(
-                                child: Text('لا يوجد مخدومون ضمن هذه الجلسة.'),
-                              )
-                            : ListView.separated(
-                                padding: const EdgeInsets.fromLTRB(
-                                  AppSpacing.md,
-                                  0,
-                                  AppSpacing.md,
-                                  AppSpacing.md,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.all(AppSpacing.md),
+                            child: Column(
+                              children: [
+                                AppInfoBanner(
+                                  icon: _bannerIcon(loaded.session),
+                                  message: _bannerMessage(loaded.session),
                                 ),
-                                itemBuilder: (context, index) {
-                                  final item = loaded.roster[index];
-                                  final isOpen = loaded.session.isOpenAt(
-                                    DateTime.now(),
-                                  );
-                                  return Card(
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(AppSpacing.md),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              Expanded(
-                                                child: Text(
-                                                  item.studentName,
-                                                  style: Theme.of(context)
-                                                      .textTheme
-                                                      .titleMedium
-                                                      ?.copyWith(
-                                                        fontWeight: FontWeight.w700,
-                                                      ),
-                                                ),
-                                              ),
-                                              Chip(
-                                                label: Text(
-                                                  _statusLabel(item.effectiveStatus),
-                                                ),
-                                                backgroundColor: _statusColor(
-                                                  item.effectiveStatus,
-                                                ).withValues(alpha: 0.14),
-                                                labelStyle: TextStyle(
-                                                  color: _statusColor(
-                                                    item.effectiveStatus,
-                                                  ),
-                                                  fontWeight: FontWeight.w700,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          if (item.markedByName != null) ...[
-                                            AppSpacing.gapXs,
-                                            Text(
-                                              'تم التسجيل بواسطة ${item.markedByName}',
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodySmall,
-                                            ),
-                                          ],
-                                          AppSpacing.gapMd,
-                                          Wrap(
-                                            spacing: AppSpacing.sm,
-                                            runSpacing: AppSpacing.sm,
-                                            children: [
-                                              OutlinedButton.icon(
-                                                onPressed: !isOpen || loaded.isMutating
-                                                    ? null
-                                                    : () => _takingCubit.markPresent(
-                                                        actor: widget.args.actor,
-                                                        item: item,
-                                                      ),
-                                                icon: const Icon(Icons.check_circle_outline),
-                                                label: const Text('حاضر'),
-                                              ),
-                                              OutlinedButton.icon(
-                                                onPressed: !isOpen || loaded.isMutating
-                                                    ? null
-                                                    : () => _takingCubit.markLate(
-                                                        actor: widget.args.actor,
-                                                        item: item,
-                                                      ),
-                                                icon: const Icon(Icons.alarm_on_outlined),
-                                                label: const Text('متأخر'),
-                                              ),
-                                              if (item.isMarked)
-                                                TextButton.icon(
-                                                  onPressed: !isOpen || loaded.isMutating
-                                                      ? null
-                                                      : () => _takingCubit.clearMark(
-                                                          actor: widget.args.actor,
-                                                          item: item,
-                                                        ),
-                                                  icon: const Icon(Icons.clear),
-                                                  label: const Text('مسح التحديد'),
-                                                ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
+                                AppSpacing.gapSm,
+                                _SessionHeaderCard(session: loaded.session),
+                              ],
+                            ),
+                          ),
+                          Expanded(
+                            child: loaded.roster.isEmpty
+                                ? const Center(
+                                    child: Text('No students are included in this session.'),
+                                  )
+                                : ListView.separated(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      AppSpacing.md,
+                                      0,
+                                      AppSpacing.md,
+                                      AppSpacing.md,
                                     ),
-                                  );
-                                },
-                                separatorBuilder: (_, _) => AppSpacing.gapSm,
-                                itemCount: loaded.roster.length,
-                              ),
-                      ),
-                    ],
-                  );
+                                    itemBuilder: (context, index) {
+                                      final item = loaded.roster[index];
+                                      return _AttendanceRosterCard(
+                                        item: item,
+                                        isMutating: loaded.isMutating,
+                                        canEditSession: canEditSession,
+                                        statusColor: _statusColor(item.effectiveStatus),
+                                        statusLabel: _statusLabel(item.effectiveStatus),
+                                        onMarkPresent: () => _takingCubit.markPresent(
+                                          actor: widget.args.actor,
+                                          item: item,
+                                        ),
+                                        onMarkLate: () => _takingCubit.markLate(
+                                          actor: widget.args.actor,
+                                          item: item,
+                                        ),
+                                        onClear: item.isMarked
+                                            ? () => _takingCubit.clearMark(
+                                                actor: widget.args.actor,
+                                                item: item,
+                                              )
+                                            : null,
+                                        onEditNote: item.isMarked && canEditSession
+                                            ? () => _openNoteEditor(item)
+                                            : null,
+                                      );
+                                    },
+                                    separatorBuilder: (_, _) => AppSpacing.gapSm,
+                                    itemCount: loaded.roster.length,
+                                  ),
+                          ),
+                        ],
+                      );
                     },
                   ),
                 _ => const SizedBox.shrink(),
               },
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+class _AttendanceRosterCard extends StatelessWidget {
+  const _AttendanceRosterCard({
+    required this.item,
+    required this.isMutating,
+    required this.canEditSession,
+    required this.statusColor,
+    required this.statusLabel,
+    required this.onMarkPresent,
+    required this.onMarkLate,
+    this.onClear,
+    this.onEditNote,
+  });
+
+  final AttendanceRosterItem item;
+  final bool isMutating;
+  final bool canEditSession;
+  final Color statusColor;
+  final String statusLabel;
+  final VoidCallback onMarkPresent;
+  final VoidCallback onMarkLate;
+  final VoidCallback? onClear;
+  final VoidCallback? onEditNote;
+
+  @override
+  Widget build(BuildContext context) {
+    final note = item.note?.trim();
+    final hasNote = note != null && note.isNotEmpty;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    item.studentName,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Chip(
+                  label: Text(statusLabel),
+                  backgroundColor: statusColor.withValues(alpha: 0.14),
+                  labelStyle: TextStyle(
+                    color: statusColor,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+            if (item.markedByName != null && item.markedByName!.isNotEmpty) ...[
+              AppSpacing.gapXs,
+              Text(
+                'Marked by ${item.markedByName}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+            if (hasNote) ...[
+              AppSpacing.gapSm,
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF6F8FB),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  note,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
+            ],
+            if (canEditSession) ...[
+              AppSpacing.gapMd,
+              Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.sm,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: isMutating ? null : onMarkPresent,
+                    icon: const Icon(Icons.check_circle_outline),
+                    label: const Text('Present'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: isMutating ? null : onMarkLate,
+                    icon: const Icon(Icons.alarm_on_outlined),
+                    label: const Text('Late'),
+                  ),
+                  if (item.isMarked && onClear != null)
+                    TextButton.icon(
+                      onPressed: isMutating ? null : onClear,
+                      icon: const Icon(Icons.clear),
+                      label: const Text('Clear'),
+                    ),
+                  if (item.isMarked && onEditNote != null)
+                    TextButton.icon(
+                      onPressed: isMutating ? null : onEditNote,
+                      icon: const Icon(Icons.sticky_note_2_outlined),
+                      label: Text(hasNote ? 'Edit note' : 'Add note'),
+                    ),
+                ],
+              ),
+            ],
+          ],
         ),
       ),
     );
@@ -324,20 +476,42 @@ class _SessionHeaderCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              session.teamNameSnapshot ?? 'الفريق',
+              session.teamNameSnapshot ?? 'Team',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
             ),
             AppSpacing.gapXs,
-            Text('البداية: ${_formatDateTime(session.startsAt)}'),
-            Text('النهاية: ${_formatDateTime(session.endsAt)}'),
-            Text('المدة: ${session.durationMinutes} دقيقة'),
+            Text('Starts: ${_formatDateTime(session.startsAt)}'),
+            Text('Ends: ${_formatDateTime(session.endsAt)}'),
+            Text('Duration: ${session.durationMinutes} minutes'),
+            if (session.isReopenedForAdminEdit) ...[
+              AppSpacing.gapXs,
+              Text(
+                'Correction mode reopened by ${session.reopenedByName ?? 'Admin'}'
+                '${session.reopenedAt == null ? '' : ' at ${_formatDateTime(session.reopenedAt!)}'}',
+              ),
+            ],
           ],
         ),
       ),
     );
   }
+}
+
+class _AttendanceNoteEditResult {
+  const _AttendanceNoteEditResult._({
+    required this.note,
+    required this.clear,
+  });
+
+  const _AttendanceNoteEditResult.clear() : this._(note: '', clear: true);
+
+  const _AttendanceNoteEditResult.save(String note)
+    : this._(note: note, clear: false);
+
+  final String note;
+  final bool clear;
 }
 
 String _formatDateTime(DateTime value) {

@@ -20,29 +20,37 @@ class TeamMembersScreen extends StatefulWidget {
 
 class _TeamMembersScreenState extends State<TeamMembersScreen> {
   final _searchController = TextEditingController();
+  late final TeamMembersCubit _cubit;
+
+  @override
+  void initState() {
+    super.initState();
+    // Create cubit here so _save() can reference _cubit directly,
+    // avoiding ProviderNotFoundException from using ancestor context.
+    _cubit = TeamMembersCubit(
+      studentRepository: context.read<StudentDataRepository>(),
+      adminTeamService: context.read<AdminTeamService>(),
+    )..load(groupId: widget.args.team.groupId, teamId: widget.args.team.id);
+  }
 
   @override
   void dispose() {
+    _cubit.close();
     _searchController.dispose();
     super.dispose();
   }
 
   Future<void> _save() async {
-    final membersCubit = context.read<TeamMembersCubit>();
-    if (membersCubit.state.isSaving) return;
-
-    await membersCubit.saveMembers(actor: widget.args.actor, team: widget.args.team);
+    if (_cubit.state.isSaving) return;
+    await _cubit.saveMembers(actor: widget.args.actor, team: widget.args.team);
   }
 
   @override
   Widget build(BuildContext context) {
     final team = widget.args.team;
 
-    return BlocProvider(
-      create: (context) => TeamMembersCubit(
-        studentRepository: context.read<StudentDataRepository>(),
-        adminTeamService: context.read<AdminTeamService>(),
-      )..load(groupId: team.groupId, teamId: team.id),
+    return BlocProvider<TeamMembersCubit>.value(
+      value: _cubit,
       child: BlocListener<TeamMembersCubit, TeamMembersState>(
         listener: (context, state) {
           if (state.feedbackMessage != null &&

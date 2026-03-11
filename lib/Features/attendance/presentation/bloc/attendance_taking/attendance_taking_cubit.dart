@@ -63,6 +63,7 @@ class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
     required AttendanceRosterItem item,
   }) {
     return _runMutation(
+      actor: actor,
       action: () => _repository.markStudentPresent(
         teamId: item.teamId,
         sessionId: item.sessionId,
@@ -78,6 +79,7 @@ class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
     required AttendanceRosterItem item,
   }) {
     return _runMutation(
+      actor: actor,
       action: () => _repository.markStudentLate(
         teamId: item.teamId,
         sessionId: item.sessionId,
@@ -93,6 +95,7 @@ class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
     required AttendanceRosterItem item,
   }) {
     return _runMutation(
+      actor: actor,
       action: () => _repository.clearStudentMark(
         teamId: item.teamId,
         sessionId: item.sessionId,
@@ -109,6 +112,7 @@ class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
     }
 
     return _runMutation(
+      actor: actor,
       action: () => _repository.markAllPresentForRemainingStudents(
         teamId: currentState.session.teamId,
         sessionId: currentState.session.id,
@@ -117,17 +121,36 @@ class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
     );
   }
 
-  Future<void> _runMutation({required Future<void> Function() action}) async {
+  Future<void> updateMarkNote({
+    required AuthUser actor,
+    required AttendanceRosterItem item,
+    String? note,
+  }) {
+    return _runMutation(
+      actor: actor,
+      action: () => _repository.updateStudentMarkNote(
+        teamId: item.teamId,
+        sessionId: item.sessionId,
+        studentId: item.studentId,
+        requestedBy: actor,
+        note: note,
+      ),
+    );
+  }
+
+  Future<void> _runMutation({
+    required AuthUser actor,
+    required Future<void> Function() action,
+  }) async {
     final currentState = state;
     if (currentState is! AttendanceTakingLoaded) return;
     if (_isMutating) return;
-    if (!currentState.session.isOpenAt(_nowProvider())) {
-      _mutationError = 'انتهى وقت تسجيل الحضور لهذه الجلسة.';
-      emit(
-        currentState.copyWith(
-          mutationError: _mutationError,
-        ),
-      );
+    if (!currentState.session.canRoleEdit(
+      role: actor.role,
+      now: _nowProvider(),
+    )) {
+      _mutationError = 'هذه الجلسة للقراءة فقط حالياً.';
+      emit(currentState.copyWith(mutationError: _mutationError));
       return;
     }
 

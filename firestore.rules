@@ -22,6 +22,7 @@ service cloud.firestore {
         'email',
         'role',
         'isEmailVerified',
+        'createdAt',
         'updatedAt',
       ];
     }
@@ -97,7 +98,7 @@ service cloud.firestore {
         request.resource.data.name.size() > 0 &&
         request.resource.data.email is string &&
         request.resource.data.email.size() > 0 &&
-        request.resource.data.isEmailVerified is bool;
+        request.resource.data.isEmailVerified == false;
     }
 
     function validSelfUserUpdate(userId) {
@@ -117,7 +118,7 @@ service cloud.firestore {
         request.resource.data.isEmailVerified is bool;
     }
 
-    function sessionAcceptsMarks(teamId, sessionId) {
+    function sessionAcceptsLiveMarks(teamId, sessionId) {
       let session = get(
         /databases/$(database)/documents/Classes/$(teamId)/attendance_sessions/$(sessionId)
       ).data;
@@ -127,6 +128,22 @@ service cloud.firestore {
         session.isClosed != true &&
         request.time >= session.startsAt &&
         request.time < session.endsAt;
+    }
+
+    function sessionAcceptsAdminCorrection(teamId, sessionId) {
+      let session = get(
+        /databases/$(database)/documents/Classes/$(teamId)/attendance_sessions/$(sessionId)
+      ).data;
+
+      return session != null &&
+        teamIsActive(teamId) &&
+        isAdmin() &&
+        session.isReopenedForAdminEdit == true;
+    }
+
+    function sessionAcceptsMarks(teamId, sessionId) {
+      return sessionAcceptsLiveMarks(teamId, sessionId) ||
+        sessionAcceptsAdminCorrection(teamId, sessionId);
     }
 
     function validAttendanceSessionPayload(teamId) {
@@ -143,11 +160,19 @@ service cloud.firestore {
           'createdAt',
           'updatedAt',
           'isClosed',
+          'isReopenedForAdminEdit',
+          'reopenedAt',
+          'reopenedByUserId',
+          'reopenedByName',
           'studentIdsSnapshot',
           'studentNameSnapshots',
         ]) &&
         request.resource.data.teamId == teamId &&
         request.resource.data.createdByUserId == callerUid() &&
+        request.resource.data.isReopenedForAdminEdit == false &&
+        request.resource.data.reopenedAt == null &&
+        request.resource.data.reopenedByUserId == null &&
+        request.resource.data.reopenedByName == null &&
         request.resource.data.durationMinutes is int &&
         request.resource.data.durationMinutes > 0;
     }

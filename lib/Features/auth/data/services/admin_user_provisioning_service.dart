@@ -65,7 +65,7 @@ class ClientAdminUserProvisioningService
         isEmailVerified: false,
       );
 
-      await _userProfileStore.saveUser(appUser);
+      await _userProfileStore.saveUser(appUser, isNew: true);
       profileSaved = true;
 
       return appUser;

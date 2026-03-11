@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:firebase_auth/firebase_auth.dart'
     show FirebaseAuth, FirebaseAuthException, User;
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
 class FirebaseAuthProvider implements AuthProvider {
   final FirebaseAuth _auth;
@@ -152,7 +153,7 @@ class FirebaseAuthProvider implements AuthProvider {
           isEmailVerified: false,
         );
 
-        await _userProfileStore.saveUser(appUser);
+        await _userProfileStore.saveUser(appUser, isNew: true);
         profileSaved = true;
         _userCache[appUser.uid] = appUser;
 
@@ -192,6 +193,12 @@ class FirebaseAuthProvider implements AuthProvider {
             await _auth.signOut();
           }
         } catch (rollbackError) {
+          FirebaseCrashlytics.instance.recordError(
+            rollbackError,
+            StackTrace.current,
+            reason: 'ORPHANED_AUTH_ACCOUNT uid=$rollbackUid',
+            fatal: false,
+          );
           _userCache.remove(rollbackUid);
           throw const GenericAuthException(
             'Account setup failed and cleanup was incomplete. Please contact support or try again later.',
