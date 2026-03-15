@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
+import 'package:flutter/foundation.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/team/data/models/team_model.dart';
 
@@ -59,10 +60,11 @@ class AdminTeamMembershipService {
     );
 
     await _commitOpsInChunks(ops);
-    await _recomputeStudentIdsForClasses(affectedClassIds);
+    await recomputeStudentIdsForClasses(affectedClassIds);
   }
 
-  Future<void> _recomputeStudentIdsForClasses(Set<String> classIds) async {
+  @visibleForTesting
+  Future<void> recomputeStudentIdsForClasses(Set<String> classIds) async {
     final normalizedClassIds = classIds
         .map((id) => id.trim())
         .where((id) => id.isNotEmpty)
@@ -76,16 +78,34 @@ class AdminTeamMembershipService {
       final end = (i + 200 > pendingIds.length) ? pendingIds.length : i + 200;
       final slice = pendingIds.sublist(i, end);
 
-      for (final classId in slice) {
+      // We group the classes into chunks of 30 due to Firestore's `whereIn` limit
+      final classToStudents = <String, List<String>>{};
+      for (final id in slice) {
+        classToStudents[id] = [];
+      }
+
+      for (var j = 0; j < slice.length; j += 30) {
+        final chunkEnd = (j + 30 > slice.length) ? slice.length : j + 30;
+        final chunk = slice.sublist(j, chunkEnd);
+
         final membersSnap = await _students
-            .where('classId', isEqualTo: classId)
+            .where('classId', whereIn: chunk)
             .get();
-        final memberIds = membersSnap.docs
-            .where((studentDoc) => studentDoc.data()['isArchived'] != true)
-            .map((studentDoc) => studentDoc.id)
-            .toList(growable: false);
+
+        for (final doc in membersSnap.docs) {
+          final data = doc.data();
+          if (data['isArchived'] != true) {
+            final classId = data['classId']?.toString();
+            if (classId != null && classToStudents.containsKey(classId)) {
+              classToStudents[classId]!.add(doc.id);
+            }
+          }
+        }
+      }
+
+      for (final classId in slice) {
         batch.set(_classes.doc(classId), {
-          'student_ids': memberIds,
+          'student_ids': classToStudents[classId]!,
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
       }
