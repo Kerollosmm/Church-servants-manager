@@ -50,10 +50,7 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   void _navigateForward() {
-    if (!mounted) {
-      return;
-    }
-
+    if (!mounted) return;
     Navigator.of(context).pushReplacement(
       PageRouteBuilder<void>(
         transitionDuration: const Duration(milliseconds: 350),

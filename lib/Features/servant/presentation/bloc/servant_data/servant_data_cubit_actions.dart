@@ -4,9 +4,7 @@ part of 'servant_data_cubit.dart';
 
 extension ServantDataCubitActions on ServantDataCubit {
   bool _ensureAdmin(AuthUser actor) {
-    if (actor.role == UserRole.admin) {
-      return true;
-    }
+    if (actor.role == UserRole.admin) return true;
     emit(
       const ServantDataError(
         GenericServantFailure(
@@ -48,13 +46,10 @@ extension ServantDataCubitActions on ServantDataCubit {
   void _emitMutationFailure(Object error) {
     final failure = _mapFailure(error);
     if (_allServants.isNotEmpty) {
-      _emitLoaded(
-        mutationStatus: ServantMutationStatus.failure,
-        feedbackMessage: failure.message,
-      );
-      return;
+      _emitLoaded(mutationStatus: ServantMutationStatus.failure, feedbackMessage: failure.message);
+    } else {
+      emit(ServantDataError(failure));
     }
-    emit(ServantDataError(failure));
   }
 
   Future<void> loadServants({
@@ -214,11 +209,9 @@ extension ServantDataCubitActions on ServantDataCubit {
     bool? includeArchived,
   }) async {
     if (!_ensureAdmin(actor)) return;
-    if (includeArchived != null) {
-      _includeArchived = includeArchived;
-    }
+    if (includeArchived != null) _includeArchived = includeArchived;
     await _reloadFromServer(actor);
-    if (_lastQuery != null && _lastQuery!.isNotEmpty) {
+    if (_lastQuery?.isNotEmpty == true) {
       await searchServants(
         actor: actor,
         query: _lastQuery!,
@@ -236,7 +229,7 @@ extension ServantDataCubitActions on ServantDataCubit {
       _includeArchived = includeArchived;
     }
     if (_isLoadingMore || !_hasMore) return;
-    if (_lastQuery != null && _lastQuery!.isNotEmpty) return;
+    if (_lastQuery?.isNotEmpty == true) return;
 
     _isLoadingMore = true;
     _emitLoaded(isLoadingMore: true);
@@ -326,11 +319,8 @@ extension ServantDataCubitActions on ServantDataCubit {
   }
 
   bool _canOptimisticallyUpdate(ServantDataLoaded previousLoaded) {
-    if (_lastQuery != null && _lastQuery!.isNotEmpty) return false;
-    if (previousLoaded.currentQuery != null &&
-        previousLoaded.currentQuery!.isNotEmpty) {
-      return false;
-    }
+    if (_lastQuery?.isNotEmpty == true) return false;
+    if (previousLoaded.currentQuery?.isNotEmpty == true) return false;
     if (previousLoaded.currentFilterTeamName != null) return false;
     return true;
   }

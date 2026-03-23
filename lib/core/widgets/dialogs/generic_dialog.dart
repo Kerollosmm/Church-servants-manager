@@ -20,11 +20,8 @@ Future<T?> showGenericDialog<T>({
         ),
         content: Text(content, style: const TextStyle(fontSize: 15)),
         actions: options.keys.map((optionTitle) {
-          final T? value = options[optionTitle];
           return TextButton(
-            onPressed: () {
-              Navigator.of(context).pop(value);
-            },
+            onPressed: () => Navigator.of(context).pop(options[optionTitle]),
             child: Text(
               optionTitle,
               style: TextStyle(

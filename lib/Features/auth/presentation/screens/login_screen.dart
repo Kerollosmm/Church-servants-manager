@@ -122,10 +122,7 @@ class _LoginFormState extends State<_LoginForm> {
   }
 
   void _handleSubmit() {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
+    if (!_formKey.currentState!.validate()) return;
     widget.onSubmit(_emailController.text.trim(), _passwordController.text);
   }
 

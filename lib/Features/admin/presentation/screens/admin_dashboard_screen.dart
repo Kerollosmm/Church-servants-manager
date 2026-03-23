@@ -29,7 +29,6 @@ class AdminDashboardScreen extends StatelessWidget {
         child: const _AdminDashboardView(),
       );
     }
-
     return BlocProvider<AdminDashboardCubit>(
       create: (context) => AdminDashboardCubit(
         studentRepository: context.read<StudentDataRepository>(),

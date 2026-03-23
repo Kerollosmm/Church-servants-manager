@@ -88,9 +88,7 @@ class _AdminRequiresFreshSession extends StatelessWidget {
               ),
               AppSpacing.gapLg,
               FilledButton.icon(
-                onPressed: () {
-                  context.read<AuthBloc>().add(const AuthEventRefreshUser());
-                },
+                onPressed: () => context.read<AuthBloc>().add(const AuthEventRefreshUser()),
                 icon: const Icon(Icons.refresh),
                 label: const Text('Refresh permissions'),
               ),

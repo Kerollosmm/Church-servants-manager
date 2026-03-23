@@ -33,11 +33,7 @@ class _LoginFormState extends State<LoginForm> {
   }
 
   void _submit() {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
-    // FIX [P2]: Emit normalized login credentials from the extracted form widget.
+    if (!_formKey.currentState!.validate()) return;
     widget.onSubmit(_emailController.text.trim(), _passwordController.text);
   }
 
@@ -111,9 +107,7 @@ class _LoginFormState extends State<LoginForm> {
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton(
-                      onPressed: () {
-                        Navigator.pushNamed(context, forgotPassword);
-                      },
+                      onPressed: () => Navigator.pushNamed(context, forgotPassword),
                       child: const Text('هل نسيت كلمة المرور؟'),
                     ),
                   ),
@@ -125,9 +119,7 @@ class _LoginFormState extends State<LoginForm> {
                     children: [
                       Text('ليس لديك حساب؟', style: theme.textTheme.bodyMedium),
                       TextButton(
-                        onPressed: () {
-                          Navigator.pushNamed(context, register);
-                        },
+                        onPressed: () => Navigator.pushNamed(context, register),
                         child: const Text('إنشاء حساب'),
                       ),
                     ],

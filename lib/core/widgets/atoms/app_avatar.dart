@@ -48,7 +48,7 @@ class AppAvatar extends StatelessWidget {
     );
   }
 
-  bool get _hasImage => imageUrl != null && imageUrl!.trim().isNotEmpty;
+  bool get _hasImage => imageUrl?.trim().isNotEmpty == true;
 
   String get _initials {
     final parts = name
@@ -57,13 +57,8 @@ class AppAvatar extends StatelessWidget {
         .where((part) => part.isNotEmpty)
         .take(2)
         .toList();
-
-    if (parts.isEmpty) {
-      return '?';
-    }
-
-    final letters = parts.map((part) => part.substring(0, 1));
-    return letters.join().toUpperCase();
+    if (parts.isEmpty) return '?';
+    return parts.map((part) => part[0]).join().toUpperCase();
   }
 }
 

@@ -55,14 +55,10 @@ class ServantDataRepository implements IServantRepository {
     List<_ServantDoc> docs,
     bool includeArchived,
   ) {
-    final servants = <ServantModel>[];
-    for (final doc in docs) {
-      final servant = _servantFromData(doc.data(), doc.id, includeArchived);
-      if (servant != null) {
-        servants.add(servant);
-      }
-    }
-    return servants;
+    return docs
+        .map((doc) => _servantFromData(doc.data(), doc.id, includeArchived))
+        .whereType<ServantModel>()
+        .toList();
   }
 
   Map<String, dynamic> _normalizeServantWriteData(ServantModel servant) {
@@ -86,13 +82,10 @@ class ServantDataRepository implements IServantRepository {
   }) async {
     try {
       final doc = await _usersCollection.doc(docId).get();
-      if (doc.exists && doc.data() != null) {
-        // Verify this user has servant role
-        final data = doc.data()!;
-        if (data['role'] != UserRole.servant.name) return null;
-        return _servantFromData(data, doc.id, includeArchived);
-      }
-      return null;
+      final data = doc.data();
+      if (!doc.exists || data == null) return null;
+      if (data['role'] != UserRole.servant.name) return null;
+      return _servantFromData(data, doc.id, includeArchived);
     } catch (e) {
       throw mapExceptionToServantFailure(e);
     }
@@ -225,23 +218,23 @@ class ServantDataRepository implements IServantRepository {
     String teamName, {
     bool includeArchived = false,
   }) async {
+    final baseQuery = _usersCollection
+        .where('role', isEqualTo: UserRole.servant.name)
+        .where('groupId', isEqualTo: teamName);
+
     try {
-      try {
-        final cacheSnapshot = await _usersCollection
-            .where('role', isEqualTo: UserRole.servant.name)
-            .where('groupId', isEqualTo: teamName)
-            .get(const GetOptions(source: Source.cache));
+      final cacheSnapshot = await baseQuery.get(
+        const GetOptions(source: Source.cache),
+      );
+      if (cacheSnapshot.docs.isNotEmpty) {
+        return _servantsFromDocs(cacheSnapshot.docs, includeArchived);
+      }
+    } catch (_) {}
 
-        if (cacheSnapshot.docs.isNotEmpty) {
-          return _servantsFromDocs(cacheSnapshot.docs, includeArchived);
-        }
-      } catch (_) {}
-
-      final snapshot = await _usersCollection
-          .where('role', isEqualTo: UserRole.servant.name)
-          .where('groupId', isEqualTo: teamName)
-          .get(const GetOptions(source: Source.server));
-
+    try {
+      final snapshot = await baseQuery.get(
+        const GetOptions(source: Source.server),
+      );
       return _servantsFromDocs(snapshot.docs, includeArchived);
     } catch (e) {
       throw mapExceptionToServantFailure(e);

@@ -48,17 +48,12 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
       )..load(groupId: team.groupId, teamId: team.id),
       child: BlocListener<TeamMembersCubit, TeamMembersState>(
         listener: (context, state) {
-          if (state.feedbackMessage != null &&
-              state.mutationStatus == TeamMembersMutationStatus.failure) {
-            AppSnackbars.showError(context, state.feedbackMessage!);
-          }
-          if (state.feedbackMessage != null &&
-              state.mutationStatus == TeamMembersMutationStatus.success) {
-            AppSnackbars.showSuccess(
-              context,
-              state.feedbackMessage!,
-              backgroundColor: AppColors.secondary,
-            );
+          final message = state.feedbackMessage;
+          if (message == null) return;
+          if (state.mutationStatus == TeamMembersMutationStatus.failure) {
+            AppSnackbars.showError(context, message);
+          } else if (state.mutationStatus == TeamMembersMutationStatus.success) {
+            AppSnackbars.showSuccess(context, message, backgroundColor: AppColors.secondary);
             Navigator.of(context).pop(true);
           }
         },

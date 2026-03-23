@@ -97,7 +97,6 @@ class AdminDashboardCubit extends Cubit<AdminDashboardState> {
     final servantRepository = _servantRepository;
     final teamRepository = _teamRepository;
     final attendanceRepository = _attendanceRepository;
-
     if (studentRepository == null ||
         servantRepository == null ||
         teamRepository == null ||
@@ -163,10 +162,9 @@ class AdminDashboardCubit extends Cubit<AdminDashboardState> {
               ..sort((a, b) => b.startsAt.compareTo(a.startsAt));
 
         final DateTime now = DateTime.now();
-        final int sessionsThisMonth = sessions.where((session) {
-          return session.startsAt.year == now.year &&
-              session.startsAt.month == now.month;
-        }).length;
+        final int sessionsThisMonth = sessions
+            .where((s) => s.startsAt.year == now.year && s.startsAt.month == now.month)
+            .length;
 
         return _AdminAttendanceSummary(
           sessionsThisMonth: sessionsThisMonth,

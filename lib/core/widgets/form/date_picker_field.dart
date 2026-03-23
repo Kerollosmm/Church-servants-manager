@@ -16,11 +16,8 @@ class DatePickerField extends StatelessWidget {
   final DateTime? value;
   final VoidCallback onPressed;
 
-  String _formatDate(DateTime date) {
-    final month = date.month.toString().padLeft(2, '0');
-    final day = date.day.toString().padLeft(2, '0');
-    return '${date.year}-$month-$day';
-  }
+  String _formatDate(DateTime date) =>
+      '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 
   @override
   Widget build(BuildContext context) {
@@ -35,7 +32,7 @@ class DatePickerField extends StatelessWidget {
               prefixIcon: const Icon(Icons.cake_outlined),
             ),
             child: Text(
-              value == null ? '—' : _formatDate(value!),
+              value != null ? _formatDate(value!) : '—',
               style: theme.textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w600,
                 color: AppColors.textPrimary,

@@ -1,3 +1,5 @@
+import 'dart:math' show max, min;
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
@@ -80,10 +82,7 @@ class AttendanceRepository implements IAttendanceRepository {
   List<List<T>> _chunkList<T>(List<T> input, int chunkSize) {
     final chunks = <List<T>>[];
     for (var index = 0; index < input.length; index += chunkSize) {
-      final end = index + chunkSize > input.length
-          ? input.length
-          : index + chunkSize;
-      chunks.add(input.sublist(index, end));
+      chunks.add(input.sublist(index, min(index + chunkSize, input.length)));
     }
     return chunks;
   }
@@ -93,9 +92,9 @@ class AttendanceRepository implements IAttendanceRepository {
   }
 
   String _slugifyTitle(String? title) {
-    final normalized = _normalizeTitle(title);
-    final slug = normalized.replaceAll(RegExp(r'[^a-z0-9]+'), '-');
-    final cleaned = slug.replaceAll(RegExp(r'^-+|-+$'), '');
+    final cleaned = _normalizeTitle(title)
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+        .replaceAll(RegExp(r'^-+|-+$'), '');
     if (cleaned.isEmpty) return 'session';
     if (cleaned.length <= 40) return cleaned;
     return cleaned.substring(0, 40);
@@ -203,12 +202,11 @@ class AttendanceRepository implements IAttendanceRepository {
   Stream<Map<String, StudentModel>> _watchStudentsByIds(
     List<String> studentIds,
   ) {
-    final normalizedIds = <String>[];
-    for (final id in studentIds) {
-      final normalized = id.trim();
-      if (normalized.isEmpty || normalizedIds.contains(normalized)) continue;
-      normalizedIds.add(normalized);
-    }
+    final normalizedIds = studentIds
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
 
     if (normalizedIds.isEmpty) {
       return Stream.value(const <String, StudentModel>{});
@@ -563,12 +561,10 @@ class AttendanceRepository implements IAttendanceRepository {
       List<AttendanceSession> sessions,
       DateTime now,
     ) {
-      for (final session in sessions) {
-        if (session.isOpenAt(now)) {
-          return session;
-        }
-      }
-      return null;
+      return sessions.cast<AttendanceSession?>().firstWhere(
+        (s) => s!.isOpenAt(now),
+        orElse: () => null,
+      );
     });
   }
 
@@ -918,9 +914,10 @@ class AttendanceRepository implements IAttendanceRepository {
           }
         }
 
-        final sessionAbsentCount =
-            session.studentIdsSnapshot.length - sessionMarkedCount;
-        absentCount += sessionAbsentCount < 0 ? 0 : sessionAbsentCount;
+        absentCount += max(
+          0,
+          session.studentIdsSnapshot.length - sessionMarkedCount,
+        );
       }
 
       return TeamAttendanceStats(

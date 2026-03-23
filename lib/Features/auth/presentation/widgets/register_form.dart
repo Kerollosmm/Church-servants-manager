@@ -36,11 +36,7 @@ class _RegisterFormState extends State<RegisterForm> {
   }
 
   void _submit() {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
-    // FIX [P2]: Extract registration field management from the screen widget.
+    if (!_formKey.currentState!.validate()) return;
     widget.onSubmit(
       _nameController.text.trim(),
       _emailController.text.trim(),

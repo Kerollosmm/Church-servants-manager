@@ -17,7 +17,6 @@ part 'team_cubit_actions.dart';
 /// - Admin: full CRUD across all groups
 /// - Servant: load teams for their group
 class TeamCubit extends Cubit<TeamState> {
-  // FIX [P1]: delegate team loading and assignment to dedicated use cases.
   TeamCubit({
     required TeamRepository teamRepository,
     required AdminTeamService adminTeamService,

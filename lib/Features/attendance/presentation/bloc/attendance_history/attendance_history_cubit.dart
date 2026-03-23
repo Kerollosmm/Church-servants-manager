@@ -52,7 +52,7 @@ class AttendanceHistoryCubit extends Cubit<AttendanceHistoryState> {
 
   void _emitLoaded() {
     final teamId = _teamId;
-    if (teamId == null || teamId.isEmpty) return;
+    if (teamId == null) return;
     emit(
       AttendanceHistoryLoaded(
         teamId: teamId,

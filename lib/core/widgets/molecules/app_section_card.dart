@@ -36,7 +36,7 @@ class AppSectionCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (headerTitle != null && headerTitle!.isNotEmpty)
+          if (headerTitle?.isNotEmpty == true)
             Container(
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.spacingM,

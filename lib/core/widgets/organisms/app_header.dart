@@ -64,7 +64,7 @@ class AppHeader extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(title, style: theme.textTheme.headlineSmall),
-                      if (subtitle != null && subtitle!.isNotEmpty) ...[
+                      if (subtitle?.isNotEmpty == true) ...[
                         AppSpacing.gapXs,
                         Text(subtitle!, style: theme.textTheme.bodyMedium),
                       ],

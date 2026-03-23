@@ -22,7 +22,7 @@ class StudentAttendanceCubit extends Cubit<StudentAttendanceState> {
   void loadForStudent({required String studentId, String? teamId}) {
     _studentId = studentId.trim();
     _teamId = teamId?.trim();
-    if (_studentId == null || _studentId!.isEmpty) {
+    if (_studentId!.isEmpty) {
       emit(const StudentAttendanceError('تعذر تحديد المخدوم المطلوب.'));
       return;
     }
@@ -48,8 +48,7 @@ class StudentAttendanceCubit extends Cubit<StudentAttendanceState> {
 
   void _onHistoryUpdated(List<StudentAttendanceHistoryItem> history) {
     final studentId = _studentId;
-    if (studentId == null || studentId.isEmpty) return;
-
+    if (studentId == null) return;
     final stats = StudentAttendanceStats.fromHistory(
       studentId: studentId,
       filterTeamId: _teamId,

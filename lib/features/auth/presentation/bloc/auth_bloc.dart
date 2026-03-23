@@ -57,26 +57,16 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     switch (resolution.status) {
       case AuthSessionStatus.authenticated:
         emit(AuthAuthenticated(resolution.user!));
-        break;
       case AuthSessionStatus.unauthenticated:
         emit(const AuthUnauthenticated());
-        break;
       case AuthSessionStatus.needsVerification:
         emit(const AuthNeedsVerification());
-        break;
       case AuthSessionStatus.archived:
-        emit(
-          AuthArchived(message: resolution.message!, email: resolution.email),
-        );
-        break;
+        emit(AuthArchived(message: resolution.message!, email: resolution.email));
       case AuthSessionStatus.degraded:
-        emit(
-          AuthDegraded(user: resolution.user!, message: resolution.message!),
-        );
-        break;
+        emit(AuthDegraded(user: resolution.user!, message: resolution.message!));
       case AuthSessionStatus.error:
         emit(AuthError(resolution.message!));
-        break;
     }
   }
 

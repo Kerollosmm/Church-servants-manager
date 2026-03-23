@@ -44,28 +44,20 @@ class RoleRouter {
 
   static Widget resolve(UserRole role, AuthState state) {
     final user = switch (state) {
-      AuthAuthenticated() => state.user,
-      AuthDegraded() => state.user,
+      AuthAuthenticated(:final user) || AuthDegraded(:final user) => user,
       _ => null,
     };
+    if (user == null) return const SizedBox.shrink();
 
-    if (user == null) {
-      return const SizedBox.shrink();
-    }
-
-    switch (role) {
-      case UserRole.servant:
-        return ServantDashboardScreen(user: user);
-      case UserRole.student:
-        return StudentProfileScreen(user: user);
-      case UserRole.admin:
-        if (state is AuthAuthenticated) {
-          return AdminDashboardScreen();
-        }
-        return AdminRefreshRequiredScreen(
-          message: (state as AuthDegraded).message,
-        );
-    }
+    return switch (role) {
+      UserRole.servant => ServantDashboardScreen(user: user),
+      UserRole.student => StudentProfileScreen(user: user),
+      UserRole.admin => state is AuthAuthenticated
+          ? AdminDashboardScreen()
+          : AdminRefreshRequiredScreen(
+              message: (state as AuthDegraded).message,
+            ),
+    };
   }
 }
 
@@ -94,17 +86,13 @@ class AdminRefreshRequiredScreen extends StatelessWidget {
               Text(message, textAlign: TextAlign.center),
               const SizedBox(height: 16),
               FilledButton.icon(
-                onPressed: () {
-                  context.read<AuthBloc>().add(const AuthEventRefreshUser());
-                },
+                onPressed: () => context.read<AuthBloc>().add(const AuthEventRefreshUser()),
                 icon: const Icon(Icons.refresh),
                 label: const Text('تحديث الصلاحيات'),
               ),
               const SizedBox(height: 8),
               TextButton(
-                onPressed: () {
-                  context.read<AuthBloc>().add(const AuthEventSignOut());
-                },
+                onPressed: () => context.read<AuthBloc>().add(const AuthEventSignOut()),
                 child: const Text('تسجيل الخروج'),
               ),
             ],
@@ -139,15 +127,13 @@ class ArchivedAccountScreen extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(message, textAlign: TextAlign.center),
-              if (email != null && email!.isNotEmpty) ...[
+              if (email?.isNotEmpty == true) ...[
                 const SizedBox(height: 8),
                 Text(email!, textAlign: TextAlign.center),
               ],
               const SizedBox(height: 16),
               TextButton(
-                onPressed: () {
-                  context.read<AuthBloc>().add(const AuthEventSignOut());
-                },
+                onPressed: () => context.read<AuthBloc>().add(const AuthEventSignOut()),
                 child: const Text('العودة لتسجيل الدخول'),
               ),
             ],

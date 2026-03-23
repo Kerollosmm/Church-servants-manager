@@ -25,14 +25,8 @@ class FirebaseAuthProvider implements AuthProvider {
   @override
   AuthUser? get currentUser {
     final user = _auth.currentUser;
-    if (user != null) {
-      // Check if we have cached data with role info
-      if (_userCache.containsKey(user.uid)) {
-        return _userCache[user.uid];
-      }
-      return AuthUser.fromFirebase(user);
-    }
-    return null;
+    if (user == null) return null;
+    return _userCache[user.uid] ?? AuthUser.fromFirebase(user);
   }
 
   @override
@@ -64,10 +58,7 @@ class FirebaseAuthProvider implements AuthProvider {
   Future<void> _signOutSilently(String uid) async {
     _userCache.remove(uid);
     final currentUser = _auth.currentUser;
-    if (currentUser == null) {
-      return;
-    }
-    if (currentUser.uid == uid) {
+    if (currentUser != null && currentUser.uid == uid) {
       await _auth.signOut();
     }
   }
@@ -212,25 +203,22 @@ class FirebaseAuthProvider implements AuthProvider {
     }
   }
 
+  User _requireCurrentUser() {
+    final user = _auth.currentUser;
+    if (user == null) throw UserNotLoggedInAuthException();
+    return user;
+  }
+
   @override
   Future<void> logOut() async {
-    final user = _auth.currentUser;
-    if (user != null) {
-      _userCache.remove(user.uid);
-      await _auth.signOut();
-    } else {
-      throw UserNotLoggedInAuthException();
-    }
+    final user = _requireCurrentUser();
+    _userCache.remove(user.uid);
+    await _auth.signOut();
   }
 
   @override
   Future<void> sendEmailVerification() async {
-    final user = _auth.currentUser;
-    if (user != null) {
-      await user.sendEmailVerification();
-    } else {
-      throw UserNotLoggedInAuthException();
-    }
+    await _requireCurrentUser().sendEmailVerification();
   }
 
   @override
@@ -248,8 +236,7 @@ class FirebaseAuthProvider implements AuthProvider {
         default:
           rethrow;
       }
-    } catch (e) {
-      if (e is FirebaseAuthException) rethrow;
+    } catch (_) {
       throw const PasswordResetAuthException();
     }
   }
@@ -257,18 +244,15 @@ class FirebaseAuthProvider implements AuthProvider {
   @override
   Future<bool> isEmailVerified() async {
     final user = _auth.currentUser;
-    if (user != null) {
-      await user.reload();
-      final verified = user.emailVerified;
-      // Update cache
-      if (_userCache.containsKey(user.uid)) {
-        _userCache[user.uid] = _userCache[user.uid]!.copyWith(
-          isEmailVerified: verified,
-        );
-      }
-      return verified;
+    if (user == null) return false;
+    await user.reload();
+    final verified = user.emailVerified;
+    if (_userCache.containsKey(user.uid)) {
+      _userCache[user.uid] = _userCache[user.uid]!.copyWith(
+        isEmailVerified: verified,
+      );
     }
-    return false;
+    return verified;
   }
 
   @override
@@ -276,14 +260,11 @@ class FirebaseAuthProvider implements AuthProvider {
     final user = _auth.currentUser;
     if (user != null) {
       await user.reload();
-      // Invalidate cache to force fetch on next access
       _userCache.remove(user.uid);
     }
   }
 
-  /// Get user data from Firestore with improved cache/server fallback
   Future<AuthUser> getUserData(String uid, {bool forceRefresh = false}) async {
-    // Check cache first
     if (!forceRefresh && _userCache.containsKey(uid)) {
       return _userCache[uid]!;
     }

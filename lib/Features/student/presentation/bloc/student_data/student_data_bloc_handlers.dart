@@ -31,9 +31,7 @@ Future<void> _cancelStudentsSubscription(StudentDataBloc bloc) async {
 
 void _completePendingRefresh(StudentDataBloc bloc) {
   final completer = bloc._pendingRefreshCompleter;
-  if (completer != null && !completer.isCompleted) {
-    completer.complete();
-  }
+  if (completer?.isCompleted == false) completer!.complete();
   bloc._pendingRefreshCompleter = null;
 }
 
@@ -86,10 +84,10 @@ List<StudentModel> _resolveVisibleStudents(
   StudentDataBloc bloc,
   String? query,
 ) {
-  if (query != null && query.isNotEmpty) {
+  if (query?.isNotEmpty == true) {
     return bloc._searchStudentsUseCase(
       students: bloc._allStudents,
-      query: query,
+      query: query!,
     );
   }
   return bloc._allStudents;

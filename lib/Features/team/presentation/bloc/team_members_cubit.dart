@@ -33,13 +33,9 @@ class TeamMembersState {
 
   List<StudentModel> get visibleStudents {
     final query = searchQuery.trim().toLowerCase();
-    if (query.isEmpty) {
-      return students;
-    }
+    if (query.isEmpty) return students;
     return students
-        .where((student) {
-          return student.name.toLowerCase().contains(query);
-        })
+        .where((student) => student.name.toLowerCase().contains(query))
         .toList(growable: false);
   }
 
@@ -136,11 +132,7 @@ class TeamMembersCubit extends Cubit<TeamMembersState> {
 
   void toggleSelection(String studentId, bool isSelected) {
     final selected = Set<String>.from(state.selectedStudentIds);
-    if (isSelected) {
-      selected.add(studentId);
-    } else {
-      selected.remove(studentId);
-    }
+    isSelected ? selected.add(studentId) : selected.remove(studentId);
     emit(_clearMutationFeedback(state).copyWith(selectedStudentIds: selected));
   }
 

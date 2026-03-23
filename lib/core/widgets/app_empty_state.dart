@@ -52,7 +52,7 @@ class AppEmptyState extends StatelessWidget {
             if (actionCallback != null) ...[
               AppSpacing.gapMd,
               FilledButton.icon(
-                onPressed: () => actionCallback.call(),
+                onPressed: actionCallback,
                 icon: const Icon(Icons.refresh),
                 label: Text(resolvedActionLabel),
               ),

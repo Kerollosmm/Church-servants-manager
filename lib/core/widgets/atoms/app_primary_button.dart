@@ -29,16 +29,11 @@ class AppPrimaryButton extends StatelessWidget {
     return ValueListenableBuilder<bool>(
       valueListenable: isPressed,
       builder: (context, pressed, child) {
+        final interactive = onPressed != null && !isLoading;
         return GestureDetector(
-          onTapDown: onPressed == null || isLoading
-              ? null
-              : (_) => isPressed.value = true,
-          onTapUp: onPressed == null || isLoading
-              ? null
-              : (_) => isPressed.value = false,
-          onTapCancel: onPressed == null || isLoading
-              ? null
-              : () => isPressed.value = false,
+          onTapDown: interactive ? (_) => isPressed.value = true : null,
+          onTapUp: interactive ? (_) => isPressed.value = false : null,
+          onTapCancel: interactive ? () => isPressed.value = false : null,
           child: AnimatedScale(
             scale: pressed ? 0.98 : 1,
             duration: const Duration(milliseconds: 120),

@@ -102,11 +102,9 @@ class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
     );
   }
 
-  Future<void> markAllRemainingPresent({required AuthUser actor}) {
+  Future<void> markAllRemainingPresent({required AuthUser actor}) async {
     final currentState = state;
-    if (currentState is! AttendanceTakingLoaded) {
-      return Future<void>.value();
-    }
+    if (currentState is! AttendanceTakingLoaded) return;
 
     return _runMutation(
       action: () => _repository.markAllPresentForRemainingStudents(
@@ -134,10 +132,6 @@ class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
       await action();
       _isMutating = false;
       _mutationError = null;
-      final latestState = state;
-      if (latestState is AttendanceTakingLoaded) {
-        emit(latestState.copyWith(isMutating: false, clearMutationError: true));
-      }
     } catch (error, stackTrace) {
       if (kDebugMode) {
         debugPrint(
@@ -145,18 +139,18 @@ class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
         );
         debugPrintStack(stackTrace: stackTrace);
       }
-      final failure = mapExceptionToAttendanceFailure(error);
       _isMutating = false;
-      _mutationError = failure.message;
-      final latestState = state;
-      if (latestState is AttendanceTakingLoaded) {
-        emit(
-          latestState.copyWith(
-            isMutating: false,
-            mutationError: _mutationError,
-          ),
-        );
-      }
+      _mutationError = mapExceptionToAttendanceFailure(error).message;
+    }
+    final latestState = state;
+    if (latestState is AttendanceTakingLoaded) {
+      emit(
+        latestState.copyWith(
+          isMutating: false,
+          mutationError: _mutationError,
+          clearMutationError: _mutationError == null,
+        ),
+      );
     }
   }
 

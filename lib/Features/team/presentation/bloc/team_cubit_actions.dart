@@ -20,9 +20,9 @@ extension TeamCubitActions on TeamCubit {
           feedbackMessage: userMessage,
         ),
       );
-      return;
+    } else {
+      emit(TeamError(userMessage));
     }
-    emit(TeamError(userMessage));
   }
 
   Future<void> _runTeamLoad({
