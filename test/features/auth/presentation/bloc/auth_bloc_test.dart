@@ -25,7 +25,9 @@ void main() {
 
   setUp(() {
     authService = MockAuthService();
-    when(() => authService.authStateChanges).thenAnswer((_) => const Stream.empty());
+    when(
+      () => authService.authStateChanges,
+    ).thenAnswer((_) => const Stream.empty());
   });
 
   test('emits loading then authenticated on successful sign in', () async {
@@ -260,7 +262,9 @@ void main() {
 
   test('reacts to live auth session stream updates after bootstrap', () async {
     final controller = StreamController<AuthUser?>.broadcast();
-    when(() => authService.authStateChanges).thenAnswer((_) => controller.stream);
+    when(
+      () => authService.authStateChanges,
+    ).thenAnswer((_) => controller.stream);
     when(() => authService.currentUser).thenReturn(null);
 
     final bloc = AuthBloc(authService: authService);

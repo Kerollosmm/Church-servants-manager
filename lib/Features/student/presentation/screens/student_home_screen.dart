@@ -2,7 +2,6 @@ import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
 import 'package:church_management_system/core/widgets/common/app_info_banner.dart';
 import 'package:church_management_system/core/widgets/common/app_key_value_row.dart';
-import 'package:church_management_system/core/widgets/common/app_profile_header_card.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:flutter/material.dart';
@@ -40,10 +39,41 @@ class StudentHomeScreen extends StatelessWidget {
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(AppSpacing.lg),
           children: [
-            AppProfileHeaderCard(
-              title: user.name,
-              subtitle: 'أهلا بك في مساحة المخدوم الخاصة بك',
-              icon: Icons.school_outlined,
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 28,
+                      backgroundColor: AppColors.primary.withValues(
+                        alpha: 0.12,
+                      ),
+                      foregroundColor: AppColors.primary,
+                      child: const Icon(Icons.school_outlined),
+                    ),
+                    AppSpacing.gapMd,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            user.name,
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w700),
+                          ),
+                          AppSpacing.gapXs,
+                          Text(
+                            'أهلا بك في مساحة المخدوم الخاصة بك',
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: AppColors.textSecondary),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
             AppSpacing.gapLg,
             Card(

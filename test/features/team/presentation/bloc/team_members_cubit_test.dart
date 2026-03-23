@@ -111,12 +111,9 @@ void main() {
     final selectedStudents = [
       student(id: 's1', name: 'Andrew', classId: 'team-a'),
     ];
-    when(() => repository.getStudentsByGroupWithFallback('year1')).thenAnswer(
-      (_) async => (
-        students: selectedStudents,
-        isFromCache: false,
-      ),
-    );
+    when(
+      () => repository.getStudentsByGroupWithFallback('year1'),
+    ).thenAnswer((_) async => (students: selectedStudents, isFromCache: false));
     when(
       () => adminTeamService.setStudentsForTeam(
         actor: admin,
@@ -143,12 +140,9 @@ void main() {
     final selectedStudents = [
       student(id: 's1', name: 'Andrew', classId: 'team-a'),
     ];
-    when(() => repository.getStudentsByGroupWithFallback('year1')).thenAnswer(
-      (_) async => (
-        students: selectedStudents,
-        isFromCache: false,
-      ),
-    );
+    when(
+      () => repository.getStudentsByGroupWithFallback('year1'),
+    ).thenAnswer((_) async => (students: selectedStudents, isFromCache: false));
     when(
       () => adminTeamService.setStudentsForTeam(
         actor: admin,
@@ -167,7 +161,10 @@ void main() {
 
     expect(cubit.state.isSaving, isFalse);
     expect(cubit.state.mutationStatus, TeamMembersMutationStatus.failure);
-    expect(cubit.state.feedbackMessage, 'تعذر تحديث أعضاء الفريق. حاول مرة أخرى.');
+    expect(
+      cubit.state.feedbackMessage,
+      'تعذر تحديث أعضاء الفريق. حاول مرة أخرى.',
+    );
     await cubit.close();
   });
 }

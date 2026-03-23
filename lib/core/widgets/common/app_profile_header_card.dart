@@ -8,13 +8,13 @@ class AppProfileHeaderCard extends StatelessWidget {
     required this.title,
     required this.subtitle,
     this.avatarText,
-    this.icon,
-  }) : assert(avatarText != null || icon != null);
+    this.icon = Icons.person_outline,
+  });
 
   final String title;
   final String subtitle;
   final String? avatarText;
-  final IconData? icon;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
@@ -28,15 +28,10 @@ class AppProfileHeaderCard extends StatelessWidget {
             CircleAvatar(
               radius: 28,
               backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-              child: icon != null
-                  ? Icon(icon, color: AppColors.primary, size: 28)
-                  : Text(
-                      avatarText!,
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
+              foregroundColor: AppColors.primary,
+              child: avatarText != null && avatarText!.trim().isNotEmpty
+                  ? Text(avatarText!, style: theme.textTheme.titleLarge)
+                  : Icon(icon),
             ),
             AppSpacing.gapMd,
             Expanded(
@@ -45,9 +40,8 @@ class AppProfileHeaderCard extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                   AppSpacing.gapXs,

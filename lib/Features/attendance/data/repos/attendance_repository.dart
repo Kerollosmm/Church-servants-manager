@@ -56,7 +56,10 @@ class AttendanceRepository implements IAttendanceRepository {
   CollectionReference<Map<String, dynamic>> _marksCol(
     String teamId,
     String sessionId,
-  ) => _sessionDoc(teamId, sessionId).collection(FirestoreCollections.attendanceMarks);
+  ) => _sessionDoc(
+    teamId,
+    sessionId,
+  ).collection(FirestoreCollections.attendanceMarks);
 
   DocumentReference<Map<String, dynamic>> _markDoc(
     String teamId,
@@ -77,8 +80,9 @@ class AttendanceRepository implements IAttendanceRepository {
   List<List<T>> _chunkList<T>(List<T> input, int chunkSize) {
     final chunks = <List<T>>[];
     for (var index = 0; index < input.length; index += chunkSize) {
-      final end =
-          index + chunkSize > input.length ? input.length : index + chunkSize;
+      final end = index + chunkSize > input.length
+          ? input.length
+          : index + chunkSize;
       chunks.add(input.sublist(index, end));
     }
     return chunks;
@@ -143,7 +147,9 @@ class AttendanceRepository implements IAttendanceRepository {
     final teamDoc = await _teamDoc(teamId).get();
     final teamData = teamDoc.data();
     if (!teamDoc.exists || teamData == null) {
-      throw const AttendanceValidationFailure('تعذر العثور على الفريق المطلوب.');
+      throw const AttendanceValidationFailure(
+        'تعذر العثور على الفريق المطلوب.',
+      );
     }
     if (teamData['isArchived'] == true) {
       throw const AttendanceValidationFailure(
@@ -158,9 +164,7 @@ class AttendanceRepository implements IAttendanceRepository {
     return AttendanceSession.fromMap(doc.data(), doc.id);
   }
 
-  AttendanceMark? _mapMarkOrNull(
-    DocumentSnapshot<Map<String, dynamic>> doc,
-  ) {
+  AttendanceMark? _mapMarkOrNull(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data();
     if (!doc.exists || data == null) return null;
     try {
@@ -196,7 +200,9 @@ class AttendanceRepository implements IAttendanceRepository {
     return sessions;
   }
 
-  Stream<Map<String, StudentModel>> _watchStudentsByIds(List<String> studentIds) {
+  Stream<Map<String, StudentModel>> _watchStudentsByIds(
+    List<String> studentIds,
+  ) {
     final normalizedIds = <String>[];
     for (final id in studentIds) {
       final normalized = id.trim();
@@ -209,18 +215,22 @@ class AttendanceRepository implements IAttendanceRepository {
     }
 
     final chunks = _chunkList(normalizedIds, 10);
-    final streams = chunks.map((chunk) {
-      return _studentsCollection
-          .where(FieldPath.documentId, whereIn: chunk)
-          .snapshots()
-          .map((snapshot) {
-            final byId = <String, StudentModel>{};
-            for (final student in _studentQueryService.mapStudentDocs(snapshot.docs)) {
-              byId[student.docID] = student;
-            }
-            return byId;
-          });
-    }).toList(growable: false);
+    final streams = chunks
+        .map((chunk) {
+          return _studentsCollection
+              .where(FieldPath.documentId, whereIn: chunk)
+              .snapshots()
+              .map((snapshot) {
+                final byId = <String, StudentModel>{};
+                for (final student in _studentQueryService.mapStudentDocs(
+                  snapshot.docs,
+                )) {
+                  byId[student.docID] = student;
+                }
+                return byId;
+              });
+        })
+        .toList(growable: false);
 
     if (streams.length == 1) {
       return streams.first;
@@ -319,9 +329,10 @@ class AttendanceRepository implements IAttendanceRepository {
     required String studentId,
     String? teamId,
   }) {
-    return _studentSessionsQuery(studentId: studentId, teamId: teamId)
-        .snapshots()
-        .map(_mapSessionsSnapshot);
+    return _studentSessionsQuery(
+      studentId: studentId,
+      teamId: teamId,
+    ).snapshots().map(_mapSessionsSnapshot);
   }
 
   Future<List<AttendanceSession>> _loadStudentSessions({
@@ -329,17 +340,23 @@ class AttendanceRepository implements IAttendanceRepository {
     String? teamId,
     DateTimeRange? range,
   }) async {
-    final snapshot = await _studentSessionsQuery(studentId: studentId, teamId: teamId)
-        .get();
+    final snapshot = await _studentSessionsQuery(
+      studentId: studentId,
+      teamId: teamId,
+    ).get();
     final sessions = _mapSessionsSnapshot(snapshot);
     if (range == null) return sessions;
-    return sessions.where((session) {
-      return !session.startsAt.isBefore(range.start) &&
-          !session.startsAt.isAfter(range.end);
-    }).toList(growable: false);
+    return sessions
+        .where((session) {
+          return !session.startsAt.isBefore(range.start) &&
+              !session.startsAt.isAfter(range.end);
+        })
+        .toList(growable: false);
   }
 
-  Future<Map<String, String>> _loadStudentNamesByIds(List<String> studentIds) async {
+  Future<Map<String, String>> _loadStudentNamesByIds(
+    List<String> studentIds,
+  ) async {
     if (studentIds.isEmpty) return const <String, String>{};
     final chunks = _chunkList(studentIds, 10);
     final names = <String, String>{};
@@ -347,7 +364,9 @@ class AttendanceRepository implements IAttendanceRepository {
       final snapshot = await _studentsCollection
           .where(FieldPath.documentId, whereIn: chunk)
           .get();
-      for (final student in _studentQueryService.mapStudentDocs(snapshot.docs)) {
+      for (final student in _studentQueryService.mapStudentDocs(
+        snapshot.docs,
+      )) {
         names[student.docID] = student.name;
       }
     }
@@ -376,7 +395,10 @@ class AttendanceRepository implements IAttendanceRepository {
   }) async {
     try {
       await assertUserCanManageAttendance(user: markedBy, teamId: teamId);
-      final session = await _getRequiredSession(teamId: teamId, sessionId: sessionId);
+      final session = await _getRequiredSession(
+        teamId: teamId,
+        sessionId: sessionId,
+      );
       _assertStudentInSession(session, studentId);
       _assertSessionWritable(session, _nowProvider());
 
@@ -417,10 +439,14 @@ class AttendanceRepository implements IAttendanceRepository {
     try {
       final normalizedTeamId = teamId.trim();
       if (normalizedTeamId.isEmpty) {
-        throw const AttendanceValidationFailure('يجب اختيار الفريق قبل إنشاء الجلسة.');
+        throw const AttendanceValidationFailure(
+          'يجب اختيار الفريق قبل إنشاء الجلسة.',
+        );
       }
       if (durationMinutes <= 0) {
-        throw const AttendanceValidationFailure('مدة الجلسة يجب أن تكون أكبر من صفر.');
+        throw const AttendanceValidationFailure(
+          'مدة الجلسة يجب أن تكون أكبر من صفر.',
+        );
       }
 
       await assertUserCanManageAttendance(
@@ -461,15 +487,16 @@ class AttendanceRepository implements IAttendanceRepository {
         },
       );
 
-      final existingSnapshot = await _sessionsCol(normalizedTeamId)
-          .where('isClosed', isEqualTo: false)
-          .get();
+      final existingSnapshot = await _sessionsCol(
+        normalizedTeamId,
+      ).where('isClosed', isEqualTo: false).get();
       final existingSessions = _mapSessionsSnapshot(existingSnapshot);
       for (final existing in existingSessions) {
         final isActiveConflict =
             !existing.isEffectivelyClosedAt(now) &&
             _sessionsOverlap(candidate, existing);
-        if (isActiveConflict || _isDuplicateSessionCandidate(candidate, existing)) {
+        if (isActiveConflict ||
+            _isDuplicateSessionCandidate(candidate, existing)) {
           throw const AttendanceSessionConflictFailure();
         }
       }
@@ -504,15 +531,18 @@ class AttendanceRepository implements IAttendanceRepository {
   }) async {
     try {
       _assertAdmin(closedBy);
-      final session = await _getRequiredSession(teamId: teamId, sessionId: sessionId);
+      final session = await _getRequiredSession(
+        teamId: teamId,
+        sessionId: sessionId,
+      );
       if (session.isClosed) {
         return;
       }
 
-      await _sessionDoc(teamId, sessionId).update({
-        'isClosed': true,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      await _sessionDoc(
+        teamId,
+        sessionId,
+      ).update({'isClosed': true, 'updatedAt': FieldValue.serverTimestamp()});
     } catch (error) {
       if (error is AttendanceFailure) rethrow;
       throw mapExceptionToAttendanceFailure(error);
@@ -529,18 +559,17 @@ class AttendanceRepository implements IAttendanceRepository {
 
   @override
   Stream<AttendanceSession?> watchActiveSessionForTeam(String teamId) {
-    return Rx.combineLatest2(
-      watchSessionsForTeam(teamId),
-      _watchClock(),
-      (List<AttendanceSession> sessions, DateTime now) {
-        for (final session in sessions) {
-          if (session.isOpenAt(now)) {
-            return session;
-          }
+    return Rx.combineLatest2(watchSessionsForTeam(teamId), _watchClock(), (
+      List<AttendanceSession> sessions,
+      DateTime now,
+    ) {
+      for (final session in sessions) {
+        if (session.isOpenAt(now)) {
+          return session;
         }
-        return null;
-      },
-    );
+      }
+      return null;
+    });
   }
 
   @override
@@ -619,7 +648,10 @@ class AttendanceRepository implements IAttendanceRepository {
   }) async {
     try {
       await assertUserCanManageAttendance(user: requestedBy, teamId: teamId);
-      final session = await _getRequiredSession(teamId: teamId, sessionId: sessionId);
+      final session = await _getRequiredSession(
+        teamId: teamId,
+        sessionId: sessionId,
+      );
       _assertStudentInSession(session, studentId);
       _assertSessionWritable(session, _nowProvider());
       await _markDoc(teamId, sessionId, studentId).delete();
@@ -637,7 +669,10 @@ class AttendanceRepository implements IAttendanceRepository {
   }) async {
     try {
       await assertUserCanManageAttendance(user: markedBy, teamId: teamId);
-      final session = await _getRequiredSession(teamId: teamId, sessionId: sessionId);
+      final session = await _getRequiredSession(
+        teamId: teamId,
+        sessionId: sessionId,
+      );
       _assertSessionWritable(session, _nowProvider());
 
       final existingMarks = await _marksCol(teamId, sessionId).get();
@@ -652,7 +687,8 @@ class AttendanceRepository implements IAttendanceRepository {
 
       for (final studentId in remainingIds) {
         batch.set(_markDoc(teamId, sessionId, studentId), {
-          'studentNameSnapshot': liveNames[studentId] ??
+          'studentNameSnapshot':
+              liveNames[studentId] ??
               session.studentNameSnapshots[studentId] ??
               'مخدوم',
           'status': AttendanceMarkStatus.present.name,
@@ -675,9 +711,10 @@ class AttendanceRepository implements IAttendanceRepository {
     required String teamId,
     required String sessionId,
   }) {
-    return watchSessionRosterSnapshot(teamId: teamId, sessionId: sessionId).map(
-      (snapshot) => snapshot.roster,
-    );
+    return watchSessionRosterSnapshot(
+      teamId: teamId,
+      sessionId: sessionId,
+    ).map((snapshot) => snapshot.roster);
   }
 
   @override
@@ -687,31 +724,32 @@ class AttendanceRepository implements IAttendanceRepository {
   }) {
     final marksStream = _watchMarksMap(teamId, sessionId);
 
-    return watchSessionById(teamId: teamId, sessionId: sessionId).switchMap((session) {
-      if (session == null) {
-        return Stream<AttendanceRosterSnapshot>.error(
-          const AttendanceSessionNotFoundFailure(),
-        );
-      }
+    return watchSessionById(teamId: teamId, sessionId: sessionId)
+        .switchMap((session) {
+          if (session == null) {
+            return Stream<AttendanceRosterSnapshot>.error(
+              const AttendanceSessionNotFoundFailure(),
+            );
+          }
 
-      return Rx.combineLatest3(
-        _watchStudentsByIds(session.studentIdsSnapshot),
-        marksStream,
-        _watchClock(),
-        (
-          Map<String, StudentModel> studentsById,
-          Map<String, AttendanceMark> marksById,
-          DateTime now,
-        ) {
-          return _buildRosterSnapshot(
-            session: session,
-            studentsById: studentsById,
-            marksById: marksById,
-            now: now,
+          return Rx.combineLatest3(
+            _watchStudentsByIds(session.studentIdsSnapshot),
+            marksStream,
+            _watchClock(),
+            (
+              Map<String, StudentModel> studentsById,
+              Map<String, AttendanceMark> marksById,
+              DateTime now,
+            ) {
+              return _buildRosterSnapshot(
+                session: session,
+                studentsById: studentsById,
+                marksById: marksById,
+                now: now,
+              );
+            },
           );
-        },
-      );
-    });
+        });
   }
 
   @override
@@ -719,16 +757,25 @@ class AttendanceRepository implements IAttendanceRepository {
     required String studentId,
     String? teamId,
   }) {
-    return _watchStudentSessions(studentId: studentId, teamId: teamId).switchMap((sessions) {
+    return _watchStudentSessions(
+      studentId: studentId,
+      teamId: teamId,
+    ).switchMap((sessions) {
       if (sessions.isEmpty) {
         return Stream.value(const <StudentAttendanceHistoryItem>[]);
       }
 
-      final markStreams = sessions.map((session) {
-        return _markDoc(session.teamId, session.id, studentId).snapshots().map((doc) {
-          return (session: session, mark: _mapMarkOrNull(doc));
-        });
-      }).toList(growable: false);
+      final markStreams = sessions
+          .map((session) {
+            return _markDoc(
+              session.teamId,
+              session.id,
+              studentId,
+            ).snapshots().map((doc) {
+              return (session: session, mark: _mapMarkOrNull(doc));
+            });
+          })
+          .toList(growable: false);
 
       return Rx.combineLatest2(
         Rx.combineLatestList(markStreams),
@@ -737,29 +784,32 @@ class AttendanceRepository implements IAttendanceRepository {
           List<({AttendanceSession session, AttendanceMark? mark})> entries,
           DateTime now,
         ) {
-          final history = entries.map((entry) {
-            final session = entry.session;
-            final mark = entry.mark;
-            return StudentAttendanceHistoryItem(
-              sessionId: session.id,
-              teamId: session.teamId,
-              teamNameSnapshot: session.teamNameSnapshot,
-              title: session.title,
-              dateKey: session.dateKey,
-              sessionStartsAt: session.startsAt,
-              sessionEndsAt: session.endsAt,
-              effectiveStatus: AttendanceRosterItem.resolveEffectiveStatus(
-                manualStatus: mark?.status,
-                session: session,
-                now: now,
-              ),
-              isSessionClosed: session.isEffectivelyClosedAt(now),
-              markedAt: mark?.markedAt,
-              markedByName: mark?.markedByName,
-            );
-          }).toList(growable: false);
+          final history = entries
+              .map((entry) {
+                final session = entry.session;
+                final mark = entry.mark;
+                return StudentAttendanceHistoryItem(
+                  sessionId: session.id,
+                  teamId: session.teamId,
+                  teamNameSnapshot: session.teamNameSnapshot,
+                  title: session.title,
+                  dateKey: session.dateKey,
+                  sessionStartsAt: session.startsAt,
+                  sessionEndsAt: session.endsAt,
+                  effectiveStatus: AttendanceRosterItem.resolveEffectiveStatus(
+                    manualStatus: mark?.status,
+                    session: session,
+                    now: now,
+                  ),
+                  isSessionClosed: session.isEffectivelyClosedAt(now),
+                  markedAt: mark?.markedAt,
+                  markedByName: mark?.markedByName,
+                );
+              })
+              .toList(growable: false);
           history.sort(
-            (first, second) => second.sessionStartsAt.compareTo(first.sessionStartsAt),
+            (first, second) =>
+                second.sessionStartsAt.compareTo(first.sessionStartsAt),
           );
           return history;
         },
@@ -781,28 +831,30 @@ class AttendanceRepository implements IAttendanceRepository {
       );
       final now = _nowProvider();
 
-      final history = await Future.wait(sessions.map((session) async {
-        final mark = _mapMarkOrNull(
-          await _markDoc(session.teamId, session.id, studentId).get(),
-        );
-        return StudentAttendanceHistoryItem(
-          sessionId: session.id,
-          teamId: session.teamId,
-          teamNameSnapshot: session.teamNameSnapshot,
-          title: session.title,
-          dateKey: session.dateKey,
-          sessionStartsAt: session.startsAt,
-          sessionEndsAt: session.endsAt,
-          effectiveStatus: AttendanceRosterItem.resolveEffectiveStatus(
-            manualStatus: mark?.status,
-            session: session,
-            now: now,
-          ),
-          isSessionClosed: session.isEffectivelyClosedAt(now),
-          markedAt: mark?.markedAt,
-          markedByName: mark?.markedByName,
-        );
-      }));
+      final history = await Future.wait(
+        sessions.map((session) async {
+          final mark = _mapMarkOrNull(
+            await _markDoc(session.teamId, session.id, studentId).get(),
+          );
+          return StudentAttendanceHistoryItem(
+            sessionId: session.id,
+            teamId: session.teamId,
+            teamNameSnapshot: session.teamNameSnapshot,
+            title: session.title,
+            dateKey: session.dateKey,
+            sessionStartsAt: session.startsAt,
+            sessionEndsAt: session.endsAt,
+            effectiveStatus: AttendanceRosterItem.resolveEffectiveStatus(
+              manualStatus: mark?.status,
+              session: session,
+              now: now,
+            ),
+            isSessionClosed: session.isEffectivelyClosedAt(now),
+            markedAt: mark?.markedAt,
+            markedByName: mark?.markedByName,
+          );
+        }),
+      );
 
       return StudentAttendanceStats.fromHistory(
         studentId: studentId,
@@ -833,7 +885,8 @@ class AttendanceRepository implements IAttendanceRepository {
       final uniqueStudentIds = <String>{};
 
       for (final session in sessions) {
-        final inRange = range == null ||
+        final inRange =
+            range == null ||
             (!session.startsAt.isBefore(range.start) &&
                 !session.startsAt.isAfter(range.end));
         if (!inRange || !session.isEffectivelyClosedAt(now)) {

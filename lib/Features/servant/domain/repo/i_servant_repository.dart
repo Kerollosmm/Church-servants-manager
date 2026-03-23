@@ -4,10 +4,16 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 /// Interface for Servant Repository.
 abstract class IServantRepository {
   /// Get a single servant by document ID.
-  Future<ServantModel?> getServantById(String docId, {bool includeArchived = false});
+  Future<ServantModel?> getServantById(
+    String docId, {
+    bool includeArchived = false,
+  });
 
   /// Get a servant by Firebase Auth UID.
-  Future<ServantModel?> getServantByUid(String uid, {bool includeArchived = false});
+  Future<ServantModel?> getServantByUid(
+    String uid, {
+    bool includeArchived = false,
+  });
 
   /// Get all servants with pagination support.
   Future<List<ServantModel>> getAllServants({

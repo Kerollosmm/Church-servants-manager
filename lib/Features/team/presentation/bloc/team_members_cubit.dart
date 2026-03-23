@@ -36,9 +36,11 @@ class TeamMembersState {
     if (query.isEmpty) {
       return students;
     }
-    return students.where((student) {
-      return student.name.toLowerCase().contains(query);
-    }).toList(growable: false);
+    return students
+        .where((student) {
+          return student.name.toLowerCase().contains(query);
+        })
+        .toList(growable: false);
   }
 
   int get selectedCount => selectedStudentIds.length;
@@ -156,10 +158,9 @@ class TeamMembersCubit extends Cubit<TeamMembersState> {
     if (state.isSaving) return;
 
     emit(
-      _clearMutationFeedback(state).copyWith(
-        isSaving: true,
-        clearErrorMessage: true,
-      ),
+      _clearMutationFeedback(
+        state,
+      ).copyWith(isSaving: true, clearErrorMessage: true),
     );
 
     try {

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:ui';
-
 import 'package:church_management_system/church_app.dart';
 import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/firebase_options.dart';

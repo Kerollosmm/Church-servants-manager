@@ -182,50 +182,60 @@ void main() {
     await cubit.close();
   });
 
-  test('restoreServant restores archived servant and emits success state', () async {
-    final admin = actor(UserRole.admin);
-    final archivedServant = servant('s1', 'Andrew').copyWith(isArchived: true);
+  test(
+    'restoreServant restores archived servant and emits success state',
+    () async {
+      final admin = actor(UserRole.admin);
+      final archivedServant = servant(
+        's1',
+        'Andrew',
+      ).copyWith(isArchived: true);
 
-    when(
-      () => repository.getServantById('s1', includeArchived: true),
-    ).thenAnswer((_) async => archivedServant);
-    when(() => repository.restoreServant('s1')).thenAnswer((_) async {});
-    when(() => adminUserProvisioningService.restoreUser(uid: 's1')).thenAnswer((_) async {});
-    when(
-      () => repository.getServantsPage(
-        limit: 50,
-        lastDocument: null,
-        includeArchived: false,
-      ),
-    ).thenAnswer(
-      (_) async => ServantsPage(
-        servants: [servant('s2', 'Mina')],
-        lastDocument: null,
-        hasMore: false,
-      ),
-    );
-
-    final cubit = ServantDataCubit(
-      repository: repository,
-      adminUserProvisioningService: adminUserProvisioningService,
-    );
-
-    final expectation = expectLater(
-      cubit.stream,
-      emitsThrough(
-        isA<ServantDataLoaded>().having(
-          (s) => s.feedbackMessage,
-          'feedbackMessage',
-          'تمت استعادة الخادم بنجاح. يجب على المسؤول إعادة تعيين الفريق يدويا.',
+      when(
+        () => repository.getServantById('s1', includeArchived: true),
+      ).thenAnswer((_) async => archivedServant);
+      when(() => repository.restoreServant('s1')).thenAnswer((_) async {});
+      when(
+        () => adminUserProvisioningService.restoreUser(uid: 's1'),
+      ).thenAnswer((_) async {});
+      when(
+        () => repository.getServantsPage(
+          limit: 50,
+          lastDocument: null,
+          includeArchived: false,
         ),
-      ),
-    );
+      ).thenAnswer(
+        (_) async => ServantsPage(
+          servants: [servant('s2', 'Mina')],
+          lastDocument: null,
+          hasMore: false,
+        ),
+      );
 
-    await cubit.restoreServant(actor: admin, docId: 's1');
+      final cubit = ServantDataCubit(
+        repository: repository,
+        adminUserProvisioningService: adminUserProvisioningService,
+      );
 
-    await expectation;
-    verify(() => repository.restoreServant('s1')).called(1);
-    verify(() => adminUserProvisioningService.restoreUser(uid: 's1')).called(1);
-    await cubit.close();
-  });
+      final expectation = expectLater(
+        cubit.stream,
+        emitsThrough(
+          isA<ServantDataLoaded>().having(
+            (s) => s.feedbackMessage,
+            'feedbackMessage',
+            'تمت استعادة الخادم بنجاح. يجب على المسؤول إعادة تعيين الفريق يدويا.',
+          ),
+        ),
+      );
+
+      await cubit.restoreServant(actor: admin, docId: 's1');
+
+      await expectation;
+      verify(() => repository.restoreServant('s1')).called(1);
+      verify(
+        () => adminUserProvisioningService.restoreUser(uid: 's1'),
+      ).called(1);
+      await cubit.close();
+    },
+  );
 }

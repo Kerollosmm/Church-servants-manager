@@ -1,13 +1,22 @@
 import 'package:church_management_system/core/di/injection.dart';
-import 'package:church_management_system/role_user_route.dart';
 import 'package:church_management_system/core/routing/app_router.dart';
 import 'package:church_management_system/core/theme/app_theme.dart';
 import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
 import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
 import 'package:church_management_system/features/auth/data/services/auth_service.dart';
+import 'package:church_management_system/features/auth/domain/usecases/observe_auth_state_usecase.dart';
+import 'package:church_management_system/features/auth/domain/usecases/sign_in_usecase.dart';
+import 'package:church_management_system/features/auth/domain/usecases/sign_out_usecase.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:church_management_system/features/auth/presentation/screens/splash_screen.dart';
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
 import 'package:church_management_system/features/servant/data/repo/servant_data_repository.dart';
+import 'package:church_management_system/features/servant/domain/usecases/add_servant_usecase.dart';
+import 'package:church_management_system/features/servant/domain/usecases/delete_servant_usecase.dart';
+import 'package:church_management_system/features/servant/domain/usecases/filter_servants_usecase.dart';
+import 'package:church_management_system/features/servant/domain/usecases/get_servants_usecase.dart';
+import 'package:church_management_system/features/servant/domain/usecases/restore_servant_usecase.dart';
+import 'package:church_management_system/features/servant/domain/usecases/update_servant_usecase.dart';
 import 'package:church_management_system/features/servant/presentation/bloc/servant_data/servant_data_cubit.dart';
 import 'package:church_management_system/features/student/data/repos/student_data_repository.dart';
 import 'package:church_management_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
@@ -53,9 +62,12 @@ class ChurchApp extends StatelessWidget {
       child: MultiBlocProvider(
         providers: [
           BlocProvider(
-            create: (context) =>
-                AuthBloc(authService: context.read<AuthService>())
-                  ..add(const AuthEventCheckStatus()),
+            create: (context) => AuthBloc(
+              authService: context.read<AuthService>(),
+              signInUseCase: getIt<SignInUseCase>(),
+              signOutUseCase: getIt<SignOutUseCase>(),
+              observeAuthStateUseCase: getIt<ObserveAuthStateUseCase>(),
+            )..add(const AuthEventCheckStatus()),
           ),
           BlocProvider(
             create: (context) => StudentProfileCubit(
@@ -67,6 +79,12 @@ class ChurchApp extends StatelessWidget {
               repository: context.read<ServantDataRepository>(),
               adminUserProvisioningService: context
                   .read<AdminUserProvisioningService>(),
+              getServantsUseCase: getIt<GetServantsUseCase>(),
+              addServantUseCase: getIt<AddServantUseCase>(),
+              updateServantUseCase: getIt<UpdateServantUseCase>(),
+              deleteServantUseCase: getIt<DeleteServantUseCase>(),
+              filterServantsUseCase: getIt<FilterServantsUseCase>(),
+              restoreServantUseCase: getIt<RestoreServantUseCase>(),
             ),
           ),
         ],
@@ -75,7 +93,7 @@ class ChurchApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           theme: AppTheme.light(),
           onGenerateRoute: getIt<AppRouter>().onGenerateRoute,
-          home: const RoleUserRoute(),
+          home: const SplashScreen(),
         ),
       ),
     );

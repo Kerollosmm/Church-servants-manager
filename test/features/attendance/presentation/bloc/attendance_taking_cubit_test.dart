@@ -65,7 +65,8 @@ void main() {
           ? AttendanceMarkStatus.present
           : null,
       effectiveStatus: status,
-      isMarked: status == AttendanceEffectiveStatus.present ||
+      isMarked:
+          status == AttendanceEffectiveStatus.present ||
           status == AttendanceEffectiveStatus.late,
       isSessionOpen: !session.isClosed,
       canEdit: !session.isClosed,
@@ -123,115 +124,121 @@ void main() {
     await cubit.close();
   });
 
-  test('markPresent on closed session emits mutation error and skips repository', () async {
-    final closedSession = buildSession(isClosed: true);
-    final cubit = AttendanceTakingCubit(
-      repository: repository,
-      nowProvider: () => DateTime(2026, 3, 9, 18, 10),
-    );
-    cubit.initialize(teamId: 'team-1', sessionId: 'session-1');
-    controller.add(
-      AttendanceRosterSnapshot(
-        session: closedSession,
-        roster: [
-          buildRosterItem(
-            session: closedSession,
-            status: AttendanceEffectiveStatus.absent,
-          ),
-        ],
-      ),
-    );
-    await Future<void>.delayed(Duration.zero);
+  test(
+    'markPresent on closed session emits mutation error and skips repository',
+    () async {
+      final closedSession = buildSession(isClosed: true);
+      final cubit = AttendanceTakingCubit(
+        repository: repository,
+        nowProvider: () => DateTime(2026, 3, 9, 18, 10),
+      );
+      cubit.initialize(teamId: 'team-1', sessionId: 'session-1');
+      controller.add(
+        AttendanceRosterSnapshot(
+          session: closedSession,
+          roster: [
+            buildRosterItem(
+              session: closedSession,
+              status: AttendanceEffectiveStatus.absent,
+            ),
+          ],
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
 
-    await cubit.markPresent(
-      actor: servant,
-      item: buildRosterItem(
-        session: closedSession,
-        status: AttendanceEffectiveStatus.absent,
-      ),
-    );
+      await cubit.markPresent(
+        actor: servant,
+        item: buildRosterItem(
+          session: closedSession,
+          status: AttendanceEffectiveStatus.absent,
+        ),
+      );
 
-    expect(cubit.state, isA<AttendanceTakingLoaded>());
-    expect(
-      (cubit.state as AttendanceTakingLoaded).mutationError,
-      'انتهى وقت تسجيل الحضور لهذه الجلسة.',
-    );
-    verifyNever(
-      () => repository.markStudentPresent(
-        teamId: 'team-1',
-        sessionId: 'session-1',
-        studentId: 'student-1',
-        studentNameSnapshot: 'Mina',
-        markedBy: servant,
-      ),
-    );
-    await cubit.close();
-  });
+      expect(cubit.state, isA<AttendanceTakingLoaded>());
+      expect(
+        (cubit.state as AttendanceTakingLoaded).mutationError,
+        'انتهى وقت تسجيل الحضور لهذه الجلسة.',
+      );
+      verifyNever(
+        () => repository.markStudentPresent(
+          teamId: 'team-1',
+          sessionId: 'session-1',
+          studentId: 'student-1',
+          studentNameSnapshot: 'Mina',
+          markedBy: servant,
+        ),
+      );
+      await cubit.close();
+    },
+  );
 
-  test('stream snapshots preserve isMutating while a write is in flight', () async {
-    final openSession = buildSession(isClosed: false);
-    final saveCompleter = Completer<void>();
-    when(
-      () => repository.markStudentPresent(
-        teamId: 'team-1',
-        sessionId: 'session-1',
-        studentId: 'student-1',
-        studentNameSnapshot: 'Mina',
-        markedBy: servant,
-      ),
-    ).thenAnswer((_) => saveCompleter.future);
+  test(
+    'stream snapshots preserve isMutating while a write is in flight',
+    () async {
+      final openSession = buildSession(isClosed: false);
+      final saveCompleter = Completer<void>();
+      when(
+        () => repository.markStudentPresent(
+          teamId: 'team-1',
+          sessionId: 'session-1',
+          studentId: 'student-1',
+          studentNameSnapshot: 'Mina',
+          markedBy: servant,
+        ),
+      ).thenAnswer((_) => saveCompleter.future);
 
-    final cubit = AttendanceTakingCubit(
-      repository: repository,
-      nowProvider: () => DateTime(2026, 3, 9, 18, 10),
-    );
-    cubit.initialize(teamId: 'team-1', sessionId: 'session-1');
-    controller.add(
-      AttendanceRosterSnapshot(
-        session: openSession,
-        roster: [
-          buildRosterItem(
+      final cubit = AttendanceTakingCubit(
+        repository: repository,
+        nowProvider: () => DateTime(2026, 3, 9, 18, 10),
+      );
+      cubit.initialize(teamId: 'team-1', sessionId: 'session-1');
+      controller.add(
+        AttendanceRosterSnapshot(
+          session: openSession,
+          roster: [
+            buildRosterItem(
+              session: openSession,
+              status: AttendanceEffectiveStatus.unmarked,
+            ),
+          ],
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(cubit.state, isA<AttendanceTakingLoaded>());
+
+      unawaited(
+        cubit.markPresent(
+          actor: servant,
+          item: buildRosterItem(
             session: openSession,
             status: AttendanceEffectiveStatus.unmarked,
           ),
-        ],
-      ),
-    );
-    await Future<void>.delayed(const Duration(milliseconds: 10));
-    expect(cubit.state, isA<AttendanceTakingLoaded>());
-
-    unawaited(
-      cubit.markPresent(
-        actor: servant,
-        item: buildRosterItem(
-          session: openSession,
-          status: AttendanceEffectiveStatus.unmarked,
         ),
-      ),
-    );
-    await Future<void>.delayed(const Duration(milliseconds: 10));
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 10));
 
-    expect((cubit.state as AttendanceTakingLoaded).isMutating, isTrue);
+      expect((cubit.state as AttendanceTakingLoaded).isMutating, isTrue);
 
-    controller.add(
-      AttendanceRosterSnapshot(
-        session: openSession,
-        roster: [
-          buildRosterItem(
-            session: openSession,
-            status: AttendanceEffectiveStatus.present,
-          ),
-        ],
-      ),
-    );
-    await Future<void>.delayed(const Duration(milliseconds: 10));
+      controller.add(
+        AttendanceRosterSnapshot(
+          session: openSession,
+          roster: [
+            buildRosterItem(
+              session: openSession,
+              status: AttendanceEffectiveStatus.present,
+            ),
+          ],
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 10));
 
-    expect((cubit.state as AttendanceTakingLoaded).isMutating, isTrue);
+      expect((cubit.state as AttendanceTakingLoaded).isMutating, isTrue);
 
-    saveCompleter.complete();
-    await Future<void>.delayed(const Duration(milliseconds: 10));
+      saveCompleter.complete();
+      await Future<void>.delayed(const Duration(milliseconds: 10));
 
-    expect((cubit.state as AttendanceTakingLoaded).isMutating, isFalse);
-    await cubit.close();
-  });
+      expect((cubit.state as AttendanceTakingLoaded).isMutating, isFalse);
+      await cubit.close();
+    },
+  );
 }

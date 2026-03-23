@@ -69,7 +69,8 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "studentIdsSnapshot", "arrayConfig": "CONTAINS" },
-        { "fieldPath": "teamId", "order": "ASCENDING" }
+        { "fieldPath": "teamId", "order": "ASCENDING" },
+        { "fieldPath": "__name__", "order": "ASCENDING" }
       ]
     }
   ],

@@ -1,47 +1,69 @@
 import 'dart:async';
 
 import 'package:church_management_system/core/constants/enums.dart';
+import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/student/data/repos/student_data_repository.dart';
+import 'package:church_management_system/features/student/domain/usecases/add_student_usecase.dart';
 import 'package:church_management_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
+import 'package:church_management_system/features/student/domain/usecases/delete_student_usecase.dart';
 import 'package:church_management_system/features/student/domain/usecases/get_students_stream_usecase.dart';
-import 'package:church_management_system/features/auth/data/models/auth_user.dart';
+import 'package:church_management_system/features/student/domain/usecases/get_students_usecase.dart';
+import 'package:church_management_system/features/student/domain/usecases/restore_student_usecase.dart';
+import 'package:church_management_system/features/student/domain/usecases/search_students_usecase.dart';
+import 'package:church_management_system/features/student/domain/usecases/student_operation_exception.dart';
+import 'package:church_management_system/features/student/domain/usecases/update_student_usecase.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 part 'student_data_event.dart';
 part 'student_data_state.dart';
+part 'student_data_bloc_handlers.dart';
 
 /// BLoC for managing student data with role-based filtering.
-///
-/// Delegates stream selection to [GetStudentsStreamUseCase]
-/// and authorization to [CanMutateStudentUseCase].
 class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
-  final StudentDataRepository _studentRepository;
-  final GetStudentsStreamUseCase _getStudentsStream;
-  final CanMutateStudentUseCase _canMutateStudent;
-  final AdminUserProvisioningService _adminUserProvisioningService;
-
-  StreamSubscription<List<StudentModel>>? _studentsSubscription;
-  Completer<void>? _pendingRefreshCompleter;
-  List<StudentModel> _allStudents = [];
-  Map<String, StudentModel> _studentsByDocId = {};
-  String? _lastFilterGroupId;
-  String? _lastFilterTeamId;
-  String? _lastQuery;
-  bool _includeArchived = false;
-
+  // FIX [P1]: delegate student loading/search/CRUD logic to dedicated use cases.
   StudentDataBloc({
     required StudentDataRepository studentRepository,
     required GetStudentsStreamUseCase getStudentsStream,
     required CanMutateStudentUseCase canMutateStudent,
     required AdminUserProvisioningService adminUserProvisioningService,
-  }) : _studentRepository = studentRepository,
-       _getStudentsStream = getStudentsStream,
-       _canMutateStudent = canMutateStudent,
-       _adminUserProvisioningService = adminUserProvisioningService,
+    GetStudentsUseCase? getStudentsUseCase,
+    SearchStudentsUseCase? searchStudentsUseCase,
+    AddStudentUseCase? addStudentUseCase,
+    UpdateStudentUseCase? updateStudentUseCase,
+    DeleteStudentUseCase? deleteStudentUseCase,
+    RestoreStudentUseCase? restoreStudentUseCase,
+  }) : _getStudentsUseCase =
+           getStudentsUseCase ??
+           GetStudentsUseCase(studentRepository, getStudentsStream),
+       _searchStudentsUseCase =
+           searchStudentsUseCase ?? const SearchStudentsUseCase(),
+       _addStudentUseCase =
+           addStudentUseCase ??
+           AddStudentUseCase(
+             studentRepository,
+             canMutateStudent,
+             adminUserProvisioningService,
+           ),
+       _updateStudentUseCase =
+           updateStudentUseCase ??
+           UpdateStudentUseCase(studentRepository, canMutateStudent),
+       _deleteStudentUseCase =
+           deleteStudentUseCase ??
+           DeleteStudentUseCase(
+             studentRepository,
+             canMutateStudent,
+             adminUserProvisioningService,
+           ),
+       _restoreStudentUseCase =
+           restoreStudentUseCase ??
+           RestoreStudentUseCase(
+             studentRepository,
+             adminUserProvisioningService,
+           ),
        super(const StudentDataInitial()) {
     on<StudentsLoadRequested>(_onLoadStudents);
     on<StudentsSearchRequested>(_onSearchStudents);
@@ -55,464 +77,73 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     on<_StreamError>(_onStreamError);
   }
 
-  Future<void> _cancelStudentsSubscription() async {
-    final subscription = _studentsSubscription;
-    _studentsSubscription = null;
-    await subscription?.cancel();
-  }
+  final GetStudentsUseCase _getStudentsUseCase;
+  final SearchStudentsUseCase _searchStudentsUseCase;
+  final AddStudentUseCase _addStudentUseCase;
+  final UpdateStudentUseCase _updateStudentUseCase;
+  final DeleteStudentUseCase _deleteStudentUseCase;
+  final RestoreStudentUseCase _restoreStudentUseCase;
 
-  Future<void> refresh(AuthUser actor) {
-    final existingCompleter = _pendingRefreshCompleter;
-    if (existingCompleter != null && !existingCompleter.isCompleted) {
-      return existingCompleter.future;
-    }
-
-    final completer = Completer<void>();
-    _pendingRefreshCompleter = completer;
-    add(StudentsRefreshRequested(actor: actor, includeArchived: _includeArchived));
-    return completer.future.timeout(
-      const Duration(seconds: 10),
-      onTimeout: () {
-        if (!completer.isCompleted) {
-          completer.complete();
-        }
-      },
-    );
-  }
-
-  void _completePendingRefresh() {
-    final completer = _pendingRefreshCompleter;
-    if (completer != null && !completer.isCompleted) {
-      completer.complete();
-    }
-    _pendingRefreshCompleter = null;
-  }
-
-  /// Subscribes to the stream returned by the use case.
-  Future<void> _subscribeToStudents({
-    required AuthUser actor,
-    String? teamId,
-    bool includeArchived = false,
-  }) async {
-    await _cancelStudentsSubscription();
-
-    final stream = _getStudentsStream(
-      actor: actor,
-      teamId: teamId,
-      includeArchived: includeArchived,
-    );
-
-    if (stream == null) {
-      add(const _StudentsStreamUpdated([]));
-      return;
-    }
-
-    _studentsSubscription = stream.listen(
-      (students) {
-        if (isClosed) return;
-        students.sort((a, b) => a.name.compareTo(b.name));
-        add(_StudentsStreamUpdated(students));
-      },
-      onError: (Object error) {
-        if (isClosed) return;
-        if (kDebugMode) {
-          debugPrint('StudentDataBloc: Stream error (${error.runtimeType})');
-        }
-        add(_StreamError('$error'));
-      },
-    );
-  }
-
-  List<StudentModel> _filterByName(List<StudentModel> students, String query) {
-    final normalized = query.toLowerCase();
-    return students
-        .where((s) => s.name.toLowerCase().contains(normalized))
-        .toList();
-  }
-
-  void _setCurrentFilters({String? groupId, String? teamId, String? query}) {
-    _lastFilterGroupId = groupId;
-    _lastFilterTeamId = teamId;
-    _lastQuery = query;
-  }
-
-  List<StudentModel> _resolveVisibleStudents(String? query) {
-    if (query != null && query.isNotEmpty) {
-      return _filterByName(_allStudents, query);
-    }
-    return _allStudents;
-  }
-
-  void _emitLoadedState(
-    Emitter<StudentDataState> emit, {
-    required List<StudentModel> students,
-    String? query,
-    StudentMutationStatus mutationStatus = StudentMutationStatus.idle,
-    String? successMessage,
-  }) {
-    emit(
-      StudentDataLoaded(
-        students: students,
-        currentFilterGroupId: _lastFilterGroupId,
-        currentFilterTeamId: _lastFilterTeamId,
-        currentQuery: query,
-        includeArchived: _includeArchived,
-        mutationStatus: mutationStatus,
-        successMessage: successMessage,
-      ),
-    );
-  }
-
-  void _emitSuccessWithData(Emitter<StudentDataState> emit, String message) {
-    final students = _resolveVisibleStudents(_lastQuery);
-    _emitLoadedState(
-      emit,
-      students: students,
-      query: _lastQuery,
-      mutationStatus: StudentMutationStatus.success,
-      successMessage: message,
-    );
-  }
-
-  bool _canCreateAuthAccount(StudentCreated event) {
-    return event.email != null &&
-        event.email!.isNotEmpty &&
-        event.password != null &&
-        event.password!.isNotEmpty;
-  }
-
-  Future<AuthUser?> _createLinkedAuthUser(StudentCreated event) async {
-    if (!_canCreateAuthAccount(event)) {
-      return null;
-    }
-
-    return _adminUserProvisioningService.createUser(
-      email: event.email!,
-      password: event.password!,
-      name: event.student.name,
-      role: event.student.role,
-    );
-  }
-
-  Future<void> _rollbackLinkedAuthUser(
-    StudentCreated event,
-    AuthUser authUser,
-  ) async {
-    if (!_canCreateAuthAccount(event)) {
-      return;
-    }
-
-    await _adminUserProvisioningService.rollbackCreatedUser(
-      uid: authUser.uid,
-      email: event.email!,
-      password: event.password!,
-    );
-  }
-
-  Future<StudentModel?> _resolveExistingStudent(String docId) async {
-    return _getCachedStudentById(docId) ??
-        await _studentRepository.getStudentById(docId);
-  }
-
-  void _emitError(
-    Emitter<StudentDataState> emit,
-    String message,
-    Object error,
-  ) {
-    if (kDebugMode) {
-      debugPrint('StudentDataBloc: $message (${error.runtimeType})');
-    }
-    emit(StudentDataError('$message. حاول مرة أخرى.'));
-  }
-
-  void _emitNotAllowed(Emitter<StudentDataState> emit) {
-    emit(const StudentDataError('غير مسموح.'));
-  }
-
-  bool _isRoleChangeRestricted({
-    required AuthUser actor,
-    required StudentModel existing,
-    required StudentModel updated,
-  }) {
-    final isRoleChange = existing.role != updated.role;
-    if (!isRoleChange) {
-      return false;
-    }
-    return actor.role != UserRole.admin;
-  }
-
-  bool _isInvalidServantPromotion({
-    required StudentModel existing,
-    required StudentModel updated,
-  }) {
-    final isRoleChange = existing.role != updated.role;
-    if (!isRoleChange) {
-      return false;
-    }
-    return updated.role == UserRole.servant && updated.uid.trim().isEmpty;
-  }
-
-  StudentModel? _getCachedStudentById(String docId) {
-    return _studentsByDocId[docId];
-  }
+  StreamSubscription<List<StudentModel>>? _studentsSubscription;
+  Completer<void>? _pendingRefreshCompleter;
+  List<StudentModel> _allStudents = [];
+  String? _lastFilterGroupId;
+  String? _lastFilterTeamId;
+  String? _lastQuery;
+  bool _includeArchived = false;
 
   Future<void> _onLoadStudents(
     StudentsLoadRequested event,
     Emitter<StudentDataState> emit,
-  ) async {
-    emit(
-      StudentDataLoading(
-        previousStudents: _resolveVisibleStudents(_lastQuery),
-        isRefresh: _allStudents.isNotEmpty,
-        includeArchived: event.includeArchived,
-      ),
-    );
-    _setCurrentFilters(groupId: event.actor.groupId, teamId: event.teamId);
-    _includeArchived = event.includeArchived;
-
-    await _subscribeToStudents(
-      actor: event.actor,
-      teamId: event.teamId,
-      includeArchived: event.includeArchived,
-    );
-  }
-
-  void _onStreamUpdated(
-    _StudentsStreamUpdated event,
-    Emitter<StudentDataState> emit,
-  ) {
-    _allStudents = event.students
-        .where((student) => student.role == UserRole.student)
-        .toList(growable: false);
-    _studentsByDocId = {for (final s in _allStudents) s.docID: s};
-    final query = _lastQuery;
-    final students = _resolveVisibleStudents(query);
-    _emitLoadedState(emit, students: students, query: query);
-    _completePendingRefresh();
-  }
-
-  void _onStreamError(_StreamError event, Emitter<StudentDataState> emit) {
-    emit(StudentDataError(event.message));
-    _completePendingRefresh();
-  }
+  ) => _handleLoadStudents(this, event, emit);
 
   Future<void> _onSearchStudents(
     StudentsSearchRequested event,
     Emitter<StudentDataState> emit,
-  ) async {
-    final query = event.query.trim();
-    final previousQuery = _lastQuery;
-    final previousTeamId = _lastFilterTeamId;
-    final previousIncludeArchived = _includeArchived;
-    final nextTeamId = event.teamId;
-    _includeArchived = event.includeArchived;
-    _setCurrentFilters(
-      groupId: event.actor.groupId,
-      teamId: nextTeamId,
-      query: query,
-    );
-
-    if (previousTeamId != nextTeamId ||
-        previousIncludeArchived != event.includeArchived) {
-      emit(
-        StudentDataLoading(
-          previousStudents: _resolveVisibleStudents(previousQuery),
-          isRefresh: _allStudents.isNotEmpty,
-          includeArchived: event.includeArchived,
-        ),
-      );
-      await _subscribeToStudents(
-        actor: event.actor,
-        teamId: nextTeamId,
-        includeArchived: event.includeArchived,
-      );
-      return;
-    }
-
-    final students = _resolveVisibleStudents(query);
-    _emitLoadedState(emit, students: students, query: query);
-  }
+  ) => _handleSearchStudents(this, event, emit);
 
   Future<void> _onCreateStudent(
     StudentCreated event,
     Emitter<StudentDataState> emit,
-  ) async {
-    AuthUser? createdAuthUser;
-    try {
-      if (!_canMutateStudent(event.actor, event.student)) {
-        _emitNotAllowed(emit);
-        return;
-      }
-
-      createdAuthUser = await _createLinkedAuthUser(event);
-      final studentToCreate = createdAuthUser == null
-          ? event.student
-          : event.student.copyWith(
-              uid: createdAuthUser.uid,
-              docID: createdAuthUser.uid,
-            );
-
-      await _studentRepository.createStudent(studentToCreate);
-      _emitSuccessWithData(emit, 'تم إنشاء المخدوم بنجاح');
-    } catch (e) {
-      if (createdAuthUser != null) {
-        try {
-          await _rollbackLinkedAuthUser(event, createdAuthUser);
-        } catch (rollbackError) {
-          _emitError(
-            emit,
-            'تعذر إنشاء المخدوم، كما فشلت إعادة التراجع عن الحساب المرتبط',
-            rollbackError,
-          );
-          return;
-        }
-      }
-      _emitError(emit, 'تعذر إنشاء المخدوم', e);
-    }
-  }
+  ) => _handleCreateStudent(this, event, emit);
 
   Future<void> _onUpdateStudent(
     StudentUpdated event,
     Emitter<StudentDataState> emit,
-  ) async {
-    try {
-      final existing = await _resolveExistingStudent(event.student.docID);
-      if (existing == null) {
-        emit(const StudentDataError('لم يتم العثور على المخدوم.'));
-        return;
-      }
-      if (!_canMutateStudent(event.actor, existing)) {
-        _emitNotAllowed(emit);
-        return;
-      }
-
-      final isRoleChange = existing.role != event.student.role;
-      if (_isRoleChangeRestricted(
-        actor: event.actor,
-        existing: existing,
-        updated: event.student,
-      )) {
-        _emitNotAllowed(emit);
-        return;
-      }
-      if (_isInvalidServantPromotion(
-        existing: existing,
-        updated: event.student,
-      )) {
-        emit(
-          const StudentDataError(
-            'لا يمكن ترقية المخدوم بدون حساب مستخدم مرتبط.',
-          ),
-        );
-        return;
-      }
-
-      if (isRoleChange) {
-        await _studentRepository.updateStudentAndSyncLinkedUserRole(
-          updatedStudent: event.student,
-          previousRole: existing.role,
-        );
-      } else {
-        await _studentRepository.updateStudent(event.student);
-      }
-      _emitSuccessWithData(emit, 'تم تحديث بيانات المخدوم بنجاح');
-    } catch (e) {
-      _emitError(emit, 'تعذر تحديث بيانات المخدوم', e);
-    }
-  }
+  ) => _handleUpdateStudent(this, event, emit);
 
   Future<void> _onDeleteStudent(
     StudentDeleted event,
     Emitter<StudentDataState> emit,
-  ) async {
-    try {
-      final existing = await _resolveExistingStudent(event.docId);
-      if (existing == null) {
-        emit(const StudentDataError('لم يتم العثور على المخدوم.'));
-        return;
-      }
-      if (!_canMutateStudent(event.actor, existing)) {
-        _emitNotAllowed(emit);
-        return;
-      }
-      await _studentRepository.deleteStudent(event.docId);
-      if (existing.uid.trim().isNotEmpty) {
-        await _adminUserProvisioningService.archiveUser(uid: existing.uid.trim());
-      }
-      _emitSuccessWithData(emit, 'تمت أرشفة المخدوم بنجاح');
-    } catch (e) {
-      _emitError(emit, 'تعذر أرشفة المخدوم', e);
-    }
-  }
+  ) => _handleDeleteStudent(this, event, emit);
 
   Future<void> _onRestoreStudent(
     StudentRestored event,
     Emitter<StudentDataState> emit,
-  ) async {
-    try {
-      final existing = await _studentRepository.getStudentById(
-        event.docId,
-        includeArchived: true,
-      );
-      if (existing == null) {
-        emit(const StudentDataError('لم يتم العثور على المخدوم.'));
-        return;
-      }
-      if (event.actor.role != UserRole.admin) {
-        _emitNotAllowed(emit);
-        return;
-      }
-
-      await _studentRepository.restoreStudent(event.docId);
-      if (existing.uid.trim().isNotEmpty) {
-        await _adminUserProvisioningService.restoreUser(uid: existing.uid.trim());
-      }
-      _emitSuccessWithData(emit, 'تمت استعادة المخدوم بنجاح');
-    } catch (e) {
-      _emitError(emit, 'تعذر استعادة المخدوم', e);
-    }
-  }
+  ) => _handleRestoreStudent(this, event, emit);
 
   Future<void> _onRefreshStudents(
     StudentsRefreshRequested event,
     Emitter<StudentDataState> emit,
-  ) async {
-    emit(
-      StudentDataLoading(
-        previousStudents: _resolveVisibleStudents(_lastQuery),
-        isRefresh: _allStudents.isNotEmpty,
-        includeArchived: event.includeArchived,
-      ),
-    );
-    _setCurrentFilters(
-      groupId: event.actor.groupId,
-      teamId: _lastFilterTeamId,
-      query: _lastQuery,
-    );
-    _includeArchived = event.includeArchived;
-    await _subscribeToStudents(
-      actor: event.actor,
-      teamId: _lastFilterTeamId,
-      includeArchived: event.includeArchived,
-    );
-  }
+  ) => _handleRefreshStudents(this, event, emit);
 
   Future<void> _onStopListening(
     StudentsListeningStopped event,
     Emitter<StudentDataState> emit,
-  ) async {
-    await _cancelStudentsSubscription();
-    _allStudents = const [];
-    _setCurrentFilters();
-    _includeArchived = false;
-    emit(const StudentDataInitial());
-    _completePendingRefresh();
-  }
+  ) => _handleStopListening(this, event, emit);
+
+  void _onStreamUpdated(
+    _StudentsStreamUpdated event,
+    Emitter<StudentDataState> emit,
+  ) => _handleStreamUpdated(this, event, emit);
+
+  void _onStreamError(_StreamError event, Emitter<StudentDataState> emit) =>
+      _handleStreamError(this, event, emit);
 
   @override
   Future<void> close() async {
-    await _cancelStudentsSubscription();
-    _completePendingRefresh();
+    await _cancelStudentsSubscription(this);
+    _completePendingRefresh(this);
     return super.close();
   }
 }

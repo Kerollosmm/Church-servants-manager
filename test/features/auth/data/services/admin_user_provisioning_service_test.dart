@@ -106,7 +106,9 @@ void main() {
       isArchived: true,
     );
 
-    when(() => userProfileStore.fetchUser('u1')).thenAnswer((_) async => restoredUser);
+    when(
+      () => userProfileStore.fetchUser('u1'),
+    ).thenAnswer((_) async => restoredUser);
     when(() => adminAuthClient.restoreUser(uid: 'u1')).thenAnswer((_) async {});
     when(
       () => userProfileStore.updateUserFields('u1', any()),
@@ -119,6 +121,8 @@ void main() {
 
     verify(() => adminAuthClient.restoreUser(uid: 'u1')).called(1);
     verify(() => userProfileStore.updateUserFields('u1', any())).called(1);
-    verify(() => authService.sendPasswordResetEmail('restored@example.com')).called(1);
+    verify(
+      () => authService.sendPasswordResetEmail('restored@example.com'),
+    ).called(1);
   });
 }

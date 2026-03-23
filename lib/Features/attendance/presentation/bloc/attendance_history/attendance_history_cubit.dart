@@ -35,23 +35,19 @@ class AttendanceHistoryCubit extends Cubit<AttendanceHistoryState> {
     _sessionsSubscription?.cancel();
     _activeSessionSubscription?.cancel();
 
-    _sessionsSubscription = _repository.watchSessionsForTeam(normalizedTeamId).listen(
-      (sessions) {
-        _sessions = sessions;
-        _emitLoaded();
-      },
-      onError: _onStreamError,
-    );
+    _sessionsSubscription = _repository
+        .watchSessionsForTeam(normalizedTeamId)
+        .listen((sessions) {
+          _sessions = sessions;
+          _emitLoaded();
+        }, onError: _onStreamError);
 
     _activeSessionSubscription = _repository
         .watchActiveSessionForTeam(normalizedTeamId)
-        .listen(
-          (session) {
-            _activeSession = session;
-            _emitLoaded();
-          },
-          onError: _onStreamError,
-        );
+        .listen((session) {
+          _activeSession = session;
+          _emitLoaded();
+        }, onError: _onStreamError);
   }
 
   void _emitLoaded() {

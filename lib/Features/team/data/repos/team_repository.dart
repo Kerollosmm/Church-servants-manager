@@ -107,7 +107,10 @@ class TeamRepository implements ITeamRepository {
     }
   }
 
-  Future<void> _removeTeamAssignmentFromServant(String servantId, String teamId) async {
+  Future<void> _removeTeamAssignmentFromServant(
+    String servantId,
+    String teamId,
+  ) async {
     final servantRef = _usersCollection.doc(servantId);
     final servantDoc = await servantRef.get();
     final data = servantDoc.data();
@@ -120,7 +123,9 @@ class TeamRepository implements ITeamRepository {
     if (rawIds is Iterable) {
       for (final value in rawIds) {
         final normalized = value?.toString().trim() ?? '';
-        if (normalized.isEmpty || normalized == teamId || assignedIds.contains(normalized)) {
+        if (normalized.isEmpty ||
+            normalized == teamId ||
+            assignedIds.contains(normalized)) {
           continue;
         }
         assignedIds.add(normalized);
@@ -136,7 +141,9 @@ class TeamRepository implements ITeamRepository {
     }
 
     await servantRef.set({
-      'assignedTeamIds': assignedIds.isEmpty ? FieldValue.delete() : assignedIds,
+      'assignedTeamIds': assignedIds.isEmpty
+          ? FieldValue.delete()
+          : assignedIds,
       'assignedTeamId': assignedIds.isEmpty
           ? FieldValue.delete()
           : assignedIds.first,
@@ -252,7 +259,10 @@ class TeamRepository implements ITeamRepository {
   }
 
   @override
-  Future<TeamModel?> getTeamById(String id, {bool includeArchived = false}) async {
+  Future<TeamModel?> getTeamById(
+    String id, {
+    bool includeArchived = false,
+  }) async {
     try {
       final doc = await _classesCollection.doc(id).get();
       if (doc.exists && doc.data() != null) {
@@ -316,7 +326,8 @@ class TeamRepository implements ITeamRepository {
         return;
       }
 
-      final assignedServantId = (teamData['assignedServantId'] as String?)?.trim();
+      final assignedServantId = (teamData['assignedServantId'] as String?)
+          ?.trim();
       if (assignedServantId != null && assignedServantId.isNotEmpty) {
         await _removeTeamAssignmentFromServant(assignedServantId, id);
       }

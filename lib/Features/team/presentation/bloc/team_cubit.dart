@@ -1,255 +1,43 @@
-import 'package:church_management_system/features/team/data/models/team_model.dart';
-import 'package:church_management_system/features/team/data/repos/team_repository.dart';
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/servant/data/models/servant_models.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
+import 'package:church_management_system/features/team/data/models/team_model.dart';
+import 'package:church_management_system/features/team/data/repos/team_repository.dart';
+import 'package:church_management_system/features/team/domain/usecases/assign_servant_to_team_usecase.dart';
+import 'package:church_management_system/features/team/domain/usecases/create_team_usecase.dart';
+import 'package:church_management_system/features/team/domain/usecases/get_teams_usecase.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 part 'team_state.dart';
+part 'team_cubit_actions.dart';
 
 /// Cubit for managing team/class data.
 /// - Admin: full CRUD across all groups
 /// - Servant: load teams for their group
 class TeamCubit extends Cubit<TeamState> {
-  final TeamRepository _teamRepository;
-  final AdminTeamService _adminTeamService;
-  List<TeamModel> _currentTeams = const [];
-  String? _selectedTeamId;
-  bool _includeArchived = false;
-
+  // FIX [P1]: delegate team loading and assignment to dedicated use cases.
   TeamCubit({
     required TeamRepository teamRepository,
     required AdminTeamService adminTeamService,
+    GetTeamsUseCase? getTeamsUseCase,
+    CreateTeamUseCase? createTeamUseCase,
+    AssignServantToTeamUseCase? assignServantToTeamUseCase,
   }) : _teamRepository = teamRepository,
-       _adminTeamService = adminTeamService,
+       _getTeamsUseCase = getTeamsUseCase ?? GetTeamsUseCase(teamRepository),
+       _createTeamUseCase =
+           createTeamUseCase ?? CreateTeamUseCase(teamRepository),
+       _assignServantToTeamUseCase =
+           assignServantToTeamUseCase ??
+           AssignServantToTeamUseCase(adminTeamService),
        super(const TeamInitial());
 
-  void _emitUserFacingError(
-    String contextLabel,
-    Object error,
-    String userMessage,
-  ) {
-    if (kDebugMode) {
-      debugPrint('TeamCubit: $contextLabel (${error.runtimeType})');
-    }
-    if (_currentTeams.isNotEmpty) {
-      emit(
-        TeamLoaded(
-          teams: _currentTeams,
-          selectedTeamId: _selectedTeamId,
-          mutationStatus: TeamMutationStatus.failure,
-          feedbackMessage: userMessage,
-        ),
-      );
-      return;
-    }
-    emit(TeamError(userMessage));
-  }
-
-  Future<void> _runTeamLoad({
-    required Future<List<TeamModel>> Function() action,
-    String? selectedTeamId,
-    bool includeArchived = false,
-    required String errorContext,
-    required String errorMessage,
-  }) async {
-    emit(const TeamLoading());
-    try {
-      final teams = await action();
-      _currentTeams = teams;
-      _selectedTeamId = selectedTeamId;
-      _includeArchived = includeArchived;
-      emit(TeamLoaded(teams: teams, selectedTeamId: selectedTeamId));
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('TeamCubit: $errorContext (${e.runtimeType})');
-      }
-      emit(TeamError(errorMessage));
-    }
-  }
-
-  Future<void> _runTeamMutation({
-    required Future<void> Function() action,
-    required String successMessage,
-    required String errorContext,
-    required String errorMessage,
-    String? reloadGroupId,
-  }) async {
-    if (_currentTeams.isNotEmpty) {
-      emit(
-        TeamLoaded(
-          teams: _currentTeams,
-          selectedTeamId: _selectedTeamId,
-          mutationStatus: TeamMutationStatus.inProgress,
-        ),
-      );
-    } else {
-      emit(const TeamLoading());
-    }
-    try {
-      await action();
-      if (reloadGroupId != null) {
-        final teams = await _teamRepository.getTeamsByGroup(
-          reloadGroupId,
-          includeArchived: _includeArchived,
-        );
-        _currentTeams = teams;
-      }
-      emit(
-        TeamLoaded(
-          teams: _currentTeams,
-          selectedTeamId: _selectedTeamId,
-          mutationStatus: TeamMutationStatus.success,
-          feedbackMessage: successMessage,
-        ),
-      );
-      if (reloadGroupId == null && _currentTeams.isEmpty) {
-        emit(TeamLoaded(teams: _currentTeams, selectedTeamId: _selectedTeamId));
-      }
-    } catch (e) {
-      _emitUserFacingError(errorContext, e, errorMessage);
-    }
-  }
-
-  /// Load teams for a specific group/year.
-  Future<void> loadTeamsByGroup(
-    String groupId, {
-    String? defaultTeamId,
-    bool includeArchived = false,
-  }) async {
-    await _runTeamLoad(
-      action: () => _teamRepository.getTeamsByGroup(
-        groupId,
-        includeArchived: includeArchived,
-      ),
-      selectedTeamId: defaultTeamId,
-      includeArchived: includeArchived,
-      errorContext: 'Failed to load teams',
-      errorMessage: 'تعذر تحميل الفرق. تحقق من الاتصال وحاول مرة أخرى.',
-    );
-  }
-
-  /// Load all teams across all groups (admin use).
-  Future<void> loadAllTeams({bool includeArchived = false}) async {
-    await _runTeamLoad(
-      action: () => _teamRepository.getAllTeams(
-        includeArchived: includeArchived,
-      ),
-      includeArchived: includeArchived,
-      errorContext: 'Failed to load all teams',
-      errorMessage: 'تعذر تحميل الفرق. تحقق من الاتصال وحاول مرة أخرى.',
-    );
-  }
-
-  /// Create a new team (admin only).
-  Future<void> createTeam(TeamModel team) async {
-    await _runTeamMutation(
-      action: () => _teamRepository.createTeam(team),
-      successMessage: 'تم إنشاء الفريق بنجاح',
-      errorContext: 'Failed to create team',
-      errorMessage: 'تعذر إنشاء الفريق. حاول مرة أخرى.',
-      reloadGroupId: team.groupId,
-    );
-  }
-
-  /// Update an existing team (admin only).
-  Future<void> updateTeam(TeamModel team) async {
-    await _runTeamMutation(
-      action: () => _teamRepository.updateTeam(team),
-      successMessage: 'تم تحديث الفريق بنجاح',
-      errorContext: 'Failed to update team',
-      errorMessage: 'تعذر تحديث الفريق. حاول مرة أخرى.',
-      reloadGroupId: team.groupId,
-    );
-  }
-
-  /// Delete a team (admin only).
-  Future<void> deleteTeam(String teamId, String groupId) async {
-    await _runTeamMutation(
-      action: () => _teamRepository.deleteTeam(teamId),
-      successMessage: 'تمت أرشفة الفريق بنجاح',
-      errorContext: 'Failed to archive team',
-      errorMessage: 'تعذر أرشفة الفريق. حاول مرة أخرى.',
-      reloadGroupId: groupId,
-    );
-  }
-
-  Future<void> restoreTeam(String teamId, String groupId) async {
-    await _runTeamMutation(
-      action: () => _teamRepository.restoreTeam(teamId),
-      successMessage: 'تمت استعادة الفريق بنجاح',
-      errorContext: 'Failed to restore team',
-      errorMessage: 'تعذر استعادة الفريق. حاول مرة أخرى.',
-      reloadGroupId: groupId,
-    );
-  }
-
-  /// Select a team (for dropdown usage).
-  void selectTeam(String? teamId) {
-    _selectedTeamId = teamId;
-    final currentState = state;
-    if (currentState is TeamLoaded) {
-      emit(
-        currentState.copyWith(
-          selectedTeamId: teamId,
-          mutationStatus: TeamMutationStatus.idle,
-          clearFeedbackMessage: true,
-        ),
-      );
-    }
-  }
-
-  /// Admin: assign a responsible servant to a team.
-  Future<void> assignServant({
-    required AuthUser actor,
-    required TeamModel team,
-    required ServantModel servant,
-  }) async {
-    await _runTeamMutation(
-      action: () => _adminTeamService.assignServantToTeam(
-        actor: actor,
-        team: team,
-        servant: servant,
-      ),
-      successMessage: 'تم تعيين الخادم بنجاح',
-      errorContext: 'Failed to assign servant',
-      errorMessage: 'تعذر تعيين الخادم. حاول مرة أخرى.',
-      reloadGroupId: team.groupId,
-    );
-  }
-
-  /// Admin: unassign the responsible servant from a team.
-  Future<void> unassignServant({
-    required AuthUser actor,
-    required TeamModel team,
-  }) async {
-    await _runTeamMutation(
-      action: () =>
-          _adminTeamService.unassignServantFromTeam(actor: actor, team: team),
-      successMessage: 'تم إلغاء تعيين الخادم بنجاح',
-      errorContext: 'Failed to unassign servant',
-      errorMessage: 'تعذر إلغاء تعيين الخادم. حاول مرة أخرى.',
-      reloadGroupId: team.groupId,
-    );
-  }
-
-  /// Admin: set the members of a team (students).
-  Future<void> setTeamMembers({
-    required AuthUser actor,
-    required TeamModel team,
-    required List<StudentModel> students,
-  }) async {
-    await _runTeamMutation(
-      action: () => _adminTeamService.setStudentsForTeam(
-        actor: actor,
-        team: team,
-        selectedStudents: students,
-      ),
-      successMessage: 'تم تحديث أعضاء الفريق بنجاح',
-      errorContext: 'Failed to set team members',
-      errorMessage: 'تعذر تحديث أعضاء الفريق. حاول مرة أخرى.',
-    );
-  }
+  final TeamRepository _teamRepository;
+  final GetTeamsUseCase _getTeamsUseCase;
+  final CreateTeamUseCase _createTeamUseCase;
+  final AssignServantToTeamUseCase _assignServantToTeamUseCase;
+  List<TeamModel> _currentTeams = const [];
+  String? _selectedTeamId;
+  bool _includeArchived = false;
 }

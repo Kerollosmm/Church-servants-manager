@@ -1,4 +1,5 @@
 import 'package:church_management_system/core/constants/routes.dart';
+import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/features/admin/presentation/widget/admin_gate.dart';
 import 'package:church_management_system/features/attendance/presentation/screens/attendance_history_screen.dart';
 import 'package:church_management_system/features/attendance/presentation/screens/attendance_session_create_screen.dart';
@@ -14,8 +15,14 @@ import 'package:church_management_system/core/routing/route_args.dart';
 import 'package:church_management_system/core/widgets/not_found_screen.dart';
 import 'package:church_management_system/features/devtools/presentation/dev_tools_screen.dart';
 import 'package:church_management_system/features/student/data/repos/student_data_repository.dart';
+import 'package:church_management_system/features/student/domain/usecases/add_student_usecase.dart';
 import 'package:church_management_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
+import 'package:church_management_system/features/student/domain/usecases/delete_student_usecase.dart';
 import 'package:church_management_system/features/student/domain/usecases/get_students_stream_usecase.dart';
+import 'package:church_management_system/features/student/domain/usecases/get_students_usecase.dart';
+import 'package:church_management_system/features/student/domain/usecases/restore_student_usecase.dart';
+import 'package:church_management_system/features/student/domain/usecases/search_students_usecase.dart';
+import 'package:church_management_system/features/student/domain/usecases/update_student_usecase.dart';
 import 'package:church_management_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
 import 'package:church_management_system/features/student/presentation/screens/student_detail_screen.dart';
 import 'package:church_management_system/features/student/presentation/screens/student_edit_screen.dart';
@@ -66,6 +73,12 @@ class AppRouter {
         canMutateStudent: context.read<CanMutateStudentUseCase>(),
         adminUserProvisioningService: context
             .read<AdminUserProvisioningService>(),
+        getStudentsUseCase: getIt<GetStudentsUseCase>(),
+        searchStudentsUseCase: getIt<SearchStudentsUseCase>(),
+        addStudentUseCase: getIt<AddStudentUseCase>(),
+        updateStudentUseCase: getIt<UpdateStudentUseCase>(),
+        deleteStudentUseCase: getIt<DeleteStudentUseCase>(),
+        restoreStudentUseCase: getIt<RestoreStudentUseCase>(),
       ),
       child: child,
     );

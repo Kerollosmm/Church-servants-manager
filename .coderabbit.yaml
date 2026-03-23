@@ -1,0 +1,99 @@
+# .coderabbit.yaml
+# Church Servants Manager — CodeRabbit Configuration
+# Flutter + Firebase | Clean Architecture | BLoC | GetIt | Freezed
+
+language: "en-US"
+
+reviews:
+  profile: "assertive"
+  request_changes_workflow: false
+  poem: false
+  high_level_summary: true
+  review_status: true
+
+  path_filters:
+    # Ignore all generated files
+    - "!**/*.g.dart"
+    - "!**/*.freezed.dart"
+    - "!**/*.gr.dart"
+    - "!**/*.config.dart"
+    - "!**/generated/**"
+    - "!build/**"
+    - "!.dart_tool/**"
+    - "!ios/Pods/**"
+    - "!android/.gradle/**"
+    - "!pubspec.lock"
+    - 
+    
+
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - main
+      - develop
+      - "feature/*"
+
+  path_instructions:
+    - path: "**/*.dart"
+      instructions: |
+    ## Project: Church Servants Manager
+    ## Stack: Flutter + Firebase (Firestore, Auth, Cloud Functions/TypeScript)
+    ## Architecture: Clean Architecture (Data → Domain → Presentation)
+    ## State: flutter_bloc / Cubit
+    ## DI: GetIt + injectable
+    ## Models: Freezed (immutable data classes)
+    ## Navigation: Auto Route (or GoRouter)
+
+    ### Domain Rules — NEVER flag these as issues:
+    - `absent` attendance status is NEVER written to Firestore. It is derived
+      at read time via `resolveEffectiveStatus()`. Do not suggest storing it.
+    - Session IDs are deterministic strings (not random UUIDs). This is intentional.
+    - `AttendanceMarkStatus` enum only contains `present` and `late`. The absence
+      of `absent` is by design — treat it as a feature, not a bug.
+    - Roster is built with CombineLatest3 combining session stream, marks stream,
+      and a 15-second clock stream. Do not flag the clock stream as unnecessary.
+
+    ### What TO flag aggressively:
+    1. **BLoC anti-patterns**
+       - State mutation inside `BlocBuilder` or `BlocListener`
+       - Calling `context.read<Cubit>()` inside `build()` method
+       - Missing `close()` on manually created BLoCs
+       - Emitting state from outside the Cubit/Bloc class
+
+    2. **Clean Architecture violations**
+       - UI layer importing from data layer directly
+       - Domain entities depending on Flutter widgets or Firebase types
+       - Use cases doing more than one thing (SRP violations)
+       - Repository implementations leaking into domain layer
+
+    3. **Firestore efficiency**
+       - Listening to entire collections when a query would suffice
+       - Missing `.limit()` on large collection reads
+       - N+1 read patterns (reading documents in a loop)
+       - Writing data that can be derived (like `absent` status)
+
+    4. **Dart/Flutter quality**
+       - `BuildContext` used across async gaps without `mounted` check
+       - Missing `const` constructors where applicable
+       - Unnecessary `setState` in StatefulWidgets that should use BLoC
+       - `dynamic` type usage — should be explicit types
+       - Dead code / unused states (e.g., states defined but never emitted)
+
+    5. **Firebase Auth & Security**
+       - Hardcoded user roles or permissions
+       - Missing null checks on `FirebaseAuth.instance.currentUser`
+       - Firestore writes without proper role validation at the app level
+
+    6. **Folder & casing issues**
+       - Watch for casing mismatches in import paths (Linux CI breaks on this)
+       - `Features/` vs `features/` — always lowercase on Linux
+
+    ### Tone:
+    - Be direct and actionable. Skip praise unless the code is genuinely clever.
+    - For each issue: state the problem, why it matters, and the fix.
+    - Group related issues together.
+    - Prioritize: Critical > High > Medium > Low
+
+chat:
+  auto_reply: true
