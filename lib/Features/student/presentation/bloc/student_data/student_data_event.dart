@@ -102,3 +102,10 @@ final class _StreamError extends StudentDataEvent {
 
   const _StreamError(this.message);
 }
+
+/// FIX [008]: Load the next page of students (cursor-based pagination). (T008)
+final class StudentsLoadMoreRequested extends StudentDataEvent {
+  final AuthUser actor;
+
+  const StudentsLoadMoreRequested({required this.actor});
+}

@@ -80,6 +80,13 @@ void _setCurrentFilters(
   bloc._lastQuery = query;
 }
 
+void _resetPagination(StudentDataBloc bloc) {
+  // FIX [009-P5]: clear pagination state whenever the scoped student source changes.
+  bloc._pageOffset = 0;
+  bloc._hasReachedMax = false;
+  bloc._isLoadingMore = false;
+}
+
 List<StudentModel> _resolveVisibleStudents(
   StudentDataBloc bloc,
   String? query,
@@ -110,6 +117,8 @@ void _emitLoadedState(
       includeArchived: bloc._includeArchived,
       mutationStatus: mutationStatus,
       successMessage: successMessage,
+      isLoadingMore: bloc._isLoadingMore,
+      hasReachedMax: bloc._hasReachedMax,
     ),
   );
 }
@@ -154,6 +163,7 @@ Future<void> _handleLoadStudents(
   );
   _setCurrentFilters(bloc, groupId: event.actor.groupId, teamId: event.teamId);
   bloc._includeArchived = event.includeArchived;
+  _resetPagination(bloc);
   await _subscribeToStudents(
     bloc,
     actor: event.actor,
@@ -170,6 +180,10 @@ void _handleStreamUpdated(
   bloc._allStudents = event.students
       .where((student) => student.role == UserRole.student)
       .toList(growable: false);
+  // FIX [009-P6]: the live stream is the authoritative full result for the current scope.
+  bloc._pageOffset = bloc._allStudents.length;
+  bloc._hasReachedMax = true;
+  bloc._isLoadingMore = false;
   _emitLoadedState(
     bloc,
     emit,
@@ -208,6 +222,7 @@ Future<void> _handleSearchStudents(
 
   if (previousTeamId != nextTeamId ||
       previousIncludeArchived != event.includeArchived) {
+    _resetPagination(bloc);
     emit(
       StudentDataLoading(
         previousStudents: _resolveVisibleStudents(bloc, previousQuery),
@@ -311,6 +326,7 @@ Future<void> _handleRefreshStudents(
     query: bloc._lastQuery,
   );
   bloc._includeArchived = event.includeArchived;
+  _resetPagination(bloc);
   await _subscribeToStudents(
     bloc,
     actor: event.actor,
@@ -328,6 +344,56 @@ Future<void> _handleStopListening(
   bloc._allStudents = const [];
   _setCurrentFilters(bloc);
   bloc._includeArchived = false;
+  _resetPagination(bloc);
   emit(const StudentDataInitial());
   _completePendingRefresh(bloc);
+}
+
+// FIX [008]: Cursor-based pagination handler appending the next page. (T008)
+Future<void> _handleLoadMoreStudents(
+  StudentDataBloc bloc,
+  StudentsLoadMoreRequested event,
+  Emitter<StudentDataState> emit,
+) async {
+  final current = bloc.state;
+  if (current is! StudentDataLoaded) return;
+  if (bloc._isLoadingMore || bloc._hasReachedMax) return;
+  // Do not paginate when a search query is active (stream covers filtered data).
+  if (bloc._lastQuery?.isNotEmpty == true) return;
+
+  bloc._isLoadingMore = true;
+  emit(current.copyWith(isLoadingMore: true));
+
+  try {
+    const pageSize = 20;
+    final page = await bloc._getStudentsUseCase.fetchPage(
+      actor: event.actor,
+      limit: pageSize,
+      offset: bloc._pageOffset,
+      teamId: bloc._lastFilterTeamId,
+      includeArchived: bloc._includeArchived,
+    );
+
+    bloc._pageOffset += page.students.length;
+    bloc._hasReachedMax = !page.hasMore;
+
+    // Merge avoiding duplicates by docID.
+    final merged = Map<String, StudentModel>.fromEntries(
+      [...bloc._allStudents, ...page.students].map((s) => MapEntry(s.docID, s)),
+    ).values.toList(growable: false);
+    bloc._allStudents = merged;
+
+    bloc._isLoadingMore = false;
+    emit(
+      current.copyWith(
+        students: merged,
+        isLoadingMore: false,
+        hasReachedMax: bloc._hasReachedMax,
+      ),
+    );
+  } catch (error) {
+    bloc._isLoadingMore = false;
+    emit(current.copyWith(isLoadingMore: false));
+    if (kDebugMode) debugPrint('StudentDataBloc: load more failed: $error');
+  }
 }

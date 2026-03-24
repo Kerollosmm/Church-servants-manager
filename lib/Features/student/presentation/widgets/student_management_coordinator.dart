@@ -5,7 +5,6 @@ import 'package:church_management_system/core/routing/route_args.dart';
 import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
-import 'package:church_management_system/features/admin/data/admin_team_service.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
@@ -14,10 +13,6 @@ import 'package:church_management_system/features/student/presentation/widgets/s
 import 'package:church_management_system/features/student/presentation/widgets/student_list_tile.dart';
 import 'package:church_management_system/features/student/presentation/widgets/student_search_bar.dart';
 import 'package:church_management_system/features/team/data/models/team_model.dart';
-import 'package:church_management_system/features/team/data/repos/team_repository.dart';
-import 'package:church_management_system/features/team/domain/usecases/assign_servant_to_team_usecase.dart';
-import 'package:church_management_system/features/team/domain/usecases/create_team_usecase.dart';
-import 'package:church_management_system/features/team/domain/usecases/get_teams_usecase.dart';
 import 'package:church_management_system/features/team/presentation/bloc/team_cubit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -33,6 +28,8 @@ class StudentManagementCoordinator extends StatefulWidget {
 class _StudentManagementCoordinatorState
     extends State<StudentManagementCoordinator> {
   final TextEditingController _searchController = TextEditingController();
+  // FIX [008]: ScrollController to trigger load-more at 80% scroll. (T011)
+  final ScrollController _scrollController = ScrollController();
   String? _selectedTeamId;
   bool _showArchived = false;
   late final StudentDataBloc _studentDataBloc;
@@ -42,13 +39,9 @@ class _StudentManagementCoordinatorState
   void initState() {
     super.initState();
     _studentDataBloc = context.read<StudentDataBloc>();
-    _teamCubit = TeamCubit(
-      teamRepository: context.read<TeamRepository>(),
-      adminTeamService: context.read<AdminTeamService>(),
-      getTeamsUseCase: getIt<GetTeamsUseCase>(),
-      createTeamUseCase: getIt<CreateTeamUseCase>(),
-      assignServantToTeamUseCase: getIt<AssignServantToTeamUseCase>(),
-    );
+    // FIX [007]: Resolve TeamCubit via getIt instead of manual instantiation,
+    // ensuring the DI container owns the lifecycle of this cubit.
+    _teamCubit = getIt<TeamCubit>();
 
     final actor = _currentActorOrNull();
     if (actor == null) {
@@ -61,6 +54,9 @@ class _StudentManagementCoordinatorState
         ? actor.effectiveAssignedTeamIds.first
         : null;
 
+    // FIX [008]: Listen to scroll position and load more at 80%. (T011)
+    _scrollController.addListener(() => _onScroll(actor));
+
     _loadStudents(actor, teamId: _selectedTeamId);
     _loadTeamsForActor(actor);
   }
@@ -70,7 +66,18 @@ class _StudentManagementCoordinatorState
     _studentDataBloc.add(const StudentsListeningStopped());
     _teamCubit.close();
     _searchController.dispose();
+    _scrollController.dispose(); // FIX [008]: dispose ScrollController (T011)
     super.dispose();
+  }
+
+  // FIX [008]: Trigger load-more when user scrolls past 80% of list. (T011)
+  void _onScroll(AuthUser actor) {
+    if (!_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    final threshold = position.maxScrollExtent * 0.8;
+    if (position.pixels >= threshold) {
+      _studentDataBloc.add(StudentsLoadMoreRequested(actor: actor));
+    }
   }
 
   AuthUser? _currentActorOrNull() {
@@ -255,6 +262,8 @@ class _StudentManagementCoordinatorState
                 return RefreshIndicator(
                   onRefresh: () => _refresh(actor),
                   child: CustomScrollView(
+                    // FIX [008]: Attach scroll controller for load-more. (T011)
+                    controller: _scrollController,
                     physics: const AlwaysScrollableScrollPhysics(),
                     slivers: [
                       SliverToBoxAdapter(
@@ -335,6 +344,14 @@ class _StudentManagementCoordinatorState
                             );
                           }, childCount: viewData.students.length),
                         ),
+                      // FIX [008]: Load-more indicator at bottom of list. (T011)
+                      if (state is StudentDataLoaded && state.isLoadingMore)
+                        const SliverToBoxAdapter(
+                          child: Padding(
+                            padding: EdgeInsets.all(16),
+                            child: Center(child: CircularProgressIndicator()),
+                          ),
+                        ),
                     ],
                   ),
                 );
@@ -353,6 +370,7 @@ class StudentListViewData {
     required this.students,
     required this.showInitialLoading,
     required this.showEmptyState,
+    required this.canLoadMore,
   });
 
   factory StudentListViewData.fromState(StudentDataState state) {
@@ -362,12 +380,15 @@ class StudentListViewData {
       StudentDataLoading() => state.previousStudents,
       _ => const <StudentModel>[],
     };
+    final loadedState = state is StudentDataLoaded ? state : null;
 
     return StudentListViewData(
       isLoading: isLoading,
       students: students,
       showInitialLoading: isLoading && students.isEmpty,
       showEmptyState: state is StudentDataLoaded && state.students.isEmpty,
+      // FIX [008]: expose canLoadMore for pagination UI. (T011)
+      canLoadMore: loadedState != null && !loadedState.hasReachedMax,
     );
   }
 
@@ -375,4 +396,5 @@ class StudentListViewData {
   final List<StudentModel> students;
   final bool showInitialLoading;
   final bool showEmptyState;
+  final bool canLoadMore; // FIX [008]: true when more pages exist (T011)
 }

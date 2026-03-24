@@ -2,13 +2,9 @@ import 'dart:async';
 
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
-import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
-import 'package:church_management_system/features/student/data/repos/student_data_repository.dart';
 import 'package:church_management_system/features/student/domain/usecases/add_student_usecase.dart';
-import 'package:church_management_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
 import 'package:church_management_system/features/student/domain/usecases/delete_student_usecase.dart';
-import 'package:church_management_system/features/student/domain/usecases/get_students_stream_usecase.dart';
 import 'package:church_management_system/features/student/domain/usecases/get_students_usecase.dart';
 import 'package:church_management_system/features/student/domain/usecases/restore_student_usecase.dart';
 import 'package:church_management_system/features/student/domain/usecases/search_students_usecase.dart';
@@ -25,45 +21,21 @@ part 'student_data_bloc_handlers.dart';
 /// BLoC for managing student data with role-based filtering.
 class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
   // FIX [P1]: delegate student loading/search/CRUD logic to dedicated use cases.
+  // FIX [007]: All use case parameters are now required; fallback constructors
+  // removed so all dependencies must be explicitly wired by the DI container.
   StudentDataBloc({
-    required StudentDataRepository studentRepository,
-    required GetStudentsStreamUseCase getStudentsStream,
-    required CanMutateStudentUseCase canMutateStudent,
-    required AdminUserProvisioningService adminUserProvisioningService,
-    GetStudentsUseCase? getStudentsUseCase,
-    SearchStudentsUseCase? searchStudentsUseCase,
-    AddStudentUseCase? addStudentUseCase,
-    UpdateStudentUseCase? updateStudentUseCase,
-    DeleteStudentUseCase? deleteStudentUseCase,
-    RestoreStudentUseCase? restoreStudentUseCase,
-  }) : _getStudentsUseCase =
-           getStudentsUseCase ??
-           GetStudentsUseCase(studentRepository, getStudentsStream),
-       _searchStudentsUseCase =
-           searchStudentsUseCase ?? const SearchStudentsUseCase(),
-       _addStudentUseCase =
-           addStudentUseCase ??
-           AddStudentUseCase(
-             studentRepository,
-             canMutateStudent,
-             adminUserProvisioningService,
-           ),
-       _updateStudentUseCase =
-           updateStudentUseCase ??
-           UpdateStudentUseCase(studentRepository, canMutateStudent),
-       _deleteStudentUseCase =
-           deleteStudentUseCase ??
-           DeleteStudentUseCase(
-             studentRepository,
-             canMutateStudent,
-             adminUserProvisioningService,
-           ),
-       _restoreStudentUseCase =
-           restoreStudentUseCase ??
-           RestoreStudentUseCase(
-             studentRepository,
-             adminUserProvisioningService,
-           ),
+    required GetStudentsUseCase getStudentsUseCase,
+    required SearchStudentsUseCase searchStudentsUseCase,
+    required AddStudentUseCase addStudentUseCase,
+    required UpdateStudentUseCase updateStudentUseCase,
+    required DeleteStudentUseCase deleteStudentUseCase,
+    required RestoreStudentUseCase restoreStudentUseCase,
+  }) : _getStudentsUseCase = getStudentsUseCase,
+       _searchStudentsUseCase = searchStudentsUseCase,
+       _addStudentUseCase = addStudentUseCase,
+       _updateStudentUseCase = updateStudentUseCase,
+       _deleteStudentUseCase = deleteStudentUseCase,
+       _restoreStudentUseCase = restoreStudentUseCase,
        super(const StudentDataInitial()) {
     on<StudentsLoadRequested>(_onLoadStudents);
     on<StudentsSearchRequested>(_onSearchStudents);
@@ -75,6 +47,9 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     on<StudentsListeningStopped>(_onStopListening);
     on<_StudentsStreamUpdated>(_onStreamUpdated);
     on<_StreamError>(_onStreamError);
+    on<StudentsLoadMoreRequested>(
+      _onLoadMoreStudents,
+    ); // FIX [008]: pagination (T008)
   }
 
   final GetStudentsUseCase _getStudentsUseCase;
@@ -91,6 +66,10 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
   String? _lastFilterTeamId;
   String? _lastQuery;
   bool _includeArchived = false;
+  // FIX [009-P3]: keep load-more state isolated from the live student stream.
+  int _pageOffset = 0;
+  bool _hasReachedMax = false;
+  bool _isLoadingMore = false;
 
   Future<void> _onLoadStudents(
     StudentsLoadRequested event,
@@ -139,6 +118,12 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
 
   void _onStreamError(_StreamError event, Emitter<StudentDataState> emit) =>
       _handleStreamError(this, event, emit);
+
+  // FIX [009-P4]: load-more remains event-driven, but uses scope-safe paging.
+  Future<void> _onLoadMoreStudents(
+    StudentsLoadMoreRequested event,
+    Emitter<StudentDataState> emit,
+  ) => _handleLoadMoreStudents(this, event, emit);
 
   @override
   Future<void> close() async {

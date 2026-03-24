@@ -171,35 +171,22 @@ service cloud.firestore {
         request.resource.data.status in ['present', 'late'];
     }
 
-    // ─── Users ─────────────────────────────────────────────────────
+    // FIX [009-S1]: restore self-service signup/profile writes while keeping admin overrides.
     match /Users/{userId} {
-      // Users can read their own doc; admins can read any user.
       allow read: if isSignedIn() && (callerUid() == userId || isAdmin());
-
-      // Only admins can create new user docs (for admin-created accounts).
-      // Users can create their own doc on first sign-up.
       allow create: if isSignedIn() && (isAdmin() || validSelfUserCreate(userId));
-
-      // Users can update their own non-role fields.
-      // Admins can update any user doc (including role changes).
       allow update: if isSignedIn() && (isAdmin() || validSelfUserUpdate(userId));
-
-      // Only admins can delete user docs.
       allow delete: if isAdmin();
     }
 
-    // ─── Students ──────────────────────────────────────────────────
+    // FIX [009-S2]: restore role-scoped student reads and servant-limited mutations.
     match /Students/{studentId} {
-      // Admins can read all students.
-      // Servants can read students that belong to their group or assigned team.
-      // Students can read their own profile.
       allow read: if isSignedIn() && (
         isAdmin() ||
         servantCanReadStudent() ||
         resource.data.uid == callerUid()
       );
 
-      // Only admins and servants can create students.
       allow create: if isSignedIn() && (
         isAdmin() ||
         (
@@ -208,8 +195,6 @@ service cloud.firestore {
         )
       );
 
-      // Admins and servants can update students.
-      // Servants cannot change a student's role — only admins.
       allow update: if isSignedIn() && (
         isAdmin() ||
         (
@@ -219,17 +204,12 @@ service cloud.firestore {
         )
       );
 
-      // Only admins can delete students.
       allow delete: if isAdmin();
     }
 
-    // ─── Classes (Teams) ───────────────────────────────────────────
+    // FIX [009-S3]: restore least-privilege team/session reads and validated mark writes.
     match /Classes/{classId} {
-      // Admins can read all classes.
-      // Servants can read classes (for team assignment UIs).
       allow read: if isSignedIn() && (isAdmin() || isServant());
-
-      // Only admins can create, update, or delete classes/teams.
       allow create, update, delete: if isAdmin();
 
       match /attendance_sessions/{sessionId} {

@@ -28,6 +28,7 @@ final class StudentDataLoading extends StudentDataState {
 }
 
 /// Loaded state - students fetched successfully.
+// FIX [008]: Added isLoadingMore and hasReachedMax for cursor-based pagination (T007).
 final class StudentDataLoaded extends StudentDataState {
   final List<StudentModel> students;
   final String? currentFilterGroupId;
@@ -35,6 +36,8 @@ final class StudentDataLoaded extends StudentDataState {
   final String? currentQuery;
   final bool includeArchived;
   final StudentMutationStatus mutationStatus;
+  final bool isLoadingMore; // FIX [008]: true while fetching the next page
+  final bool hasReachedMax; // FIX [008]: true when no more pages exist
 
   /// Optional one-shot message signaling a successful CRUD operation.
   final String? successMessage;
@@ -47,6 +50,8 @@ final class StudentDataLoaded extends StudentDataState {
     this.includeArchived = false,
     this.mutationStatus = StudentMutationStatus.idle,
     this.successMessage,
+    this.isLoadingMore = false, // FIX [008]: pagination default
+    this.hasReachedMax = false, // FIX [008]: pagination default
   });
 
   /// Get student count.
@@ -54,6 +59,33 @@ final class StudentDataLoaded extends StudentDataState {
 
   /// Check if empty.
   bool get isEmpty => students.isEmpty;
+
+  StudentDataLoaded copyWith({
+    List<StudentModel>? students,
+    String? currentFilterGroupId,
+    String? currentFilterTeamId,
+    String? currentQuery,
+    bool? includeArchived,
+    StudentMutationStatus? mutationStatus,
+    String? successMessage,
+    bool clearSuccessMessage = false,
+    bool? isLoadingMore,
+    bool? hasReachedMax,
+  }) {
+    return StudentDataLoaded(
+      students: students ?? this.students,
+      currentFilterGroupId: currentFilterGroupId ?? this.currentFilterGroupId,
+      currentFilterTeamId: currentFilterTeamId ?? this.currentFilterTeamId,
+      currentQuery: currentQuery ?? this.currentQuery,
+      includeArchived: includeArchived ?? this.includeArchived,
+      mutationStatus: mutationStatus ?? this.mutationStatus,
+      successMessage: clearSuccessMessage
+          ? null
+          : (successMessage ?? this.successMessage),
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      hasReachedMax: hasReachedMax ?? this.hasReachedMax,
+    );
+  }
 
   @override
   bool operator ==(Object other) =>
@@ -66,6 +98,8 @@ final class StudentDataLoaded extends StudentDataState {
           includeArchived == other.includeArchived &&
           mutationStatus == other.mutationStatus &&
           successMessage == other.successMessage &&
+          isLoadingMore == other.isLoadingMore &&
+          hasReachedMax == other.hasReachedMax &&
           const ListEquality<StudentModel>().equals(students, other.students);
 
   @override
@@ -77,6 +111,8 @@ final class StudentDataLoaded extends StudentDataState {
     includeArchived,
     mutationStatus,
     successMessage,
+    isLoadingMore,
+    hasReachedMax,
   );
 }
 
