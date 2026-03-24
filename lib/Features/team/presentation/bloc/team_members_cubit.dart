@@ -3,12 +3,15 @@ import 'package:church_management_system/features/auth/data/models/auth_user.dar
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/student/data/repos/student_data_repository.dart';
 import 'package:church_management_system/features/team/data/models/team_model.dart';
+import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 enum TeamMembersMutationStatus { idle, success, failure }
 
-class TeamMembersState {
+// FIX [007]: Extend Equatable so identical state emissions are skipped by
+// flutter_bloc, preventing redundant UI rebuilds in TeamMembersScreen.
+class TeamMembersState extends Equatable {
   final bool isLoading;
   final bool isSaving;
   final List<StudentModel> students;
@@ -40,6 +43,19 @@ class TeamMembersState {
   }
 
   int get selectedCount => selectedStudentIds.length;
+
+  @override
+  List<Object?> get props => [
+    isLoading,
+    isSaving,
+    students,
+    searchQuery,
+    selectedStudentIds,
+    loadedFromCache,
+    errorMessage,
+    mutationStatus,
+    feedbackMessage,
+  ];
 
   TeamMembersState copyWith({
     bool? isLoading,

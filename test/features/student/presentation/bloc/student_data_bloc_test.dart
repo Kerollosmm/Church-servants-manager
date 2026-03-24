@@ -5,8 +5,14 @@ import 'package:church_management_system/features/auth/data/models/auth_user.dar
 import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/student/data/repos/student_data_repository.dart';
+import 'package:church_management_system/features/student/domain/usecases/add_student_usecase.dart';
 import 'package:church_management_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
+import 'package:church_management_system/features/student/domain/usecases/delete_student_usecase.dart';
 import 'package:church_management_system/features/student/domain/usecases/get_students_stream_usecase.dart';
+import 'package:church_management_system/features/student/domain/usecases/get_students_usecase.dart';
+import 'package:church_management_system/features/student/domain/usecases/restore_student_usecase.dart';
+import 'package:church_management_system/features/student/domain/usecases/search_students_usecase.dart';
+import 'package:church_management_system/features/student/domain/usecases/update_student_usecase.dart';
 import 'package:church_management_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -72,6 +78,30 @@ void main() {
     adminUserProvisioningService = MockAdminUserProvisioningService();
   });
 
+  /// Helper: creates a [StudentDataBloc] wired with real use cases backed by
+  /// the mock repository / services, mirroring what getIt provides in production.
+  // FIX [007]: Use cases are now required; build real instances from mocks so
+  // existing when() stubs on repository/service objects remain valid.
+  StudentDataBloc makeBloc() => StudentDataBloc(
+    getStudentsUseCase: GetStudentsUseCase(repository, getStudentsStream),
+    searchStudentsUseCase: const SearchStudentsUseCase(),
+    addStudentUseCase: AddStudentUseCase(
+      repository,
+      canMutateStudent,
+      adminUserProvisioningService,
+    ),
+    updateStudentUseCase: UpdateStudentUseCase(repository, canMutateStudent),
+    deleteStudentUseCase: DeleteStudentUseCase(
+      repository,
+      canMutateStudent,
+      adminUserProvisioningService,
+    ),
+    restoreStudentUseCase: RestoreStudentUseCase(
+      repository,
+      adminUserProvisioningService,
+    ),
+  );
+
   test(
     'load emits loading then empty loaded when actor has no stream access',
     () async {
@@ -80,12 +110,7 @@ void main() {
         () => getStudentsStream(actor: admin, teamId: null),
       ).thenReturn(null);
 
-      final bloc = StudentDataBloc(
-        studentRepository: repository,
-        getStudentsStream: getStudentsStream,
-        canMutateStudent: canMutateStudent,
-        adminUserProvisioningService: adminUserProvisioningService,
-      );
+      final bloc = makeBloc();
 
       final expectation = expectLater(
         bloc.stream,
@@ -110,12 +135,7 @@ void main() {
       () => getStudentsStream(actor: admin, teamId: null),
     ).thenAnswer((_) => controller.stream);
 
-    final bloc = StudentDataBloc(
-      studentRepository: repository,
-      getStudentsStream: getStudentsStream,
-      canMutateStudent: canMutateStudent,
-      adminUserProvisioningService: adminUserProvisioningService,
-    );
+    final bloc = makeBloc();
 
     final expectation = expectLater(
       bloc.stream,
@@ -155,12 +175,7 @@ void main() {
         () => getStudentsStream(actor: admin, teamId: 'team2'),
       ).thenAnswer((_) => team2Controller.stream);
 
-      final bloc = StudentDataBloc(
-        studentRepository: repository,
-        getStudentsStream: getStudentsStream,
-        canMutateStudent: canMutateStudent,
-        adminUserProvisioningService: adminUserProvisioningService,
-      );
+      final bloc = makeBloc();
 
       final expectation = expectLater(
         bloc.stream,
@@ -205,12 +220,7 @@ void main() {
     final newStudent = student();
     when(() => canMutateStudent(servant, newStudent)).thenReturn(false);
 
-    final bloc = StudentDataBloc(
-      studentRepository: repository,
-      getStudentsStream: getStudentsStream,
-      canMutateStudent: canMutateStudent,
-      adminUserProvisioningService: adminUserProvisioningService,
-    );
+    final bloc = makeBloc();
 
     final expectation = expectLater(
       bloc.stream,
@@ -235,12 +245,7 @@ void main() {
 
     when(() => repository.getStudentById(any())).thenAnswer((_) async => null);
 
-    final bloc = StudentDataBloc(
-      studentRepository: repository,
-      getStudentsStream: getStudentsStream,
-      canMutateStudent: canMutateStudent,
-      adminUserProvisioningService: adminUserProvisioningService,
-    );
+    final bloc = makeBloc();
 
     final expectation = expectLater(
       bloc.stream,
@@ -269,12 +274,7 @@ void main() {
     ).thenAnswer((_) async => existing);
     when(() => canMutateStudent(servantActor, existing)).thenReturn(true);
 
-    final bloc = StudentDataBloc(
-      studentRepository: repository,
-      getStudentsStream: getStudentsStream,
-      canMutateStudent: canMutateStudent,
-      adminUserProvisioningService: adminUserProvisioningService,
-    );
+    final bloc = makeBloc();
 
     final expectation = expectLater(
       bloc.stream,
@@ -308,12 +308,7 @@ void main() {
     ).thenAnswer((_) async => existing);
     when(() => canMutateStudent(adminActor, existing)).thenReturn(true);
 
-    final bloc = StudentDataBloc(
-      studentRepository: repository,
-      getStudentsStream: getStudentsStream,
-      canMutateStudent: canMutateStudent,
-      adminUserProvisioningService: adminUserProvisioningService,
-    );
+    final bloc = makeBloc();
 
     final expectation = expectLater(
       bloc.stream,
@@ -371,12 +366,7 @@ void main() {
       ),
     ).thenAnswer((_) async {});
 
-    final bloc = StudentDataBloc(
-      studentRepository: repository,
-      getStudentsStream: getStudentsStream,
-      canMutateStudent: canMutateStudent,
-      adminUserProvisioningService: adminUserProvisioningService,
-    );
+    final bloc = makeBloc();
 
     final expectation = expectLater(
       bloc.stream,
@@ -421,12 +411,7 @@ void main() {
         () => repository.createStudent(newStudent),
       ).thenAnswer((_) async => 's1');
 
-      final bloc = StudentDataBloc(
-        studentRepository: repository,
-        getStudentsStream: getStudentsStream,
-        canMutateStudent: canMutateStudent,
-        adminUserProvisioningService: adminUserProvisioningService,
-      );
+      final bloc = makeBloc();
 
       final expectation = expectLater(
         bloc.stream,
@@ -460,17 +445,17 @@ void main() {
       () => repository.getStudentById('s3'),
     ).thenAnswer((_) async => existing);
     when(() => canMutateStudent(adminActor, existing)).thenReturn(true);
-    when(() => repository.deleteStudent('s3')).thenAnswer((_) async {});
+    when(
+      () => repository.deleteStudent(
+        's3',
+        performedByUid: any(named: 'performedByUid'),
+      ),
+    ).thenAnswer((_) async {});
     when(
       () => adminUserProvisioningService.archiveUser(uid: 's3'),
     ).thenAnswer((_) async {});
 
-    final bloc = StudentDataBloc(
-      studentRepository: repository,
-      getStudentsStream: getStudentsStream,
-      canMutateStudent: canMutateStudent,
-      adminUserProvisioningService: adminUserProvisioningService,
-    );
+    final bloc = makeBloc();
 
     final expectation = expectLater(
       bloc.stream,
@@ -496,17 +481,17 @@ void main() {
     when(
       () => repository.getStudentById('s4', includeArchived: true),
     ).thenAnswer((_) async => archived);
-    when(() => repository.restoreStudent('s4')).thenAnswer((_) async {});
+    when(
+      () => repository.restoreStudent(
+        's4',
+        performedByUid: any(named: 'performedByUid'),
+      ),
+    ).thenAnswer((_) async {});
     when(
       () => adminUserProvisioningService.restoreUser(uid: 's4'),
     ).thenAnswer((_) async {});
 
-    final bloc = StudentDataBloc(
-      studentRepository: repository,
-      getStudentsStream: getStudentsStream,
-      canMutateStudent: canMutateStudent,
-      adminUserProvisioningService: adminUserProvisioningService,
-    );
+    final bloc = makeBloc();
 
     final expectation = expectLater(
       bloc.stream,
@@ -521,7 +506,12 @@ void main() {
 
     bloc.add(StudentRestored(actor: adminActor, docId: 's4'));
     await expectation;
-    verify(() => repository.restoreStudent('s4')).called(1);
+    verify(
+      () => repository.restoreStudent(
+        's4',
+        performedByUid: any(named: 'performedByUid'),
+      ),
+    ).called(1);
     verify(() => adminUserProvisioningService.restoreUser(uid: 's4')).called(1);
     await bloc.close();
   });

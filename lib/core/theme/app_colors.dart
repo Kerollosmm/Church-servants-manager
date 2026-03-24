@@ -46,40 +46,58 @@ class AppColors {
   /// Warning accent color.
   static const Color warning = Color(0xFFB45309);
 
-  /// White helper alias for legacy code.
+  /// Warning container surface. // FIX [008]: Added for SessionExpiryBanner (T019)
+  static const Color warningContainer = Color(0xFFFFF3E0);
+
+  // ---- Legacy aliases (deprecated) ----
+  // FIX [008]: Mark legacy aliases @Deprecated to guide migration to
+  // Material 3 semantic tokens above. Use the replacement token shown. (T019)
+
+  /// @nodoc Use [onPrimary] instead.
+  @Deprecated('Use AppColors.onPrimary instead.')
   static const Color white = onPrimary;
 
-  /// Warm near-black helper alias for legacy code.
+  /// @nodoc Use [onBackground] instead.
+  @Deprecated('Use AppColors.onBackground instead.')
   static const Color black = onBackground;
 
   /// Transparent helper alias.
   static const Color transparent = Colors.transparent;
 
-  /// Legacy darker primary accent.
+  /// @nodoc Use [primary] with a darker shade or define a custom token.
+  @Deprecated('Use AppColors.primary with appropriate opacity instead.')
   static const Color primaryDark = Color(0xFF8A6B45);
 
-  /// Legacy lighter primary accent.
+  /// @nodoc Use [primaryContainer] or [primary] with opacity instead.
+  @Deprecated('Use AppColors.primaryContainer instead.')
   static const Color primaryLight = Color(0xFFD1B089);
 
-  /// Legacy secondary accent retained for compatibility.
+  /// @nodoc Use [primaryContainer] instead.
+  @Deprecated('Use AppColors.primaryContainer instead.')
   static const Color secondary = Color(0xFFD8C19D);
 
-  /// Legacy tertiary accent retained for compatibility.
+  /// @nodoc Use [primary] with appropriate opacity instead.
+  @Deprecated('Use AppColors.primary with appropriate opacity instead.')
   static const Color tertiary = Color(0xFF7D6242);
 
-  /// Legacy surface container alias.
+  /// @nodoc Use [surfaceContainerLow] instead.
+  @Deprecated('Use AppColors.surfaceContainerLow instead.')
   static const Color surfaceContainer = surfaceContainerLow;
 
-  /// Legacy primary text alias.
+  /// @nodoc Use [onBackground] instead.
+  @Deprecated('Use AppColors.onBackground instead.')
   static const Color textPrimary = onBackground;
 
-  /// Legacy secondary text alias.
+  /// @nodoc Use [onSurface] instead.
+  @Deprecated('Use AppColors.onSurface instead.')
   static const Color textSecondary = onSurface;
 
-  /// Legacy tertiary text alias.
+  /// @nodoc Define a dedicated token in AppColorScheme instead.
+  @Deprecated('Define a semantic token in AppColorScheme instead.')
   static const Color textTertiary = Color(0xFF7E7E80);
 
-  /// Legacy inverse text alias.
+  /// @nodoc Use [onPrimary] instead.
+  @Deprecated('Use AppColors.onPrimary instead.')
   static const Color textInverse = onPrimary;
 
   /// Shared ochre gradient for decorative accents.

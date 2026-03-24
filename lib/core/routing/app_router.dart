@@ -9,16 +9,11 @@ import 'package:church_management_system/features/admin/presentation/screens/adm
 import 'package:church_management_system/features/auth/presentation/screens/forgot_password_screen.dart';
 import 'package:church_management_system/features/auth/presentation/screens/login_screen.dart';
 import 'package:church_management_system/features/auth/presentation/screens/register_screen.dart';
-import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
-
 import 'package:church_management_system/core/routing/route_args.dart';
 import 'package:church_management_system/core/widgets/not_found_screen.dart';
 import 'package:church_management_system/features/devtools/presentation/dev_tools_screen.dart';
-import 'package:church_management_system/features/student/data/repos/student_data_repository.dart';
 import 'package:church_management_system/features/student/domain/usecases/add_student_usecase.dart';
-import 'package:church_management_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
 import 'package:church_management_system/features/student/domain/usecases/delete_student_usecase.dart';
-import 'package:church_management_system/features/student/domain/usecases/get_students_stream_usecase.dart';
 import 'package:church_management_system/features/student/domain/usecases/get_students_usecase.dart';
 import 'package:church_management_system/features/student/domain/usecases/restore_student_usecase.dart';
 import 'package:church_management_system/features/student/domain/usecases/search_students_usecase.dart';
@@ -32,6 +27,7 @@ import 'package:church_management_system/features/servant/presentation/screens/s
 import 'package:church_management_system/features/servant/presentation/screens/add_edit_servant_screen.dart';
 import 'package:church_management_system/features/team/presentation/screens/team_management_screen.dart';
 import 'package:church_management_system/features/team/presentation/screens/team_members_screen.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -65,14 +61,12 @@ class AppRouter {
     return _buildMessageRoute(settings: settings, message: invalidMessage);
   }
 
-  Widget _withStudentDataBloc(BuildContext context, Widget child) {
+  Widget _withStudentDataBloc(Widget child) {
+    // FIX [P1-A]: Remove BuildContext param; all deps now resolved via getIt
+    // FIX [007]: Pass use cases directly; fallback constructors removed from
+    // StudentDataBloc so every dependency must come through the DI container.
     return BlocProvider(
       create: (_) => StudentDataBloc(
-        studentRepository: context.read<StudentDataRepository>(),
-        getStudentsStream: context.read<GetStudentsStreamUseCase>(),
-        canMutateStudent: context.read<CanMutateStudentUseCase>(),
-        adminUserProvisioningService: context
-            .read<AdminUserProvisioningService>(),
         getStudentsUseCase: getIt<GetStudentsUseCase>(),
         searchStudentsUseCase: getIt<SearchStudentsUseCase>(),
         addStudentUseCase: getIt<AddStudentUseCase>(),
@@ -103,26 +97,25 @@ class AppRouter {
         );
       case studentList:
         return _buildPageRoute(
-          builder: (context) =>
-              _withStudentDataBloc(context, const StudentManagementScreen()),
+          builder: (_) => _withStudentDataBloc(
+            const StudentManagementScreen(),
+          ), // FIX [P1-A]: Remove context arg; getIt resolves all deps
           settings: settings,
         );
       case studentDetail:
         return _buildArgsValidatedRoute<StudentDetailArgs>(
           settings: settings,
-          builder: (args) => Builder(
-            builder: (context) =>
-                _withStudentDataBloc(context, StudentDetailScreen(args: args)),
-          ),
+          builder: (args) => _withStudentDataBloc(
+            StudentDetailScreen(args: args),
+          ), // FIX [P1-A]: Remove Builder+context; getIt resolves all deps
           invalidMessage: 'Invalid student data',
         );
       case studentEdit:
         return _buildArgsValidatedRoute<StudentEditArgs>(
           settings: settings,
-          builder: (args) => Builder(
-            builder: (context) =>
-                _withStudentDataBloc(context, StudentEditScreen(args: args)),
-          ),
+          builder: (args) => _withStudentDataBloc(
+            StudentEditScreen(args: args),
+          ), // FIX [P1-A]: Remove Builder+context; getIt resolves all deps
           invalidMessage: 'Invalid student data',
         );
       // Servant Routes
@@ -144,9 +137,16 @@ class AppRouter {
           invalidMessage: 'Invalid servant data',
         );
 
+      // FIX [004-M3]: devTools not accessible in release builds.
       case devTools:
+        if (kDebugMode) {
+          return _buildPageRoute(
+            builder: (_) => const AdminGate(child: DevToolsScreen()),
+            settings: settings,
+          );
+        }
         return _buildPageRoute(
-          builder: (_) => const AdminGate(child: DevToolsScreen()),
+          builder: (_) => const NotFoundScreen(),
           settings: settings,
         );
 

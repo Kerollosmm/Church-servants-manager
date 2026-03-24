@@ -25,7 +25,8 @@ class DeleteStudentUseCase {
       throw const StudentOperationException('غير مسموح.');
     }
 
-    await _repository.deleteStudent(docId);
+    // FIX [004-C2]: pass actor uid so repository records the real performer.
+    await _repository.deleteStudent(docId, performedByUid: actor.uid);
     if (existing.uid.trim().isNotEmpty) {
       await _adminUserProvisioningService.archiveUser(uid: existing.uid.trim());
     }

@@ -26,7 +26,8 @@ class RestoreStudentUseCase {
       throw const StudentOperationException('غير مسموح.');
     }
 
-    await _repository.restoreStudent(docId);
+    // FIX [004-C2]: pass actor uid so repository records the real performer.
+    await _repository.restoreStudent(docId, performedByUid: actor.uid);
     if (existing.uid.trim().isNotEmpty) {
       await _adminUserProvisioningService.restoreUser(uid: existing.uid.trim());
     }

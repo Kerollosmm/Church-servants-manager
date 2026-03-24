@@ -312,6 +312,7 @@ class AttendanceRepository implements IAttendanceRepository {
   Query<Map<String, dynamic>> _studentSessionsQuery({
     required String studentId,
     String? teamId,
+    DateTime? since, // FIX [004-H2]: optional date floor to cap session query.
   }) {
     Query<Map<String, dynamic>> query = _firestore
         .collectionGroup(FirestoreCollections.attendanceSessions)
@@ -319,6 +320,12 @@ class AttendanceRepository implements IAttendanceRepository {
     final normalizedTeamId = teamId?.trim() ?? '';
     if (normalizedTeamId.isNotEmpty) {
       query = query.where('teamId', isEqualTo: normalizedTeamId);
+    }
+    if (since != null) {
+      query = query.where(
+        'startsAt',
+        isGreaterThanOrEqualTo: Timestamp.fromDate(since),
+      );
     }
     return query;
   }
@@ -337,10 +344,12 @@ class AttendanceRepository implements IAttendanceRepository {
     required String studentId,
     String? teamId,
     DateTimeRange? range,
+    DateTime? since,
   }) async {
     final snapshot = await _studentSessionsQuery(
       studentId: studentId,
       teamId: teamId,
+      since: since,
     ).get();
     final sessions = _mapSessionsSnapshot(snapshot);
     if (range == null) return sessions;
@@ -555,9 +564,17 @@ class AttendanceRepository implements IAttendanceRepository {
         .map(_mapSessionsSnapshot);
   }
 
+  // FIX [004-H3]: server-side filter — only fetch open sessions for active check.
+  Stream<List<AttendanceSession>> _watchOpenSessionsForTeam(String teamId) {
+    return _sessionsCol(teamId)
+        .where('isClosed', isEqualTo: false)
+        .snapshots()
+        .map(_mapSessionsSnapshot);
+  }
+
   @override
   Stream<AttendanceSession?> watchActiveSessionForTeam(String teamId) {
-    return Rx.combineLatest2(watchSessionsForTeam(teamId), _watchClock(), (
+    return Rx.combineLatest2(_watchOpenSessionsForTeam(teamId), _watchClock(), (
       List<AttendanceSession> sessions,
       DateTime now,
     ) {
@@ -820,10 +837,13 @@ class AttendanceRepository implements IAttendanceRepository {
     DateTimeRange? range,
   }) async {
     try {
+      // FIX [004-H2]: apply 6-month ceiling when no explicit range is given.
+      final since = DateTime.now().subtract(const Duration(days: 180));
       final sessions = await _loadStudentSessions(
         studentId: studentId,
         teamId: teamId,
         range: range,
+        since: range == null ? since : null,
       );
       final now = _nowProvider();
 
@@ -880,20 +900,27 @@ class AttendanceRepository implements IAttendanceRepository {
       var absentCount = 0;
       final uniqueStudentIds = <String>{};
 
-      for (final session in sessions) {
+      // FIX [004-H1]: collect eligible sessions first, then parallel-fetch marks.
+      final eligibleSessions = sessions.where((session) {
         final inRange =
             range == null ||
             (!session.startsAt.isBefore(range.start) &&
                 !session.startsAt.isAfter(range.end));
-        if (!inRange || !session.isEffectivelyClosedAt(now)) {
-          continue;
-        }
+        return inRange && session.isEffectivelyClosedAt(now);
+      }).toList(growable: false);
+
+      final markSnapshots = await Future.wait(
+        eligibleSessions.map((s) => _marksCol(teamId, s.id).get()),
+      );
+
+      for (var i = 0; i < eligibleSessions.length; i++) {
+        final session = eligibleSessions[i];
+        final marksSnapshot = markSnapshots[i];
 
         totalSessions += 1;
         totalRosterEntries += session.studentIdsSnapshot.length;
         uniqueStudentIds.addAll(session.studentIdsSnapshot);
 
-        final marksSnapshot = await _marksCol(teamId, session.id).get();
         var sessionMarkedCount = 0;
         for (final doc in marksSnapshot.docs) {
           try {

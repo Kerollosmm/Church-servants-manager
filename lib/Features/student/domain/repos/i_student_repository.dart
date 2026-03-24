@@ -51,7 +51,13 @@ abstract class IStudentRepository {
 
   /// Archive a student by document ID.
   /// Throws [StudentFailure] on error.
-  Future<void> deleteStudent(String docId);
+  // FIX [004-C2]: added performedByUid so the actor's identity is recorded.
+  Future<void> deleteStudent(String docId, {required String performedByUid});
+
+  /// Restore an archived student by document ID.
+  /// Throws [StudentFailure] on error.
+  // FIX [004-C2]: added performedByUid so the actor's identity is recorded.
+  Future<void> restoreStudent(String docId, {required String performedByUid});
 
   /// Upsert a student (create or update).
   Future<void> upsertStudent(StudentModel student);

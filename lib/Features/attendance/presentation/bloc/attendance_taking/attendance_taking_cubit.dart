@@ -116,7 +116,8 @@ class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
   }
 
   Future<void> _runMutation({required Future<void> Function() action}) async {
-    final currentState = state;
+    final currentState =
+        state; // FIX [P1-C]: Capture pre-mutation state for session validation only
     if (currentState is! AttendanceTakingLoaded) return;
     if (_isMutating) return;
     if (!currentState.session.isOpenAt(_nowProvider())) {
@@ -125,32 +126,46 @@ class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
       return;
     }
 
-    _isMutating = true;
+    _isMutating =
+        true; // FIX [P1-C]: Set flag before await so _onSnapshot preserves isMutating during stream emissions
     _mutationError = null;
     emit(currentState.copyWith(isMutating: true, clearMutationError: true));
     try {
-      await action();
-      _isMutating = false;
-      _mutationError = null;
+      await action(); // FIX [P1-C]: Stream snapshots arriving here are handled by _onSnapshot using _isMutating flag
+      _mutationError =
+          null; // FIX [P1-C]: Clear error on success before final emit
     } catch (error, stackTrace) {
+      _mutationError = mapExceptionToAttendanceFailure(
+        error,
+      ).message; // FIX [P1-C]: Capture error first; applied to LATEST state below
       if (kDebugMode) {
         debugPrint(
           'AttendanceTakingCubit: mutation failed (${error.runtimeType})',
         );
-        debugPrintStack(stackTrace: stackTrace);
+        try {
+          debugPrintStack(
+            stackTrace: stackTrace,
+          ); // FIX [P1-C]: Guard against package:stack_trace format assertion in test environments
+        } catch (_) {
+          // Ignore stack trace formatting errors (e.g. during flutter tests)
+        }
       }
-      _isMutating = false;
-      _mutationError = mapExceptionToAttendanceFailure(error).message;
-    }
-    final latestState = state;
-    if (latestState is AttendanceTakingLoaded) {
-      emit(
-        latestState.copyWith(
-          isMutating: false,
-          mutationError: _mutationError,
-          clearMutationError: _mutationError == null,
-        ),
-      );
+    } finally {
+      // FIX [P1-C]: Use finally to guarantee state cleanup even if action throws
+      _isMutating =
+          false; // FIX [P1-C]: Clear flag before final emit so subsequent stream snapshots are not affected
+      final latestState =
+          state; // FIX [P1-C]: Read LATEST state (may include roster updates from server stream during await)
+      if (latestState is AttendanceTakingLoaded) {
+        emit(
+          latestState.copyWith(
+            // FIX [P1-C]: Apply mutation result to latest roster data, not the pre-mutation snapshot
+            isMutating: false,
+            mutationError: _mutationError,
+            clearMutationError: _mutationError == null,
+          ),
+        );
+      }
     }
   }
 

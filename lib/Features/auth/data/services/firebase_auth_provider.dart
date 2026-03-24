@@ -211,9 +211,12 @@ class FirebaseAuthProvider implements AuthProvider {
 
   @override
   Future<void> logOut() async {
-    final user = _requireCurrentUser();
-    _userCache.remove(user.uid);
-    await _auth.signOut();
+    // FIX [004-H4]: idempotent — no-op when already signed out.
+    final user = _auth.currentUser;
+    if (user != null) {
+      _userCache.remove(user.uid);
+      await _auth.signOut();
+    }
   }
 
   @override

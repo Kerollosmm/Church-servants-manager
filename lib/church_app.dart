@@ -1,6 +1,8 @@
 import 'package:church_management_system/core/di/injection.dart';
+import 'package:church_management_system/core/presentation/bloc/connectivity/connectivity_cubit.dart';
 import 'package:church_management_system/core/routing/app_router.dart';
 import 'package:church_management_system/core/theme/app_theme.dart';
+import 'package:church_management_system/core/widgets/offline_indicator.dart';
 import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
 import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
 import 'package:church_management_system/features/auth/data/services/auth_service.dart';
@@ -61,6 +63,11 @@ class ChurchApp extends StatelessWidget {
       ],
       child: MultiBlocProvider(
         providers: [
+          // FIX [008]: Provide ConnectivityCubit globally so OfflineIndicator
+          // can react to network changes from any screen. (T006/T014)
+          BlocProvider<ConnectivityCubit>.value(
+            value: getIt<ConnectivityCubit>(),
+          ),
           BlocProvider(
             create: (context) => AuthBloc(
               authService: context.read<AuthService>(),
@@ -88,12 +95,16 @@ class ChurchApp extends StatelessWidget {
             ),
           ),
         ],
+        // FIX [008]: Wrap MaterialApp content with OfflineIndicator via the
+        // builder callback so the banner sits above every route. (T014)
         child: MaterialApp(
           title: 'اعداد خدام',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.light(),
           onGenerateRoute: getIt<AppRouter>().onGenerateRoute,
           home: const SplashScreen(),
+          builder: (context, child) =>
+              OfflineIndicator(child: child ?? const SizedBox.shrink()),
         ),
       ),
     );

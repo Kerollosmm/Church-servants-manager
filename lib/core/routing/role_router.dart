@@ -52,11 +52,16 @@ class RoleRouter {
     return switch (role) {
       UserRole.servant => ServantDashboardScreen(user: user),
       UserRole.student => StudentProfileScreen(user: user),
-      UserRole.admin => state is AuthAuthenticated
-          ? AdminDashboardScreen()
-          : AdminRefreshRequiredScreen(
-              message: (state as AuthDegraded).message,
-            ),
+      UserRole.admin => switch (state) {
+        // FIX [P1-B]: Replace unsafe cast with Dart 3 pattern matching
+        AuthAuthenticated() =>
+          AdminDashboardScreen(), // FIX [P1-B]: Safe type check via exhaustive switch
+        AuthDegraded(:final message) => AdminRefreshRequiredScreen(
+          message: message,
+        ), // FIX [P1-B]: Destructure message safely, no cast
+        _ =>
+          const SizedBox.shrink(), // FIX [P1-B]: Safe fallback for any unexpected admin auth state
+      },
     };
   }
 }
@@ -86,13 +91,15 @@ class AdminRefreshRequiredScreen extends StatelessWidget {
               Text(message, textAlign: TextAlign.center),
               const SizedBox(height: 16),
               FilledButton.icon(
-                onPressed: () => context.read<AuthBloc>().add(const AuthEventRefreshUser()),
+                onPressed: () =>
+                    context.read<AuthBloc>().add(const AuthEventRefreshUser()),
                 icon: const Icon(Icons.refresh),
                 label: const Text('تحديث الصلاحيات'),
               ),
               const SizedBox(height: 8),
               TextButton(
-                onPressed: () => context.read<AuthBloc>().add(const AuthEventSignOut()),
+                onPressed: () =>
+                    context.read<AuthBloc>().add(const AuthEventSignOut()),
                 child: const Text('تسجيل الخروج'),
               ),
             ],
@@ -133,7 +140,8 @@ class ArchivedAccountScreen extends StatelessWidget {
               ],
               const SizedBox(height: 16),
               TextButton(
-                onPressed: () => context.read<AuthBloc>().add(const AuthEventSignOut()),
+                onPressed: () =>
+                    context.read<AuthBloc>().add(const AuthEventSignOut()),
                 child: const Text('العودة لتسجيل الدخول'),
               ),
             ],

@@ -163,7 +163,11 @@ class StudentDataRepository implements IStudentRepository {
   }
 
   @override
-  Future<void> deleteStudent(String docId) async {
+  // FIX [004-C2]: performedByUid replaces hardcoded 'system' for audit trail.
+  Future<void> deleteStudent(
+    String docId, {
+    required String performedByUid,
+  }) async {
     try {
       final doc = await _studentsCollection.doc(docId).get();
       final data = doc.data();
@@ -177,7 +181,7 @@ class StudentDataRepository implements IStudentRepository {
       batch.set(doc.reference, {
         'isArchived': true,
         'archivedAt': FieldValue.serverTimestamp(),
-        'archivedByUserId': 'system',
+        'archivedByUserId': performedByUid,
         'restoredAt': FieldValue.delete(),
         'restoredByUserId': FieldValue.delete(),
       }, SetOptions(merge: true));
@@ -198,7 +202,12 @@ class StudentDataRepository implements IStudentRepository {
     }
   }
 
-  Future<void> restoreStudent(String docId) async {
+  @override
+  // FIX [004-C2]: performedByUid replaces hardcoded 'system' for audit trail.
+  Future<void> restoreStudent(
+    String docId, {
+    required String performedByUid,
+  }) async {
     try {
       final doc = await _studentsCollection.doc(docId).get();
       final data = doc.data();
@@ -212,7 +221,7 @@ class StudentDataRepository implements IStudentRepository {
       batch.set(doc.reference, {
         'isArchived': false,
         'restoredAt': FieldValue.serverTimestamp(),
-        'restoredByUserId': 'system',
+        'restoredByUserId': performedByUid,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 

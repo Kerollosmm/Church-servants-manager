@@ -241,4 +241,177 @@ void main() {
       await cubit.close();
     },
   );
+
+  // T010 [US3]: Verify that mutationError is preserved even when rapid server
+  // snapshots arrive during the mutation window. Simulates the P1-C race condition. // FIX [P1-C]
+  test(
+    'mutationError is preserved on latest state when snapshot arrives during failed mutation',
+    () async {
+      final openSession = buildSession(isClosed: false);
+      final saveCompleter = Completer<void>();
+
+      when(
+        () => repository.markStudentPresent(
+          teamId: 'team-1',
+          sessionId: 'session-1',
+          studentId: 'student-1',
+          studentNameSnapshot: 'Mina',
+          markedBy: servant,
+        ),
+      ).thenAnswer((_) => saveCompleter.future);
+
+      final cubit = AttendanceTakingCubit(
+        repository: repository,
+        nowProvider: () => DateTime(2026, 3, 9, 18, 10),
+      );
+      cubit.initialize(teamId: 'team-1', sessionId: 'session-1');
+
+      // Seed initial roster (unmarked)
+      controller.add(
+        AttendanceRosterSnapshot(
+          session: openSession,
+          roster: [
+            buildRosterItem(
+              session: openSession,
+              status: AttendanceEffectiveStatus.unmarked,
+            ),
+          ],
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(cubit.state, isA<AttendanceTakingLoaded>());
+
+      // Start mutation (will fail)
+      unawaited(
+        cubit.markPresent(
+          actor: servant,
+          item: buildRosterItem(
+            session: openSession,
+            status: AttendanceEffectiveStatus.unmarked,
+          ),
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      // isMutating should be true while in-flight // FIX [P1-C]
+      expect((cubit.state as AttendanceTakingLoaded).isMutating, isTrue);
+
+      // Server emits a snapshot mid-mutation (roster now shows updated data)
+      controller.add(
+        AttendanceRosterSnapshot(
+          session: openSession,
+          roster: [
+            buildRosterItem(
+              session: openSession,
+              status: AttendanceEffectiveStatus.present,
+            ),
+          ],
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      // isMutating still preserved through the snapshot emission // FIX [P1-C]
+      expect((cubit.state as AttendanceTakingLoaded).isMutating, isTrue);
+
+      // Complete with an error
+      saveCompleter.completeError(Exception('Network error'));
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      final finalState = cubit.state as AttendanceTakingLoaded;
+
+      // FIX [P1-C]: mutationError must be applied to the LATEST roster (present),
+      // not the pre-mutation snapshot (unmarked). Error must not be swallowed.
+      expect(finalState.isMutating, isFalse);
+      expect(finalState.mutationError, isNotNull);
+      // Roster reflects the latest server snapshot (present), not the stale pre-mutation data
+      expect(
+        finalState.roster.single.effectiveStatus,
+        AttendanceEffectiveStatus.present,
+      );
+
+      await cubit.close();
+    },
+  );
+
+  // T010 [US3]: Verify that on successful mutation the latest roster is preserved
+  // and mutationError is cleared, even when a snapshot arrived mid-mutation. // FIX [P1-C]
+  test(
+    'on successful mutation, latest roster data is preserved and mutationError is cleared',
+    () async {
+      final openSession = buildSession(isClosed: false);
+      final saveCompleter = Completer<void>();
+
+      when(
+        () => repository.markStudentPresent(
+          teamId: 'team-1',
+          sessionId: 'session-1',
+          studentId: 'student-1',
+          studentNameSnapshot: 'Mina',
+          markedBy: servant,
+        ),
+      ).thenAnswer((_) => saveCompleter.future);
+
+      final cubit = AttendanceTakingCubit(
+        repository: repository,
+        nowProvider: () => DateTime(2026, 3, 9, 18, 10),
+      );
+      cubit.initialize(teamId: 'team-1', sessionId: 'session-1');
+
+      // Seed initial roster (unmarked)
+      controller.add(
+        AttendanceRosterSnapshot(
+          session: openSession,
+          roster: [
+            buildRosterItem(
+              session: openSession,
+              status: AttendanceEffectiveStatus.unmarked,
+            ),
+          ],
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      unawaited(
+        cubit.markPresent(
+          actor: servant,
+          item: buildRosterItem(
+            session: openSession,
+            status: AttendanceEffectiveStatus.unmarked,
+          ),
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      // Snapshot arrives mid-mutation with updated roster // FIX [P1-C]
+      controller.add(
+        AttendanceRosterSnapshot(
+          session: openSession,
+          roster: [
+            buildRosterItem(
+              session: openSession,
+              status: AttendanceEffectiveStatus.present,
+            ),
+          ],
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      // Complete successfully
+      saveCompleter.complete();
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      final finalState = cubit.state as AttendanceTakingLoaded;
+
+      // FIX [P1-C]: State snapshot applied to LATEST state — roster shows "present",
+      // mutationError is null (cleared on success), isMutating is false.
+      expect(finalState.isMutating, isFalse);
+      expect(finalState.mutationError, isNull);
+      expect(
+        finalState.roster.single.effectiveStatus,
+        AttendanceEffectiveStatus.present,
+      );
+
+      await cubit.close();
+    },
+  );
 }
