@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+
+<html dir="rtl" lang="ar"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#a58255",
+                        "background-light": "#f7f7f6",
+                        "background-dark": "#1c1916",
+                    },
+                    fontFamily: {
+                        "display": ["Work Sans", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Work Sans', sans-serif;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen">
+<div class="relative flex min-h-screen w-full flex-col overflow-x-hidden">
+<header class="sticky top-0 z-10 flex items-center bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md p-4 justify-between border-b border-primary/10">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-slate-900 dark:text-slate-100 p-2 cursor-pointer">menu</span>
+<h1 class="text-xl font-bold leading-tight tracking-tight text-slate-900 dark:text-slate-100">قائمة الخدام</h1>
+</div>
+<div class="flex items-center gap-2">
+<button class="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+<span class="material-symbols-outlined">filter_list</span>
+</button>
+</div>
+</header>
+<main class="flex-1 pb-24">
+<div class="px-4 py-4">
+<label class="flex flex-col min-w-40 h-12 w-full">
+<div class="flex w-full flex-1 items-stretch rounded-xl h-full shadow-sm">
+<div class="text-primary/60 flex items-center justify-center bg-white dark:bg-slate-800 px-4 rounded-r-xl border-l-0 border border-primary/10 border-l-transparent">
+<span class="material-symbols-outlined">search</span>
+</div>
+<input class="form-input flex w-full min-w-0 flex-1 border-primary/10 border-r-0 bg-white dark:bg-slate-800 rounded-l-xl text-slate-900 dark:text-slate-100 focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-slate-400 text-base font-normal" placeholder="بحث عن اسم الخادم..." value=""/>
+</div>
+</label>
+</div>
+<div class="px-4 py-2 @container">
+<div class="flex items-center justify-between gap-4 rounded-xl border border-primary/10 bg-primary/5 p-4">
+<div class="flex flex-col gap-0.5">
+<p class="text-slate-900 dark:text-slate-100 text-sm font-bold">الخدام المؤرشفون</p>
+<p class="text-slate-500 dark:text-slate-400 text-xs">إظهار الخدام غير النشطين في الخدمة</p>
+</div>
+<label class="relative flex h-7 w-12 cursor-pointer items-center rounded-full bg-slate-200 dark:bg-slate-700 p-1 has-[:checked]:bg-primary transition-colors">
+<input class="sr-only peer" type="checkbox"/>
+<div class="h-5 w-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-[-1.25rem]"></div>
+</label>
+</div>
+</div>
+<div class="px-4 py-4 flex flex-col gap-4">
+<div class="flex items-center gap-4 rounded-xl bg-white dark:bg-slate-800 p-4 shadow-sm border border-primary/5">
+<div class="h-16 w-16 rounded-full bg-primary/10 overflow-hidden shrink-0 border-2 border-primary/20">
+<img class="h-full w-full object-cover" data-alt="Profile photo of a middle aged man with glasses" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBVoO3imfi4BpBbB8x1WHxX_lAyAoisAVH56w2mYItI62RKT_0iYcv-18DtD7yi0rHqAF6FrBxu7iyi2C7bOLiE7ZODT-g8xc1rvGYt_41croB9-kdf_hd8DHDLUif2gBilPIXfavxED0S3HzgqM4yIvcTw7hlpCy-lmK9kMRvPTELINpyCedHCdBobZE768ws3wTIP_kRdNc7v2nD_qmzg5VTQkEruVLhThOUWFRPRZQMwa9S6ZVRqFHqHFrphLO3UABvVcS6Ovbup"/>
+</div>
+<div class="flex flex-1 flex-col justify-center min-w-0">
+<div class="flex items-center justify-between">
+<h3 class="text-base font-bold text-slate-900 dark:text-slate-100 truncate">أ. مينا سمير</h3>
+<span class="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium shrink-0">نشط</span>
+</div>
+<p class="text-primary text-sm font-medium">خادم إعدادي</p>
+<p class="text-slate-500 dark:text-slate-400 text-xs mt-0.5">فريق القديس مارمرقس</p>
+</div>
+<button class="h-10 w-10 flex items-center justify-center rounded-full bg-background-light dark:bg-slate-700 text-primary hover:bg-primary hover:text-white transition-colors">
+<span class="material-symbols-outlined">call</span>
+</button>
+</div>
+<div class="flex items-center gap-4 rounded-xl bg-white dark:bg-slate-800 p-4 shadow-sm border border-primary/5">
+<div class="h-16 w-16 rounded-full bg-primary/10 overflow-hidden shrink-0 border-2 border-primary/20">
+<img class="h-full w-full object-cover" data-alt="Profile photo of a young lady smiling" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBXD4Xe46CJIDc9rvR-pjoAq4dP90yMABryyzKoC3GweQIh3iQ2bnSKEBuEE1PzVesW8PsbScNd7kQR5MhdW-817JTt-6TDTnINuyT7ifYIGy2xOt-V1QSIfeUnD710qGfGC-ZSDHDSJUlHTJkn-romF8zaq74cUOiMQNZq8r-aa1J8VZcvYdblulkp1XWjO3JI1DODu0qZLLW2v0Z_6dUjv1OJvDUjMegNz-Mw4vXH2ebXVuMzaJ2htr1puMqNzyYXl91PAUG9lWTJ"/>
+</div>
+<div class="flex flex-1 flex-col justify-center min-w-0">
+<div class="flex items-center justify-between">
+<h3 class="text-base font-bold text-slate-900 dark:text-slate-100 truncate">ت. مارينا يوسف</h3>
+<span class="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium shrink-0">نشط</span>
+</div>
+<p class="text-primary text-sm font-medium">خادم ابتدائي</p>
+<p class="text-slate-500 dark:text-slate-400 text-xs mt-0.5">فريق القديسة مارينا</p>
+</div>
+<button class="h-10 w-10 flex items-center justify-center rounded-full bg-background-light dark:bg-slate-700 text-primary hover:bg-primary hover:text-white transition-colors">
+<span class="material-symbols-outlined">call</span>
+</button>
+</div>
+<div class="flex items-center gap-4 rounded-xl bg-white dark:bg-slate-800 p-4 shadow-sm border border-primary/5">
+<div class="h-16 w-16 rounded-full bg-primary/10 overflow-hidden shrink-0 border-2 border-primary/20">
+<img class="h-full w-full object-cover" data-alt="Profile photo of a smiling man with a beard" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB12vvpI26QqHiQDMQP8TfG7nZOn7J0uqIrgw1-kU2rFcHMac03ChVWvBeMg2SvfVuyuP-P3ecEayYwbynoJapG_rp2lf7IQfqnHKWj0QiFF_uF0CyyOAPP6S8FgEuXmjIoKvxh8-yBG7XMc8b5aSckxUh9eC_qec4IF5dQm-UxPNZwrIWIbSzvYvZUB3mDrAqiu1pB4W9CFgczI_DfqrZlSfo37Wmdh-le_hPtWBFV4miIkhds75jboK71_vNQgUO-EVGIIF2MsPQ8"/>
+</div>
+<div class="flex flex-1 flex-col justify-center min-w-0">
+<div class="flex items-center justify-between">
+<h3 class="text-base font-bold text-slate-900 dark:text-slate-100 truncate">أ. بيشوي جرجس</h3>
+<span class="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium shrink-0">نشط</span>
+</div>
+<p class="text-primary text-sm font-medium">خادم ثانوي</p>
+<p class="text-slate-500 dark:text-slate-400 text-xs mt-0.5">فريق الأنبا بيشوي</p>
+</div>
+<button class="h-10 w-10 flex items-center justify-center rounded-full bg-background-light dark:bg-slate-700 text-primary hover:bg-primary hover:text-white transition-colors">
+<span class="material-symbols-outlined">call</span>
+</button>
+</div>
+<div class="flex items-center gap-4 rounded-xl bg-white dark:bg-slate-800 p-4 shadow-sm border border-primary/5">
+<div class="h-16 w-16 rounded-full bg-primary/10 overflow-hidden shrink-0 border-2 border-primary/20">
+<img class="h-full w-full object-cover" data-alt="Profile photo of a lady with a scarf" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB2V4Mff4nJ6cN663E6h_IIDsjX2-nJ5JwycFtIN9l5CRbwhiHJJ8ZdMYdkP3qAf6pAKrV83RKY-yWl2yp98FMaNmJS8ljMKYyExRCgbwJE9O8lfSAxQPldakv_xQC_6T6QBRCK_w7WKdDvEC2gnPj56FTm5exgoO36UcFPeOMZlnhwHK8o8YwawEOJBhhwyNW23hVqjap2Vq5bOQIsCT8ddgVj8ZW6xijlKA6WCOgpqlyJqsV7YSeRak3OfC9CS5-sZh70U07MTQEe"/>
+</div>
+<div class="flex flex-1 flex-col justify-center min-w-0">
+<div class="flex items-center justify-between">
+<h3 class="text-base font-bold text-slate-900 dark:text-slate-100 truncate">ت. سارة عادل</h3>
+<span class="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium shrink-0">نشط</span>
+</div>
+<p class="text-primary text-sm font-medium">خادم حضانة</p>
+<p class="text-slate-500 dark:text-slate-400 text-xs mt-0.5">فريق الملاك ميخائيل</p>
+</div>
+<button class="h-10 w-10 flex items-center justify-center rounded-full bg-background-light dark:bg-slate-700 text-primary hover:bg-primary hover:text-white transition-colors">
+<span class="material-symbols-outlined">call</span>
+</button>
+</div>
+</div>
+</main>
+<button class="fixed bottom-24 left-6 h-14 w-14 rounded-full bg-primary text-white shadow-lg flex items-center justify-center hover:scale-105 active:scale-95 transition-transform z-20">
+<span class="material-symbols-outlined text-3xl">person_add</span>
+</button>
+<nav class="fixed bottom-0 left-0 right-0 z-30 flex gap-2 border-t border-primary/10 bg-background-light dark:bg-background-dark px-4 pb-4 pt-2 shadow-xl">
+<a class="flex flex-1 flex-col items-center justify-center gap-1 text-slate-400 dark:text-slate-500" href="#">
+<span class="material-symbols-outlined">home</span>
+<p class="text-[10px] font-medium">الرئيسية</p>
+</a>
+<a class="flex flex-1 flex-col items-center justify-center gap-1 text-primary" href="#">
+<span class="material-symbols-outlined font-fill">group</span>
+<p class="text-[10px] font-medium">الخدام</p>
+</a>
+<a class="flex flex-1 flex-col items-center justify-center gap-1 text-slate-400 dark:text-slate-500" href="#">
+<span class="material-symbols-outlined">event</span>
+<p class="text-[10px] font-medium">الاجتماعات</p>
+</a>
+<a class="flex flex-1 flex-col items-center justify-center gap-1 text-slate-400 dark:text-slate-500" href="#">
+<span class="material-symbols-outlined">settings</span>
+<p class="text-[10px] font-medium">الإعدادات</p>
+</a>
+</nav>
+</div>
+</body></html>

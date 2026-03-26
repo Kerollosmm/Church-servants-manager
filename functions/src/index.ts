@@ -13,7 +13,7 @@ import {
   type RollbackPrivilegedUserRequest,
   type UserRole,
 } from './lifecycle_helpers';
-const USERS_COLLECTION = 'Users';
+const USERS_COLLECTION = 'users'; // FIX [009]: align Firestore path casing
 
 async function requireAdmin(
   auth: { token?: Record<string, unknown>; uid?: string } | null | undefined,

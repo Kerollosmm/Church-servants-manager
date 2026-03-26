@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+
+<html dir="rtl" lang="ar"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;500;600;700&amp;family=Noto+Sans+Arabic:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#a58255",
+                        "background-light": "#f7f7f6",
+                        "background-dark": "#1c1916",
+                    },
+                    fontFamily: {
+                        "display": ["Noto Sans Arabic", "Work Sans", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Noto Sans Arabic', 'Work Sans', sans-serif;
+        }
+        body {
+            min-height: max(884px, 100dvh);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen">
+<div class="relative flex min-h-screen w-full flex-col overflow-x-hidden">
+<!-- Header Section (Top App Bar) -->
+<header class="flex items-center bg-background-light dark:bg-background-dark p-4 sticky top-0 z-10 border-b border-primary/10">
+<div class="flex size-10 shrink-0 items-center justify-center rounded-lg cursor-pointer bg-white p-0.5 border border-primary/20">
+<img alt="Church Logo" class="size-full object-contain rounded-full shadow-sm" src="https://lh3.googleusercontent.com/aida/ADBb0uhbSdzajIn2eg9-Fj9QxrG5p-C6NWAprrmKjezYxji9_VgRkV9ZzxqdFOXTBmCpmfc1VSS-IXbZEEyffCkAjjfWuz9jb80uqqcqf_xNdkqpOFF1TVRbfvCKBcrKzZJHLAjHZ4NtyJyYH3PjuLByqCZx3gfbPz01Z5R3qtOAwZOT-FckyN4WKMFDSd05Regk70uqtlSfzhtLznxVYulBTv7fzVZhbUt1aKMQopbsHl0OlUSwPzTolcxBE4IUjfDpom8JgZJFtq-Hgr8"/>
+</div>
+<h2 class="text-slate-900 dark:text-slate-100 text-lg font-bold leading-tight flex-1 text-center">لوحة التحكم</h2>
+<div class="flex w-10 items-center justify-end">
+<button class="flex size-10 items-center justify-center rounded-lg hover:bg-primary/10 text-slate-700 dark:text-slate-300">
+<span class="material-symbols-outlined">menu</span>
+</button>
+</div>
+</header>
+<!-- Main Content -->
+<main class="flex-1 overflow-y-auto pb-24">
+<!-- Welcome Section -->
+<section class="px-4 pt-6 pb-2">
+<h1 class="text-slate-900 dark:text-slate-100 text-3xl font-bold leading-tight">أهلاً بك، الأدمن</h1>
+<p class="text-slate-500 dark:text-slate-400 text-sm mt-1">لوحة تحكم نظام إدارة الكنيسة</p>
+</section>
+<!-- KPI Cards Section -->
+<div class="flex flex-wrap gap-4 p-4">
+<div class="flex min-w-[158px] flex-1 flex-col gap-3 rounded-xl p-5 bg-white dark:bg-slate-800 shadow-sm border border-primary/5">
+<div class="flex justify-between items-start">
+<div class="p-2 bg-primary/10 rounded-lg text-primary">
+<span class="material-symbols-outlined">groups</span>
+</div>
+<span class="text-emerald-600 dark:text-emerald-400 text-sm font-bold flex items-center gap-1">
+                        5%+ <span class="material-symbols-outlined text-xs">trending_up</span>
+</span>
+</div>
+<div>
+<p class="text-slate-500 dark:text-slate-400 text-sm font-medium">إجمالي الطلاب</p>
+<p class="text-slate-900 dark:text-slate-100 text-2xl font-bold leading-tight mt-1">1,250</p>
+</div>
+</div>
+<div class="flex min-w-[158px] flex-1 flex-col gap-3 rounded-xl p-5 bg-white dark:bg-slate-800 shadow-sm border border-primary/5">
+<div class="flex justify-between items-start">
+<div class="p-2 bg-primary/10 rounded-lg text-primary">
+<span class="material-symbols-outlined">volunteer_activism</span>
+</div>
+<span class="text-emerald-600 dark:text-emerald-400 text-sm font-bold flex items-center gap-1">
+                        2%+ <span class="material-symbols-outlined text-xs">trending_up</span>
+</span>
+</div>
+<div>
+<p class="text-slate-500 dark:text-slate-400 text-sm font-medium">الخدام</p>
+<p class="text-slate-900 dark:text-slate-100 text-2xl font-bold leading-tight mt-1">85</p>
+</div>
+</div>
+<div class="flex min-w-[158px] flex-1 flex-col gap-3 rounded-xl p-5 bg-white dark:bg-slate-800 shadow-sm border border-primary/5">
+<div class="flex justify-between items-start">
+<div class="p-2 bg-primary/10 rounded-lg text-primary">
+<span class="material-symbols-outlined">diversity_3</span>
+</div>
+<span class="text-slate-400 text-sm font-bold">0%</span>
+</div>
+<div>
+<p class="text-slate-500 dark:text-slate-400 text-sm font-medium">الفرق</p>
+<p class="text-slate-900 dark:text-slate-100 text-2xl font-bold leading-tight mt-1">24</p>
+</div>
+</div>
+<div class="flex min-w-[158px] flex-1 flex-col gap-3 rounded-xl p-5 bg-white dark:bg-slate-800 shadow-sm border border-primary/5">
+<div class="flex justify-between items-start">
+<div class="p-2 bg-primary/10 rounded-lg text-primary">
+<span class="material-symbols-outlined">fact_check</span>
+</div>
+<span class="text-emerald-600 dark:text-emerald-400 text-sm font-bold flex items-center gap-1">
+                        8%+ <span class="material-symbols-outlined text-xs">trending_up</span>
+</span>
+</div>
+<div>
+<p class="text-slate-500 dark:text-slate-400 text-sm font-medium">معدل الحضور</p>
+<p class="text-slate-900 dark:text-slate-100 text-2xl font-bold leading-tight mt-1">92%</p>
+</div>
+</div>
+</div>
+<!-- Quick Actions Section -->
+<div class="px-4 py-6">
+<h2 class="text-slate-900 dark:text-slate-100 text-xl font-bold leading-tight tracking-tight mb-4">إجراءات سريعة</h2>
+<div class="grid grid-cols-3 gap-3">
+<button class="group flex flex-col items-center gap-2 p-4 rounded-xl bg-primary text-white shadow-lg shadow-primary/20 transition-all active:scale-95">
+<div class="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center mb-1">
+<span class="material-symbols-outlined text-2xl">person_add</span>
+</div>
+<span class="text-sm font-bold">إضافة طالب</span>
+</button>
+<button class="group flex flex-col items-center gap-2 p-4 rounded-xl bg-white dark:bg-slate-800 text-primary shadow-sm border border-primary/10 transition-all active:scale-95">
+<div class="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-1">
+<span class="material-symbols-outlined text-2xl">group_add</span>
+</div>
+<span class="text-sm font-bold text-slate-700 dark:text-slate-200">إنشاء فريق</span>
+</button>
+<button class="group flex flex-col items-center gap-2 p-4 rounded-xl bg-white dark:bg-slate-800 text-primary shadow-sm border border-primary/10 transition-all active:scale-95">
+<div class="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-1">
+<span class="material-symbols-outlined text-2xl">calendar_today</span>
+</div>
+<span class="text-sm font-bold text-slate-700 dark:text-slate-200">بدء الحضور</span>
+</button>
+</div>
+</div>
+<!-- Recent Activity Section -->
+<div class="px-4 pb-8">
+<div class="flex items-center justify-between mb-4">
+<h2 class="text-slate-900 dark:text-slate-100 text-xl font-bold leading-tight tracking-tight">النشاط الأخير</h2>
+<button class="text-primary text-sm font-bold">عرض الكل</button>
+</div>
+<div class="flex flex-col gap-3">
+<!-- Activity Item 1 -->
+<div class="flex items-center gap-4 p-4 rounded-xl bg-white dark:bg-slate-800 border border-primary/5">
+<div class="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined">person</span>
+</div>
+<div class="flex-1">
+<p class="text-sm font-bold text-slate-900 dark:text-slate-100">تمت إضافة طالب جديد</p>
+<p class="text-xs text-slate-500 dark:text-slate-400">بواسطة الخادم: مينا سمير</p>
+</div>
+<span class="text-[10px] text-slate-400 whitespace-nowrap">منذ ٢ دقيقة</span>
+</div>
+<!-- Activity Item 2 -->
+<div class="flex items-center gap-4 p-4 rounded-xl bg-white dark:bg-slate-800 border border-primary/5">
+<div class="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined">event</span>
+</div>
+<div class="flex-1">
+<p class="text-sm font-bold text-slate-900 dark:text-slate-100">اكتمال سجل حضور اجتماع الجمعة</p>
+<p class="text-xs text-slate-500 dark:text-slate-400">الفريق: المرحلة الإعدادية</p>
+</div>
+<span class="text-[10px] text-slate-400 whitespace-nowrap">منذ ساعة</span>
+</div>
+<!-- Activity Item 3 -->
+<div class="flex items-center gap-4 p-4 rounded-xl bg-white dark:bg-slate-800 border border-primary/5">
+<div class="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined">assignment_turned_in</span>
+</div>
+<div class="flex-1">
+<p class="text-sm font-bold text-slate-900 dark:text-slate-100">تم تحديث بيانات فريق الكشافة</p>
+<p class="text-xs text-slate-500 dark:text-slate-400">تعديل قائمة المشرفين</p>
+</div>
+<span class="text-[10px] text-slate-400 whitespace-nowrap">منذ ٣ ساعات</span>
+</div>
+</div>
+</div>
+</main>
+<!-- Bottom Navigation Bar -->
+<nav class="fixed bottom-0 left-0 right-0 border-t border-primary/10 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-4 pb-4 pt-3 flex justify-around items-center z-20">
+<a class="flex flex-col items-center gap-1 text-primary" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+<p class="text-[10px] font-bold">الرئيسية</p>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400 dark:text-slate-500" href="#">
+<span class="material-symbols-outlined">group</span>
+<p class="text-[10px] font-medium">الطلاب</p>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400 dark:text-slate-500" href="#">
+<span class="material-symbols-outlined">diversity_1</span>
+<p class="text-[10px] font-medium">الخدام</p>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400 dark:text-slate-500" href="#">
+<span class="material-symbols-outlined">view_list</span>
+<p class="text-[10px] font-medium">الحضور</p>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400 dark:text-slate-500" href="#">
+<span class="material-symbols-outlined">settings</span>
+<p class="text-[10px] font-medium">الإعدادات</p>
+</a>
+</nav>
+</div>
+</body></html>

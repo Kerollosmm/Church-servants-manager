@@ -1,7 +1,7 @@
 {
   "indexes": [
     {
-      "collectionGroup": "Users",
+      "collectionGroup": "users",
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "role", "order": "ASCENDING" },
@@ -9,7 +9,7 @@
       ]
     },
     {
-      "collectionGroup": "Users",
+      "collectionGroup": "users",
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "role", "order": "ASCENDING" },
@@ -17,7 +17,7 @@
       ]
     },
     {
-      "collectionGroup": "Users",
+      "collectionGroup": "users",
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "role", "order": "ASCENDING" },
@@ -25,7 +25,7 @@
       ]
     },
     {
-      "collectionGroup": "Students",
+      "collectionGroup": "students",
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "classId", "order": "ASCENDING" },
@@ -33,7 +33,7 @@
       ]
     },
     {
-      "collectionGroup": "Students",
+      "collectionGroup": "students",
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "group", "order": "ASCENDING" },
@@ -41,7 +41,7 @@
       ]
     },
     {
-      "collectionGroup": "Classes",
+      "collectionGroup": "classes",
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "groupId", "order": "ASCENDING" },

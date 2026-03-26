@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+
+<html dir="rtl" lang="ar"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>سجل الحضور - نظام إدارة الكنيسة</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#a58255",
+                        "background-light": "#f7f7f6",
+                        "background-dark": "#1c1916",
+                    },
+                    fontFamily: {
+                        "display": ["Work Sans", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Work Sans', sans-serif;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 font-display">
+<div class="relative flex min-h-screen w-full flex-col overflow-x-hidden pb-24">
+<!-- Header -->
+<header class="flex items-center bg-background-light dark:bg-background-dark p-4 sticky top-0 z-10 border-b border-primary/10">
+<div class="flex size-12 shrink-0 items-center justify-center">
+<span class="material-symbols-outlined text-primary text-2xl">arrow_forward</span>
+</div>
+<h1 class="text-xl font-bold leading-tight flex-1 text-center">سجل الحضور</h1>
+<div class="flex size-12 items-center justify-end">
+<button class="flex items-center justify-center rounded-lg h-10 w-10 bg-primary/10 text-primary">
+<span class="material-symbols-outlined">search</span>
+</button>
+</div>
+</header>
+<!-- Team Selector Tabs -->
+<div class="bg-background-light dark:bg-background-dark sticky top-[73px] z-10 overflow-x-auto no-scrollbar">
+<div class="flex border-b border-primary/10 px-4 gap-6 min-w-max">
+<a class="flex flex-col items-center justify-center border-b-2 border-primary text-primary pb-3 pt-4" href="#">
+<p class="text-sm font-bold">كل الفرق</p>
+</a>
+<a class="flex flex-col items-center justify-center border-b-2 border-transparent text-slate-500 pb-3 pt-4 hover:text-primary transition-colors" href="#">
+<p class="text-sm font-medium">فريق التسبيح</p>
+</a>
+<a class="flex flex-col items-center justify-center border-b-2 border-transparent text-slate-500 pb-3 pt-4 hover:text-primary transition-colors" href="#">
+<p class="text-sm font-medium">فريق الخدمة</p>
+</a>
+<a class="flex flex-col items-center justify-center border-b-2 border-transparent text-slate-500 pb-3 pt-4 hover:text-primary transition-colors" href="#">
+<p class="text-sm font-medium">الأشبال</p>
+</a>
+<a class="flex flex-col items-center justify-center border-b-2 border-transparent text-slate-500 pb-3 pt-4 hover:text-primary transition-colors" href="#">
+<p class="text-sm font-medium">الشباب</p>
+</a>
+</div>
+</div>
+<!-- Active Session Highlight -->
+<section class="p-4">
+<h3 class="text-lg font-bold pb-3 pt-2 text-primary">الجلسة النشطة</h3>
+<div class="flex flex-col rounded-xl overflow-hidden shadow-sm bg-white dark:bg-slate-800 border border-primary/20">
+<div class="w-full h-40 bg-center bg-cover relative" data-alt="Modern church interior with soft lighting and wooden pews" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuD_PuxJGipsbv5VYlieeNrGqXiFUGPXBjqLzNqEp2EyOhAYsKx9qdreN1-oAtrWdeTf0XQRNtVNNX2pCD2pskmrgjFuYXHX_Nyem36hdmWTALC7VuhnEf1ZE27zuxXsg4_5scXTrloSZvfEqF-IBl2WWMeUoBI1IouNXefJmbGJOifRe9rxrwhTbt2094xrBWK6cjwUulAYSTvo002z8-i84r_4RyHhT9ynnO1mdJi6iQH-imo3PUIAb_WJLTBCZLr5AcZhD0TcyoV8')">
+<div class="absolute top-3 left-3 bg-red-500 text-white px-2 py-1 rounded text-xs font-bold animate-pulse flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">podium</span> مباشر
+                    </div>
+</div>
+<div class="flex flex-col p-4 gap-2">
+<div class="flex justify-between items-start">
+<div>
+<p class="text-primary text-xs font-semibold uppercase tracking-wider">جارية الآن</p>
+<h4 class="text-lg font-bold text-slate-900 dark:text-slate-100">اجتماع الشباب الأسبوعي</h4>
+</div>
+</div>
+<div class="flex items-center gap-2 text-slate-500 text-sm">
+<span class="material-symbols-outlined text-base">groups</span>
+<span>فريق الخدمة المركزية</span>
+</div>
+<div class="flex items-center justify-between mt-2 pt-2 border-t border-primary/5">
+<div class="flex -space-x-2 space-x-reverse">
+<div class="w-8 h-8 rounded-full border-2 border-white bg-slate-200" data-alt="User avatar 1" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAylnmE4B69PhHCK2dCshoot3Sc-l09msWQjof_jKdiDYVT8Yr7WAoH6QtVg3y2CDGImo_mrbT3fOGrO4zjkTvWTCf38L2nFhiRYCpZa1yP-6rOlrOdIbbrYLDTD1mPrzHwng6riA09mdcs08DA4gD6n5P9RZyLxOn_iVxp0NsV0DRODxIrxf9GFVBRm5hxbtWv5caMp9WJq8f4oDe9_qZFOm2NikF9TcJm-nOea1u2y85cQu9H86pAz8hLlm4FbGKsyUmnhw-Jt1gO')"></div>
+<div class="w-8 h-8 rounded-full border-2 border-white bg-slate-200" data-alt="User avatar 2" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuB-w4rTrkAhfvPyDLNf-nSCpr43r45WCLaMVoKJxKGcFe-77yqL7JLOP-f2Y4utph1WSyNXq5nU9Owadtx25x2h4aKxRMdGxd9VL4XZwOhJmH9cpyYIjPtXj8hkrVl7UPteshUEXRX3ScaH-nwtbS9HlZIhZi2lYNS8-iDXkzkWUkVgVY1YPi8FFzWklzVYRY_0YgBwRoj8P4t0FtnMixGVwYD8_BvwNaLLKu-pHXtRbM1xN8C1Wlld1jdlhrKbAoSBmkAFHWhAvceO')"></div>
+<div class="w-8 h-8 rounded-full border-2 border-white bg-slate-200" data-alt="User avatar 3" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCzMofI1cE5CJFpppfIIQZquZpEr25dosaWASd2CNc0ijFBrwNdgUT9r-ulYKULEfPGF3wMdyFXOXUQKf86mFeyhp8dyjllpZxykAqKQlD-tmKjMNQJjeyjjkYBjqtIF0HHEZuOodUCTG5pdqJltzhPR4g_dA5ABVwY_lm55wJEVLW6Lf5VN9k8Pn3Vq_N8xxm3N5wdEJhHYnMhMLTxl7yPSmLyl796BtfrdmPdOGjcg21LDk4943U925-f97PQTwGJwkoAaw7PsIY9')"></div>
+<div class="w-8 h-8 rounded-full border-2 border-white bg-primary text-white text-[10px] flex items-center justify-center font-bold">+12</div>
+</div>
+<button class="bg-primary text-white px-5 py-2 rounded-lg text-sm font-bold shadow-sm active:scale-95 transition-transform">
+                            تسجيل الحضور
+                        </button>
+</div>
+</div>
+</div>
+</section>
+<!-- Session History List -->
+<section class="p-4 space-y-4">
+<div class="flex items-center justify-between">
+<h3 class="text-lg font-bold text-slate-900 dark:text-slate-100">سجل الجلسات السابقة</h3>
+<button class="text-primary text-sm font-medium flex items-center gap-1">
+                    تصفية <span class="material-symbols-outlined text-base">filter_list</span>
+</button>
+</div>
+<!-- History Item 1: Closed -->
+<div class="flex items-center gap-4 p-3 bg-white dark:bg-slate-800 rounded-xl border border-primary/10 shadow-sm">
+<div class="size-12 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-400">
+<span class="material-symbols-outlined text-3xl">event_available</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex justify-between items-center mb-0.5">
+<h5 class="font-bold truncate text-slate-900 dark:text-slate-100">قداس الأحد الصباحي</h5>
+<span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 font-bold uppercase">مغلق</span>
+</div>
+<p class="text-xs text-slate-500 mb-1">فريق الشمامسة • 15 أكتوبر 2023</p>
+<div class="flex items-center gap-3 text-[11px] text-slate-400">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-xs">person</span> 145 حاضر</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-xs">schedule</span> 08:00 ص</span>
+</div>
+</div>
+</div>
+<!-- History Item 2: Reopened -->
+<div class="flex items-center gap-4 p-3 bg-white dark:bg-slate-800 rounded-xl border border-primary/10 shadow-sm border-r-4 border-r-amber-400">
+<div class="size-12 rounded-lg bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-amber-500">
+<span class="material-symbols-outlined text-3xl">history_edu</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex justify-between items-center mb-0.5">
+<h5 class="font-bold truncate text-slate-900 dark:text-slate-100">اجتماع دراسة الكتاب</h5>
+<span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 font-bold uppercase">معاد فتحه</span>
+</div>
+<p class="text-xs text-slate-500 mb-1">لجنة التعليم • 12 أكتوبر 2023</p>
+<div class="flex items-center gap-3 text-[11px] text-slate-400">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-xs">person</span> 42 حاضر</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-xs">schedule</span> 06:30 م</span>
+</div>
+</div>
+</div>
+<!-- History Item 3: Closed -->
+<div class="flex items-center gap-4 p-3 bg-white dark:bg-slate-800 rounded-xl border border-primary/10 shadow-sm">
+<div class="size-12 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-400">
+<span class="material-symbols-outlined text-3xl">music_note</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex justify-between items-center mb-0.5">
+<h5 class="font-bold truncate text-slate-900 dark:text-slate-100">تدريب فريق الكورال</h5>
+<span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 font-bold uppercase">مغلق</span>
+</div>
+<p class="text-xs text-slate-500 mb-1">فريق التسبيح • 10 أكتوبر 2023</p>
+<div class="flex items-center gap-3 text-[11px] text-slate-400">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-xs">person</span> 28 حاضر</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-xs">schedule</span> 07:00 م</span>
+</div>
+</div>
+</div>
+<!-- History Item 4: Closed -->
+<div class="flex items-center gap-4 p-3 bg-white dark:bg-slate-800 rounded-xl border border-primary/10 shadow-sm">
+<div class="size-12 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-400">
+<span class="material-symbols-outlined text-3xl">child_care</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex justify-between items-center mb-0.5">
+<h5 class="font-bold truncate text-slate-900 dark:text-slate-100">مدارس الأحد - ابتدائي</h5>
+<span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 font-bold uppercase">مغلق</span>
+</div>
+<p class="text-xs text-slate-500 mb-1">فريق الأشبال • 08 أكتوبر 2023</p>
+<div class="flex items-center gap-3 text-[11px] text-slate-400">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-xs">person</span> 86 حاضر</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-xs">schedule</span> 10:00 ص</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Floating Action Button -->
+<button class="fixed bottom-24 left-6 size-14 bg-primary text-white rounded-full shadow-lg flex items-center justify-center active:scale-90 transition-transform z-20">
+<span class="material-symbols-outlined text-3xl">add</span>
+</button>
+<!-- Bottom Navigation Bar -->
+<nav class="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-t border-primary/10 px-4 pb-6 pt-2 z-30">
+<div class="flex items-center justify-between max-w-lg mx-auto">
+<a class="flex flex-col items-center gap-1 text-slate-400" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="text-[10px] font-medium">الرئيسية</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-primary" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">history</span>
+<span class="text-[10px] font-bold">الحضور</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="text-[10px] font-medium">الأعضاء</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="text-[10px] font-medium">الإعدادات</span>
+</a>
+</div>
+</nav>
+</div>
+</body></html>

@@ -409,7 +409,11 @@ class AttendanceRepository implements IAttendanceRepository {
       _assertStudentInSession(session, studentId);
       _assertSessionWritable(session, _nowProvider());
 
-      final markRef = _markDoc(teamId, sessionId, studentId);
+      final markRef = _markDoc(
+        teamId,
+        sessionId,
+        studentId,
+      ); // FIX [010-MARK-ID]: Keep attendance mark identity keyed by studentId for idempotent writes.
       final existing = await markRef.get();
       final existingMarkedAt = existing.data()?['markedAt'];
       final effectiveStudentName = studentNameSnapshot.trim().isNotEmpty
@@ -427,7 +431,7 @@ class AttendanceRepository implements IAttendanceRepository {
         'note': normalizedNote == null || normalizedNote.isEmpty
             ? FieldValue.delete()
             : normalizedNote,
-      }, SetOptions(merge: true));
+      }, SetOptions(merge: true)); // FIX [010-MARK-ID]: Merge into the student-keyed mark doc so re-marking updates instead of duplicating.
     } catch (error) {
       if (error is AttendanceFailure) rethrow;
       throw mapExceptionToAttendanceFailure(error);
