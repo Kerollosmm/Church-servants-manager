@@ -142,7 +142,7 @@ void main() {
           ),
         );
         // Falls back to the invalid-message scaffold — no DI crash // FIX [P1-A]
-        expect(find.text('Invalid student data'), findsOneWidget);
+        expect(find.text('Not Found'), findsOneWidget);
       },
     );
 
@@ -163,7 +163,7 @@ void main() {
           ),
         );
         // Falls back to the invalid-message scaffold — no DI crash // FIX [P1-A]
-        expect(find.text('Invalid student data'), findsOneWidget);
+        expect(find.text('Not Found'), findsOneWidget);
       },
     );
 

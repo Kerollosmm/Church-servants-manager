@@ -245,11 +245,53 @@ void main() {
           .doc('team-1')
           .collection('attendance_sessions')
           .doc(session.id)
-          .collection('marks')
+          .collection('Marks')
           .get();
 
       expect(marks.docs.length, 1);
       expect(marks.docs.single.id, 'student-1');
+    },
+  );
+
+  test(
+    're-marking the same student updates the existing mark document',
+    () async {
+      await seedStudent(student(id: 'student-1', name: 'Mina'));
+      final session = await repository.createSession(
+        teamId: 'team-1',
+        teamNameSnapshot: 'Team A',
+        startsAt: currentTime,
+        durationMinutes: 30,
+        createdBy: admin,
+        title: 'Wednesday',
+      );
+
+      await repository.markStudentPresent(
+        teamId: 'team-1',
+        sessionId: session.id,
+        studentId: 'student-1',
+        studentNameSnapshot: 'Mina',
+        markedBy: servant,
+      );
+      await repository.markStudentLate(
+        teamId: 'team-1',
+        sessionId: session.id,
+        studentId: 'student-1',
+        studentNameSnapshot: 'Mina',
+        markedBy: servant,
+      );
+
+      final marks = await firestore
+          .collection('Classes')
+          .doc('team-1')
+          .collection('attendance_sessions')
+          .doc(session.id)
+          .collection('Marks')
+          .get();
+
+      expect(marks.docs.length, 1);
+      expect(marks.docs.single.id, 'student-1');
+      expect(marks.docs.single.data()['status'], AttendanceMarkStatus.late.name);
     },
   );
 
@@ -342,7 +384,7 @@ void main() {
         .doc('team-1')
         .collection('attendance_sessions')
         .doc(session.id)
-        .collection('marks')
+        .collection('Marks')
         .doc('student-1')
         .set({
           'studentNameSnapshot': 'Mina',
