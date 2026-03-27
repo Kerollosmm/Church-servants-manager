@@ -5,7 +5,7 @@ import 'package:church_management_system/features/student/data/services/student_
 import 'package:church_management_system/features/student/data/services/student_query_service.dart';
 import 'package:church_management_system/features/student/domain/failures/student_failures.dart';
 import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
-import '../models/student_model.dart';
+import 'package:church_management_system/features/student/data/models/student_model.dart';
 
 class StudentDataRepository implements IStudentRepository {
   final FirebaseFirestore _firestore;

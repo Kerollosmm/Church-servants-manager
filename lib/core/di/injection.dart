@@ -35,7 +35,7 @@ import 'package:church_management_system/features/team/domain/usecases/assign_se
 import 'package:church_management_system/features/team/domain/usecases/create_team_usecase.dart';
 import 'package:church_management_system/features/team/domain/usecases/get_teams_usecase.dart';
 import 'package:church_management_system/core/services/connectivity_service.dart';
-
+import 'package:church_management_system/features/team/presentation/bloc/team_cubit.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get_it/get_it.dart';
 
@@ -210,10 +210,18 @@ void configureDependencies() {
   );
 
   // ---- BLoCs / Cubits ----
-  // FIX [008]: Register ConnectivityCubit as a lazy singleton — one instance
-  // per app lifetime, provided globally via MultiBlocProvider in ChurchApp. (T006)
- 
-
+  // FIX [007]: Register TeamCubit as a factory so the DI container owns its
+  // lifecycle; UI coordinators resolve it via getIt instead of constructing it
+  // manually, aligning with the constitution's "Explicit Control" principle.
+  getIt.registerFactory<TeamCubit>(
+    () => TeamCubit(
+      teamRepository: getIt<TeamRepository>(),
+      adminTeamService: getIt<AdminTeamService>(),
+      getTeamsUseCase: getIt<GetTeamsUseCase>(),
+      createTeamUseCase: getIt<CreateTeamUseCase>(),
+      assignServantToTeamUseCase: getIt<AssignServantToTeamUseCase>(),
+    ),
+  );
 
   // ---- Routing ----
   getIt.registerLazySingleton<AppRouter>(() => AppRouter());

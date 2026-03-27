@@ -3,7 +3,7 @@ import 'package:church_management_system/core/constants/firestore_collections.da
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/servant/domain/failures/servant_failures.dart';
 import 'package:church_management_system/features/servant/domain/repo/i_servant_repository.dart';
-import '../models/servant_models.dart';
+import 'package:church_management_system/features/servant/data/models/servant_models.dart';
 
 typedef _ServantDoc = QueryDocumentSnapshot<Map<String, dynamic>>;
 
