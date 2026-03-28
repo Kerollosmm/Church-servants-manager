@@ -30,7 +30,7 @@ void main() {
     expect(session.dateKey, '2026-03-09');
   });
 
-  test('isOpenAt and isEffectivelyClosedAt respect time and manual close', () {
+  test('expired open session is effectively closed', () {
     final session = AttendanceSession(
       id: 's1',
       teamId: 'team-1',
@@ -51,9 +51,24 @@ void main() {
     );
     expect(session.isOpenAt(DateTime(2026, 3, 9, 18, 30)), isFalse);
     expect(session.isEffectivelyClosedAt(DateTime(2026, 3, 9, 18, 30)), isTrue);
-    expect(
-      session.copyWith(isClosed: true).isOpenAt(DateTime(2026, 3, 9, 18, 10)),
-      isFalse,
+  });
+
+  test('manually closed session is effectively closed before endsAt', () {
+    final session = AttendanceSession(
+      id: 's1',
+      teamId: 'team-1',
+      dateKey: '2026-03-09',
+      startsAt: DateTime(2026, 3, 9, 18, 0),
+      endsAt: DateTime(2026, 3, 9, 18, 30),
+      durationMinutes: 30,
+      createdByUserId: 'admin-1',
+      createdByName: 'Admin',
+      createdAt: DateTime(2026, 3, 9, 17, 55),
+      updatedAt: DateTime(2026, 3, 9, 17, 55),
+      isClosed: true,
     );
+
+    expect(session.isOpenAt(DateTime(2026, 3, 9, 18, 10)), isFalse);
+    expect(session.isEffectivelyClosedAt(DateTime(2026, 3, 9, 18, 10)), isTrue);
   });
 }

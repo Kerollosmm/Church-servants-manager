@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/student/domain/failures/student_failures.dart';
+import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
 import 'package:flutter/foundation.dart';
 import 'package:rxdart/rxdart.dart';
 
@@ -151,6 +152,27 @@ class StudentQueryService {
     }
   }
 
+  Future<StudentModel?> getStudentByLinkedUserId(
+    String linkedUserId, {
+    bool includeArchived = false,
+  }) async {
+    try {
+      final snapshot = await _studentsCollection
+          .where('linkedUserId', isEqualTo: linkedUserId)
+          .limit(1)
+          .get();
+      if (snapshot.docs.isEmpty) return null;
+      final doc = snapshot.docs.first;
+      final student = StudentModel.fromMap(doc.data(), doc.id);
+      if (!includeArchived && student.isArchived) {
+        return null;
+      }
+      return student;
+    } catch (e) {
+      throw mapExceptionToStudentFailure(e);
+    }
+  }
+
   Future<List<StudentModel>> getAllStudents({
     int limit = 10,
     DocumentSnapshot? lastDocument,
@@ -240,6 +262,87 @@ class StudentQueryService {
       return _applyArchivedFilter(
         mapStudentDocs(snapshot.docs),
         includeArchived,
+      );
+    } catch (e) {
+      throw mapExceptionToStudentFailure(e);
+    }
+  }
+
+  Future<List<StudentModel>> searchStudents(
+    String query, {
+    int limit = 20,
+    bool includeArchived = false,
+  }) async {
+    final normalizedQuery = query.trim().toLowerCase();
+    if (normalizedQuery.isEmpty) {
+      return getAllStudents(limit: limit, includeArchived: includeArchived);
+    }
+
+    try {
+      Query<Map<String, dynamic>> firestoreQuery = _studentsCollection
+          .where('nameLower', isGreaterThanOrEqualTo: normalizedQuery)
+          .where('nameLower', isLessThanOrEqualTo: '$normalizedQuery\uf8ff')
+          .orderBy('nameLower')
+          .limit(limit);
+
+      if (!includeArchived) {
+        firestoreQuery = firestoreQuery.where('isArchived', isEqualTo: false);
+      }
+
+      final snapshot = await firestoreQuery.get();
+      return _applyArchivedFilter(mapStudentDocs(snapshot.docs), includeArchived);
+    } catch (e) {
+      throw mapExceptionToStudentFailure(e);
+    }
+  }
+
+  Future<StudentQueryPage> getStudentsPage({
+    int limit = 20,
+    DocumentSnapshot<Map<String, dynamic>>? lastDocument,
+    String? classId,
+    List<String>? classIds,
+    String? groupName,
+    bool includeArchived = false,
+  }) async {
+    try {
+      Query<Map<String, dynamic>> query = _studentsCollection.orderBy('name');
+
+      final normalizedClassId = classId?.trim();
+      final normalizedGroupName = groupName?.trim();
+      final normalizedClassIds = (classIds ?? const <String>[])
+          .map((id) => id.trim())
+          .where((id) => id.isNotEmpty)
+          .toSet()
+          .toList(growable: false);
+
+      if (normalizedClassId != null && normalizedClassId.isNotEmpty) {
+        query = query.where('classId', isEqualTo: normalizedClassId);
+      } else if (normalizedClassIds.isNotEmpty) {
+        query = query.where('classId', whereIn: normalizedClassIds);
+      } else if (normalizedGroupName != null && normalizedGroupName.isNotEmpty) {
+        query = query.where('group', isEqualTo: normalizedGroupName);
+      }
+
+      query = query.limit(limit + 1);
+
+      if (lastDocument != null) {
+        query = query.startAfterDocument(lastDocument);
+      }
+
+      final snapshot = await query.get();
+      final hasMore = snapshot.docs.length > limit;
+      final pageDocs = hasMore
+          ? snapshot.docs.take(limit).toList(growable: false)
+          : snapshot.docs;
+      final students = _applyArchivedFilter(
+        mapStudentDocs(pageDocs),
+        includeArchived,
+      );
+
+      return StudentQueryPage(
+        students: students,
+        lastDocument: pageDocs.isEmpty ? lastDocument : pageDocs.last,
+        hasReachedMax: !hasMore,
       );
     } catch (e) {
       throw mapExceptionToStudentFailure(e);

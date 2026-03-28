@@ -31,6 +31,7 @@ final class StudentDataLoading extends StudentDataState {
 // FIX [008]: Added isLoadingMore and hasReachedMax for cursor-based pagination (T007).
 final class StudentDataLoaded extends StudentDataState {
   final List<StudentModel> students;
+  final DocumentSnapshot<Map<String, dynamic>>? lastDocument;
   final String? currentFilterGroupId;
   final String? currentFilterTeamId;
   final String? currentQuery;
@@ -44,6 +45,7 @@ final class StudentDataLoaded extends StudentDataState {
 
   const StudentDataLoaded({
     required this.students,
+    this.lastDocument,
     this.currentFilterGroupId,
     this.currentFilterTeamId,
     this.currentQuery,
@@ -62,6 +64,8 @@ final class StudentDataLoaded extends StudentDataState {
 
   StudentDataLoaded copyWith({
     List<StudentModel>? students,
+    DocumentSnapshot<Map<String, dynamic>>? lastDocument,
+    bool clearLastDocument = false,
     String? currentFilterGroupId,
     String? currentFilterTeamId,
     String? currentQuery,
@@ -74,6 +78,9 @@ final class StudentDataLoaded extends StudentDataState {
   }) {
     return StudentDataLoaded(
       students: students ?? this.students,
+      lastDocument: clearLastDocument
+          ? null
+          : (lastDocument ?? this.lastDocument),
       currentFilterGroupId: currentFilterGroupId ?? this.currentFilterGroupId,
       currentFilterTeamId: currentFilterTeamId ?? this.currentFilterTeamId,
       currentQuery: currentQuery ?? this.currentQuery,
@@ -92,6 +99,7 @@ final class StudentDataLoaded extends StudentDataState {
       identical(this, other) ||
       other is StudentDataLoaded &&
           runtimeType == other.runtimeType &&
+          lastDocument == other.lastDocument &&
           currentFilterGroupId == other.currentFilterGroupId &&
           currentFilterTeamId == other.currentFilterTeamId &&
           currentQuery == other.currentQuery &&
@@ -105,6 +113,7 @@ final class StudentDataLoaded extends StudentDataState {
   @override
   int get hashCode => Object.hash(
     const ListEquality<StudentModel>().hash(students),
+    lastDocument,
     currentFilterGroupId,
     currentFilterTeamId,
     currentQuery,

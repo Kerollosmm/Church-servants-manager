@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:church_management_system/core/constants/enums.dart';
+import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
@@ -91,11 +92,26 @@ void main() {
 
   Future<void> seedSession(AttendanceSession value) async {
     await firestore
-        .collection('Classes')
+        .collection(FirestoreCollections.classes)
         .doc(value.teamId)
-        .collection('attendance_sessions')
+        .collection(FirestoreCollections.attendanceSessions)
         .doc(value.id)
         .set(value.toMap());
+  }
+
+  Future<Map<String, dynamic>?> getMarkDoc(
+    String sessionId,
+    String studentId,
+  ) async {
+    final snapshot = await firestore
+        .collection(FirestoreCollections.classes)
+        .doc('team-1')
+        .collection(FirestoreCollections.attendanceSessions)
+        .doc(sessionId)
+        .collection(FirestoreCollections.attendanceMarks)
+        .doc(studentId)
+        .get();
+    return snapshot.data();
   }
 
   setUp(() async {
@@ -241,11 +257,11 @@ void main() {
       );
 
       final marks = await firestore
-          .collection('Classes')
+          .collection(FirestoreCollections.classes)
           .doc('team-1')
-          .collection('attendance_sessions')
+          .collection(FirestoreCollections.attendanceSessions)
           .doc(session.id)
-          .collection('Marks')
+          .collection(FirestoreCollections.attendanceMarks)
           .get();
 
       expect(marks.docs.length, 1);
@@ -282,16 +298,19 @@ void main() {
       );
 
       final marks = await firestore
-          .collection('Classes')
+          .collection(FirestoreCollections.classes)
           .doc('team-1')
-          .collection('attendance_sessions')
+          .collection(FirestoreCollections.attendanceSessions)
           .doc(session.id)
-          .collection('Marks')
+          .collection(FirestoreCollections.attendanceMarks)
           .get();
 
       expect(marks.docs.length, 1);
       expect(marks.docs.single.id, 'student-1');
-      expect(marks.docs.single.data()['status'], AttendanceMarkStatus.late.name);
+      expect(
+        marks.docs.single.data()['status'],
+        AttendanceMarkStatus.late.name,
+      );
     },
   );
 
@@ -315,6 +334,157 @@ void main() {
       throwsA(isA<AttendanceSessionClosedFailure>()),
     );
   });
+
+  test('re-marking the same student preserves the original markedAt', () async {
+    await seedStudent(student(id: 'student-1', name: 'Mina'));
+    final session = await repository.createSession(
+      teamId: 'team-1',
+      teamNameSnapshot: 'Team A',
+      startsAt: currentTime,
+      durationMinutes: 30,
+      createdBy: admin,
+      title: 'Wednesday',
+    );
+
+    await repository.markStudentPresent(
+      teamId: 'team-1',
+      sessionId: session.id,
+      studentId: 'student-1',
+      studentNameSnapshot: 'Mina',
+      markedBy: servant,
+    );
+    final firstMark = await getMarkDoc(session.id, 'student-1');
+
+    await repository.markStudentPresent(
+      teamId: 'team-1',
+      sessionId: session.id,
+      studentId: 'student-1',
+      studentNameSnapshot: 'Mina',
+      markedBy: servant,
+    );
+    final secondMark = await getMarkDoc(session.id, 'student-1');
+
+    expect(firstMark, isNotNull);
+    expect(secondMark, isNotNull);
+    expect(secondMark!['markedAt'], firstMark!['markedAt']);
+  });
+
+  test(
+    'updating status from present to late preserves the original markedAt',
+    () async {
+      await seedStudent(student(id: 'student-1', name: 'Mina'));
+      final session = await repository.createSession(
+        teamId: 'team-1',
+        teamNameSnapshot: 'Team A',
+        startsAt: currentTime,
+        durationMinutes: 30,
+        createdBy: admin,
+        title: 'Wednesday',
+      );
+
+      await repository.markStudentPresent(
+        teamId: 'team-1',
+        sessionId: session.id,
+        studentId: 'student-1',
+        studentNameSnapshot: 'Mina',
+        markedBy: servant,
+      );
+      final firstMark = await getMarkDoc(session.id, 'student-1');
+
+      await repository.markStudentLate(
+        teamId: 'team-1',
+        sessionId: session.id,
+        studentId: 'student-1',
+        studentNameSnapshot: 'Mina',
+        markedBy: servant,
+      );
+      final secondMark = await getMarkDoc(session.id, 'student-1');
+
+      expect(firstMark, isNotNull);
+      expect(secondMark, isNotNull);
+      expect(secondMark!['status'], AttendanceMarkStatus.late.name);
+      expect(secondMark['markedAt'], firstMark!['markedAt']);
+    },
+  );
+
+  test('servant cannot close a session', () async {
+    await seedStudent(student(id: 'student-1', name: 'Mina'));
+    final session = await repository.createSession(
+      teamId: 'team-1',
+      teamNameSnapshot: 'Team A',
+      startsAt: currentTime,
+      durationMinutes: 30,
+      createdBy: admin,
+      title: 'Wednesday',
+    );
+
+    expect(
+      () => repository.closeSession(
+        teamId: 'team-1',
+        sessionId: session.id,
+        closedBy: servant,
+      ),
+      throwsA(isA<AttendancePermissionDeniedFailure>()),
+    );
+  });
+
+  test(
+    'createSession rejects overlapping sessions for the same team',
+    () async {
+      await seedStudent(student(id: 'student-1', name: 'Mina'));
+
+      await repository.createSession(
+        teamId: 'team-1',
+        teamNameSnapshot: 'Team A',
+        startsAt: currentTime,
+        durationMinutes: 30,
+        createdBy: admin,
+        title: 'Wednesday',
+      );
+
+      expect(
+        () => repository.createSession(
+          teamId: 'team-1',
+          teamNameSnapshot: 'Team A',
+          startsAt: currentTime.add(const Duration(minutes: 15)),
+          durationMinutes: 30,
+          createdBy: admin,
+          title: 'Follow Up',
+        ),
+        throwsA(isA<AttendanceSessionConflictFailure>()),
+      );
+    },
+  );
+
+  test(
+    'createSession allows non-overlapping sessions on the same day',
+    () async {
+      await seedStudent(student(id: 'student-1', name: 'Mina'));
+
+      await repository.createSession(
+        teamId: 'team-1',
+        teamNameSnapshot: 'Team A',
+        startsAt: currentTime,
+        durationMinutes: 30,
+        createdBy: admin,
+        title: 'Wednesday',
+      );
+
+      final secondSession = await repository.createSession(
+        teamId: 'team-1',
+        teamNameSnapshot: 'Team A',
+        startsAt: currentTime.add(const Duration(minutes: 30)),
+        durationMinutes: 30,
+        createdBy: admin,
+        title: 'Wednesday Late',
+      );
+
+      expect(
+        secondSession.startsAt,
+        currentTime.add(const Duration(minutes: 30)),
+      );
+    },
+  );
 
   test('watchSessionRoster derives absent automatically after close', () async {
     await seedStudent(student(id: 'student-1', name: 'Mina'));
@@ -380,11 +550,11 @@ void main() {
     );
 
     await firestore
-        .collection('Classes')
+        .collection(FirestoreCollections.classes)
         .doc('team-1')
-        .collection('attendance_sessions')
+        .collection(FirestoreCollections.attendanceSessions)
         .doc(session.id)
-        .collection('Marks')
+        .collection(FirestoreCollections.attendanceMarks)
         .doc('student-1')
         .set({
           'studentNameSnapshot': 'Mina',

@@ -75,14 +75,18 @@ class StudentLinkedUserSyncService {
     required UserRole previousRole,
   }) async {
     try {
+      final uid = updatedStudent.uid.trim();
       if (updatedStudent.role == previousRole) {
         await _studentsCollection
             .doc(updatedStudent.docID)
-            .update(updatedStudent.toMap());
+            .update({
+              ...updatedStudent.toMap(),
+              'nameLower': updatedStudent.name.trim().toLowerCase(),
+              'linkedUserId': uid,
+            });
         return;
       }
 
-      final uid = updatedStudent.uid.trim();
       final linkedUserPatch = buildLinkedUserRolePatch(
         updatedStudent: updatedStudent,
         previousRole: previousRole,
@@ -91,7 +95,11 @@ class StudentLinkedUserSyncService {
       final batch = _firestore.batch();
       batch.update(
         _studentsCollection.doc(updatedStudent.docID),
-        updatedStudent.toMap(),
+        {
+          ...updatedStudent.toMap(),
+          'nameLower': updatedStudent.name.trim().toLowerCase(),
+          'linkedUserId': uid,
+        },
       );
       batch.set(
         _usersCollection.doc(uid),

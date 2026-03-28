@@ -20,7 +20,9 @@ class RoleRouter {
         listener: (context, state) {
           Navigator.of(context).popUntil((route) => route.isFirst);
           if (state is AuthDegraded) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message)));
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(state.message)));
           }
         },
       ),
@@ -34,7 +36,9 @@ class RoleRouter {
                 previous is! AuthDegraded),
         listener: (context, state) {
           if (state is AuthDegraded) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message)));
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(state.message)));
           }
         },
       ),
@@ -42,24 +46,22 @@ class RoleRouter {
   }
 
   static Widget resolve(UserRole role, AuthState state) {
-    final user = switch (state) {
-      AuthAuthenticated(:final user) || AuthDegraded(:final user) => user,
-      _ => null,
+    final hasResolvedUser = switch (state) {
+      AuthAuthenticated() || AuthDegraded() => true,
+      _ => false,
     };
-    if (user == null) return const SizedBox.shrink();
+    if (!hasResolvedUser) return const SizedBox.shrink();
 
     return switch (role) {
-      UserRole.servant => ServantDashboardScreen(user: user),
-      UserRole.student => StudentProfileScreen(user: user),
+      UserRole.servant => const ServantDashboardScreen(),
+      UserRole.student => const StudentProfileScreen(),
       UserRole.admin => switch (state) {
         // FIX [P1-B]: Replace unsafe cast with Dart 3 pattern matching
-        AuthAuthenticated() =>
-          AdminDashboardScreen(), // FIX [P1-B]: Safe type check via exhaustive switch
+        AuthAuthenticated() => const AdminDashboardScreen(),
         AuthDegraded(:final message) => AdminRefreshRequiredScreen(
           message: message,
-        ), // FIX [P1-B]: Destructure message safely, no cast
-        _ =>
-          const SizedBox.shrink(), // FIX [P1-B]: Safe fallback for any unexpected admin auth state
+        ),
+        _ => const SizedBox.shrink(),
       },
     };
   }

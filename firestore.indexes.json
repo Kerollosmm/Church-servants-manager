@@ -41,6 +41,14 @@
       ]
     },
     {
+      "collectionGroup": "Students",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isArchived", "order": "ASCENDING" },
+        { "fieldPath": "nameLower", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "classes",
       "queryScope": "COLLECTION",
       "fields": [

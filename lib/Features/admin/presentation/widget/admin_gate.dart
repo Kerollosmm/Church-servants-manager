@@ -1,4 +1,9 @@
+import 'package:church_management_system/core/constants/enums.dart';
+import 'package:church_management_system/core/constants/routes.dart';
+import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class AdminGate extends StatelessWidget {
   const AdminGate({super.key, required this.child});
@@ -6,6 +11,19 @@ class AdminGate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return child;
+    final state = context.read<AuthBloc>().state;
+    final isAdmin =
+        state is AuthAuthenticated && state.user.role == UserRole.admin;
+
+    if (isAdmin) {
+      return child;
+    }
+
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (!context.mounted) return;
+      Navigator.pushNamedAndRemoveUntil(context, login, (route) => false);
+    });
+
+    return const SizedBox.shrink();
   }
 }

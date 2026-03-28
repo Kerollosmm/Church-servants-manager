@@ -92,9 +92,9 @@ class AttendanceRepository implements IAttendanceRepository {
   }
 
   String _slugifyTitle(String? title) {
-    final cleaned = _normalizeTitle(title)
-        .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
-        .replaceAll(RegExp(r'^-+|-+$'), '');
+    final cleaned = _normalizeTitle(
+      title,
+    ).replaceAll(RegExp(r'[^a-z0-9]+'), '-').replaceAll(RegExp(r'^-+|-+$'), '');
     if (cleaned.isEmpty) return 'session';
     if (cleaned.length <= 40) return cleaned;
     return cleaned.substring(0, 40);
@@ -422,6 +422,7 @@ class AttendanceRepository implements IAttendanceRepository {
         'status': status.name,
         'markedByUserId': markedBy.uid,
         'markedByName': markedBy.name,
+        // FIX [013-P3]: preserve markedAt on idempotent re-mark.
         'markedAt': existingMarkedAt ?? FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
         'note': normalizedNote == null || normalizedNote.isEmpty
@@ -566,10 +567,9 @@ class AttendanceRepository implements IAttendanceRepository {
 
   // FIX [004-H3]: server-side filter — only fetch open sessions for active check.
   Stream<List<AttendanceSession>> _watchOpenSessionsForTeam(String teamId) {
-    return _sessionsCol(teamId)
-        .where('isClosed', isEqualTo: false)
-        .snapshots()
-        .map(_mapSessionsSnapshot);
+    return _sessionsCol(
+      teamId,
+    ).where('isClosed', isEqualTo: false).snapshots().map(_mapSessionsSnapshot);
   }
 
   @override
@@ -901,13 +901,15 @@ class AttendanceRepository implements IAttendanceRepository {
       final uniqueStudentIds = <String>{};
 
       // FIX [004-H1]: collect eligible sessions first, then parallel-fetch marks.
-      final eligibleSessions = sessions.where((session) {
-        final inRange =
-            range == null ||
-            (!session.startsAt.isBefore(range.start) &&
-                !session.startsAt.isAfter(range.end));
-        return inRange && session.isEffectivelyClosedAt(now);
-      }).toList(growable: false);
+      final eligibleSessions = sessions
+          .where((session) {
+            final inRange =
+                range == null ||
+                (!session.startsAt.isBefore(range.start) &&
+                    !session.startsAt.isAfter(range.end));
+            return inRange && session.isEffectivelyClosedAt(now);
+          })
+          .toList(growable: false);
 
       final markSnapshots = await Future.wait(
         eligibleSessions.map((s) => _marksCol(teamId, s.id).get()),

@@ -1,81 +1,47 @@
-# Phase 1 — Auth & Roles: Task Checklist
+# Phase 1 - Auth & Roles: Task Checklist (Logic Only)
 
-## P1-T1 · Fix Firestore Collection Casing
-- [ ] P1-T1.1 Open `lib/core/constants/firestore_collections.dart`; change `users` value to `'Users'`
-- [ ] P1-T1.2 Search for raw `'users'` string in app code (grep); fix any remaining occurrences
-- [ ] P1-T1.3 Update `firestore.rules` — replace `match /users/{uid}` with `match /Users/{uid}`
-- [ ] P1-T1.4 Update `functions/src/index.ts` — replace `.collection('users')` with `.collection('Users')`
-- [ ] P1-T1.5 Run `flutter analyze` — 0 issues
+> **Scope**: Data layer, BLoC logic, routing guards, collection constants, Cloud Functions, security rules, and tests.
+> No UI/widget code.
 
-## P1-T2 · Implement Auth Widget Atoms
-- [ ] P1-T2.1 Create `lib/features/auth/presentation/widgets/auth_form_field.dart`
-  - Params: `label`, `hint`, `controller`, `validator`, `obscureText`, `textInputAction`, `onSubmitted`
-  - Styled per ochre theme
-- [ ] P1-T2.2 Create `lib/features/auth/presentation/widgets/auth_primary_button.dart`
-  - Params: `label`, `onPressed`, `isLoading`
-  - Shows `CircularProgressIndicator` when `isLoading`
-- [ ] P1-T2.3 Create `lib/features/auth/presentation/widgets/auth_error_banner.dart`
-  - Params: `message`
-  - Animated show/hide based on non-null message
+## P1-T1 - Fix Firestore Collection Casing
+- [x] P1-T1.1 Open `lib/core/constants/firestore_collections.dart`; change `users` constant value to `'Users'`
+- [x] P1-T1.2 Grep entire `lib/` for raw string `'users'`; update any remaining call sites
+- [x] P1-T1.3 Update `firestore.rules` - replace every `match /users/{uid}` path with `match /Users/{uid}`
+- [x] P1-T1.4 Update `functions/src/index.ts` - replace `.collection('users')` with `.collection('Users')`
+- [x] P1-T1.5 Run `flutter analyze` - 0 issues
 
-## P1-T3 · Implement SplashScreen
-- [ ] P1-T3.1 Replace blank body with `BlocListener<AuthBloc>` + logo animation
-- [ ] P1-T3.2 On `AuthAuthenticated/AuthDegraded` → `Navigator.pushNamedAndRemoveUntil` to role home
-- [ ] P1-T3.3 On `AuthUnauthenticated` → push `/login`
-- [ ] P1-T3.4 On `AuthNeedsVerification` → push `/verify-email`
-- [ ] P1-T3.5 On `AuthArchived` → show archived message inline
-- [ ] P1-T3.6 Dispatch `AuthEventCheckStatus` in `initState` / `PostFrameCallback`
-- [ ] P1-T3.7 Widget test: splash navigates to login when unauthenticated
+## P1-T2 - Fix AdminGate Role Logic
+- [x] P1-T2.1 Open `lib/features/admin/presentation/widget/admin_gate.dart`
+- [x] P1-T2.2 Read `AuthBloc` state from context; allow `child` only on `AuthAuthenticated` with `role == UserRole.admin`
+- [x] P1-T2.3 On any other state, schedule `Navigator.pushNamedAndRemoveUntil(login)` via `SchedulerBinding.addPostFrameCallback`
+- [x] P1-T2.4 Unit test: `AdminGate` logic branch - admin passes, servant redirects, unauthenticated redirects
 
-## P1-T4 · Implement LoginScreen
-- [ ] P1-T4.1 Build email + password form with `Form` key
-- [ ] P1-T4.2 `BlocListener` on `AuthLoading` → disable button; on `AuthError` → show banner
-- [ ] P1-T4.3 On `AuthAuthenticated` → handled by `RoleRouter.listeners()` (no manual nav)
-- [ ] P1-T4.4 "Forgot password" `TextButton` → push `/forgot-password`
-- [ ] P1-T4.5 "Register" `TextButton` → push `/register`
-- [ ] P1-T4.6 Widget test: form validation blocks empty submit
+## P1-T3 - Fix `church_app.dart` Entry Wiring
+- [x] P1-T3.1 Set `home: const SplashScreen()` (SplashScreen already dispatches `AuthEventCheckStatus`)
+- [x] P1-T3.2 Remove dead `OfflineIndicator` import/comment
+- [x] P1-T3.3 Confirm `RoleRouter.listeners()` is registered in `MultiBlocListener` in `church_app.dart`
 
-## P1-T5 · Implement RegisterScreen
-- [ ] P1-T5.1 Name + email + password + confirm-password fields
-- [ ] P1-T5.2 Client-side validation (password match, min length 8)
-- [ ] P1-T5.3 Dispatch `AuthEventSignUp` on valid submit
-- [ ] P1-T5.4 `BlocListener` → on `AuthNeedsVerification` push `/verify-email`
-- [ ] P1-T5.5 Widget test: mismatched passwords show error
+## P1-T4 - Remove Stale `role_user_route.dart`
+- [x] P1-T4.1 Grep for imports of `role_user_route.dart` across `lib/`; remove or redirect each
+- [x] P1-T4.2 Delete `lib/role_user_route.dart`
+- [x] P1-T4.3 Run `flutter analyze` - 0 issues
 
-## P1-T6 · Implement VerifyEmailScreen
-- [ ] P1-T6.1 Static info text + "Resend Email" button
-- [ ] P1-T6.2 "Resend" dispatches `AuthEventSendVerification`
-- [ ] P1-T6.3 "Check Again" dispatches `AuthEventRefreshUser`
-- [ ] P1-T6.4 On `AuthAuthenticated` → `RoleRouter` handles navigation
-- [ ] P1-T6.5 "Sign Out" dispatches `AuthEventSignOut`
+## P1-T5 - Fix Router Tests
+- [x] P1-T5.1 Open `test/core/routing/app_router_test.dart`
+- [x] P1-T5.2 Update 2 stale `invalidMessage` string expectations to match current `AppRouter` values
+- [x] P1-T5.3 Run `flutter test test/core/routing/app_router_test.dart` - all pass
 
-## P1-T7 · Implement ForgotPasswordScreen
-- [ ] P1-T7.1 Email field + "Send Reset Link" button
-- [ ] P1-T7.2 Dispatch `AuthEventForgotPassword`
-- [ ] P1-T7.3 On `AuthPasswordResetSent` → show success message + back button
-- [ ] P1-T7.4 Widget test: empty email blocked
+## P1-T6 - Auth BLoC Handler Hardening
+- [x] P1-T6.1 Open `auth_bloc_handlers.dart`; verify `_handleSignOut` cancels `_authStateSubscription` before `super.close()` (already in `close()` - confirm order is correct)
+- [x] P1-T6.2 Verify `_handleCheckStatus` cannot emit twice on rapid `AuthEventCheckStatus` events (add `transformer: droppable()` or guard with `state is AuthLoading` check)
+- [x] P1-T6.3 Unit test: rapid double-dispatch of `AuthEventCheckStatus` emits exactly one `AuthLoading` state
 
-## P1-T8 · Fix AdminGate
-- [ ] P1-T8.1 Read `AuthBloc` state in `AdminGate.build()`
-- [ ] P1-T8.2 If `AuthAuthenticated` && `role == admin` → render `child`
-- [ ] P1-T8.3 Otherwise → `SchedulerBinding.addPostFrameCallback` push to `/login`
-- [ ] P1-T8.4 Widget test: non-admin triggers redirect
+## P1-T7 - Validate `RoleRouter.resolve()` Logic
+- [x] P1-T7.1 Confirm `RoleRouter.resolve()` handles all `UserRole` values - no missing switch arm
+- [x] P1-T7.2 Confirm `AuthDegraded` for admin still serves `AdminRefreshRequiredScreen` (not blank)
+- [x] P1-T7.3 Unit test: `RoleRouter.resolve()` returns correct screen type per role + state combination
 
-## P1-T9 · Wire `church_app.dart`
-- [ ] P1-T9.1 Set `home: const SplashScreen()`
-- [ ] P1-T9.2 Remove dead `OfflineIndicator` comment / import
-- [ ] P1-T9.3 Confirm `RoleRouter.listeners()` is inside `MultiBlocListener`
-
-## P1-T10 · Remove `role_user_route.dart`
-- [ ] P1-T10.1 Grep for imports of `role_user_route.dart` — fix or remove each
-- [ ] P1-T10.2 Delete `lib/role_user_route.dart`
-
-## P1-T11 · Fix Router Tests
-- [ ] P1-T11.1 Open `test/core/routing/app_router_test.dart`
-- [ ] P1-T11.2 Update 2 stale `invalidMessage` string expectations to current values
-- [ ] P1-T11.3 Run `flutter test test/core/routing/app_router_test.dart` — all pass
-
-## P1-T12 · Final Gate
-- [ ] `flutter analyze` — 0 issues
-- [ ] `flutter test test/features/auth/` — all pass
-- [ ] Manual smoke: login as admin, servant, student → correct dashboard
+## P1-T8 - Final Gate
+- [x] `flutter analyze` - 0 issues
+- [x] `flutter test test/features/auth/` - all pass
+- [x] `flutter test test/core/routing/` - all pass

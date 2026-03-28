@@ -20,6 +20,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final SignOutUseCase _signOutUseCase;
   final ObserveAuthStateUseCase _observeAuthStateUseCase;
   late final StreamSubscription<AuthUser?> _authStateSubscription;
+  bool _isCheckingStatus = false;
 
   AuthBloc({
     required AuthService authService,
@@ -62,9 +63,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       case AuthSessionStatus.needsVerification:
         emit(const AuthNeedsVerification());
       case AuthSessionStatus.archived:
-        emit(AuthArchived(message: resolution.message!, email: resolution.email));
+        emit(
+          AuthArchived(message: resolution.message!, email: resolution.email),
+        );
       case AuthSessionStatus.degraded:
-        emit(AuthDegraded(user: resolution.user!, message: resolution.message!));
+        emit(
+          AuthDegraded(user: resolution.user!, message: resolution.message!),
+        );
       case AuthSessionStatus.error:
         emit(AuthError(resolution.message!));
     }
@@ -73,7 +78,18 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   Future<void> _onCheckStatus(
     AuthEventCheckStatus event,
     Emitter<AuthState> emit,
-  ) => _handleCheckStatus(this, event, emit);
+  ) async {
+    if (_isCheckingStatus) {
+      return;
+    }
+
+    _isCheckingStatus = true;
+    try {
+      await _handleCheckStatus(this, event, emit);
+    } finally {
+      _isCheckingStatus = false;
+    }
+  }
 
   Future<void> _onSignIn(AuthEventSignIn event, Emitter<AuthState> emit) =>
       _handleSignIn(this, event, emit);

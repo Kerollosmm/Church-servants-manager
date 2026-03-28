@@ -1,73 +1,56 @@
-# Phase 4 — Attendance Recording (55% → 100%)
+# Phase 4 — Attendance Recording (Logic Only)
 
 ## Goal
-Build the full `AttendanceTakingScreen` roster UI, implement the `AttendanceRecordModel` (local layer), wire the `AttendanceTakingCubit`, and add the student self-attendance view. Every mark action must be real-time, idempotent, and work correctly for all roster states.
+Implement `AttendanceRecordModel`, fully wire `AttendanceTakingCubit` and `StudentAttendanceCubit` to their repository streams, inject both into `AppRouter`, and add Firestore security rules allowing students to read their own attendance marks.
 
 ## Existing Assets (keep, do not rewrite)
-- `AttendanceRepository._writeMark()` — mark/update via `set(merge:true)` keyed by `studentId`
-- `markStudentPresent`, `markStudentLate`, `clearStudentMark`, `markAllPresentForRemainingStudents`
-- `watchSessionRosterSnapshot(teamId, sessionId)` → `Stream<AttendanceRosterSnapshot>`
-- `watchStudentAttendanceHistory(studentId, teamId?)` → `Stream<List<StudentAttendanceHistoryItem>>`
-- Roster item model: `AttendanceRosterItem` with `effectiveStatus`, `isMarked`, `canEdit`
-- Bloc folders: `attendance_taking/`, `student_attendance/`
+- `AttendanceRepository` — all mark methods + `watchSessionRosterSnapshot` + `watchStudentAttendanceHistory`
+- `AttendanceMark`, `AttendanceRosterItem`, `AttendanceRosterSnapshot`, `StudentAttendanceHistoryItem` models
+- Cubit folder structure: `attendance_taking/`, `student_attendance/`
 
-## What Is Missing / Broken
-1. `AttendanceTakingScreen` — blank (`Text('AttendanceTakingScreen - Blanked')`)
-2. `StudentAttendanceScreen` — blank
-3. `AttendanceRecordModel` — empty file (1 blank line)
-4. **Cubit wiring** — `AttendanceTakingCubit` exists in folder but needs connection to screen
-5. **Bulk-fill UI** — "Mark All Present" button not surfaced
+## What Is Being Fixed / Implemented (Logic Only)
 
-## Architecture Decisions
-- `AttendanceTakingScreen` receives `AttendanceTakingArgs` (existing: `teamId`, `sessionId`)
-- `BlocProvider<AttendanceTakingCubit>` wraps the screen (injected from `AppRouter`)
-- Cubit calls `watchSessionRosterSnapshot` → emits `AttendanceRosterSnapshot`
-- Roster list: `ListView.builder` over `AttendanceRosterSnapshot.roster`
-- Each `AttendanceRosterTile` shows: name, status chip, mark/unmark/late buttons
-- `canEdit` flag from roster item drives button visibility (false = session closed)
-- **Bulk action**: FAB "تحديد الجميع حاضرين" → calls `markAllPresentForRemainingStudents`
-- **Session header**: session title, team name, time range, open/closed badge, student count / marked count
-- **Export/view-only mode**: when session `isEffectivelyClosed`, all mark buttons hidden
+### 1. `AttendanceRecordModel`
+- Currently an empty file
+- A pure Dart `Equatable` model bridging `AttendanceMark` (Firestore model) and future local cache (Hive — deferred)
+- Two factories: `fromAttendanceMark(…)` and `absent(…)`
 
-## AttendanceRecordModel (local layer)
-This model is the local representation of a single attendance mark for offline/cache purposes. Fill the empty file with a minimal model first (Firestore-backed only; Hive extension deferred to Phase offline sprint).
+### 2. `AttendanceTakingCubit` Wiring
+- `initialize(teamId, sessionId)` subscribes to `watchSessionRosterSnapshot` and emits states
+- `markPresent`, `markLate`, `clearMark`, `markAllPresent` delegate to repository
+- Per-student mark-in-progress state emitted so the cubit tracks which tile is loading
+- Subscription cancelled on `close()`
+- Registered in `GetIt`
 
-## StudentAttendanceScreen
-- Receives `StudentAttendanceArgs` (existing: `studentId`, optional `teamId`)
-- Uses `StudentAttendanceCubit` → `watchStudentAttendanceHistory`
-- Shows timeline list: session date, team name, status chip (present/late/absent)
-- Stats header: total sessions attended / total sessions / percentage
-- Student self-view: accessible to student role reading own UID
+### 3. `StudentAttendanceCubit` Wiring  
+- `load(studentId, {teamId})` subscribes to `watchStudentAttendanceHistory`
+- Computes stats: `total`, `attended` (present + late), `percentage`
+- States: Initial → Loading → Loaded(items, stats) → Error
+- Registered in `GetIt` if missing
 
-## Files to Create / Modify
+### 4. `AppRouter` — Cubit Injection
+- `attendanceTaking` route: wrap with `BlocProvider<AttendanceTakingCubit>` + call `initialize()`
+- `studentAttendance` route: wrap with `BlocProvider<StudentAttendanceCubit>` + call `load()`
 
-### Attendance Record Model (fill empty file)
-- `lib/features/attendance_record/models/attendance_record_model.dart`
+### 5. Firestore Security Rules — Student Self-Attendance Read
+- `isLinkedStudent(studentId)` helper reads `Users/{uid}.linkedStudentId`
+- Student can read `attendanceMarks/{markId}` where `isLinkedStudent(markId) == true`
+- Student can read session docs where their linked student ID is in `studentIdsSnapshot`
+- Student still cannot write marks or session docs
 
-### New Widgets (create)
-- `lib/features/attendance/presentation/widgets/attendance_roster_tile.dart`
-- `lib/features/attendance/presentation/widgets/attendance_mark_buttons.dart`
-- `lib/features/attendance/presentation/widgets/attendance_status_chip.dart`
-- `lib/features/attendance/presentation/widgets/session_header_card.dart`
-- `lib/features/attendance/presentation/widgets/attendance_history_tile.dart` (for student view)
-
-### Screens to Implement (replace blanks)
-- `attendance_taking_screen.dart` — full roster with real-time marks
-- `student_attendance_screen.dart` — student self-attendance history
-
-### Cubit Wiring
-- `lib/features/attendance/presentation/bloc/attendance_taking/attendance_taking_cubit.dart` — wire to screen
-- `lib/core/routing/app_router.dart` — wrap `AttendanceTakingScreen` with `BlocProvider<AttendanceTakingCubit>`
-
-## UI Design Reference
-- `UI Screens/attendance_taking/`
-- `UI Screens/student_attendance_history/`
+## Files Changed (Logic Only)
+| File | Change |
+|------|--------|
+| `lib/features/attendance_record/models/attendance_record_model.dart` | Implement model (was empty) |
+| `lib/features/attendance/presentation/bloc/attendance_taking/attendance_taking_cubit.dart` | Full implementation |
+| `lib/features/attendance/presentation/bloc/student_attendance/student_attendance_cubit.dart` | Full implementation |
+| `lib/core/di/injection.dart` | Register both cubits |
+| `lib/core/routing/app_router.dart` | Wrap 2 routes with `BlocProvider` + cubit init |
+| `firestore.rules` | Student self-read rules for marks + sessions |
+| `test/features/attendance_record/` | Unit tests for `AttendanceRecordModel` |
+| `test/features/attendance/bloc/` | Unit tests for both cubits |
 
 ## Completion Gate
-- [ ] `flutter analyze` passes
-- [ ] `AttendanceTakingScreen` shows real roster, live mark updates
-- [ ] Mark present / late / clear all work and persist
-- [ ] Bulk "mark all present" works and skips already-marked
-- [ ] Closed session shows view-only mode (no buttons)
-- [ ] `StudentAttendanceScreen` shows history with stats header
+- [ ] `flutter analyze` — 0 issues
 - [ ] `flutter test test/features/attendance/` — all pass
+- [ ] `flutter test test/features/attendance_record/` — all pass

@@ -28,6 +28,14 @@ class StudentDataRepository implements IStudentRepository {
   CollectionReference<Map<String, dynamic>> get _usersCollection =>
       _firestore.collection(FirestoreCollections.users);
 
+  Map<String, dynamic> _studentWriteData(StudentModel student) {
+    final data = student.toMap();
+    data['nameLower'] = student.name.trim().toLowerCase();
+    final normalizedUid = student.uid.trim();
+    data['linkedUserId'] = normalizedUid.isEmpty ? null : normalizedUid;
+    return data;
+  }
+
   Future<void> syncLinkedUserRoleFromStudent({
     required StudentModel updatedStudent,
     required UserRole previousRole,
@@ -65,6 +73,17 @@ class StudentDataRepository implements IStudentRepository {
     bool includeArchived = false,
   }) async {
     return _queryService.getStudentByUid(uid, includeArchived: includeArchived);
+  }
+
+  @override
+  Future<StudentModel?> getStudentByLinkedUserId(
+    String linkedUserId, {
+    bool includeArchived = false,
+  }) async {
+    return _queryService.getStudentByLinkedUserId(
+      linkedUserId,
+      includeArchived: includeArchived,
+    );
   }
 
   @override
@@ -122,10 +141,32 @@ class StudentDataRepository implements IStudentRepository {
   Future<List<StudentModel>> searchStudents(
     String query, {
     int limit = 20,
+    bool includeArchived = false,
   }) async {
-    // In-memory, case-insensitive search is handled by StudentDataBloc.
-    // This repo method now simply fetches all students for the BLoC to filter.
-    return getAllStudents(limit: limit);
+    return _queryService.searchStudents(
+      query,
+      limit: limit,
+      includeArchived: includeArchived,
+    );
+  }
+
+  @override
+  Future<StudentQueryPage> getStudentsPage({
+    int limit = 20,
+    DocumentSnapshot<Map<String, dynamic>>? lastDocument,
+    String? classId,
+    List<String>? classIds,
+    String? groupName,
+    bool includeArchived = false,
+  }) {
+    return _queryService.getStudentsPage(
+      limit: limit,
+      lastDocument: lastDocument,
+      classId: classId,
+      classIds: classIds,
+      groupName: groupName,
+      includeArchived: includeArchived,
+    );
   }
 
   @override
@@ -135,7 +176,7 @@ class StudentDataRepository implements IStudentRepository {
           ? _studentsCollection.doc(student.docID)
           : _studentsCollection.doc();
       final finalStudent = student.copyWith(docID: docRef.id);
-      await docRef.set(finalStudent.toMap());
+      await docRef.set(_studentWriteData(finalStudent));
       return docRef.id;
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
@@ -146,7 +187,7 @@ class StudentDataRepository implements IStudentRepository {
   Future<void> updateStudent(StudentModel student) async {
     try {
       final docRef = _studentsCollection.doc(student.docID);
-      await docRef.update(student.toMap());
+      await docRef.update(_studentWriteData(student));
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
     }
@@ -156,7 +197,7 @@ class StudentDataRepository implements IStudentRepository {
   Future<void> upsertStudent(StudentModel student) async {
     try {
       final docRef = _studentsCollection.doc(student.docID);
-      await docRef.set(student.toMap(), SetOptions(merge: true));
+      await docRef.set(_studentWriteData(student), SetOptions(merge: true));
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
     }

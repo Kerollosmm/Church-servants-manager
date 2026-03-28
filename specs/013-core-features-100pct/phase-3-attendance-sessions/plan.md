@@ -1,64 +1,61 @@
-# Phase 3 — Attendance Sessions (60% → 100%)
+# Phase 3 — Attendance Sessions (Logic Only)
 
 ## Goal
-Rebuild session create, session history, and session management screens on top of the existing `AttendanceRepository` and `AdminDashboardCubit`/`SessionAdminCubit` stack. Decide and implement the servant-vs-admin create/close lifecycle policy. Fix the 3 failing `attendance_repository_test.dart` cases.
+Fix the 3 failing `attendance_repository_test.dart` cases, harden `_writeMark` idempotency, add unit tests for the servant/admin session lifecycle role policy, and strengthen Firestore security rules for attendance session access.
 
 ## Existing Assets (keep, do not rewrite)
-- `AttendanceRepository` — full session lifecycle: `createSession`, `closeSession`, `watchSessionsForTeam`, `watchActiveSessionForTeam`, `watchSessionById`, `getSessionById`
-- `AdminDashboardCubit` — session/dashboard streams
-- Session cubit folder: `lib/features/attendance/presentation/bloc/session_admin/`
-- `AttendanceSession` model — full, including `isOpenAt()`, `isClosed`, `isEffectivelyClosedAt()`
-- Conflict-detection logic in repository
+- `AttendanceRepository` — full session lifecycle (`createSession`, `closeSession`, conflict detection, roster building)
+- `AdminDashboardCubit` — session streams
+- `AttendanceSession` model — `isOpenAt`, `isEffectivelyClosedAt`, `isClosed`
+- Cubit folder: `lib/features/attendance/presentation/bloc/session_admin/`
 
-## What Is Missing / Broken
-1. `AttendanceSessionCreateScreen` — blank
-2. `AttendanceHistoryScreen` — blank
-3. **Role policy gap** — `createSession` checks `assertUserCanManageAttendance` (servant + admin can create), but `closeSession` calls `_assertAdmin` (admin only). Need explicit documented decision and UI enforcement.
-4. 3 failing repo tests (idempotent mark, late-status preservation cases — in `attendance_repository_test.dart`)
+## What Is Being Fixed (Logic Only)
 
-## Role Policy Decision (HUMAN DECISION REQUIRED — resolved here)
-**Decision**: Servants can **create** sessions only. Only **admins** can **close** sessions.  
-**Rationale**: Matches the closed-roster safety model — a servant opens taking, admin reviews and closes to lock marks.  
-**UI Enforcement**: "Close Session" button only shown when `user.role == admin`.
+### 1. 3 Failing Repository Tests
+**Root causes** (from code inspection):
+- **Idempotent mark**: mock `.get()` returns an empty snapshot on second call, so `existingMarkedAt` is always null → `markedAt` gets overwritten by `FieldValue.serverTimestamp()`
+- **Late-status preservation**: same mock issue — `markedAt` from the first write is not returned on read, so updating status to `late` resets `markedAt`
+- **Third case**: to be confirmed from test file
 
-## Architecture Decisions
-- `AttendanceSessionCreateScreen`:
-  - Cubit: `SessionAdminCubit` (existing) — call `createSession`
-  - Fields: team (dropdown), date+time picker, duration (minutes), optional title
-  - After success → pop + show snack; router pushes to `attendanceTaking`
-- `AttendanceHistoryScreen`:
-  - Uses `watchSessionsForTeam(teamId)` stream
-  - Grouped by date key (`session.dateKey`)
-  - Tapping a session → push `attendanceTaking` (view-only if closed)
-  - Admin: "Close" action on open sessions
-- Session list tile shows: title/date, open/closed badge, student count, created-by
+**Fix**: correct mock setup so `markRef.get()` returns a populated `DocumentSnapshot` with `markedAt` on second and subsequent calls.
 
-## Files to Create / Modify
+### 2. `_writeMark` Correctness Verification
+- Confirm the logic `existingMarkedAt ?? FieldValue.serverTimestamp()` is sound
+- Add `// FIX [013-P3]` comment for traceability
 
-### New Widgets (create)
-- `lib/features/attendance/presentation/widgets/session_list_tile.dart`
-- `lib/features/attendance/presentation/widgets/session_status_badge.dart`
-- `lib/features/attendance/presentation/widgets/session_create_form.dart`
-- `lib/features/attendance/presentation/widgets/session_date_group_header.dart`
+### 3. Role Policy Unit Tests
+- Servant can call `createSession()` → succeeds
+- Servant calling `closeSession()` → throws `AttendancePermissionDeniedFailure`
+- These behaviors already exist in repo logic; tests confirm them
 
-### Screens to Implement
-- `attendance_session_create_screen.dart` — create form + cubit wiring
-- `attendance_history_screen.dart` — date-grouped list + close action for admins
+### 4. Conflict Detection Coverage
+- Unit tests for `_sessionsOverlap` and `_isDuplicateSessionCandidate` edge cases
 
-### Test Fixes
-- `test/features/attendance/data/repos/attendance_repository_test.dart` — fix 3 failing cases:
-  1. Idempotent mark write (second identical `markStudentPresent` must not throw, must preserve `markedAt`)
-  2. Late-status preservation (marking late must not overwrite `markedAt` from a prior present mark)
-  3. (Third case — assess from test file)
+### 5. Session Lifecycle Unit Tests
+- `isEffectivelyClosedAt(now)` returns `true` for expired-and-open sessions
+- `isEffectivelyClosedAt(now)` returns `true` for admin-closed-early sessions
 
-## UI Design Reference
-- `UI Screens/create_attendance_session/`
-- `UI Screens/attendance_history/`
+### 6. Firestore Security Rules — Attendance
+- Confirm servant can read/write `attendanceSessions` and `attendanceMarks` for their team
+- Confirm student cannot write to either collection
+- Add rule: only admin can update `isClosed: true` on a session doc
+
+## Files Changed (Logic Only)
+| File | Change |
+|------|--------|
+| `test/features/attendance/data/repos/attendance_repository_test.dart` | Fix 3 failing tests (mock correction) |
+| `lib/features/attendance/data/repos/attendance_repository.dart` | `// FIX` comment; no logic change if already correct |
+| `firestore.rules` | session close permission + servant/student boundaries |
+
+## Servant/Admin Policy (documented)
+| Action | Admin | Servant | Student |
+|--------|-------|---------|---------|
+| Create session | ✅ | ✅ | ❌ |
+| Close session | ✅ | ❌ | ❌ |
+| Write marks | ✅ | ✅ | ❌ |
+| Read sessions | ✅ | ✅ | see Phase 4 |
 
 ## Completion Gate
-- [ ] `flutter analyze` passes
-- [ ] Session create works end-to-end: team selected → session appears in history
-- [ ] History screen shows sessions grouped by date, open/closed status
-- [ ] Servant sees "Close" button hidden; admin sees it
-- [ ] 3 failing repo tests fixed and green
-- [ ] `flutter test test/features/attendance/` passes
+- [ ] `flutter analyze` — 0 issues
+- [ ] All 3 previously failing repo tests now pass
+- [ ] `flutter test test/features/attendance/` — all pass

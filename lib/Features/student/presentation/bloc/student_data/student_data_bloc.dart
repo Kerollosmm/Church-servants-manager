@@ -10,7 +10,7 @@ import 'package:church_management_system/features/student/domain/usecases/restor
 import 'package:church_management_system/features/student/domain/usecases/search_students_usecase.dart';
 import 'package:church_management_system/features/student/domain/usecases/student_operation_exception.dart';
 import 'package:church_management_system/features/student/domain/usecases/update_student_usecase.dart';
-import 'package:collection/collection.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -66,8 +66,8 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
   String? _lastFilterTeamId;
   String? _lastQuery;
   bool _includeArchived = false;
-  // FIX [009-P3]: keep load-more state isolated from the live student stream.
-  int _pageOffset = 0;
+  int _pageSize = 20;
+  DocumentSnapshot<Map<String, dynamic>>? _lastDocument;
   bool _hasReachedMax = false;
   bool _isLoadingMore = false;
 

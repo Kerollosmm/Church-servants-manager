@@ -1,6 +1,18 @@
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+class StudentQueryPage {
+  const StudentQueryPage({
+    required this.students,
+    required this.lastDocument,
+    required this.hasReachedMax,
+  });
+
+  final List<StudentModel> students;
+  final DocumentSnapshot<Map<String, dynamic>>? lastDocument;
+  final bool hasReachedMax;
+}
+
 /// Interface for Student Repository.
 /// Defines the contract for interacting with student data.
 abstract class IStudentRepository {
@@ -13,6 +25,12 @@ abstract class IStudentRepository {
   /// Get a student by Firebase Auth UID (or app UID).
   Future<StudentModel?> getStudentByUid(
     String uid, {
+    bool includeArchived = false,
+  });
+
+  /// Get a student by the linked Firebase Auth user id.
+  Future<StudentModel?> getStudentByLinkedUserId(
+    String linkedUserId, {
     bool includeArchived = false,
   });
 
@@ -39,7 +57,21 @@ abstract class IStudentRepository {
   });
 
   /// Search students by name.
-  Future<List<StudentModel>> searchStudents(String query, {int limit = 20});
+  Future<List<StudentModel>> searchStudents(
+    String query, {
+    int limit = 20,
+    bool includeArchived = false,
+  });
+
+  /// Get a paginated page of students for the supplied scope.
+  Future<StudentQueryPage> getStudentsPage({
+    int limit = 20,
+    DocumentSnapshot<Map<String, dynamic>>? lastDocument,
+    String? classId,
+    List<String>? classIds,
+    String? groupName,
+    bool includeArchived = false,
+  });
 
   /// Create a new student.
   /// Throws [StudentFailure] on error.

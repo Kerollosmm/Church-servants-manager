@@ -81,23 +81,33 @@ void _setCurrentFilters(
 }
 
 void _resetPagination(StudentDataBloc bloc) {
-  // FIX [009-P5]: clear pagination state whenever the scoped student source changes.
-  bloc._pageOffset = 0;
+  bloc._lastDocument = null;
   bloc._hasReachedMax = false;
   bloc._isLoadingMore = false;
 }
 
-List<StudentModel> _resolveVisibleStudents(
+List<StudentModel> _currentVisibleStudents(
   StudentDataBloc bloc,
-  String? query,
+  StudentDataLoaded? current,
 ) {
-  if (query?.isNotEmpty == true) {
-    return bloc._searchStudentsUseCase(
-      students: bloc._allStudents,
-      query: query!,
-    );
+  if (current == null) {
+    return bloc._allStudents;
   }
-  return bloc._allStudents;
+
+  if (current.currentQuery?.isNotEmpty == true) {
+    return current.students;
+  }
+
+  final loadedCount = current.students.length;
+  if (loadedCount <= 0) {
+    return const <StudentModel>[];
+  }
+
+  if (bloc._allStudents.length <= loadedCount) {
+    return bloc._allStudents;
+  }
+
+  return bloc._allStudents.take(loadedCount).toList(growable: false);
 }
 
 void _emitLoadedState(
@@ -111,6 +121,7 @@ void _emitLoadedState(
   emit(
     StudentDataLoaded(
       students: students,
+      lastDocument: bloc._lastDocument,
       currentFilterGroupId: bloc._lastFilterGroupId,
       currentFilterTeamId: bloc._lastFilterTeamId,
       currentQuery: query,
@@ -131,7 +142,10 @@ void _emitSuccessWithData(
   _emitLoadedState(
     bloc,
     emit,
-    students: _resolveVisibleStudents(bloc, bloc._lastQuery),
+    students: _currentVisibleStudents(
+      bloc,
+      bloc.state is StudentDataLoaded ? bloc.state as StudentDataLoaded : null,
+    ),
     query: bloc._lastQuery,
     mutationStatus: StudentMutationStatus.success,
     successMessage: message,
@@ -156,20 +170,33 @@ Future<void> _handleLoadStudents(
 ) async {
   emit(
     StudentDataLoading(
-      previousStudents: _resolveVisibleStudents(bloc, bloc._lastQuery),
+      previousStudents: bloc._allStudents,
       isRefresh: bloc._allStudents.isNotEmpty,
       includeArchived: event.includeArchived,
     ),
   );
   _setCurrentFilters(bloc, groupId: event.actor.groupId, teamId: event.teamId);
   bloc._includeArchived = event.includeArchived;
+  bloc._pageSize = event.limit <= 0 ? 20 : event.limit;
   _resetPagination(bloc);
+  bloc._allStudents = const <StudentModel>[];
   await _subscribeToStudents(
     bloc,
     actor: event.actor,
     teamId: event.teamId,
     includeArchived: event.includeArchived,
   );
+  final page = await bloc._getStudentsUseCase.fetchPage(
+    actor: event.actor,
+    limit: bloc._pageSize,
+    teamId: event.teamId,
+    includeArchived: event.includeArchived,
+  );
+  bloc._allStudents = page.students;
+  bloc._lastDocument = page.lastDocument;
+  bloc._hasReachedMax = page.hasReachedMax;
+  _emitLoadedState(bloc, emit, students: page.students, query: bloc._lastQuery);
+  _completePendingRefresh(bloc);
 }
 
 void _handleStreamUpdated(
@@ -180,15 +207,21 @@ void _handleStreamUpdated(
   bloc._allStudents = event.students
       .where((student) => student.role == UserRole.student)
       .toList(growable: false);
-  // FIX [009-P6]: the live stream is the authoritative full result for the current scope.
-  bloc._pageOffset = bloc._allStudents.length;
-  bloc._hasReachedMax = true;
-  bloc._isLoadingMore = false;
+  final current = bloc.state is StudentDataLoaded
+      ? bloc.state as StudentDataLoaded
+      : null;
+  final currentQuery = current?.currentQuery ?? bloc._lastQuery;
+
+  if (currentQuery?.isNotEmpty == true) {
+    _completePendingRefresh(bloc);
+    return;
+  }
+
   _emitLoadedState(
     bloc,
     emit,
-    students: _resolveVisibleStudents(bloc, bloc._lastQuery),
-    query: bloc._lastQuery,
+    students: _currentVisibleStudents(bloc, current),
+    query: currentQuery,
   );
   _completePendingRefresh(bloc);
 }
@@ -208,7 +241,6 @@ Future<void> _handleSearchStudents(
   Emitter<StudentDataState> emit,
 ) async {
   final query = event.query.trim();
-  final previousQuery = bloc._lastQuery;
   final previousTeamId = bloc._lastFilterTeamId;
   final previousIncludeArchived = bloc._includeArchived;
   final nextTeamId = event.teamId;
@@ -217,32 +249,64 @@ Future<void> _handleSearchStudents(
     bloc,
     groupId: event.actor.groupId,
     teamId: nextTeamId,
-    query: query,
+    query: query.isEmpty ? null : query,
+  );
+
+  emit(
+    StudentDataLoading(
+      previousStudents: bloc._allStudents,
+      isRefresh: bloc._allStudents.isNotEmpty,
+      includeArchived: event.includeArchived,
+    ),
   );
 
   if (previousTeamId != nextTeamId ||
       previousIncludeArchived != event.includeArchived) {
     _resetPagination(bloc);
-    emit(
-      StudentDataLoading(
-        previousStudents: _resolveVisibleStudents(bloc, previousQuery),
-        isRefresh: bloc._allStudents.isNotEmpty,
-        includeArchived: event.includeArchived,
-      ),
-    );
     await _subscribeToStudents(
       bloc,
       actor: event.actor,
       teamId: nextTeamId,
       includeArchived: event.includeArchived,
     );
+  }
+
+  if (query.isEmpty) {
+    bloc._lastQuery = null;
+    bloc._allStudents = const <StudentModel>[];
+    _resetPagination(bloc);
+    final page = await bloc._getStudentsUseCase.fetchPage(
+      actor: event.actor,
+      limit: bloc._pageSize,
+      teamId: nextTeamId,
+      includeArchived: event.includeArchived,
+    );
+    bloc._allStudents = page.students;
+    bloc._lastDocument = page.lastDocument;
+    bloc._hasReachedMax = page.hasReachedMax;
+    _emitLoadedState(
+      bloc,
+      emit,
+      students: page.students,
+      query: null,
+    );
     return;
   }
 
+  final results = await bloc._searchStudentsUseCase(
+    actor: event.actor,
+    query: query,
+    limit: bloc._pageSize,
+    teamId: nextTeamId,
+    includeArchived: event.includeArchived,
+  );
+  bloc._allStudents = results;
+  bloc._lastDocument = null;
+  bloc._hasReachedMax = true;
   _emitLoadedState(
     bloc,
     emit,
-    students: _resolveVisibleStudents(bloc, query),
+    students: results,
     query: query,
   );
 }
@@ -314,7 +378,7 @@ Future<void> _handleRefreshStudents(
 ) async {
   emit(
     StudentDataLoading(
-      previousStudents: _resolveVisibleStudents(bloc, bloc._lastQuery),
+      previousStudents: bloc._allStudents,
       isRefresh: bloc._allStudents.isNotEmpty,
       includeArchived: event.includeArchived,
     ),
@@ -327,12 +391,46 @@ Future<void> _handleRefreshStudents(
   );
   bloc._includeArchived = event.includeArchived;
   _resetPagination(bloc);
+  bloc._allStudents = const <StudentModel>[];
   await _subscribeToStudents(
     bloc,
     actor: event.actor,
     teamId: bloc._lastFilterTeamId,
     includeArchived: event.includeArchived,
   );
+
+  if (bloc._lastQuery?.isNotEmpty == true) {
+    final results = await bloc._searchStudentsUseCase(
+      actor: event.actor,
+      query: bloc._lastQuery!,
+      limit: bloc._pageSize,
+      teamId: bloc._lastFilterTeamId,
+      includeArchived: event.includeArchived,
+    );
+    bloc._allStudents = results;
+    bloc._lastDocument = null;
+    bloc._hasReachedMax = true;
+    _emitLoadedState(
+      bloc,
+      emit,
+      students: results,
+      query: bloc._lastQuery,
+    );
+    _completePendingRefresh(bloc);
+    return;
+  }
+
+  final page = await bloc._getStudentsUseCase.fetchPage(
+    actor: event.actor,
+    limit: bloc._pageSize,
+    teamId: bloc._lastFilterTeamId,
+    includeArchived: event.includeArchived,
+  );
+  bloc._allStudents = page.students;
+  bloc._lastDocument = page.lastDocument;
+  bloc._hasReachedMax = page.hasReachedMax;
+  _emitLoadedState(bloc, emit, students: page.students, query: bloc._lastQuery);
+  _completePendingRefresh(bloc);
 }
 
 Future<void> _handleStopListening(
@@ -365,17 +463,16 @@ Future<void> _handleLoadMoreStudents(
   emit(current.copyWith(isLoadingMore: true));
 
   try {
-    const pageSize = 20;
     final page = await bloc._getStudentsUseCase.fetchPage(
       actor: event.actor,
-      limit: pageSize,
-      offset: bloc._pageOffset,
+      limit: bloc._pageSize,
+      lastDocument: current.lastDocument,
       teamId: bloc._lastFilterTeamId,
       includeArchived: bloc._includeArchived,
     );
 
-    bloc._pageOffset += page.students.length;
-    bloc._hasReachedMax = !page.hasMore;
+    bloc._lastDocument = page.lastDocument;
+    bloc._hasReachedMax = page.hasReachedMax;
 
     // Merge avoiding duplicates by docID.
     final merged = Map<String, StudentModel>.fromEntries(
@@ -387,6 +484,7 @@ Future<void> _handleLoadMoreStudents(
     emit(
       current.copyWith(
         students: merged,
+        lastDocument: bloc._lastDocument,
         isLoadingMore: false,
         hasReachedMax: bloc._hasReachedMax,
       ),
