@@ -19,6 +19,11 @@ class StudentAttendanceCubit extends Cubit<StudentAttendanceState> {
   String? _studentId;
   String? _teamId;
 
+  // FIX [013-P4]: Match the phase-4 public API while preserving current callers.
+  void load(String studentId, {String? teamId}) {
+    loadForStudent(studentId: studentId, teamId: teamId);
+  }
+
   void loadForStudent({required String studentId, String? teamId}) {
     _studentId = studentId.trim();
     _teamId = teamId?.trim();

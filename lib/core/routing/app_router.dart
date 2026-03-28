@@ -5,6 +5,8 @@ import 'package:church_management_system/features/attendance/presentation/screen
 import 'package:church_management_system/features/attendance/presentation/screens/attendance_session_create_screen.dart';
 import 'package:church_management_system/features/attendance/presentation/screens/attendance_taking_screen.dart';
 import 'package:church_management_system/features/attendance/presentation/screens/student_attendance_screen.dart';
+import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_cubit.dart';
+import 'package:church_management_system/features/attendance/presentation/bloc/student_attendance/student_attendance_cubit.dart';
 import 'package:church_management_system/features/admin/presentation/screens/admin_dashboard_screen.dart';
 import 'package:church_management_system/features/auth/presentation/screens/forgot_password_screen.dart';
 import 'package:church_management_system/features/auth/presentation/screens/login_screen.dart';
@@ -173,7 +175,13 @@ class AppRouter {
       case attendanceTaking:
         return _buildArgsValidatedRoute<AttendanceTakingArgs>(
           settings: settings,
-          builder: (args) => AttendanceTakingScreen(args: args),
+          builder: (args) => BlocProvider<AttendanceTakingCubit>(
+            lazy: false,
+            create: (_) =>
+                getIt<AttendanceTakingCubit>()
+                  ..initialize(teamId: args.teamId, sessionId: args.sessionId),
+            child: AttendanceTakingScreen(args: args),
+          ),
           invalidMessage: 'Invalid attendance session data',
         );
       case attendanceHistory:
@@ -184,7 +192,13 @@ class AppRouter {
       case studentAttendance:
         return _buildArgsValidatedRoute<StudentAttendanceArgs>(
           settings: settings,
-          builder: (args) => StudentAttendanceScreen(args: args),
+          builder: (args) => BlocProvider<StudentAttendanceCubit>(
+            lazy: false,
+            create: (_) =>
+                getIt<StudentAttendanceCubit>()
+                  ..load(args.studentId, teamId: args.filterTeamId),
+            child: StudentAttendanceScreen(args: args),
+          ),
           invalidMessage: 'Invalid student attendance data',
         );
 
@@ -200,5 +214,6 @@ class AppRouter {
 class NotFoundScreen extends StatelessWidget {
   const NotFoundScreen({super.key});
   @override
-  Widget build(BuildContext context) => const Scaffold(body: Center(child: Text('Not Found')));
+  Widget build(BuildContext context) =>
+      const Scaffold(body: Center(child: Text('Not Found')));
 }

@@ -17,7 +17,7 @@ final class AttendanceTakingLoading extends AttendanceTakingState {
   const AttendanceTakingLoading();
 }
 
-final class AttendanceTakingLoaded extends AttendanceTakingState {
+class AttendanceTakingLoaded extends AttendanceTakingState {
   const AttendanceTakingLoaded({
     required this.session,
     required this.roster,
@@ -49,6 +49,20 @@ final class AttendanceTakingLoaded extends AttendanceTakingState {
 
   @override
   List<Object?> get props => [session, roster, isMutating, mutationError];
+}
+
+final class AttendanceTakingMarkInProgress extends AttendanceTakingLoaded {
+  const AttendanceTakingMarkInProgress({
+    required this.studentId,
+    required super.session,
+    required super.roster,
+    super.mutationError,
+  }) : super(isMutating: true);
+
+  final String studentId;
+
+  @override
+  List<Object?> get props => [...super.props, studentId];
 }
 
 final class AttendanceTakingError extends AttendanceTakingState {

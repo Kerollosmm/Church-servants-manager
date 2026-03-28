@@ -3,8 +3,13 @@
 // all student-related routes resolve without dependency errors.
 
 import 'package:church_management_system/core/constants/routes.dart';
+import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/routing/app_router.dart';
+import 'package:church_management_system/core/routing/route_args.dart';
+import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_cubit.dart';
+import 'package:church_management_system/features/attendance/presentation/bloc/student_attendance/student_attendance_cubit.dart';
 import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
+import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
 import 'package:church_management_system/features/student/data/repos/student_data_repository.dart';
 import 'package:church_management_system/features/student/domain/usecases/add_student_usecase.dart';
@@ -49,8 +54,42 @@ class MockDeleteStudentUseCase extends Mock implements DeleteStudentUseCase {}
 
 class MockRestoreStudentUseCase extends Mock implements RestoreStudentUseCase {}
 
+class RecordingAttendanceTakingCubit extends AttendanceTakingCubit {
+  RecordingAttendanceTakingCubit()
+    : super(repository: MockIAttendanceRepository());
+
+  String? initializedTeamId;
+  String? initializedSessionId;
+
+  @override
+  void initialize({required String teamId, required String sessionId}) {
+    initializedTeamId = teamId;
+    initializedSessionId = sessionId;
+  }
+}
+
+class RecordingStudentAttendanceCubit extends StudentAttendanceCubit {
+  RecordingStudentAttendanceCubit()
+    : super(repository: MockIAttendanceRepository());
+
+  String? loadedStudentId;
+  String? loadedTeamId;
+
+  @override
+  void load(String studentId, {String? teamId}) {
+    loadedStudentId = studentId;
+    loadedTeamId = teamId;
+  }
+}
+
 void main() {
   final getIt = GetIt.instance;
+  const actor = AuthUser(
+    uid: 'student-user',
+    email: 'student@test.com',
+    name: 'Student',
+    role: UserRole.student,
+  );
 
   setUp(() {
     // FIX [P1-A]: All student deps must be registered in getIt — mirrors the unified DI strategy.
@@ -142,7 +181,7 @@ void main() {
           ),
         );
         // Falls back to the invalid-message scaffold — no DI crash // FIX [P1-A]
-        expect(find.text('Not Found'), findsOneWidget);
+        expect(find.text('Invalid student data'), findsOneWidget);
       },
     );
 
@@ -163,7 +202,7 @@ void main() {
           ),
         );
         // Falls back to the invalid-message scaffold — no DI crash // FIX [P1-A]
-        expect(find.text('Not Found'), findsOneWidget);
+        expect(find.text('Invalid student data'), findsOneWidget);
       },
     );
 
@@ -178,5 +217,72 @@ void main() {
         expect(router, isA<AppRouter>());
       },
     );
+  });
+
+  group('AppRouter — 013-P4 attendance cubit injection', () {
+    testWidgets('attendanceTaking route initializes cubit from getIt', (
+      tester,
+    ) async {
+      final cubit = RecordingAttendanceTakingCubit();
+      getIt.registerFactory<AttendanceTakingCubit>(() => cubit);
+
+      final router = AppRouter();
+      await tester.pumpWidget(
+        MaterialApp(
+          onGenerateRoute: router.onGenerateRoute,
+          initialRoute: attendanceTaking,
+          onGenerateInitialRoutes: (_) => [
+            router.onGenerateRoute(
+              const RouteSettings(
+                name: attendanceTaking,
+                arguments: AttendanceTakingArgs(
+                  actor: actor,
+                  teamId: 'team-42',
+                  sessionId: 'session-42',
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+
+      expect(cubit.initializedTeamId, 'team-42');
+      expect(cubit.initializedSessionId, 'session-42');
+
+      await cubit.close();
+    });
+
+    testWidgets('studentAttendance route loads cubit from getIt', (
+      tester,
+    ) async {
+      final cubit = RecordingStudentAttendanceCubit();
+      getIt.registerFactory<StudentAttendanceCubit>(() => cubit);
+
+      final router = AppRouter();
+      await tester.pumpWidget(
+        MaterialApp(
+          onGenerateRoute: router.onGenerateRoute,
+          initialRoute: studentAttendance,
+          onGenerateInitialRoutes: (_) => [
+            router.onGenerateRoute(
+              const RouteSettings(
+                name: studentAttendance,
+                arguments: StudentAttendanceArgs(
+                  actor: actor,
+                  studentId: 'student-42',
+                  studentName: 'Student 42',
+                  filterTeamId: 'team-42',
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+
+      expect(cubit.loadedStudentId, 'student-42');
+      expect(cubit.loadedTeamId, 'team-42');
+
+      await cubit.close();
+    });
   });
 }

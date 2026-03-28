@@ -1,6 +1,8 @@
 import 'package:church_management_system/core/routing/app_router.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
 import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
+import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_cubit.dart';
+import 'package:church_management_system/features/attendance/presentation/bloc/student_attendance/student_attendance_cubit.dart';
 import 'package:church_management_system/features/admin/data/admin_team_membership_service.dart';
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
 import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
@@ -30,6 +32,7 @@ import 'package:church_management_system/features/student/domain/usecases/get_st
 import 'package:church_management_system/features/student/domain/usecases/restore_student_usecase.dart';
 import 'package:church_management_system/features/student/domain/usecases/search_students_usecase.dart';
 import 'package:church_management_system/features/student/domain/usecases/update_student_usecase.dart';
+import 'package:church_management_system/features/student/presentation/bloc/student_profile/student_profile_cubit.dart';
 import 'package:church_management_system/features/team/data/repos/team_repository.dart';
 import 'package:church_management_system/features/team/domain/usecases/assign_servant_to_team_usecase.dart';
 import 'package:church_management_system/features/team/domain/usecases/create_team_usecase.dart';
@@ -166,12 +169,12 @@ void configureDependencies() {
   );
   getIt.registerFactory<GetStudentsUseCase>(
     () => GetStudentsUseCase(
-      getIt<StudentDataRepository>(),
+      getIt<IStudentRepository>(),
       getIt<GetStudentsStreamUseCase>(),
     ),
   );
   getIt.registerFactory<SearchStudentsUseCase>(
-    () => const SearchStudentsUseCase(),
+    () => SearchStudentsUseCase(getIt<IStudentRepository>()),
   );
   getIt.registerFactory<AddStudentUseCase>(
     () => AddStudentUseCase(
@@ -221,6 +224,16 @@ void configureDependencies() {
       createTeamUseCase: getIt<CreateTeamUseCase>(),
       assignServantToTeamUseCase: getIt<AssignServantToTeamUseCase>(),
     ),
+  );
+  getIt.registerFactory<StudentProfileCubit>(
+    () => StudentProfileCubit(studentRepository: getIt<IStudentRepository>()),
+  );
+  // FIX [013-P4]: Resolve attendance cubits through GetIt for router injection.
+  getIt.registerFactory<AttendanceTakingCubit>(
+    () => AttendanceTakingCubit(repository: getIt<IAttendanceRepository>()),
+  );
+  getIt.registerFactory<StudentAttendanceCubit>(
+    () => StudentAttendanceCubit(repository: getIt<IAttendanceRepository>()),
   );
 
   // ---- Routing ----

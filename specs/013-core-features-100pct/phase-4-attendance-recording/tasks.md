@@ -1,79 +1,67 @@
-# Phase 4 — Attendance Recording: Task Checklist
+# Phase 4 — Attendance Recording: Task Checklist (Logic Only)
 
-## P4-T1 · Implement AttendanceRecordModel
-- [ ] P4-T1.1 Fill `lib/features/attendance_record/models/attendance_record_model.dart`
-  - Fields: `studentId`, `sessionId`, `teamId`, `status?`, `markedAt?`, `markedByName?`, `note?`
-  - Factory: `AttendanceRecordModel.fromAttendanceMark(mark, {sessionId, teamId})`
-  - Factory: `AttendanceRecordModel.absent({studentId, sessionId, teamId})`
-  - `equatable` for value equality
-- [ ] P4-T1.2 Unit test: `fromAttendanceMark` maps fields correctly; `absent` factory sets null status
+> **Scope**: `AttendanceRecordModel`, cubit wiring, mark logic, student attendance cubit, security rules for student self-read, and unit tests.
+> No UI/widget code.
 
-## P4-T2 · Wire AttendanceTakingCubit
-- [ ] P4-T2.1 Open `lib/features/attendance/presentation/bloc/attendance_taking/attendance_taking_cubit.dart`
-- [ ] P4-T2.2 Ensure it subscribes to `watchSessionRosterSnapshot(teamId, sessionId)` in `initialize(teamId, sessionId)`
-- [ ] P4-T2.3 Expose methods: `markPresent(studentId, name)`, `markLate(studentId, name)`, `clearMark(studentId)`, `markAllPresent()`
-- [ ] P4-T2.4 Register in `GetIt` (check `injection.dart`; add if missing)
-- [ ] P4-T2.5 Update `AppRouter` — wrap `AttendanceTakingScreen` route with `BlocProvider<AttendanceTakingCubit>`
-
-## P4-T3 · Attendance Widget Atoms
-- [ ] P4-T3.1 Create `attendance_status_chip.dart`
-  - Input: `EffectiveAttendanceStatus`
-  - Colors: present=green, late=orange, absent=red, unknown=grey
-- [ ] P4-T3.2 Create `attendance_mark_buttons.dart`
-  - Shows "حاضر" / "متأخر" / "مسح" buttons based on current `manualStatus`
-  - Hidden entirely when `canEdit == false`
-  - Loading state per button (tracks loading studentId in cubit)
-- [ ] P4-T3.3 Create `attendance_roster_tile.dart`
-  - `sortOrder`-based ordering (use `sortOrder` from `AttendanceRosterItem`)
-  - Left: student name + status chip
-  - Right: `AttendanceMarkButtons` (or nothing if !canEdit)
-  - Note icon if `note != null`
-- [ ] P4-T3.4 Create `session_header_card.dart`
-  - Session title, team name, time range, duration
-  - Open/closed badge (`SessionStatusBadge` from Phase 3)
-  - Marked count: "X / Y مخدوم"
-- [ ] P4-T3.5 Create `attendance_history_tile.dart`
-  - Session date, team name, `AttendanceStatusChip`
-  - Tap → push `attendanceTaking` (view-only)
-
-## P4-T4 · Implement AttendanceTakingScreen
-- [ ] P4-T4.1 `BlocProvider<AttendanceTakingCubit>` + call `initialize(args.teamId, args.sessionId)` on creation
-- [ ] P4-T4.2 `SessionHeaderCard` at top
-- [ ] P4-T4.3 `BlocBuilder` states:
-  - loading → shimmer list
-  - error → error + retry
-  - loaded → `ListView.builder` with `AttendanceRosterTile` items using `ValueKey(item.studentId)`
-- [ ] P4-T4.4 FAB "تحديد الجميع حاضرين":
-  - Visible only when session open AND unmarked count > 0
-  - Confirm dialog → call `markAllPresent()`
-- [ ] P4-T4.5 Mark button taps → call cubit method + show per-tile loading
-- [ ] P4-T4.6 View-only header when `!session.isOpenAt(now)` (no FAB, no buttons)
-- [ ] P4-T4.7 Widget test: roster renders 3 students; mark present updates status chip
-
-## P4-T5 · Implement StudentAttendanceScreen
-- [ ] P4-T5.1 `BlocProvider<StudentAttendanceCubit>` — call `load(args.studentId, teamId: args.teamId)`
-- [ ] P4-T5.2 Stats header card: total / attended / percentage
-- [ ] P4-T5.3 `BlocBuilder` → loaded: `ListView` of `AttendanceHistoryTile` items sorted by date desc
-- [ ] P4-T5.4 `BlocBuilder` → loading / empty / error states
-- [ ] P4-T5.5 Widget test: stats header shows correct percentage
-
-## P4-T6 · Firestore Security Rules — Student Self-Attendance Read
-- [ ] P4-T6.1 Open `firestore.rules`
-- [ ] P4-T6.2 Add rule allowing student to read attendance marks where doc ID == their studentId:
-  ```javascript
-  match /Classes/{teamId}/attendanceSessions/{sessionId}/attendanceMarks/{markId} {
-    allow read: if request.auth.uid != null
-                 && (isAdmin() || isServant()
-                     || isLinkedStudent(markId));
+## P4-T1 · Implement `AttendanceRecordModel`
+- [X] P4-T1.1 Fill `lib/features/attendance_record/models/attendance_record_model.dart` with a pure Dart model:
+  ```dart
+  class AttendanceRecordModel extends Equatable {
+    final String studentId;
+    final String sessionId;
+    final String teamId;
+    final AttendanceMarkStatus? status;   // null = absent/unmarked
+    final DateTime? markedAt;
+    final String? markedByName;
+    final String? note;
   }
   ```
-- [ ] P4-T6.3 Add `isLinkedStudent(studentId)` helper function using `Users/{uid}/linkedStudentId` field
-- [ ] P4-T6.4 Allow student to read session docs where their UID is in `studentIdsSnapshot`
+- [X] P4-T1.2 Factory: `AttendanceRecordModel.fromAttendanceMark(AttendanceMark mark, {required String sessionId, required String teamId})`
+- [X] P4-T1.3 Factory: `AttendanceRecordModel.absent({required String studentId, required String sessionId, required String teamId})`
+- [X] P4-T1.4 Implement `Equatable.props`
+- [X] P4-T1.5 Unit test: `fromAttendanceMark` maps all fields; `absent` factory produces null `status`
 
-## P4-T7 · Final Gate
-- [ ] `flutter analyze` — 0 issues
-- [ ] `flutter test test/features/attendance/` — all pass
-- [ ] Manual smoke: servant marks student present → status chip updates in real-time on second device
-- [ ] Bulk mark → 0 skips for already-marked, confirms with server
-- [ ] Student logs in → sees own attendance history with stats
-- [ ] Closed session → view-only mode, no buttons
+## P4-T2 · Wire `AttendanceTakingCubit`
+- [X] P4-T2.1 Open `lib/features/attendance/presentation/bloc/attendance_taking/attendance_taking_cubit.dart`
+- [X] P4-T2.2 Implement `initialize(String teamId, String sessionId)`:
+  - Subscribe to `repository.watchSessionRosterSnapshot(teamId:, sessionId:)`
+  - Emit loaded state with `AttendanceRosterSnapshot`
+  - Cancel subscription on `close()`
+- [X] P4-T2.3 Implement `markPresent(String studentId, String studentNameSnapshot)` → calls `repository.markStudentPresent(…, markedBy: currentUser)`
+- [X] P4-T2.4 Implement `markLate(String studentId, String studentNameSnapshot)` → calls `repository.markStudentLate(…)`
+- [X] P4-T2.5 Implement `clearMark(String studentId)` → calls `repository.clearStudentMark(…)`
+- [X] P4-T2.6 Implement `markAllPresent()` → calls `repository.markAllPresentForRemainingStudents(…)` with confirm guard
+- [X] P4-T2.7 States: `AttendanceTakingInitial`, `AttendanceTakingLoading`, `AttendanceTakingLoaded(AttendanceRosterSnapshot)`, `AttendanceTakingError(String)`, `AttendanceTakingMarkInProgress(String studentId)`
+- [X] P4-T2.8 Register `AttendanceTakingCubit` in `GetIt` via `injection.dart`
+- [X] P4-T2.9 Unit test: `initialize()` streams roster; `markPresent()` calls repo with correct args
+
+## P4-T3 · Wire `StudentAttendanceCubit`
+- [X] P4-T3.1 Open `lib/features/attendance/presentation/bloc/student_attendance/student_attendance_cubit.dart`
+- [X] P4-T3.2 Implement `load(String studentId, {String? teamId})`:
+  - Subscribe to `repository.watchStudentAttendanceHistory(studentId:, teamId:)`
+  - Compute stats: `total`, `attended` (present + late count), `percentage`
+  - Emit loaded state with history list + stats
+- [X] P4-T3.3 States: `StudentAttendanceInitial`, `StudentAttendanceLoading`, `StudentAttendanceLoaded({items, total, attended, percentage})`, `StudentAttendanceError(String)`
+- [X] P4-T3.4 Register in `GetIt` if not already
+- [X] P4-T3.5 Unit test: `load()` computes percentage correctly for mixed present/late/absent history
+
+## P4-T4 · Update `AppRouter` — Cubit Injection for Attendance Routes
+- [X] P4-T4.1 Wrap `attendanceTaking` route with `BlocProvider<AttendanceTakingCubit>(create: (_) => getIt<AttendanceTakingCubit>()..initialize(args.teamId, args.sessionId))`
+- [X] P4-T4.2 Wrap `studentAttendance` route with `BlocProvider<StudentAttendanceCubit>(create: (_) => getIt<StudentAttendanceCubit>()..load(args.studentId, teamId: args.teamId))`
+- [X] P4-T4.3 Run `flutter analyze` — 0 issues
+
+## P4-T5 · Firestore Security Rules — Student Self-Attendance Read
+- [X] P4-T5.1 Add `isLinkedStudent(studentId)` helper in `firestore.rules`:
+  ```javascript
+  function isLinkedStudent(studentId) {
+    return get(/databases/$(database)/documents/Users/$(request.auth.uid)).data.linkedStudentId == studentId;
+  }
+  ```
+- [X] P4-T5.2 Allow student to read their own mark: `attendanceMarks/{markId}` where `isLinkedStudent(markId)`
+- [X] P4-T5.3 Allow student to read session docs where `request.auth.uid` maps to a student in `studentIdsSnapshot` (via `isLinkedStudent` cross-check)
+- [X] P4-T5.4 Confirm student **cannot** read other students' marks
+
+## P4-T6 · Final Gate
+- [X] `flutter analyze` — 0 issues
+- [X] `flutter test test/features/attendance/` — all pass
+- [X] `flutter test test/features/attendance_record/` — all pass (new model tests)

@@ -23,6 +23,12 @@ final class StudentAttendanceLoaded extends StudentAttendanceState {
   final List<StudentAttendanceHistoryItem> history;
   final StudentAttendanceStats stats;
 
+  // FIX [013-P4]: Expose phase-4 summary values directly from the loaded state.
+  List<StudentAttendanceHistoryItem> get items => history;
+  int get total => stats.totalSessions;
+  int get attended => stats.attendedCount;
+  double get percentage => stats.attendancePercentage;
+
   @override
   List<Object?> get props => [history, stats];
 }
