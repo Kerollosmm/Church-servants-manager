@@ -135,10 +135,22 @@ class AttendanceRepository implements IAttendanceRepository {
     return cleaned.substring(0, 40);
   }
 
-  String _buildSessionId(DateTime startsAt, String? title) {
+  // FIX [015] Deterministic session ID based on dateKey + teamId + normalizedTitle
+  // to prevent duplicate sessions even under concurrent creation requests.
+  String _buildDeterministicSessionId({
+    required String teamId,
+    required DateTime startsAt,
+    String? title,
+  }) {
     final dateKey = AttendanceSession.buildDateKey(startsAt);
-    final timeKey = startsAt.toUtc().millisecondsSinceEpoch;
-    return '${dateKey}_${timeKey}_${_slugifyTitle(title)}';
+    final slugTitle = _slugifyTitle(title);
+    // Use dateKey + teamId slug + title slug — no timestamp component so
+    // simultaneous requests for identical sessions yield the same document ID,
+    // causing one to be rejected by the transaction's existingDoc.exists check.
+    final teamSlug = teamId
+        .replaceAll(RegExp(r'[^a-zA-Z0-9]+'), '-')
+        .replaceAll(RegExp(r'^-+|-+$'), '');
+    return '${dateKey}_${teamSlug}_$slugTitle';
   }
 
   bool _sessionsOverlap(AttendanceSession first, AttendanceSession second) {
@@ -440,6 +452,22 @@ class AttendanceRepository implements IAttendanceRepository {
     return session;
   }
 
+  // FIX [015] Reference helpers for the per-student read-model collections.
+  DocumentReference<Map<String, dynamic>> _attendanceHistoryDoc(
+    String studentId,
+    String sessionId,
+  ) => _firestore
+      .collection(FirestoreCollections.attendanceHistory)
+      .doc(studentId)
+      .collection('sessions')
+      .doc(sessionId);
+
+  DocumentReference<Map<String, dynamic>> _attendanceStatsDoc(
+    String studentId,
+  ) => _firestore
+      .collection(FirestoreCollections.attendanceStats)
+      .doc(studentId);
+
   Future<void> _writeMark({
     required String teamId,
     required String sessionId,
@@ -464,29 +492,78 @@ class AttendanceRepository implements IAttendanceRepository {
           : (session.studentNameSnapshots[studentId] ?? 'مخدوم');
       final normalizedNote = note?.trim();
 
-      Map<String, dynamic>? beforeData;
-      await _firestore.runTransaction((transaction) async {
-        final existing = await transaction.get(markRef);
-        beforeData = existing.data();
-        final existingMarkedAt = beforeData?['markedAt'];
-        transaction.set(markRef, {
-          'studentNameSnapshot': effectiveStudentName,
-          'status': status.name,
-          'markedByUserId': markedBy.uid,
-          'markedByName': markedBy.name,
-          // FIX [014-US3]: preserve markedAt transactionally during re-mark.
-          'markedAt': existingMarkedAt ?? FieldValue.serverTimestamp(),
+      // FIX [015] Read existing mark data before the batch so we can determine
+      // event type (created vs updated) and preserve the original markedAt.
+      final existingDoc = await markRef.get();
+      final beforeData = existingDoc.data();
+      final existingMarkedAt = beforeData?['markedAt'];
+
+      // FIX [015] Use WriteBatch instead of runTransaction for lower latency
+      // and better network resilience. The mark doc uses studentId as its ID,
+      // making writes idempotent — retries are safe.
+      final batch = _firestore.batch();
+
+      batch.set(markRef, {
+        'studentNameSnapshot': effectiveStudentName,
+        'status': status.name,
+        'markedByUserId': markedBy.uid,
+        'markedByName': markedBy.name,
+        // FIX [014-US3]: preserve markedAt during re-mark.
+        'markedAt': existingMarkedAt ?? FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        'note': normalizedNote == null || normalizedNote.isEmpty
+            ? FieldValue.delete()
+            : normalizedNote,
+      }, SetOptions(merge: true));
+
+      // FIX [015] Write the attendance history read-model entry so history
+      // queries read from a flat collection rather than scanning all sessions.
+      batch.set(_attendanceHistoryDoc(studentId, sessionId), {
+        'sessionId': sessionId,
+        'teamId': teamId,
+        'teamNameSnapshot': session.teamNameSnapshot,
+        'title': session.title,
+        'dateKey': session.dateKey,
+        'sessionStartsAt': session.startsAt,
+        'sessionEndsAt': session.endsAt,
+        'status': status.name,
+        'markedByUserId': markedBy.uid,
+        'markedByName': markedBy.name,
+        'markedAt': existingMarkedAt ?? FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      // FIX [015] Additive stats aggregation using FieldValue.increment so the
+      // stats doc never needs a full recompute (O(1) write per mark).
+      final isNewMark = beforeData == null;
+      final previousStatus = beforeData?['status'] as String?;
+      final statusChanged =
+          !isNewMark && previousStatus != null && previousStatus != status.name;
+
+      if (isNewMark) {
+        // First mark for this student in this session — increment the counter.
+        batch.set(_attendanceStatsDoc(studentId), {
+          'studentId': studentId,
+          '${status.name}Count': FieldValue.increment(1),
+          'totalSessions': FieldValue.increment(1),
           'updatedAt': FieldValue.serverTimestamp(),
-          'note': normalizedNote == null || normalizedNote.isEmpty
-              ? FieldValue.delete()
-              : normalizedNote,
         }, SetOptions(merge: true));
-      });
+      } else if (statusChanged) {
+        // Status changed — swap the old counter down and new one up.
+        batch.set(_attendanceStatsDoc(studentId), {
+          'studentId': studentId,
+          '${previousStatus}Count': FieldValue.increment(-1),
+          '${status.name}Count': FieldValue.increment(1),
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
+
+      await batch.commit();
 
       await _writeAuditEvent(
         teamId: teamId,
         sessionId: sessionId,
-        eventType: beforeData == null ? 'mark.created' : 'mark.updated',
+        eventType: isNewMark ? 'mark.created' : 'mark.updated',
         actor: markedBy,
         targetStudentId: studentId,
         before: beforeData,
@@ -539,8 +616,15 @@ class AttendanceRepository implements IAttendanceRepository {
       );
       rosterStudents.sort((first, second) => first.name.compareTo(second.name));
 
+      // FIX [015] Use deterministic session ID (dateKey + teamId + title) so that
+      // concurrent creation requests for the same session yield the same document
+      // ID, and the transaction's existingDoc.exists guard rejects the duplicate.
       final candidate = AttendanceSession(
-        id: _buildSessionId(startsAt, normalizedTitle),
+        id: _buildDeterministicSessionId(
+          teamId: normalizedTeamId,
+          startsAt: startsAt,
+          title: normalizedTitle,
+        ),
         teamId: normalizedTeamId,
         teamNameSnapshot: teamNameSnapshot.trim().isEmpty
             ? null
@@ -843,27 +927,55 @@ class AttendanceRepository implements IAttendanceRepository {
       final liveNames = await _loadStudentNamesByIds(remainingIds);
       final newlyMarkedIds = <String>[];
 
-      await _firestore.runTransaction((transaction) async {
-        for (final studentId in remainingIds) {
-          final markRef = _markDoc(teamId, sessionId, studentId);
-          final existingMark = await transaction.get(markRef);
-          if (existingMark.exists) {
-            continue;
-          }
-          newlyMarkedIds.add(studentId);
-          transaction.set(markRef, {
-            'studentNameSnapshot':
-                liveNames[studentId] ??
-                session.studentNameSnapshots[studentId] ??
-                'مخدوم',
-            'status': AttendanceMarkStatus.present.name,
-            'markedByUserId': markedBy.uid,
-            'markedByName': markedBy.name,
-            'markedAt': FieldValue.serverTimestamp(),
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
-        }
-      });
+      // FIX [015] Use WriteBatch instead of runTransaction for bulk-present.
+      // Each mark doc uses studentId as its ID (idempotent). We pre-check
+      // existing marks outside the batch to avoid batch reads.
+      final existingMarksSnapshot = await _marksCol(teamId, sessionId).get();
+      final alreadyMarkedAfterCheck = existingMarksSnapshot.docs
+          .map((d) => d.id)
+          .toSet();
+
+      final batch = _firestore.batch();
+      for (final studentId in remainingIds) {
+        if (alreadyMarkedAfterCheck.contains(studentId)) continue;
+        final markRef = _markDoc(teamId, sessionId, studentId);
+        final studentName =
+            liveNames[studentId] ??
+            session.studentNameSnapshots[studentId] ??
+            'مخدوم';
+        newlyMarkedIds.add(studentId);
+        batch.set(markRef, {
+          'studentNameSnapshot': studentName,
+          'status': AttendanceMarkStatus.present.name,
+          'markedByUserId': markedBy.uid,
+          'markedByName': markedBy.name,
+          'markedAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        // FIX [015] Update attendance history read-model for each bulk mark.
+        batch.set(_attendanceHistoryDoc(studentId, sessionId), {
+          'sessionId': sessionId,
+          'teamId': teamId,
+          'teamNameSnapshot': session.teamNameSnapshot,
+          'title': session.title,
+          'dateKey': session.dateKey,
+          'sessionStartsAt': session.startsAt,
+          'sessionEndsAt': session.endsAt,
+          'status': AttendanceMarkStatus.present.name,
+          'markedByUserId': markedBy.uid,
+          'markedByName': markedBy.name,
+          'markedAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+        // FIX [015] Increment stats counter for each newly-marked student.
+        batch.set(_attendanceStatsDoc(studentId), {
+          'studentId': studentId,
+          'presentCount': FieldValue.increment(1),
+          'totalSessions': FieldValue.increment(1),
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
+      await batch.commit();
 
       if (newlyMarkedIds.isNotEmpty) {
         await _writeAuditEvent(

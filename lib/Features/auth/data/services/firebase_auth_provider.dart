@@ -265,6 +265,18 @@ class FirebaseAuthProvider implements AuthProvider {
     }
   }
 
+  // FIX [015] Force an ID-token refresh so updated custom claims (role,
+  // isArchived) from a recent archive/restore are picked up immediately
+  // without requiring the user to sign out and back in.
+  @override
+  Future<void> forceTokenRefresh() async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      await user.getIdToken(true);
+      _userCache.remove(user.uid);
+    }
+  }
+
   Future<AuthUser> getUserData(String uid, {bool forceRefresh = false}) async {
     if (!forceRefresh && _userCache.containsKey(uid)) {
       return _userCache[uid]!;

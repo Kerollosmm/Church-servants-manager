@@ -14,6 +14,26 @@ import {
   type UserRole,
 } from './lifecycle_helpers';
 const USERS_COLLECTION = 'Users';
+// FIX [015] Audit log collection constant for Cloud Functions.
+const AUDIT_LOGS_COLLECTION = 'audit_logs';
+
+// FIX [015] Write an audit log entry to the audit_logs collection.
+async function writeAuditLog(params: {
+  action: string;
+  performedBy: string;
+  targetUid: string;
+  reason?: string;
+  metadata?: Record<string, unknown>;
+}): Promise<void> {
+  await adminDb.collection(AUDIT_LOGS_COLLECTION).add({
+    action: params.action,
+    performedBy: params.performedBy,
+    targetUid: params.targetUid,
+    reason: params.reason ?? null,
+    metadata: params.metadata ?? null,
+    occurredAt: new Date(),
+  });
+}
 
 async function requireAdmin(
   auth: { token?: Record<string, unknown>; uid?: string } | null | undefined,
@@ -103,7 +123,7 @@ export const rollbackPrivilegedUser = onCall<RollbackPrivilegedUserRequest>(asyn
 });
 
 export const archiveManagedUser = onCall<ManagedUserLifecycleRequest>(async (request) => {
-  await requireAdmin(request.auth);
+  const adminUid = await requireAdmin(request.auth);
   const payload = parseManagedUserRequest(request.data);
 
   try {
@@ -119,6 +139,13 @@ export const archiveManagedUser = onCall<ManagedUserLifecycleRequest>(async (req
       buildArchivedUserPatch(),
       { merge: true },
     );
+    // FIX [015] Log the archive action for auditability.
+    await writeAuditLog({
+      action: 'user.archived',
+      performedBy: adminUid,
+      targetUid: payload.uid,
+      metadata: { role: existingRole },
+    });
     return { uid: payload.uid };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -130,7 +157,7 @@ export const archiveManagedUser = onCall<ManagedUserLifecycleRequest>(async (req
 });
 
 export const restoreManagedUser = onCall<ManagedUserLifecycleRequest>(async (request) => {
-  await requireAdmin(request.auth);
+  const adminUid = await requireAdmin(request.auth);
   const payload = parseManagedUserRequest(request.data);
 
   try {
@@ -150,6 +177,13 @@ export const restoreManagedUser = onCall<ManagedUserLifecycleRequest>(async (req
       buildRestoredUserPatch(),
       { merge: true },
     );
+    // FIX [015] Log the restore action for auditability.
+    await writeAuditLog({
+      action: 'user.restored',
+      performedBy: adminUid,
+      targetUid: payload.uid,
+      metadata: { role: existingRole, restorePendingPasswordReset: true },
+    });
     return { uid: payload.uid };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

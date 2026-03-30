@@ -11,6 +11,7 @@ import 'package:church_management_system/features/attendance/presentation/bloc/a
 import 'package:church_management_system/features/attendance/presentation/bloc/student_attendance/student_attendance_cubit.dart';
 import 'package:church_management_system/features/admin/presentation/bloc/admin_dashboard_cubit.dart';
 import 'package:church_management_system/features/admin/presentation/screens/admin_dashboard_screen.dart';
+import 'package:church_management_system/features/auth/presentation/screens/force_password_reset_screen.dart';
 import 'package:church_management_system/features/auth/presentation/screens/forgot_password_screen.dart';
 import 'package:church_management_system/features/auth/presentation/screens/login_screen.dart';
 import 'package:church_management_system/features/auth/presentation/screens/register_screen.dart';
@@ -97,6 +98,12 @@ class AppRouter {
       case forgotPassword:
         return _buildPageRoute(
           builder: (_) => const ForgotPasswordScreen(),
+          settings: settings,
+        );
+      // FIX [015] Route for restored accounts pending a forced password reset.
+      case forcePasswordReset:
+        return _buildPageRoute(
+          builder: (_) => const ForcePasswordResetScreen(),
           settings: settings,
         );
       case studentList:

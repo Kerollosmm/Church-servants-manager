@@ -51,3 +51,10 @@ class AuthError extends AuthState {
 class AuthPasswordResetSent extends AuthState {
   const AuthPasswordResetSent();
 }
+
+// FIX [015] Emitted when a restored account has a pending forced password reset.
+// The router must gate navigation to a change-password screen when this state is active.
+class AuthPendingPasswordReset extends AuthState {
+  final AuthUser user;
+  const AuthPendingPasswordReset(this.user);
+}

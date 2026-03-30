@@ -48,6 +48,12 @@ class AuthEventRefreshUser extends AuthEvent {
   const AuthEventRefreshUser();
 }
 
+// FIX [015] Dispatched when a permission error is detected (e.g. Firestore
+// permission-denied) so stale custom claims are cleared via a forced token refresh.
+class AuthEventForceTokenRefresh extends AuthEvent {
+  const AuthEventForceTokenRefresh();
+}
+
 class _AuthEventSessionChanged extends AuthEvent {
   final AuthUser? user;
 

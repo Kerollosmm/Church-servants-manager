@@ -3,6 +3,7 @@ import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/features/admin/presentation/screens/admin_dashboard_screen.dart';
 import 'package:church_management_system/features/admin/presentation/bloc/admin_dashboard_cubit.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:church_management_system/features/auth/presentation/screens/force_password_reset_screen.dart';
 import 'package:church_management_system/features/servant/presentation/screens/servant_dashboard_screen.dart';
 import 'package:church_management_system/features/student/presentation/screens/student_profile_screen.dart';
 import 'package:church_management_system/features/auth/presentation/screens/login_screen.dart';
@@ -16,6 +17,21 @@ class RoleRouter {
 
   static List<SingleChildWidget> listeners() {
     return [
+      // FIX [015] Gate restored accounts that have restorePendingPasswordReset
+      // to ForcePasswordResetScreen before granting access to the app.
+      BlocListener<AuthBloc, AuthState>(
+        listenWhen: (previous, current) =>
+            current is AuthPendingPasswordReset &&
+            previous is! AuthPendingPasswordReset,
+        listener: (context, state) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute<void>(
+              builder: (_) => const ForcePasswordResetScreen(),
+            ),
+            (route) => false,
+          );
+        },
+      ),
       BlocListener<AuthBloc, AuthState>(
         listenWhen: (previous, current) =>
             (previous is AuthAuthenticated && current is AuthDegraded) ||

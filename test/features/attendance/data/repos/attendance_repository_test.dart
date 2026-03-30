@@ -240,7 +240,28 @@ void main() {
   });
 
   test(
-    'markStudentPresent uses studentId as document id and remains idempotent',
+    'createSession uses deterministic IDs based on date and title',
+    () async {
+      await seedStudent(student(id: 'student-1', name: 'Mina'));
+      final startsAt = DateTime(2026, 3, 10, 10, 0);
+
+      final session1 = await repository.createSession(
+        teamId: 'team-1',
+        teamNameSnapshot: 'Team A',
+        startsAt: startsAt,
+        durationMinutes: 60,
+        createdBy: admin,
+        title: 'Regular Service',
+      );
+
+      // Re-creating or checking ID generation logic
+      final expectedId = '2026-03-10_team-1_regular-service';
+      expect(session1.id, expectedId);
+    },
+  );
+
+  test(
+    'markStudentPresent updates attendance_history and attendance_stats read-models',
     () async {
       await seedStudent(student(id: 'student-1', name: 'Mina'));
       final session = await repository.createSession(
@@ -259,26 +280,72 @@ void main() {
         studentNameSnapshot: 'Mina',
         markedBy: servant,
       );
-      await repository.markStudentPresent(
-        teamId: 'team-1',
-        sessionId: session.id,
-        studentId: 'student-1',
-        studentNameSnapshot: 'Mina',
-        markedBy: servant,
-      );
 
-      final marks = await firestore
-          .collection(FirestoreCollections.classes)
-          .doc('team-1')
-          .collection(FirestoreCollections.attendanceSessions)
+      // Verify mark doc (standard)
+      final mark = await getMarkDoc(session.id, 'student-1');
+      expect(mark, isNotNull);
+
+      // Verify History Read-Model
+      final historyDoc = await firestore
+          .collection(FirestoreCollections.attendanceHistory)
+          .doc('student-1')
+          .collection('sessions')
           .doc(session.id)
-          .collection(FirestoreCollections.attendanceMarks)
           .get();
 
-      expect(marks.docs.length, 1);
-      expect(marks.docs.single.id, 'student-1');
+      expect(historyDoc.exists, isTrue);
+      expect(historyDoc.data()!['status'], 'present');
+
+      // Verify Stats Read-Model
+      final statsDoc = await firestore
+          .collection(FirestoreCollections.attendanceStats)
+          .doc('student-1')
+          .get();
+
+      expect(statsDoc.exists, isTrue);
+      expect(statsDoc.data()!['presentCount'], 1);
+      expect(statsDoc.data()!['totalSessions'], 1);
     },
   );
+
+  test('updating mark status adjusts stats counters correctly', () async {
+    await seedStudent(student(id: 'student-1', name: 'Mina'));
+    final session = await repository.createSession(
+      teamId: 'team-1',
+      teamNameSnapshot: 'Team A',
+      startsAt: currentTime,
+      durationMinutes: 30,
+      createdBy: admin,
+      title: 'Wednesday',
+    );
+
+    // Mark Present
+    await repository.markStudentPresent(
+      teamId: 'team-1',
+      sessionId: session.id,
+      studentId: 'student-1',
+      studentNameSnapshot: 'Mina',
+      markedBy: servant,
+    );
+
+    // Change to Late
+    await repository.markStudentLate(
+      teamId: 'team-1',
+      sessionId: session.id,
+      studentId: 'student-1',
+      studentNameSnapshot: 'Mina',
+      markedBy: servant,
+    );
+
+    final statsDoc = await firestore
+        .collection(FirestoreCollections.attendanceStats)
+        .doc('student-1')
+        .get();
+
+    expect(statsDoc.data()!['presentCount'], 0);
+    expect(statsDoc.data()!['lateCount'], 1);
+    expect(statsDoc.data()!['totalSessions'], 1); // Should not increment twice
+  });
 
   test(
     're-marking the same student updates the existing mark document',

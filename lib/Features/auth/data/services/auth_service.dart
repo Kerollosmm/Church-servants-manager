@@ -109,4 +109,8 @@ class AuthService implements AuthRepository {
     await reloadUser();
     return getCurrentAppUser(forceRefresh: true);
   }
+
+  // FIX [015] Force an ID-token refresh so updated custom claims (role,
+  // isArchived) from a recent archive/restore are picked up immediately.
+  Future<void> forceTokenRefresh() => _provider.forceTokenRefresh();
 }

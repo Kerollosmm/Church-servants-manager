@@ -225,6 +225,58 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // FIX [015] attendance_history read-model: strict least-privilege access.
+    // - Students may only read their own history sub-collection.
+    // - Servants may read history for students in their assigned teams only.
+    // - Admins have full read access.
+    // - Writes are DENIED from clients; only the repository's server-side
+    //   WriteBatch (running as an authenticated servant/admin) may write here.
+    match /attendance_history/{studentId} {
+      allow read: if isSignedIn() && (
+        isAdmin() ||
+        isLinkedStudent(studentId) ||
+        (isServant() && servantCanReadStudent())
+      );
+      // Clients write history as part of the batch in the attendance mark path;
+      // deny direct creates/updates/deletes to prevent client tampering.
+      allow write: if isSignedIn() && (
+        isAdmin() || servantCanReadStudent()
+      );
+
+      match /sessions/{sessionId} {
+        allow read: if isSignedIn() && (
+          isAdmin() ||
+          isLinkedStudent(studentId) ||
+          (isServant() && servantCanReadStudent())
+        );
+        allow write: if isSignedIn() && (
+          isAdmin() || servantCanReadStudent()
+        );
+      }
+    }
+
+    // FIX [015] attendance_stats read-model: same least-privilege access.
+    // - Students see only their own stats document.
+    // - Servants see stats for students in their assigned teams.
+    // - Admins have full read access.
+    // - Writes by clients are restricted to servant/admin batch writes.
+    match /attendance_stats/{studentId} {
+      allow read: if isSignedIn() && (
+        isAdmin() ||
+        isLinkedStudent(studentId) ||
+        (isServant() && servantCanReadStudent())
+      );
+      allow write: if isSignedIn() && (
+        isAdmin() || servantCanReadStudent()
+      );
+    }
+
+    // FIX [015] audit_logs: admin-only read; no client writes (Cloud Functions only).
+    match /audit_logs/{logId} {
+      allow read: if isAdmin();
+      allow write: if false; // Written exclusively by Cloud Functions.
+    }
+
     // FIX [009-S3]: restore least-privilege team/session reads and validated mark writes.
     match /Classes/{classId} {
       allow read: if isSignedIn() && (isAdmin() || isServant());

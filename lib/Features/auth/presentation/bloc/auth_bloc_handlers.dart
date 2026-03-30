@@ -115,6 +115,30 @@ Future<void> _handleRefreshUser(
   bloc._emitResolution(emit, resolution);
 }
 
+// FIX [015] Force an ID-token refresh so updated custom claims (role,
+// isArchived) from a recent archive/restore take effect immediately.
+Future<void> _handleForceTokenRefresh(
+  AuthBloc bloc,
+  AuthEventForceTokenRefresh event,
+  Emitter<AuthState> emit,
+) async {
+  try {
+    await bloc._authService.forceTokenRefresh();
+    final resolution = await bloc._observeAuthStateUseCase.refreshCurrentUser(
+      fallbackErrorMessage: 'Unable to refresh session. Please sign in again.',
+    );
+    bloc._emitResolution(emit, resolution);
+  } catch (_) {
+    bloc._emitResolution(
+      emit,
+      bloc._observeAuthStateUseCase.resolveError(
+        fallbackErrorMessage:
+            'Unable to refresh session. Please sign in again.',
+      ),
+    );
+  }
+}
+
 Future<void> _handleSessionChanged(
   AuthBloc bloc,
   _AuthEventSessionChanged event,

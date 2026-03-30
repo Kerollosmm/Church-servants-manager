@@ -40,6 +40,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthEventSendVerification>(_onSendVerification);
     on<AuthEventForgotPassword>(_onForgotPassword);
     on<AuthEventRefreshUser>(_onRefreshUser);
+    // FIX [015] Force token refresh when a permission error is detected so
+    // stale custom claims (e.g. after archive/restore) are immediately cleared.
+    on<AuthEventForceTokenRefresh>(_onForceTokenRefresh);
     on<_AuthEventSessionChanged>(_onSessionChanged);
     on<_AuthEventSessionError>(_onSessionError);
 
@@ -57,7 +60,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) {
     switch (resolution.status) {
       case AuthSessionStatus.authenticated:
-        emit(AuthAuthenticated(resolution.user!));
+        final user = resolution.user!;
+        // FIX [015] Gate restored accounts that have a pending forced password
+        // reset to the AuthPendingPasswordReset state so the router can redirect
+        // them to the change-password screen before granting full access.
+        if (user.restorePendingPasswordReset) {
+          emit(AuthPendingPasswordReset(user));
+          return;
+        }
+        emit(AuthAuthenticated(user));
       case AuthSessionStatus.unauthenticated:
         emit(const AuthUnauthenticated());
       case AuthSessionStatus.needsVerification:
@@ -114,6 +125,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthEventRefreshUser event,
     Emitter<AuthState> emit,
   ) => _handleRefreshUser(this, event, emit);
+
+  // FIX [015] Dispatches a forced token refresh to clear stale custom claims.
+  Future<void> _onForceTokenRefresh(
+    AuthEventForceTokenRefresh event,
+    Emitter<AuthState> emit,
+  ) => _handleForceTokenRefresh(this, event, emit);
 
   Future<void> _onSessionChanged(
     _AuthEventSessionChanged event,

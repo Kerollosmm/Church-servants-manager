@@ -1,0 +1,31 @@
+servants/
+  ├── {userId}
+  │   ├── id: string (uid)
+  │   ├── email: string
+  │   ├── username: string
+  │   ├── name: string
+  │   ├── role: string (admin/servant/teacher/viewer)
+  │   ├── department: string
+  │   ├── createdAt: timestamp
+  │   ├── updatedAt: timestamp
+  │   └── isActive: boolean
+  └── [indexes]
+      ├── role (ascending)
+      ├── department (ascending)
+      └── createdAt (descending)
+
+audit_logs/
+  ├── {logId}
+  │   ├── userId: string
+  │   ├── userName: string
+  │   ├── action: string
+  │   ├── resource: string
+  │   ├── resourceId: string
+  │   ├── timestamp: timestamp
+  │   ├── deviceId: string
+  │   ├── ipAddress: string
+  │   └── metadata: map
+  └── [indexes]
+      ├── userId (ascending)
+      ├── action (ascending)
+      └── timestamp (descending)

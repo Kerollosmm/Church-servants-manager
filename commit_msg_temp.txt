@@ -1,0 +1,13 @@
+feat(attendance): implement scalability read-models and production-hardening fixes
+
+- Add attendance_history and attendance_stats read-models for O(1) reporting
+- Migrate attendance marking and bulk actions from transactions to WriteBatch
+- Enforce deterministic session IDs to prevent concurrent duplication
+- Implement AuthPendingPasswordReset state and forced password reset routing
+- Add Cloud Function audit logging for user archive and restore actions
+- Update Firestore security rules with least-privilege for read-models
+- Add unit tests for read-model synchronization and deterministic IDs
+
+?? Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>

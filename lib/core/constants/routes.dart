@@ -15,3 +15,5 @@ const String attendanceSessionCreate = '/attendance/session/create';
 const String attendanceTaking = '/attendance/taking';
 const String attendanceHistory = '/attendance/history';
 const String studentAttendance = '/attendance/student';
+// FIX [015] Route for restored accounts pending a forced password change.
+const String forcePasswordReset = '/auth/force-password-reset';

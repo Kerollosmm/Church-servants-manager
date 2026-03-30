@@ -35,4 +35,8 @@ abstract class AuthProvider {
 
   /// Reload current user data
   Future<void> reloadUser();
+
+  // FIX [015] Force an ID-token refresh so updated custom claims from a
+  // recent archive/restore are reflected without requiring sign-out.
+  Future<void> forceTokenRefresh();
 }

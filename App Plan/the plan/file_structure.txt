@@ -1,0 +1,159 @@
+csms_mobile/
+├── .gitignore
+├── analysis_options.yaml
+├── pubspec.yaml
+├── README.md
+├── android/
+├── ios/
+├── web/
+├── test/
+│   └── ...
+├── lib/
+│   ├── main.dart
+│   ├── core/
+│   │   ├── constants/
+│   │   │   ├── app_constants.dart
+│   │   │   ├── app_colors.dart
+│   │   │   ├── app_strings.dart
+│   │   │   ├── app_icons.dart
+│   │   │   ├── firebase_constants.dart
+│   │   │   └── hive_constants.dart
+│   │   ├── errors/
+│   │   │   ├── exceptions.dart
+│   │   │   ├── failures.dart
+│   │   │   └── error_handler.dart
+│   │   ├── network/
+│   │   │   ├── network_info.dart
+│   │   │   └── connectivity_service.dart
+│   │   ├── services/
+│   │   │   ├── firebase_service.dart
+│   │   │   ├── hive_service.dart
+│   │   │   ├── secure_storage_service.dart
+│   │   │   └── sync_service.dart
+│   │   ├── utils/
+│   │   │   ├── validators.dart
+│   │   │   ├── date_utils.dart
+│   │   │   ├── string_extensions.dart
+│   │   │   ├── context_extensions.dart
+│   │   │   └── platform_utils.dart
+│   │   ├── di/
+│   │   │   └── dependency_injection.dart
+│   │   └── theme/
+│   │       ├── app_theme.dart
+│   │       ├── app_colors.dart
+│   │       ├── app_text_styles.dart
+│   │       ├── app_theme_extension.dart
+│   │       └── theme_provider.dart
+│   ├── features/
+│   │   ├── auth/
+│   │   │   ├── domain/
+│   │   │   │   ├── entities/
+│   │   │   │   │   └── user_entity.dart
+│   │   │   │   ├── repositories/
+│   │   │   │   │   └── auth_repository.dart
+│   │   │   │   ├── usecases/
+│   │   │   │   │   ├── login_usecase.dart
+│   │   │   │   │   ├── logout_usecase.dart
+│   │   │   │   │   ├── get_current_user_usecase.dart
+│   │   │   │   │   └── check_session_usecase.dart
+│   │   │   │   └── enums/
+│   │   │   │       └── user_role.dart
+│   │   │   ├── data/
+│   │   │   │   ├── datasources/
+│   │   │   │   │   ├── auth_local_datasource.dart
+│   │   │   │   │   └── auth_remote_datasource.dart
+│   │   │   │   ├── models/
+│   │   │   │   │   ├── user_model.dart
+│   │   │   │   │   ├── login_request_model.dart
+│   │   │   │   │   └── login_response_model.dart
+│   │   │   │   └── repositories/
+│   │   │   │       └── auth_repository_impl.dart
+│   │   │   └── presentation/
+│   │   │       ├── pages/
+│   │   │       │   ├── login_page.dart
+│   │   │       │   └── splash_page.dart
+│   │   │       ├── bloc/
+│   │   │       │   ├── auth_bloc.dart
+│   │   │       │   ├── auth_event.dart
+│   │   │       │   └── auth_state.dart
+│   │   │       ├── widgets/
+│   │   │       │   ├── login_form.dart
+│   │   │       │   ├── login_button.dart
+│   │   │       │   └── error_display.dart
+│   │   │       └── utils/
+│   │   │           └── auth_validators.dart
+│   │   └── servants/
+│   │       ├── domain/
+│   │       │   ├── entities/
+│   │       │   │   └── servant_entity.dart
+│   │       │   ├── repositories/
+│   │       │   │   └── servants_repository.dart
+│   │       │   └── usecases/
+│   │       │       ├── get_servants_usecase.dart
+│   │       │       ├── get_servant_by_id_usecase.dart
+│   │       │       └── cache_servants_usecase.dart
+│   │       ├── data/
+│   │       │   ├── datasources/
+│   │       │   │   ├── servants_local_datasource.dart
+│   │       │   │   └── servants_remote_datasource.dart
+│   │       │   ├── models/
+│   │       │   │   ├── servant_model.dart
+│   │       │   │   └── servant_list_response.dart
+│   │       │   └── repositories/
+│   │       │       └── servants_repository_impl.dart
+│   │       └── presentation/
+│   │           ├── pages/
+│   │           │   ├── servants_list_page.dart
+│   │           │   └── servant_detail_page.dart
+│   │           ├── bloc/
+│   │           │   ├── servants_bloc.dart
+│   │           │   ├── servants_event.dart
+│   │           │   └── servants_state.dart
+│   │           ├── widgets/
+│   │           │   ├── servant_list_item.dart
+│   │           │   ├── servant_search_bar.dart
+│   │           │   ├── servant_mark_button.dart
+│   │           │   └── servant_status_indicator.dart
+│   │           └── utils/
+│   │               └── servant_formatters.dart
+│   ├── shared/
+│   │   ├── widgets/
+│   │   │   ├── app_scaffold.dart
+│   │   │   ├── app_drawer.dart
+│   │   │   ├── app_button.dart
+│   │   │   ├── app_text_field.dart
+│   │   │   ├── loading_indicator.dart
+│   │   │   ├── error_widget.dart
+│   │   │   ├── empty_state.dart
+│   │   │   ├── offline_indicator.dart
+│   │   │   └── sync_status_indicator.dart
+│   │   ├── layout/
+│   │   │   ├── responsive_layout.dart
+│   │   │   └── grid_delegates.dart
+│   │   └── utils/
+│   │       └── shared_formatters.dart
+│   └── app.dart
+│       ├── app.dart
+│       ├── routes/
+│       │   ├── app_router.dart
+│       │   ├── route_names.dart
+│       │   └── route_guards.dart
+│       ├── blocs/
+│       │   ├── app_bloc.dart
+│       │   └── connectivity_bloc.dart
+│       └── providers/
+│           ├── app_providers.dart
+│           └── theme_provider.dart
+├── assets/
+│   ├── images/
+│   │   ├── logo.png
+│   │   ├── splash.png
+│   │   └── icons/
+│   └── fonts/
+│       └── app_font.ttf
+├── scripts/
+│   ├── data_migration.py
+│   └── firebase_setup.sh
+└── docs/
+    ├── ARCHITECTURE.md
+    └── DEVELOPMENT_GUIDE.md
