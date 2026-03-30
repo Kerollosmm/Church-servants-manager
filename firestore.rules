@@ -11,6 +11,14 @@ service cloud.firestore {
       return request.auth.uid;
     }
 
+    function tokenRole() {
+      return request.auth.token.role;
+    }
+
+    function tokenArchived() {
+      return request.auth.token.isArchived == true;
+    }
+
     function callerUser() {
       return get(/databases/$(database)/documents/Users/$(callerUid())).data;
     }
@@ -27,15 +35,26 @@ service cloud.firestore {
     }
 
     function getUserRole() {
-      return callerUser().role;
+      return tokenRole() != null ? tokenRole() : callerUser().role;
+    }
+
+    function userIsArchived() {
+      return isSignedIn() && (
+        tokenArchived() ||
+        (request.auth.token.isArchived == null && callerUser().isArchived == true)
+      );
     }
 
     function isAdmin() {
-      return isSignedIn() && callerUser().isArchived != true && getUserRole() == 'admin';
+      return isSignedIn() && !userIsArchived() && getUserRole() == 'admin';
     }
 
     function isServant() {
-      return isSignedIn() && callerUser().isArchived != true && getUserRole() == 'servant';
+      return isSignedIn() && !userIsArchived() && getUserRole() == 'servant';
+    }
+
+    function isStudent() {
+      return isSignedIn() && !userIsArchived() && getUserRole() == 'student';
     }
 
     function teamIsActive(teamId) {
@@ -89,9 +108,7 @@ service cloud.firestore {
     }
 
     function isLinkedStudent(studentId) {
-      return isSignedIn() &&
-        callerUser().isArchived != true &&
-        getUserRole() == 'student' &&
+      return isStudent() &&
         callerUser().linkedStudentId == studentId;
     }
 
@@ -99,9 +116,7 @@ service cloud.firestore {
       let linkedStudentId = callerUser().linkedStudentId;
       let studentIdsSnapshot = resource.data.studentIdsSnapshot;
 
-      return isSignedIn() &&
-        callerUser().isArchived != true &&
-        getUserRole() == 'student' &&
+      return isStudent() &&
         linkedStudentId != null &&
         studentIdsSnapshot != null &&
         linkedStudentId in studentIdsSnapshot;
@@ -116,24 +131,7 @@ service cloud.firestore {
         request.resource.data.name.size() > 0 &&
         request.resource.data.email is string &&
         request.resource.data.email.size() > 0 &&
-        request.resource.data.isEmailVerified is bool;
-    }
-
-    function validSelfUserUpdate(userId) {
-      return callerUid() == userId &&
-        request.resource.data.uid == resource.data.uid &&
-        request.resource.data.role == resource.data.role &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'name',
-          'email',
-          'isEmailVerified',
-          'updatedAt',
-        ]) &&
-        request.resource.data.name is string &&
-        request.resource.data.name.size() > 0 &&
-        request.resource.data.email is string &&
-        request.resource.data.email.size() > 0 &&
-        request.resource.data.isEmailVerified is bool;
+        request.resource.data.isEmailVerified == false;
     }
 
     function sessionAcceptsMarks(teamId, sessionId) {
@@ -195,7 +193,7 @@ service cloud.firestore {
     match /Users/{userId} {
       allow read: if isSignedIn() && (callerUid() == userId || isAdmin());
       allow create: if isSignedIn() && (isAdmin() || validSelfUserCreate(userId));
-      allow update: if isSignedIn() && (isAdmin() || validSelfUserUpdate(userId));
+      allow update: if isAdmin();
       allow delete: if isAdmin();
     }
 
@@ -204,8 +202,7 @@ service cloud.firestore {
       allow read: if isSignedIn() && (
         isAdmin() ||
         servantCanReadStudent() ||
-        resource.data.linkedUserId == callerUid() ||
-        resource.data.uid == callerUid()
+        resource.data.linkedUserId == callerUid()
       );
 
       allow create: if isSignedIn() && (

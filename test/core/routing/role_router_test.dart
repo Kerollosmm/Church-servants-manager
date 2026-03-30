@@ -1,10 +1,11 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/routing/role_router.dart';
-import 'package:church_management_system/features/admin/presentation/screens/admin_dashboard_screen.dart';
+import 'package:church_management_system/features/admin/presentation/bloc/admin_dashboard_cubit.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_management_system/features/servant/presentation/screens/servant_dashboard_screen.dart';
 import 'package:church_management_system/features/student/presentation/screens/student_profile_screen.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -47,7 +48,7 @@ void main() {
         AuthAuthenticated(user),
       );
 
-      expect(widget, isA<AdminDashboardScreen>());
+      expect(widget, isA<BlocProvider<AdminDashboardCubit>>());
     });
 
     test('returns refresh-required screen for degraded admins', () {
@@ -59,6 +60,28 @@ void main() {
       );
 
       expect(widget, isA<AdminRefreshRequiredScreen>());
+    });
+
+    test('returns refresh-required screen for degraded servants', () {
+      final user = buildUser(UserRole.servant);
+
+      final widget = RoleRouter.resolve(
+        UserRole.servant,
+        AuthDegraded(user: user, message: 'Refresh required'),
+      );
+
+      expect(widget, isA<RoleRefreshRequiredScreen>());
+    });
+
+    test('returns refresh-required screen for degraded students', () {
+      final user = buildUser(UserRole.student);
+
+      final widget = RoleRouter.resolve(
+        UserRole.student,
+        AuthDegraded(user: user, message: 'Refresh required'),
+      );
+
+      expect(widget, isA<RoleRefreshRequiredScreen>());
     });
   });
 }

@@ -51,8 +51,8 @@ abstract class IServantRepository {
   Future<void> updateServantFields(String docId, Map<String, dynamic> fields);
 
   /// Archive a servant by document ID.
-  Future<void> deleteServant(String docId);
+  Future<void> deleteServant(String docId, {required String performedByUid});
 
   /// Restore an archived servant by document ID.
-  Future<void> restoreServant(String docId);
+  Future<void> restoreServant(String docId, {required String performedByUid});
 }

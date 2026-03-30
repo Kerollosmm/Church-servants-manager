@@ -1,5 +1,6 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/routes.dart';
+import 'package:church_management_system/core/routing/role_router.dart';
 import 'package:church_management_system/features/admin/presentation/widget/admin_gate.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
@@ -62,6 +63,22 @@ void main() {
 
       expect(find.text('Login Screen'), findsOneWidget);
       expect(find.text('Admin Child'), findsNothing);
+    });
+
+    testWidgets('shows refresh-required screen for degraded admins', (
+      tester,
+    ) async {
+      when(() => authBloc.state).thenReturn(
+        AuthDegraded(
+          user: _buildUser(UserRole.admin),
+          message: 'Refresh required',
+        ),
+      );
+
+      await tester.pumpWidget(buildHarness());
+
+      expect(find.byType(AdminRefreshRequiredScreen), findsOneWidget);
+      expect(find.text('Refresh required'), findsOneWidget);
     });
   });
 }

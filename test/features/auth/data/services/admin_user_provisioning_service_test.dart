@@ -96,33 +96,39 @@ void main() {
     verify(() => userProfileStore.updateUserFields('u1', any())).called(1);
   });
 
-  test('restoreUser restores auth account and sends reset email', () async {
-    final restoredUser = AuthUser(
-      uid: 'u1',
-      email: 'restored@example.com',
-      name: 'Restored',
-      role: UserRole.servant,
-      isEmailVerified: true,
-      isArchived: true,
-    );
+  test(
+    'restoreUser returns follow-up guidance and sends reset email',
+    () async {
+      final restoredUser = AuthUser(
+        uid: 'u1',
+        email: 'restored@example.com',
+        name: 'Restored',
+        role: UserRole.servant,
+        isEmailVerified: true,
+        isArchived: true,
+      );
 
-    when(
-      () => userProfileStore.fetchUser('u1'),
-    ).thenAnswer((_) async => restoredUser);
-    when(() => adminAuthClient.restoreUser(uid: 'u1')).thenAnswer((_) async {});
-    when(
-      () => userProfileStore.updateUserFields('u1', any()),
-    ).thenAnswer((_) async {});
-    when(
-      () => authService.sendPasswordResetEmail('restored@example.com'),
-    ).thenAnswer((_) async {});
+      when(
+        () => userProfileStore.fetchUser('u1'),
+      ).thenAnswer((_) async => restoredUser);
+      when(
+        () => adminAuthClient.restoreUser(uid: 'u1'),
+      ).thenAnswer((_) async {});
+      when(
+        () => userProfileStore.updateUserFields('u1', any()),
+      ).thenAnswer((_) async {});
+      when(
+        () => authService.sendPasswordResetEmail('restored@example.com'),
+      ).thenAnswer((_) async {});
 
-    await service.restoreUser(uid: 'u1');
+      final feedback = await service.restoreUser(uid: 'u1');
 
-    verify(() => adminAuthClient.restoreUser(uid: 'u1')).called(1);
-    verify(() => userProfileStore.updateUserFields('u1', any())).called(1);
-    verify(
-      () => authService.sendPasswordResetEmail('restored@example.com'),
-    ).called(1);
-  });
+      verify(() => adminAuthClient.restoreUser(uid: 'u1')).called(1);
+      verify(() => userProfileStore.updateUserFields('u1', any())).called(1);
+      verify(
+        () => authService.sendPasswordResetEmail('restored@example.com'),
+      ).called(1);
+      expect(feedback, contains('restored@example.com'));
+    },
+  );
 }

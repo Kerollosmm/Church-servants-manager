@@ -312,7 +312,7 @@ class TeamRepository implements ITeamRepository {
   }
 
   @override
-  Future<void> deleteTeam(String id) async {
+  Future<void> deleteTeam(String id, {required String performedByUid}) async {
     try {
       final teamRef = _classesCollection.doc(id);
       final teamDoc = await teamRef.get();
@@ -335,6 +335,7 @@ class TeamRepository implements ITeamRepository {
       await teamRef.set({
         'isArchived': true,
         'archivedAt': FieldValue.serverTimestamp(),
+        'archivedByUserId': performedByUid,
         'archiveReason': 'Archived from app',
         'assignedServantId': FieldValue.delete(),
         'assignedServantName': FieldValue.delete(),
@@ -346,7 +347,7 @@ class TeamRepository implements ITeamRepository {
   }
 
   @override
-  Future<void> restoreTeam(String id) async {
+  Future<void> restoreTeam(String id, {required String performedByUid}) async {
     try {
       final teamRef = _classesCollection.doc(id);
       final teamDoc = await teamRef.get();
@@ -358,7 +359,7 @@ class TeamRepository implements ITeamRepository {
       await teamRef.set({
         'isArchived': false,
         'restoredAt': FieldValue.serverTimestamp(),
-        'restoredByUserId': 'system',
+        'restoredByUserId': performedByUid,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     } catch (e) {

@@ -83,4 +83,9 @@ class StudentModel with _$StudentModel {
   Map<String, dynamic> toMap() => toJson();
 
   bool get isActive => !isArchived;
+
+  String? get canonicalLinkedUserId {
+    final normalized = uid.trim();
+    return normalized.isEmpty ? null : normalized;
+  }
 }

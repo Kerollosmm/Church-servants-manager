@@ -69,6 +69,41 @@ class AttendanceRepository implements IAttendanceRepository {
     String studentId,
   ) => _marksCol(teamId, sessionId).doc(studentId);
 
+  CollectionReference<Map<String, dynamic>> _auditEventsCol(
+    String teamId,
+    String sessionId,
+  ) => _sessionDoc(
+    teamId,
+    sessionId,
+  ).collection(FirestoreCollections.attendanceAuditEvents);
+
+  DocumentReference<Map<String, dynamic>> _sessionLockDoc(String teamId) =>
+      _teamDoc(teamId).collection('_meta').doc('attendance_lock');
+
+  Future<void> _writeAuditEvent({
+    required String teamId,
+    required String sessionId,
+    required String eventType,
+    required AuthUser actor,
+    String? targetStudentId,
+    Map<String, dynamic>? before,
+    Map<String, dynamic>? after,
+    String? note,
+  }) async {
+    await _auditEventsCol(teamId, sessionId).add({
+      'eventType': eventType,
+      'actorUserId': actor.uid,
+      'actorName': actor.name,
+      'teamId': teamId,
+      'sessionId': sessionId,
+      'targetStudentId': targetStudentId,
+      'before': before,
+      'after': after,
+      'note': note,
+      'occurredAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   Stream<DateTime> _watchClock() {
     final source =
         _clockStream ??
@@ -330,6 +365,20 @@ class AttendanceRepository implements IAttendanceRepository {
     return query;
   }
 
+  Query<Map<String, dynamic>> _teamSessionsQuery({
+    required String teamId,
+    DateTime? since,
+  }) {
+    Query<Map<String, dynamic>> query = _sessionsCol(teamId);
+    if (since != null) {
+      query = query.where(
+        'startsAt',
+        isGreaterThanOrEqualTo: Timestamp.fromDate(since),
+      );
+    }
+    return query;
+  }
+
   Stream<List<AttendanceSession>> _watchStudentSessions({
     required String studentId,
     String? teamId,
@@ -410,25 +459,45 @@ class AttendanceRepository implements IAttendanceRepository {
       _assertSessionWritable(session, _nowProvider());
 
       final markRef = _markDoc(teamId, sessionId, studentId);
-      final existing = await markRef.get();
-      final existingMarkedAt = existing.data()?['markedAt'];
       final effectiveStudentName = studentNameSnapshot.trim().isNotEmpty
           ? studentNameSnapshot.trim()
           : (session.studentNameSnapshots[studentId] ?? 'مخدوم');
       final normalizedNote = note?.trim();
 
-      await markRef.set({
-        'studentNameSnapshot': effectiveStudentName,
-        'status': status.name,
-        'markedByUserId': markedBy.uid,
-        'markedByName': markedBy.name,
-        // FIX [013-P3]: preserve markedAt on idempotent re-mark.
-        'markedAt': existingMarkedAt ?? FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-        'note': normalizedNote == null || normalizedNote.isEmpty
-            ? FieldValue.delete()
-            : normalizedNote,
-      }, SetOptions(merge: true));
+      Map<String, dynamic>? beforeData;
+      await _firestore.runTransaction((transaction) async {
+        final existing = await transaction.get(markRef);
+        beforeData = existing.data();
+        final existingMarkedAt = beforeData?['markedAt'];
+        transaction.set(markRef, {
+          'studentNameSnapshot': effectiveStudentName,
+          'status': status.name,
+          'markedByUserId': markedBy.uid,
+          'markedByName': markedBy.name,
+          // FIX [014-US3]: preserve markedAt transactionally during re-mark.
+          'markedAt': existingMarkedAt ?? FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+          'note': normalizedNote == null || normalizedNote.isEmpty
+              ? FieldValue.delete()
+              : normalizedNote,
+        }, SetOptions(merge: true));
+      });
+
+      await _writeAuditEvent(
+        teamId: teamId,
+        sessionId: sessionId,
+        eventType: beforeData == null ? 'mark.created' : 'mark.updated',
+        actor: markedBy,
+        targetStudentId: studentId,
+        before: beforeData,
+        after: {
+          'status': status.name,
+          'markedByUserId': markedBy.uid,
+          'markedByName': markedBy.name,
+          'studentNameSnapshot': effectiveStudentName,
+          'note': normalizedNote,
+        },
+      );
     } catch (error) {
       if (error is AttendanceFailure) rethrow;
       throw mapExceptionToAttendanceFailure(error);
@@ -510,6 +579,7 @@ class AttendanceRepository implements IAttendanceRepository {
       }
 
       final docRef = _sessionDoc(normalizedTeamId, candidate.id);
+      final lockRef = _sessionLockDoc(normalizedTeamId);
       await _firestore.runTransaction((transaction) async {
         final existingDoc = await transaction.get(docRef);
         if (existingDoc.exists) {
@@ -517,12 +587,61 @@ class AttendanceRepository implements IAttendanceRepository {
             'تم إنشاء جلسة حضور مطابقة بالفعل.',
           );
         }
+
+        final lockDoc = await transaction.get(lockRef);
+        final lockData = lockDoc.data();
+        if (lockData != null) {
+          final lockStartsAt = (lockData['startsAt'] as Timestamp?)?.toDate();
+          final lockEndsAt = (lockData['endsAt'] as Timestamp?)?.toDate();
+          final lockSessionId = (lockData['sessionId'] as String?)?.trim();
+          if (lockStartsAt != null && lockEndsAt != null) {
+            final lockedSession = AttendanceSession(
+              id: lockSessionId ?? 'locked',
+              teamId: normalizedTeamId,
+              dateKey: AttendanceSession.buildDateKey(lockStartsAt),
+              startsAt: lockStartsAt,
+              endsAt: lockEndsAt,
+              durationMinutes: max(
+                1,
+                lockEndsAt.difference(lockStartsAt).inMinutes,
+              ),
+              createdByUserId: '',
+              createdByName: '',
+              createdAt: lockStartsAt,
+              updatedAt: lockStartsAt,
+            );
+            final lockStillActive = !lockEndsAt.isBefore(now);
+            if (lockStillActive && _sessionsOverlap(candidate, lockedSession)) {
+              throw const AttendanceSessionConflictFailure();
+            }
+          }
+        }
         transaction.set(docRef, {
           ...candidate.toMap(),
           'createdAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
         });
+        transaction.set(lockRef, {
+          'sessionId': candidate.id,
+          'startsAt': candidate.startsAt,
+          'endsAt': candidate.endsAt,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
       });
+
+      await _writeAuditEvent(
+        teamId: normalizedTeamId,
+        sessionId: candidate.id,
+        eventType: 'session.created',
+        actor: createdBy,
+        after: {
+          'teamId': normalizedTeamId,
+          'title': candidate.title,
+          'startsAt': candidate.startsAt.toIso8601String(),
+          'endsAt': candidate.endsAt.toIso8601String(),
+          'studentCount': candidate.studentIdsSnapshot.length,
+        },
+      );
 
       return candidate;
     } catch (error) {
@@ -547,10 +666,21 @@ class AttendanceRepository implements IAttendanceRepository {
         return;
       }
 
-      await _sessionDoc(
-        teamId,
-        sessionId,
-      ).update({'isClosed': true, 'updatedAt': FieldValue.serverTimestamp()});
+      await _sessionDoc(teamId, sessionId).update({
+        'isClosed': true,
+        'closedAt': FieldValue.serverTimestamp(),
+        'closedByUserId': closedBy.uid,
+        'closedByName': closedBy.name,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      await _sessionLockDoc(teamId).delete().catchError((_) {});
+      await _writeAuditEvent(
+        teamId: teamId,
+        sessionId: sessionId,
+        eventType: 'session.closed',
+        actor: closedBy,
+        after: {'isClosed': true},
+      );
     } catch (error) {
       if (error is AttendanceFailure) rethrow;
       throw mapExceptionToAttendanceFailure(error);
@@ -667,7 +797,22 @@ class AttendanceRepository implements IAttendanceRepository {
       );
       _assertStudentInSession(session, studentId);
       _assertSessionWritable(session, _nowProvider());
-      await _markDoc(teamId, sessionId, studentId).delete();
+      final markRef = _markDoc(teamId, sessionId, studentId);
+      final existing = await markRef.get();
+      final existingData = existing.data();
+      if (existingData == null) {
+        return;
+      }
+      await _writeAuditEvent(
+        teamId: teamId,
+        sessionId: sessionId,
+        eventType: 'mark.cleared',
+        actor: requestedBy,
+        targetStudentId: studentId,
+        before: existingData,
+        after: const {'status': null},
+      );
+      await markRef.delete();
     } catch (error) {
       if (error is AttendanceFailure) rethrow;
       throw mapExceptionToAttendanceFailure(error);
@@ -696,23 +841,39 @@ class AttendanceRepository implements IAttendanceRepository {
       if (remainingIds.isEmpty) return;
 
       final liveNames = await _loadStudentNamesByIds(remainingIds);
-      final batch = _firestore.batch();
+      final newlyMarkedIds = <String>[];
 
-      for (final studentId in remainingIds) {
-        batch.set(_markDoc(teamId, sessionId, studentId), {
-          'studentNameSnapshot':
-              liveNames[studentId] ??
-              session.studentNameSnapshots[studentId] ??
-              'مخدوم',
-          'status': AttendanceMarkStatus.present.name,
-          'markedByUserId': markedBy.uid,
-          'markedByName': markedBy.name,
-          'markedAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+      await _firestore.runTransaction((transaction) async {
+        for (final studentId in remainingIds) {
+          final markRef = _markDoc(teamId, sessionId, studentId);
+          final existingMark = await transaction.get(markRef);
+          if (existingMark.exists) {
+            continue;
+          }
+          newlyMarkedIds.add(studentId);
+          transaction.set(markRef, {
+            'studentNameSnapshot':
+                liveNames[studentId] ??
+                session.studentNameSnapshots[studentId] ??
+                'مخدوم',
+            'status': AttendanceMarkStatus.present.name,
+            'markedByUserId': markedBy.uid,
+            'markedByName': markedBy.name,
+            'markedAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        }
+      });
+
+      if (newlyMarkedIds.isNotEmpty) {
+        await _writeAuditEvent(
+          teamId: teamId,
+          sessionId: sessionId,
+          eventType: 'mark.bulk_present',
+          actor: markedBy,
+          after: {'studentIds': newlyMarkedIds, 'count': newlyMarkedIds.length},
+        );
       }
-
-      await batch.commit();
     } catch (error) {
       if (error is AttendanceFailure) rethrow;
       throw mapExceptionToAttendanceFailure(error);
@@ -889,9 +1050,14 @@ class AttendanceRepository implements IAttendanceRepository {
     DateTimeRange? range,
   }) async {
     try {
-      final snapshot = await _sessionsCol(teamId).get();
-      final sessions = _mapSessionsSnapshot(snapshot);
       final now = _nowProvider();
+      final fallbackStart = now.subtract(const Duration(days: 180));
+      // FIX [014-US4]: bound team reporting to explicit range or rolling 6-month window.
+      final snapshot = await _teamSessionsQuery(
+        teamId: teamId,
+        since: range?.start ?? fallbackStart,
+      ).get();
+      final sessions = _mapSessionsSnapshot(snapshot);
 
       var totalSessions = 0;
       var totalRosterEntries = 0;
@@ -900,7 +1066,7 @@ class AttendanceRepository implements IAttendanceRepository {
       var absentCount = 0;
       final uniqueStudentIds = <String>{};
 
-      // FIX [004-H1]: collect eligible sessions first, then parallel-fetch marks.
+      // FIX [014-US4]: bound stats to explicit range or a rolling 6-month window.
       final eligibleSessions = sessions
           .where((session) {
             final inRange =

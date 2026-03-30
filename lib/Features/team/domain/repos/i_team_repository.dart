@@ -30,8 +30,8 @@ abstract class ITeamRepository {
   Future<void> updateTeam(TeamModel team);
 
   /// Delete a team by its document ID.
-  Future<void> deleteTeam(String id);
+  Future<void> deleteTeam(String id, {required String performedByUid});
 
   /// Restore an archived team by its document ID.
-  Future<void> restoreTeam(String id);
+  Future<void> restoreTeam(String id, {required String performedByUid});
 }

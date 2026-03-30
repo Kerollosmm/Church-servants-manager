@@ -23,7 +23,8 @@ class SearchStudentsUseCase {
 
     return results
         .where(
-          (student) => _isVisibleToActor(actor, student: student, teamId: teamId),
+          (student) =>
+              _isVisibleToActor(actor, student: student, teamId: teamId),
         )
         .toList(growable: false);
   }
@@ -43,7 +44,8 @@ class SearchStudentsUseCase {
 
         if (assignedTeamIds.isNotEmpty) {
           if (teamId != null && teamId.isNotEmpty) {
-            return assignedTeamIds.contains(teamId) && student.classId == teamId;
+            return assignedTeamIds.contains(teamId) &&
+                student.classId == teamId;
           }
           return student.classId != null &&
               assignedTeamIds.contains(student.classId);

@@ -62,7 +62,7 @@ class AuthService implements AuthRepository {
         email: email,
         password: password,
         name: name,
-        role: role,
+        role: UserRole.student,
         grade: grade,
       );
     } catch (e) {

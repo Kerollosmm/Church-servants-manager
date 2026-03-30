@@ -31,12 +31,12 @@ class FirebaseAuthProvider implements AuthProvider {
 
   @override
   Stream<AuthUser?> get authStateChanges {
-    return _auth.authStateChanges().asyncMap((user) async {
+    return _auth.idTokenChanges().asyncMap((user) async {
       if (user == null) {
         _userCache.clear();
         return null;
       }
-      return await getUserData(user.uid, forceRefresh: true);
+      return await getUserData(user.uid);
     });
   }
 
@@ -48,9 +48,6 @@ class FirebaseAuthProvider implements AuthProvider {
     }
 
     final updatedUser = user.copyWith(restorePendingPasswordReset: false);
-    await _userProfileStore.updateUserFields(user.uid, {
-      'restorePendingPasswordReset': false,
-    });
     _userCache[updatedUser.uid] = updatedUser;
     return updatedUser;
   }
@@ -135,11 +132,12 @@ class FirebaseAuthProvider implements AuthProvider {
       final user = _auth.currentUser;
       createdFirebaseUser = user;
       if (user != null) {
+        const effectiveRole = UserRole.student;
         final appUser = AuthUser(
           uid: user.uid,
           name: name,
           email: email,
-          role: role,
+          role: effectiveRole,
           isEmailVerified: false,
         );
 
@@ -286,10 +284,6 @@ class FirebaseAuthProvider implements AuthProvider {
               isEmailVerified: firebaseUser.emailVerified,
             )
           : user;
-
-      if (syncedUser != user) {
-        await _userProfileStore.saveUser(syncedUser);
-      }
 
       final resolvedUser = await _clearRestorePendingPasswordResetIfNeeded(
         syncedUser,

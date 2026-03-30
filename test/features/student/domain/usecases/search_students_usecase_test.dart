@@ -48,31 +48,28 @@ void main() {
     useCase = SearchStudentsUseCase(repository);
   });
 
-  test('delegates search to repository with server-side query arguments', () async {
-    when(
-      () => repository.searchStudents(
-        'sam',
+  test(
+    'delegates search to repository with server-side query arguments',
+    () async {
+      when(
+        () =>
+            repository.searchStudents('sam', limit: 20, includeArchived: false),
+      ).thenAnswer(
+        (_) async => <StudentModel>[student(id: 's1', classId: 'team-1')],
+      );
+
+      final results = await useCase(
+        actor: actor(UserRole.admin),
+        query: 'sam',
         limit: 20,
         includeArchived: false,
-      ),
-    ).thenAnswer(
-      (_) async => <StudentModel>[student(id: 's1', classId: 'team-1')],
-    );
+      );
 
-    final results = await useCase(
-      actor: actor(UserRole.admin),
-      query: 'sam',
-      limit: 20,
-      includeArchived: false,
-    );
-
-    expect(results, hasLength(1));
-    verify(
-      () => repository.searchStudents(
-        'sam',
-        limit: 20,
-        includeArchived: false,
-      ),
-    ).called(1);
-  });
+      expect(results, hasLength(1));
+      verify(
+        () =>
+            repository.searchStudents('sam', limit: 20, includeArchived: false),
+      ).called(1);
+    },
+  );
 }

@@ -114,6 +114,17 @@ void main() {
     return snapshot.data();
   }
 
+  Future<List<Map<String, dynamic>>> getAuditDocs(String sessionId) async {
+    final snapshot = await firestore
+        .collection(FirestoreCollections.classes)
+        .doc('team-1')
+        .collection(FirestoreCollections.attendanceSessions)
+        .doc(sessionId)
+        .collection(FirestoreCollections.attendanceAuditEvents)
+        .get();
+    return snapshot.docs.map((doc) => doc.data()).toList(growable: false);
+  }
+
   setUp(() async {
     firestore = FakeFirebaseFirestore();
     clockController = StreamController<DateTime>.broadcast();
@@ -310,6 +321,16 @@ void main() {
       expect(
         marks.docs.single.data()['status'],
         AttendanceMarkStatus.late.name,
+      );
+
+      final audits = await getAuditDocs(session.id);
+      expect(
+        audits.any((event) => event['eventType'] == 'mark.created'),
+        isTrue,
+      );
+      expect(
+        audits.any((event) => event['eventType'] == 'mark.updated'),
+        isTrue,
       );
     },
   );
@@ -585,4 +606,221 @@ void main() {
       isFalse,
     );
   });
+
+  test('bulk mark all does not overwrite existing manual late marks', () async {
+    await seedStudent(student(id: 'student-1', name: 'Mina'));
+    await seedStudent(
+      student(id: 'student-2', name: 'Andrew').copyWith(classId: 'team-1'),
+    );
+    final session = await repository.createSession(
+      teamId: 'team-1',
+      teamNameSnapshot: 'Team A',
+      startsAt: currentTime,
+      durationMinutes: 30,
+      createdBy: admin,
+      title: 'Wednesday',
+    );
+
+    await repository.markStudentLate(
+      teamId: 'team-1',
+      sessionId: session.id,
+      studentId: 'student-1',
+      studentNameSnapshot: 'Mina',
+      markedBy: servant,
+    );
+
+    await repository.markAllPresentForRemainingStudents(
+      teamId: 'team-1',
+      sessionId: session.id,
+      markedBy: servant,
+    );
+
+    final lateMark = await getMarkDoc(session.id, 'student-1');
+    final secondMark = await getMarkDoc(session.id, 'student-2');
+
+    expect(lateMark?['status'], AttendanceMarkStatus.late.name);
+    expect(secondMark?['status'], AttendanceMarkStatus.present.name);
+  });
+
+  test(
+    'clearStudentMark removes current mark and writes audit history',
+    () async {
+      await seedStudent(student(id: 'student-1', name: 'Mina'));
+      final session = await repository.createSession(
+        teamId: 'team-1',
+        teamNameSnapshot: 'Team A',
+        startsAt: currentTime,
+        durationMinutes: 30,
+        createdBy: admin,
+        title: 'Wednesday',
+      );
+
+      await repository.markStudentPresent(
+        teamId: 'team-1',
+        sessionId: session.id,
+        studentId: 'student-1',
+        studentNameSnapshot: 'Mina',
+        markedBy: servant,
+      );
+
+      await repository.clearStudentMark(
+        teamId: 'team-1',
+        sessionId: session.id,
+        studentId: 'student-1',
+        requestedBy: servant,
+      );
+
+      expect(await getMarkDoc(session.id, 'student-1'), isNull);
+
+      final audits = await getAuditDocs(session.id);
+      final clearEvent = audits.firstWhere(
+        (event) => event['eventType'] == 'mark.cleared',
+      );
+      expect(clearEvent['targetStudentId'], 'student-1');
+      expect(clearEvent['actorUserId'], servant.uid);
+    },
+  );
+
+  test('createSession and closeSession write session audit events', () async {
+    await seedStudent(student(id: 'student-1', name: 'Mina'));
+    final session = await repository.createSession(
+      teamId: 'team-1',
+      teamNameSnapshot: 'Team A',
+      startsAt: currentTime,
+      durationMinutes: 30,
+      createdBy: admin,
+      title: 'Wednesday',
+    );
+
+    await repository.closeSession(
+      teamId: 'team-1',
+      sessionId: session.id,
+      closedBy: admin,
+    );
+
+    final audits = await getAuditDocs(session.id);
+    expect(
+      audits.any((event) => event['eventType'] == 'session.created'),
+      isTrue,
+    );
+    expect(
+      audits.any((event) => event['eventType'] == 'session.closed'),
+      isTrue,
+    );
+  });
+
+  test(
+    'getStudentAttendanceStats ignores sessions older than default window',
+    () async {
+      await seedStudent(student(id: 'student-1', name: 'Mina'));
+      final recentStart = currentTime.subtract(const Duration(days: 10));
+      final oldStart = currentTime.subtract(const Duration(days: 240));
+      final recentSession = buildSession(
+        startsAt: recentStart,
+        endsAt: recentStart.add(const Duration(minutes: 30)),
+        isClosed: true,
+      ).copyWith(id: 'recent-session');
+      final oldSession = buildSession(
+        startsAt: oldStart,
+        endsAt: oldStart.add(const Duration(minutes: 30)),
+        isClosed: true,
+      ).copyWith(id: 'old-session');
+      await seedSession(recentSession);
+      await seedSession(oldSession);
+
+      await firestore
+          .collection(FirestoreCollections.classes)
+          .doc('team-1')
+          .collection(FirestoreCollections.attendanceSessions)
+          .doc(recentSession.id)
+          .collection(FirestoreCollections.attendanceMarks)
+          .doc('student-1')
+          .set({
+            'studentNameSnapshot': 'Mina',
+            'status': 'present',
+            'markedByUserId': servant.uid,
+            'markedByName': servant.name,
+            'markedAt': recentStart,
+            'updatedAt': recentStart,
+          });
+      await firestore
+          .collection(FirestoreCollections.classes)
+          .doc('team-1')
+          .collection(FirestoreCollections.attendanceSessions)
+          .doc(oldSession.id)
+          .collection(FirestoreCollections.attendanceMarks)
+          .doc('student-1')
+          .set({
+            'studentNameSnapshot': 'Mina',
+            'status': 'present',
+            'markedByUserId': servant.uid,
+            'markedByName': servant.name,
+            'markedAt': oldStart,
+            'updatedAt': oldStart,
+          });
+
+      final stats = await repository.getStudentAttendanceStats(
+        studentId: 'student-1',
+      );
+
+      expect(stats.totalSessions, 1);
+    },
+  );
+
+  test(
+    'getTeamAttendanceStats ignores sessions older than default window',
+    () async {
+      await seedStudent(student(id: 'student-1', name: 'Mina'));
+      final recentStart = currentTime.subtract(const Duration(days: 5));
+      final oldStart = currentTime.subtract(const Duration(days: 260));
+      final recentSession = buildSession(
+        startsAt: recentStart,
+        endsAt: recentStart.add(const Duration(minutes: 30)),
+        isClosed: true,
+      ).copyWith(id: 'recent-team-session');
+      final oldSession = buildSession(
+        startsAt: oldStart,
+        endsAt: oldStart.add(const Duration(minutes: 30)),
+        isClosed: true,
+      ).copyWith(id: 'old-team-session');
+      await seedSession(recentSession);
+      await seedSession(oldSession);
+
+      await firestore
+          .collection(FirestoreCollections.classes)
+          .doc('team-1')
+          .collection(FirestoreCollections.attendanceSessions)
+          .doc(recentSession.id)
+          .collection(FirestoreCollections.attendanceMarks)
+          .doc('student-1')
+          .set({
+            'studentNameSnapshot': 'Mina',
+            'status': 'late',
+            'markedByUserId': servant.uid,
+            'markedByName': servant.name,
+            'markedAt': recentStart,
+            'updatedAt': recentStart,
+          });
+      await firestore
+          .collection(FirestoreCollections.classes)
+          .doc('team-1')
+          .collection(FirestoreCollections.attendanceSessions)
+          .doc(oldSession.id)
+          .collection(FirestoreCollections.attendanceMarks)
+          .doc('student-1')
+          .set({
+            'studentNameSnapshot': 'Mina',
+            'status': 'present',
+            'markedByUserId': servant.uid,
+            'markedByName': servant.name,
+            'markedAt': oldStart,
+            'updatedAt': oldStart,
+          });
+
+      final stats = await repository.getTeamAttendanceStats(teamId: 'team-1');
+
+      expect(stats.totalSessions, 1);
+      expect(stats.lateCount, 1);
+    },
+  );
 }

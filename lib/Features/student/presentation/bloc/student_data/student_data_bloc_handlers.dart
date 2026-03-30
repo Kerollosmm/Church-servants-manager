@@ -284,12 +284,7 @@ Future<void> _handleSearchStudents(
     bloc._allStudents = page.students;
     bloc._lastDocument = page.lastDocument;
     bloc._hasReachedMax = page.hasReachedMax;
-    _emitLoadedState(
-      bloc,
-      emit,
-      students: page.students,
-      query: null,
-    );
+    _emitLoadedState(bloc, emit, students: page.students, query: null);
     return;
   }
 
@@ -303,12 +298,7 @@ Future<void> _handleSearchStudents(
   bloc._allStudents = results;
   bloc._lastDocument = null;
   bloc._hasReachedMax = true;
-  _emitLoadedState(
-    bloc,
-    emit,
-    students: results,
-    query: query,
-  );
+  _emitLoadedState(bloc, emit, students: results, query: query);
 }
 
 Future<void> _handleCreateStudent(
@@ -364,8 +354,11 @@ Future<void> _handleRestoreStudent(
   Emitter<StudentDataState> emit,
 ) async {
   try {
-    await bloc._restoreStudentUseCase(actor: event.actor, docId: event.docId);
-    _emitSuccessWithData(bloc, emit, 'تمت استعادة المخدوم بنجاح');
+    final feedback = await bloc._restoreStudentUseCase(
+      actor: event.actor,
+      docId: event.docId,
+    );
+    _emitSuccessWithData(bloc, emit, feedback);
   } catch (error) {
     _emitError(emit, 'تعذر استعادة المخدوم', error);
   }
@@ -410,12 +403,7 @@ Future<void> _handleRefreshStudents(
     bloc._allStudents = results;
     bloc._lastDocument = null;
     bloc._hasReachedMax = true;
-    _emitLoadedState(
-      bloc,
-      emit,
-      students: results,
-      query: bloc._lastQuery,
-    );
+    _emitLoadedState(bloc, emit, students: results, query: bloc._lastQuery);
     _completePendingRefresh(bloc);
     return;
   }

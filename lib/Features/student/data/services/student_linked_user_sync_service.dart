@@ -20,7 +20,7 @@ class StudentLinkedUserSyncService {
     required StudentModel updatedStudent,
     required UserRole previousRole,
   }) {
-    final uid = updatedStudent.uid.trim();
+    final uid = updatedStudent.canonicalLinkedUserId ?? '';
     if (uid.isEmpty) {
       throw const GenericStudentFailure(
         'Cannot change role for student without linked user account.',
@@ -29,6 +29,7 @@ class StudentLinkedUserSyncService {
 
     final payload = <String, dynamic>{
       'uid': uid,
+      'linkedStudentId': updatedStudent.docID,
       'role': updatedStudent.role.name,
       'updatedAt': FieldValue.serverTimestamp(),
     };
@@ -58,7 +59,7 @@ class StudentLinkedUserSyncService {
     required UserRole previousRole,
   }) async {
     try {
-      final uid = updatedStudent.uid.trim();
+      final uid = updatedStudent.canonicalLinkedUserId ?? '';
       final payload = buildLinkedUserRolePatch(
         updatedStudent: updatedStudent,
         previousRole: previousRole,
@@ -75,15 +76,19 @@ class StudentLinkedUserSyncService {
     required UserRole previousRole,
   }) async {
     try {
-      final uid = updatedStudent.uid.trim();
+      final uid = updatedStudent.canonicalLinkedUserId ?? '';
       if (updatedStudent.role == previousRole) {
-        await _studentsCollection
-            .doc(updatedStudent.docID)
-            .update({
-              ...updatedStudent.toMap(),
-              'nameLower': updatedStudent.name.trim().toLowerCase(),
-              'linkedUserId': uid,
-            });
+        await _studentsCollection.doc(updatedStudent.docID).update({
+          ...updatedStudent.toMap(),
+          'nameLower': updatedStudent.name.trim().toLowerCase(),
+          'linkedUserId': uid,
+        });
+        if (uid.isNotEmpty) {
+          await _usersCollection.doc(uid).set({
+            'linkedStudentId': updatedStudent.docID,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        }
         return;
       }
 
@@ -93,14 +98,11 @@ class StudentLinkedUserSyncService {
       );
 
       final batch = _firestore.batch();
-      batch.update(
-        _studentsCollection.doc(updatedStudent.docID),
-        {
-          ...updatedStudent.toMap(),
-          'nameLower': updatedStudent.name.trim().toLowerCase(),
-          'linkedUserId': uid,
-        },
-      );
+      batch.update(_studentsCollection.doc(updatedStudent.docID), {
+        ...updatedStudent.toMap(),
+        'nameLower': updatedStudent.name.trim().toLowerCase(),
+        'linkedUserId': uid,
+      });
       batch.set(
         _usersCollection.doc(uid),
         linkedUserPatch,

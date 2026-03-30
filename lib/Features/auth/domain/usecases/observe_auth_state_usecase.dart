@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/data/services/auth_service.dart';
 
@@ -56,6 +57,8 @@ class ObserveAuthStateUseCase {
 
   static const degradedPermissionsMessage =
       'Unable to refresh account data. Showing last synced permissions.';
+  static const privilegedRefreshRequiredMessage =
+      'Unable to verify current permissions. Please reconnect and refresh your account.';
   static const archivedMessage =
       'تم إيقاف هذا الحساب. تواصل مع الإدارة لاستعادته.';
 
@@ -133,6 +136,11 @@ class ObserveAuthStateUseCase {
         return AuthSessionResolution.archived(
           message: archivedMessage,
           email: cached.email,
+        );
+      }
+      if (cached.role != UserRole.student) {
+        return const AuthSessionResolution.error(
+          privilegedRefreshRequiredMessage,
         );
       }
       return AuthSessionResolution.degraded(

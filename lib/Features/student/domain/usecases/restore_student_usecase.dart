@@ -14,7 +14,7 @@ class RestoreStudentUseCase {
   final StudentDataRepository _repository;
   final AdminUserProvisioningService _adminUserProvisioningService;
 
-  Future<void> call({required AuthUser actor, required String docId}) async {
+  Future<String> call({required AuthUser actor, required String docId}) async {
     final existing = await _repository.getStudentById(
       docId,
       includeArchived: true,
@@ -29,7 +29,10 @@ class RestoreStudentUseCase {
     // FIX [004-C2]: pass actor uid so repository records the real performer.
     await _repository.restoreStudent(docId, performedByUid: actor.uid);
     if (existing.uid.trim().isNotEmpty) {
-      await _adminUserProvisioningService.restoreUser(uid: existing.uid.trim());
+      return _adminUserProvisioningService.restoreUser(
+        uid: existing.uid.trim(),
+      );
     }
+    return 'تمت استعادة المخدوم بنجاح.';
   }
 }

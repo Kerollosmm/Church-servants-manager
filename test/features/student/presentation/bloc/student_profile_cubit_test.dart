@@ -41,43 +41,55 @@ void main() {
     await cubit.close();
   });
 
-  test('load emits loading then loaded when linked user profile exists', () async {
-    when(
-      () => repository.getStudentByLinkedUserId(
-        'linked-uid',
-        includeArchived: false,
-      ),
-    ).thenAnswer((_) async => student());
-    final expectation = expectLater(
-      cubit.stream,
-      emitsInOrder([
-        isA<StudentProfileLoading>(),
-        isA<StudentProfileLoaded>(),
-      ]),
-    );
+  test(
+    'load emits loading then loaded when linked user profile exists',
+    () async {
+      when(
+        () => repository.getStudentByLinkedUserId(
+          'linked-uid',
+          includeArchived: false,
+        ),
+      ).thenAnswer((_) async => student());
+      final expectation = expectLater(
+        cubit.stream,
+        emitsInOrder([
+          isA<StudentProfileLoading>(),
+          isA<StudentProfileLoaded>(),
+        ]),
+      );
 
-    await cubit.load('linked-uid');
-    await expectation;
-    expect((cubit.state as StudentProfileLoaded).student.docID, 'student-doc');
-  });
+      await cubit.load('linked-uid');
+      await expectation;
+      expect(
+        (cubit.state as StudentProfileLoaded).student.docID,
+        'student-doc',
+      );
+    },
+  );
 
-  test('load emits loading then error when linked profile is missing', () async {
-    when(
-      () => repository.getStudentByLinkedUserId(
-        'missing-uid',
-        includeArchived: false,
-      ),
-    ).thenAnswer((_) async => null);
-    final expectation = expectLater(
-      cubit.stream,
-      emitsInOrder([
-        isA<StudentProfileLoading>(),
-        isA<StudentProfileError>(),
-      ]),
-    );
+  test(
+    'load emits loading then error when linked profile is missing',
+    () async {
+      when(
+        () => repository.getStudentByLinkedUserId(
+          'missing-uid',
+          includeArchived: false,
+        ),
+      ).thenAnswer((_) async => null);
+      final expectation = expectLater(
+        cubit.stream,
+        emitsInOrder([
+          isA<StudentProfileLoading>(),
+          isA<StudentProfileError>(),
+        ]),
+      );
 
-    await cubit.load('missing-uid');
-    await expectation;
-    expect((cubit.state as StudentProfileError).message, 'Student profile not found.');
-  });
+      await cubit.load('missing-uid');
+      await expectation;
+      expect(
+        (cubit.state as StudentProfileError).message,
+        'Student profile not found.',
+      );
+    },
+  );
 }

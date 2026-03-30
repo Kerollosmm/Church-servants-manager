@@ -70,9 +70,7 @@ class ChurchApp extends StatelessWidget {
               observeAuthStateUseCase: getIt<ObserveAuthStateUseCase>(),
             ),
           ),
-          BlocProvider(
-            create: (_) => getIt<StudentProfileCubit>(),
-          ),
+          BlocProvider(create: (_) => getIt<StudentProfileCubit>()),
           BlocProvider(
             create: (context) => ServantDataCubit(
               repository: context.read<ServantDataRepository>(),

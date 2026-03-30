@@ -64,6 +64,7 @@ class ServantDataRepository implements IServantRepository {
   Map<String, dynamic> _normalizeServantWriteData(ServantModel servant) {
     final data = servant.toMap();
     data['role'] = servant.role.name;
+    data['nameLower'] = servant.name.trim().toLowerCase();
 
     if (servant.role != UserRole.servant) {
       // Clear servant-only scoping fields when user is no longer a servant.
@@ -248,13 +249,15 @@ class ServantDataRepository implements IServantRepository {
     bool includeArchived = false,
   }) async {
     try {
-      if (query.isEmpty) {
+      final normalizedQuery = query.trim().toLowerCase();
+      if (normalizedQuery.isEmpty) {
         return getAllServants(limit: limit, includeArchived: includeArchived);
       }
 
-      final snapshot = await _sortedServantsQuery()
-          .startAt([query])
-          .endAt(['$query\uf8ff'])
+      final snapshot = await _servantsQuery
+          .orderBy('nameLower')
+          .startAt([normalizedQuery])
+          .endAt(['$normalizedQuery\uf8ff'])
           .limit(limit)
           .get();
 
@@ -328,12 +331,15 @@ class ServantDataRepository implements IServantRepository {
   }
 
   @override
-  Future<void> deleteServant(String docId) async {
+  Future<void> deleteServant(
+    String docId, {
+    required String performedByUid,
+  }) async {
     try {
       await _usersCollection.doc(docId).set({
         'isArchived': true,
         'archivedAt': FieldValue.serverTimestamp(),
-        'archivedByUserId': 'system',
+        'archivedByUserId': performedByUid,
         'restorePendingPasswordReset': false,
         'assignedTeamId': FieldValue.delete(),
         'assignedTeamIds': FieldValue.delete(),
@@ -345,12 +351,16 @@ class ServantDataRepository implements IServantRepository {
   }
 
   @override
-  Future<void> restoreServant(String docId) async {
+  Future<void> restoreServant(
+    String docId, {
+    required String performedByUid,
+  }) async {
     try {
       await _usersCollection.doc(docId).set({
         'isArchived': false,
         'restorePendingPasswordReset': true,
         'restoredAt': FieldValue.serverTimestamp(),
+        'restoredByUserId': performedByUid,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     } catch (e) {

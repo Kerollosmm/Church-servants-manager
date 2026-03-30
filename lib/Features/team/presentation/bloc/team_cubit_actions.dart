@@ -134,9 +134,14 @@ extension TeamCubitActions on TeamCubit {
     );
   }
 
-  Future<void> deleteTeam(String teamId, String groupId) async {
+  Future<void> deleteTeam({
+    required AuthUser actor,
+    required String teamId,
+    required String groupId,
+  }) async {
     await _runTeamMutation(
-      action: () => _teamRepository.deleteTeam(teamId),
+      action: () =>
+          _teamRepository.deleteTeam(teamId, performedByUid: actor.uid),
       successMessage: 'تمت أرشفة الفريق بنجاح',
       errorContext: 'Failed to archive team',
       errorMessage: 'تعذر أرشفة الفريق. حاول مرة أخرى.',
@@ -144,9 +149,14 @@ extension TeamCubitActions on TeamCubit {
     );
   }
 
-  Future<void> restoreTeam(String teamId, String groupId) async {
+  Future<void> restoreTeam({
+    required AuthUser actor,
+    required String teamId,
+    required String groupId,
+  }) async {
     await _runTeamMutation(
-      action: () => _teamRepository.restoreTeam(teamId),
+      action: () =>
+          _teamRepository.restoreTeam(teamId, performedByUid: actor.uid),
       successMessage: 'تمت استعادة الفريق بنجاح',
       errorContext: 'Failed to restore team',
       errorMessage: 'تعذر استعادة الفريق. حاول مرة أخرى.',

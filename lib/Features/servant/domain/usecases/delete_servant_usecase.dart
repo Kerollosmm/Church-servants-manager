@@ -11,12 +11,12 @@ class DeleteServantUseCase {
   final ServantDataRepository _repository;
   final AdminUserProvisioningService _adminUserProvisioningService;
 
-  Future<void> call(String docId) async {
+  Future<void> call(String docId, {required String performedByUid}) async {
     final existing = await _repository.getServantById(
       docId,
       includeArchived: true,
     );
-    await _repository.deleteServant(docId);
+    await _repository.deleteServant(docId, performedByUid: performedByUid);
     final normalizedUid = existing?.uid?.trim();
     if (normalizedUid != null && normalizedUid.isNotEmpty) {
       await _adminUserProvisioningService.archiveUser(uid: normalizedUid);

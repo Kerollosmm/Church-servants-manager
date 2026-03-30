@@ -114,7 +114,7 @@ void main() {
             ).toMap(),
           );
 
-      await repository.deleteTeam(team.id);
+      await repository.deleteTeam(team.id, performedByUid: 'admin-1');
 
       final teamDoc = await firestore.collection('Classes').doc(team.id).get();
       expect(teamDoc.data()!['isArchived'], isTrue);
@@ -131,7 +131,7 @@ void main() {
         .doc('session-1')
         .set({'teamId': team.id});
 
-    await repository.deleteTeam(team.id);
+    await repository.deleteTeam(team.id, performedByUid: 'admin-1');
 
     final teamDoc = await firestore.collection('Classes').doc(team.id).get();
     expect(teamDoc.data()!['isArchived'], isTrue);
@@ -158,7 +158,7 @@ void main() {
         'isEmailVerified': true,
       });
 
-      await repository.deleteTeam(team.id);
+      await repository.deleteTeam(team.id, performedByUid: 'admin-1');
 
       final teamDoc = await firestore.collection('Classes').doc(team.id).get();
       final servantDoc = await firestore
@@ -186,11 +186,12 @@ void main() {
       );
       await firestore.collection('Classes').doc(team.id).set(team.toMap());
 
-      await repository.restoreTeam(team.id);
+      await repository.restoreTeam(team.id, performedByUid: 'admin-1');
 
       final teamDoc = await firestore.collection('Classes').doc(team.id).get();
       expect(teamDoc.data()!['isArchived'], isFalse);
       expect(teamDoc.data()!['assignedServantId'], isNull);
+      expect(teamDoc.data()!['restoredByUserId'], 'admin-1');
     },
   );
 }

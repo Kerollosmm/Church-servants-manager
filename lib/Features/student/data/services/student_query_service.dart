@@ -216,20 +216,20 @@ class StudentQueryService {
     bool includeArchived = false,
   }) async {
     try {
-      final cacheStudents = _applyArchivedFilter(
-        await _tryGetStudentsByClassFromCache(classId),
-        includeArchived,
-      );
-      if (cacheStudents.isNotEmpty) {
-        return cacheStudents;
-      }
-
       final serverStudents = _applyArchivedFilter(
         await _getStudentsByClassFromServer(classId),
         includeArchived,
       );
       if (serverStudents.isNotEmpty) {
         return serverStudents;
+      }
+
+      final cacheStudents = _applyArchivedFilter(
+        await _tryGetStudentsByClassFromCache(classId),
+        includeArchived,
+      );
+      if (cacheStudents.isNotEmpty) {
+        return cacheStudents;
       }
 
       final studentIds = await _getStudentIdsFromClassDocument(classId);
@@ -290,7 +290,10 @@ class StudentQueryService {
       }
 
       final snapshot = await firestoreQuery.get();
-      return _applyArchivedFilter(mapStudentDocs(snapshot.docs), includeArchived);
+      return _applyArchivedFilter(
+        mapStudentDocs(snapshot.docs),
+        includeArchived,
+      );
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
     }
@@ -319,7 +322,8 @@ class StudentQueryService {
         query = query.where('classId', isEqualTo: normalizedClassId);
       } else if (normalizedClassIds.isNotEmpty) {
         query = query.where('classId', whereIn: normalizedClassIds);
-      } else if (normalizedGroupName != null && normalizedGroupName.isNotEmpty) {
+      } else if (normalizedGroupName != null &&
+          normalizedGroupName.isNotEmpty) {
         query = query.where('group', isEqualTo: normalizedGroupName);
       }
 
@@ -355,30 +359,30 @@ class StudentQueryService {
     bool includeArchived = false,
   }) async {
     try {
-      final cacheSnapshot = await _studentsCollection
-          .where('group', isEqualTo: groupName)
-          .get(const GetOptions(source: Source.cache));
-      if (cacheSnapshot.docs.isNotEmpty) {
+      final serverSnapshot = await _studentsByGroupQuery(
+        groupName,
+      ).get(const GetOptions(source: Source.server));
+      if (serverSnapshot.docs.isNotEmpty) {
         return (
           students: _applyArchivedFilter(
-            mapStudentDocs(cacheSnapshot.docs),
+            mapStudentDocs(serverSnapshot.docs),
             includeArchived,
           ),
-          isFromCache: true,
+          isFromCache: false,
         );
       }
     } catch (_) {}
 
     try {
-      final serverSnapshot = await _studentsByGroupQuery(
-        groupName,
-      ).get(const GetOptions(source: Source.server));
+      final cacheSnapshot = await _studentsCollection
+          .where('group', isEqualTo: groupName)
+          .get(const GetOptions(source: Source.cache));
       return (
         students: _applyArchivedFilter(
-          mapStudentDocs(serverSnapshot.docs),
+          mapStudentDocs(cacheSnapshot.docs),
           includeArchived,
         ),
-        isFromCache: false,
+        isFromCache: true,
       );
     } catch (e) {
       throw mapExceptionToStudentFailure(e);

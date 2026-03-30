@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:church_management_system/features/admin/data/admin_audit_review_service.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
 import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
 import 'package:church_management_system/features/servant/data/models/servant_models.dart';
@@ -20,6 +21,8 @@ class AdminDashboardState extends Equatable {
     this.totalServants = 0,
     this.sessionsThisMonth = 0,
     this.recentSessions = const <AttendanceSession>[],
+    this.recentAuditEntries = const <AdminAuditReviewEntry>[],
+    this.pendingRestoreAccounts = const <AdminManagedAccountFollowUp>[],
     this.errorMessage,
   });
 
@@ -28,6 +31,8 @@ class AdminDashboardState extends Equatable {
   final int totalServants;
   final int sessionsThisMonth;
   final List<AttendanceSession> recentSessions;
+  final List<AdminAuditReviewEntry> recentAuditEntries;
+  final List<AdminManagedAccountFollowUp> pendingRestoreAccounts;
   final String? errorMessage;
 
   AdminDashboardState copyWith({
@@ -36,6 +41,8 @@ class AdminDashboardState extends Equatable {
     int? totalServants,
     int? sessionsThisMonth,
     List<AttendanceSession>? recentSessions,
+    List<AdminAuditReviewEntry>? recentAuditEntries,
+    List<AdminManagedAccountFollowUp>? pendingRestoreAccounts,
     String? errorMessage,
     bool clearErrorMessage = false,
   }) {
@@ -45,6 +52,9 @@ class AdminDashboardState extends Equatable {
       totalServants: totalServants ?? this.totalServants,
       sessionsThisMonth: sessionsThisMonth ?? this.sessionsThisMonth,
       recentSessions: recentSessions ?? this.recentSessions,
+      recentAuditEntries: recentAuditEntries ?? this.recentAuditEntries,
+      pendingRestoreAccounts:
+          pendingRestoreAccounts ?? this.pendingRestoreAccounts,
       errorMessage: clearErrorMessage
           ? null
           : (errorMessage ?? this.errorMessage),
@@ -58,6 +68,8 @@ class AdminDashboardState extends Equatable {
     totalServants,
     sessionsThisMonth,
     recentSessions,
+    recentAuditEntries,
+    pendingRestoreAccounts,
     errorMessage,
   ];
 }
@@ -67,10 +79,12 @@ class AdminDashboardCubit extends Cubit<AdminDashboardState> {
     required StudentDataRepository studentRepository,
     required ServantDataRepository servantRepository,
     required TeamRepository teamRepository,
+    required AdminAuditReviewService auditReviewService,
     required IAttendanceRepository attendanceRepository,
   }) : _studentRepository = studentRepository,
        _servantRepository = servantRepository,
        _teamRepository = teamRepository,
+       _auditReviewService = auditReviewService,
        _attendanceRepository = attendanceRepository,
        super(const AdminDashboardState(isLoading: true)) {
     _bindStreams();
@@ -80,12 +94,14 @@ class AdminDashboardCubit extends Cubit<AdminDashboardState> {
     : _studentRepository = null,
       _servantRepository = null,
       _teamRepository = null,
+      _auditReviewService = null,
       _attendanceRepository = null,
       super();
 
   final StudentDataRepository? _studentRepository;
   final ServantDataRepository? _servantRepository;
   final TeamRepository? _teamRepository;
+  final AdminAuditReviewService? _auditReviewService;
   final IAttendanceRepository? _attendanceRepository;
 
   StreamSubscription<AdminDashboardState>? _subscription;
@@ -96,30 +112,40 @@ class AdminDashboardCubit extends Cubit<AdminDashboardState> {
     final studentRepository = _studentRepository;
     final servantRepository = _servantRepository;
     final teamRepository = _teamRepository;
+    final auditReviewService = _auditReviewService;
     final attendanceRepository = _attendanceRepository;
     if (studentRepository == null ||
         servantRepository == null ||
         teamRepository == null ||
+        auditReviewService == null ||
         attendanceRepository == null) {
       return;
     }
 
+    // FIX [014-US4]: aggregate quick metrics with audit/review streams for one bounded admin surface.
     _subscription =
-        Rx.combineLatest3<
+        Rx.combineLatest5<
               List<StudentModel>,
               List<ServantModel>,
               _AdminAttendanceSummary,
+              List<AdminAuditReviewEntry>,
+              List<AdminManagedAccountFollowUp>,
               AdminDashboardState
             >(
               studentRepository.watchAllStudents(),
               servantRepository.getServantsStream(),
               _watchAttendanceSummary(teamRepository, attendanceRepository),
-              (students, servants, attendance) => AdminDashboardState(
-                totalStudents: students.length,
-                totalServants: servants.length,
-                sessionsThisMonth: attendance.sessionsThisMonth,
-                recentSessions: attendance.recentSessions,
-              ),
+              auditReviewService.watchRecentAttendanceAudit(),
+              auditReviewService.watchPendingRestoreAccounts(),
+              (students, servants, attendance, auditEntries, pendingRestores) =>
+                  AdminDashboardState(
+                    totalStudents: students.length,
+                    totalServants: servants.length,
+                    sessionsThisMonth: attendance.sessionsThisMonth,
+                    recentSessions: attendance.recentSessions,
+                    recentAuditEntries: auditEntries,
+                    pendingRestoreAccounts: pendingRestores,
+                  ),
             )
             .listen(
               emit,
@@ -145,6 +171,7 @@ class AdminDashboardCubit extends Cubit<AdminDashboardState> {
     TeamRepository teamRepository,
     IAttendanceRepository attendanceRepository,
   ) {
+    // FIX [014-US4]: keep dashboard reporting lightweight by showing only recent summaries.
     return teamRepository.watchAllTeams().switchMap((List<TeamModel> teams) {
       if (teams.isEmpty) {
         return Stream.value(const _AdminAttendanceSummary());
@@ -163,7 +190,10 @@ class AdminDashboardCubit extends Cubit<AdminDashboardState> {
 
         final DateTime now = DateTime.now();
         final int sessionsThisMonth = sessions
-            .where((s) => s.startsAt.year == now.year && s.startsAt.month == now.month)
+            .where(
+              (s) =>
+                  s.startsAt.year == now.year && s.startsAt.month == now.month,
+            )
             .length;
 
         return _AdminAttendanceSummary(

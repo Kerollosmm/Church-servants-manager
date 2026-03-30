@@ -51,6 +51,7 @@ class AdminTeamMembershipService {
     final toRemoveStudents = await _loadStudentsByIds(toRemoveIds);
 
     final ops = _buildSetTeamMembersOps(
+      actor: actor,
       team: team,
       toAdd: toAdd,
       toRemove: toRemoveStudents,
@@ -123,6 +124,7 @@ class AdminTeamMembershipService {
   }
 
   List<void Function(WriteBatch)> _buildSetTeamMembersOps({
+    required AuthUser actor,
     required TeamModel team,
     required List<StudentModel> toAdd,
     required List<StudentModel> toRemove,
@@ -146,6 +148,7 @@ class AdminTeamMembershipService {
           'classId': team.id,
           'team_name': team.name,
           'group': team.groupId,
+          'membershipUpdatedByUserId': actor.uid,
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true)),
       );
@@ -156,6 +159,7 @@ class AdminTeamMembershipService {
             'classId': team.id,
             'team_name': team.name,
             'groupId': team.groupId,
+            'membershipUpdatedByUserId': actor.uid,
             'updatedAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true)),
         );
@@ -172,6 +176,7 @@ class AdminTeamMembershipService {
         (b) => b.set(_studentRef(student.docID), {
           'classId': FieldValue.delete(),
           'team_name': '',
+          'membershipUpdatedByUserId': actor.uid,
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true)),
       );
@@ -181,6 +186,7 @@ class AdminTeamMembershipService {
           (b) => b.set(_userRef(student.uid), {
             'classId': FieldValue.delete(),
             'team_name': '',
+            'membershipUpdatedByUserId': actor.uid,
             'updatedAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true)),
         );
@@ -190,6 +196,7 @@ class AdminTeamMembershipService {
     addOp(
       (b) => b.set(_teamRef(team.id), {
         'student_ids': selectedIds,
+        'membersUpdatedByUserId': actor.uid,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true)),
     );

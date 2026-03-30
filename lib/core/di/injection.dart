@@ -1,10 +1,14 @@
 import 'package:church_management_system/core/routing/app_router.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
 import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
+import 'package:church_management_system/features/attendance/presentation/bloc/attendance_history/attendance_history_cubit.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_cubit.dart';
+import 'package:church_management_system/features/attendance/presentation/bloc/session_admin/attendance_session_admin_cubit.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/student_attendance/student_attendance_cubit.dart';
+import 'package:church_management_system/features/admin/data/admin_audit_review_service.dart';
 import 'package:church_management_system/features/admin/data/admin_team_membership_service.dart';
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
+import 'package:church_management_system/features/admin/presentation/bloc/admin_dashboard_cubit.dart';
 import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
 import 'package:church_management_system/features/auth/data/services/auth_user_profile_store.dart';
 import 'package:church_management_system/features/auth/data/services/auth_service.dart';
@@ -113,6 +117,9 @@ void configureDependencies() {
   );
   getIt.registerLazySingleton<TeamRepository>(
     () => TeamRepository(firestore: getIt()),
+  );
+  getIt.registerLazySingleton<AdminAuditReviewService>(
+    () => AdminAuditReviewService(firestore: getIt()),
   );
   getIt.registerLazySingleton<AdminTeamMembershipService>(
     () => AdminTeamMembershipService(firestore: getIt()),
@@ -228,9 +235,25 @@ void configureDependencies() {
   getIt.registerFactory<StudentProfileCubit>(
     () => StudentProfileCubit(studentRepository: getIt<IStudentRepository>()),
   );
+  getIt.registerFactory<AdminDashboardCubit>(
+    () => AdminDashboardCubit(
+      studentRepository: getIt<StudentDataRepository>(),
+      servantRepository: getIt<ServantDataRepository>(),
+      teamRepository: getIt<TeamRepository>(),
+      auditReviewService: getIt<AdminAuditReviewService>(),
+      attendanceRepository: getIt<IAttendanceRepository>(),
+    ),
+  );
   // FIX [013-P4]: Resolve attendance cubits through GetIt for router injection.
   getIt.registerFactory<AttendanceTakingCubit>(
     () => AttendanceTakingCubit(repository: getIt<IAttendanceRepository>()),
+  );
+  getIt.registerFactory<AttendanceHistoryCubit>(
+    () => AttendanceHistoryCubit(repository: getIt<IAttendanceRepository>()),
+  );
+  getIt.registerFactory<AttendanceSessionAdminCubit>(
+    () =>
+        AttendanceSessionAdminCubit(repository: getIt<IAttendanceRepository>()),
   );
   getIt.registerFactory<StudentAttendanceCubit>(
     () => StudentAttendanceCubit(repository: getIt<IAttendanceRepository>()),

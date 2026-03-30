@@ -46,7 +46,10 @@ extension ServantDataCubitActions on ServantDataCubit {
   void _emitMutationFailure(Object error) {
     final failure = _mapFailure(error);
     if (_allServants.isNotEmpty) {
-      _emitLoaded(mutationStatus: ServantMutationStatus.failure, feedbackMessage: failure.message);
+      _emitLoaded(
+        mutationStatus: ServantMutationStatus.failure,
+        feedbackMessage: failure.message,
+      );
     } else {
       emit(ServantDataError(failure));
     }
@@ -166,7 +169,7 @@ extension ServantDataCubitActions on ServantDataCubit {
     final previousLoaded = _loadedState;
     _emitLoaded(mutationStatus: ServantMutationStatus.inProgress);
     try {
-      await _deleteServantUseCase(docId);
+      await _deleteServantUseCase(docId, performedByUid: actor.uid);
       final didOptimisticUpdate = _tryEmitOptimisticUpdate(previousLoaded, (
         servants,
       ) {
@@ -192,12 +195,14 @@ extension ServantDataCubitActions on ServantDataCubit {
     if (!_ensureAdmin(actor)) return;
     _emitLoaded(mutationStatus: ServantMutationStatus.inProgress);
     try {
-      await _restoreServantUseCase(docId);
+      final feedback = await _restoreServantUseCase(
+        docId,
+        performedByUid: actor.uid,
+      );
       await _reloadFromServer(actor);
       _emitLoaded(
         mutationStatus: ServantMutationStatus.success,
-        feedbackMessage:
-            'تمت استعادة الخادم بنجاح. يجب على المسؤول إعادة تعيين الفريق يدويا.',
+        feedbackMessage: feedback,
       );
     } catch (error) {
       _emitMutationFailure(error);

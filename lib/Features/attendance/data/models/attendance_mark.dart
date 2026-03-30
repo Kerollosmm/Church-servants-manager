@@ -39,10 +39,11 @@ class AttendanceMark with _$AttendanceMark {
     }
 
     final converter = const FirestoreTimestampConverter();
+    final updatedAt = converter.fromJson(data['updatedAt']);
     final markedAt =
         converter.fromJson(data['markedAt']) ??
-        converter.fromJson(data['updatedAt']) ??
-        DateTime.now();
+        updatedAt ??
+        DateTime.fromMillisecondsSinceEpoch(0);
 
     return AttendanceMark.fromJson({
       ...data,
@@ -52,7 +53,7 @@ class AttendanceMark with _$AttendanceMark {
       'markedByUserId': readString('markedByUserId') ?? '',
       'markedByName': readString('markedByName') ?? '',
       'markedAt': markedAt,
-      'updatedAt': converter.fromJson(data['updatedAt']) ?? markedAt,
+      'updatedAt': updatedAt ?? markedAt,
       'note': readString('note'),
     });
   }

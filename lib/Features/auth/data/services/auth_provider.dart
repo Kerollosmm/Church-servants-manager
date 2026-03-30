@@ -17,7 +17,7 @@ abstract class AuthProvider {
     required String email,
     required String password,
     required String name,
-    UserRole role,
+    UserRole role = UserRole.student,
     String? grade,
   });
 

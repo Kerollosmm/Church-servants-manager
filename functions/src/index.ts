@@ -23,13 +23,11 @@ async function requireAdmin(
     throw new HttpsError('unauthenticated', 'Authentication is required.');
   }
 
-  if (auth?.token?.['role'] === 'admin') {
-    return uid;
-  }
-
   const userDoc = await adminDb.collection(USERS_COLLECTION).doc(uid).get();
-  const role = userDoc.data()?.role;
-  if (role !== 'admin') {
+  const userData = userDoc.data();
+  const role = userData?.role;
+  const isArchived = userData?.isArchived === true;
+  if (role !== 'admin' || isArchived) {
     throw new HttpsError('permission-denied', 'Only admins can provision users.');
   }
   return uid;
@@ -49,7 +47,10 @@ export const createPrivilegedUser = onCall<CreatePrivilegedUserRequest>(async (r
     });
     createdUid = userRecord.uid;
 
-    await adminAuth.setCustomUserClaims(userRecord.uid, { role: payload.role });
+    await adminAuth.setCustomUserClaims(userRecord.uid, {
+      role: payload.role,
+      isArchived: false,
+    });
 
     await adminDb.collection(USERS_COLLECTION).doc(userRecord.uid).set(
       buildProvisionedUserProfile({
@@ -106,8 +107,14 @@ export const archiveManagedUser = onCall<ManagedUserLifecycleRequest>(async (req
   const payload = parseManagedUserRequest(request.data);
 
   try {
+    const userDoc = await adminDb.collection(USERS_COLLECTION).doc(payload.uid).get();
+    const existingRole = userDoc.data()?.role ?? null;
     await adminAuth.updateUser(payload.uid, { disabled: true });
     await adminAuth.revokeRefreshTokens(payload.uid);
+    await adminAuth.setCustomUserClaims(payload.uid, {
+      role: existingRole,
+      isArchived: true,
+    });
     await adminDb.collection(USERS_COLLECTION).doc(payload.uid).set(
       buildArchivedUserPatch(),
       { merge: true },
@@ -127,12 +134,18 @@ export const restoreManagedUser = onCall<ManagedUserLifecycleRequest>(async (req
   const payload = parseManagedUserRequest(request.data);
 
   try {
+    const userDoc = await adminDb.collection(USERS_COLLECTION).doc(payload.uid).get();
+    const existingRole = userDoc.data()?.role ?? null;
     const temporaryPassword = randomBytes(24).toString('base64url');
     await adminAuth.updateUser(payload.uid, {
       disabled: false,
       password: temporaryPassword,
     });
     await adminAuth.revokeRefreshTokens(payload.uid);
+    await adminAuth.setCustomUserClaims(payload.uid, {
+      role: existingRole,
+      isArchived: false,
+    });
     await adminDb.collection(USERS_COLLECTION).doc(payload.uid).set(
       buildRestoredUserPatch(),
       { merge: true },

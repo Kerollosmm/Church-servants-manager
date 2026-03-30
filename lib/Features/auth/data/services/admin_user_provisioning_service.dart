@@ -22,7 +22,7 @@ abstract class AdminUserProvisioningService {
 
   Future<void> archiveUser({required String uid});
 
-  Future<void> restoreUser({required String uid});
+  Future<String> restoreUser({required String uid});
 }
 
 class ClientAdminUserProvisioningService
@@ -133,7 +133,7 @@ class ClientAdminUserProvisioningService
   }
 
   @override
-  Future<void> restoreUser({required String uid}) async {
+  Future<String> restoreUser({required String uid}) async {
     try {
       final user = await _userProfileStore.fetchUser(uid);
       await _adminAuthClient.restoreUser(uid: uid);
@@ -142,6 +142,7 @@ class ClientAdminUserProvisioningService
         'restorePendingPasswordReset': true,
       });
       await _authService.sendPasswordResetEmail(user.email);
+      return 'تمت استعادة الحساب بنجاح. تم إرسال رابط إعادة تعيين كلمة المرور إلى ${user.email}.';
     } catch (e) {
       if (e is AuthFailure) rethrow;
       throw GenericAuthException('Restore failed: $e');

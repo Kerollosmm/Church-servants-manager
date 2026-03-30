@@ -65,7 +65,6 @@ Future<void> _handleSignUp(
       email: event.email,
       password: event.password,
       name: event.name,
-      role: event.role,
       grade: event.grade,
     );
     emit(const AuthNeedsVerification());

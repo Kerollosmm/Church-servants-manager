@@ -5,8 +5,11 @@ import 'package:church_management_system/features/attendance/presentation/screen
 import 'package:church_management_system/features/attendance/presentation/screens/attendance_session_create_screen.dart';
 import 'package:church_management_system/features/attendance/presentation/screens/attendance_taking_screen.dart';
 import 'package:church_management_system/features/attendance/presentation/screens/student_attendance_screen.dart';
+import 'package:church_management_system/features/attendance/presentation/bloc/attendance_history/attendance_history_cubit.dart';
+import 'package:church_management_system/features/attendance/presentation/bloc/session_admin/attendance_session_admin_cubit.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_cubit.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/student_attendance/student_attendance_cubit.dart';
+import 'package:church_management_system/features/admin/presentation/bloc/admin_dashboard_cubit.dart';
 import 'package:church_management_system/features/admin/presentation/screens/admin_dashboard_screen.dart';
 import 'package:church_management_system/features/auth/presentation/screens/forgot_password_screen.dart';
 import 'package:church_management_system/features/auth/presentation/screens/login_screen.dart';
@@ -164,12 +167,20 @@ class AppRouter {
         );
       case adminScreen:
         return _buildPageRoute(
-          builder: (_) => const AdminGate(child: AdminDashboardScreen()),
+          builder: (_) => AdminGate(
+            child: BlocProvider<AdminDashboardCubit>(
+              create: (_) => getIt<AdminDashboardCubit>(),
+              child: const AdminDashboardScreen(),
+            ),
+          ),
           settings: settings,
         );
       case attendanceSessionCreate:
         return _buildPageRoute(
-          builder: (_) => const AttendanceSessionCreateScreen(),
+          builder: (_) => BlocProvider<AttendanceSessionAdminCubit>(
+            create: (_) => getIt<AttendanceSessionAdminCubit>(),
+            child: const AttendanceSessionCreateScreen(),
+          ),
           settings: settings,
         );
       case attendanceTaking:
@@ -186,7 +197,10 @@ class AppRouter {
         );
       case attendanceHistory:
         return _buildPageRoute(
-          builder: (_) => const AttendanceHistoryScreen(),
+          builder: (_) => BlocProvider<AttendanceHistoryCubit>(
+            create: (_) => getIt<AttendanceHistoryCubit>(),
+            child: const AttendanceHistoryScreen(),
+          ),
           settings: settings,
         );
       case studentAttendance:

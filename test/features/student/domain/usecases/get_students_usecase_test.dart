@@ -76,93 +76,99 @@ void main() {
     useCase = GetStudentsUseCase(repository, streamUseCase);
   });
 
-  test('fetchPage uses class-scoped page query for admin team filters', () async {
-    final admin = actor(UserRole.admin);
-    final lastDocument = await cursor('page-1');
+  test(
+    'fetchPage uses class-scoped page query for admin team filters',
+    () async {
+      final admin = actor(UserRole.admin);
+      final lastDocument = await cursor('page-1');
 
-    when(
-      () => repository.getStudentsPage(
-        limit: 20,
-        lastDocument: null,
-        classId: 'team2',
-        classIds: null,
-        groupName: null,
-        includeArchived: false,
-      ),
-    ).thenAnswer(
-      (_) async => StudentQueryPage(
-        students: <StudentModel>[
-          student(id: 'a', classId: 'team2'),
-          student(id: 'b', classId: 'team2'),
-        ],
-        lastDocument: lastDocument,
-        hasReachedMax: false,
-      ),
-    );
+      when(
+        () => repository.getStudentsPage(
+          limit: 20,
+          lastDocument: null,
+          classId: 'team2',
+          classIds: null,
+          groupName: null,
+          includeArchived: false,
+        ),
+      ).thenAnswer(
+        (_) async => StudentQueryPage(
+          students: <StudentModel>[
+            student(id: 'a', classId: 'team2'),
+            student(id: 'b', classId: 'team2'),
+          ],
+          lastDocument: lastDocument,
+          hasReachedMax: false,
+        ),
+      );
 
-    final page = await useCase.fetchPage(actor: admin, teamId: 'team2');
+      final page = await useCase.fetchPage(actor: admin, teamId: 'team2');
 
-    expect(page.students.map((item) => item.docID), <String>['a', 'b']);
-    expect(page.lastDocument, same(lastDocument));
-    expect(page.hasReachedMax, isFalse);
-    verify(
-      () => repository.getStudentsPage(
-        limit: 20,
-        lastDocument: null,
-        classId: 'team2',
-        classIds: null,
-        groupName: null,
-        includeArchived: false,
-      ),
-    ).called(1);
-  });
+      expect(page.students.map((item) => item.docID), <String>['a', 'b']);
+      expect(page.lastDocument, same(lastDocument));
+      expect(page.hasReachedMax, isFalse);
+      verify(
+        () => repository.getStudentsPage(
+          limit: 20,
+          lastDocument: null,
+          classId: 'team2',
+          classIds: null,
+          groupName: null,
+          includeArchived: false,
+        ),
+      ).called(1);
+    },
+  );
 
-  test('fetchPage uses assigned team ids for servant pagination scope', () async {
-    final servant = actor(
-      UserRole.servant,
-      assignedTeamIds: const <String>['team1', 'team2'],
-    );
-    final lastDocument = await cursor('page-2');
+  test(
+    'fetchPage uses assigned team ids for servant pagination scope',
+    () async {
+      final servant = actor(
+        UserRole.servant,
+        assignedTeamIds: const <String>['team1', 'team2'],
+      );
+      final lastDocument = await cursor('page-2');
 
-    when(
-      () => repository.getStudentsPage(
-        limit: 20,
-        lastDocument: null,
-        classId: null,
-        classIds: any(named: 'classIds'),
-        groupName: null,
-        includeArchived: false,
-      ),
-    ).thenAnswer(
-      (_) async => StudentQueryPage(
-        students: <StudentModel>[
-          student(id: 'a', classId: 'team1'),
-          student(id: 'b', classId: 'team2'),
-        ],
-        lastDocument: lastDocument,
-        hasReachedMax: true,
-      ),
-    );
+      when(
+        () => repository.getStudentsPage(
+          limit: 20,
+          lastDocument: null,
+          classId: null,
+          classIds: any(named: 'classIds'),
+          groupName: null,
+          includeArchived: false,
+        ),
+      ).thenAnswer(
+        (_) async => StudentQueryPage(
+          students: <StudentModel>[
+            student(id: 'a', classId: 'team1'),
+            student(id: 'b', classId: 'team2'),
+          ],
+          lastDocument: lastDocument,
+          hasReachedMax: true,
+        ),
+      );
 
-    final page = await useCase.fetchPage(actor: servant);
+      final page = await useCase.fetchPage(actor: servant);
 
-    expect(page.students.map((item) => item.classId).toSet(), <String>{
-      'team1',
-      'team2',
-    });
-    expect(page.lastDocument, same(lastDocument));
-    expect(page.hasReachedMax, isTrue);
-    verify(
-      () => repository.getStudentsPage(
-        limit: 20,
-        lastDocument: null,
-        classId: null,
-        classIds: any(named: 'classIds'),
-        groupName: null,
-        includeArchived: false,
-      ),
-    ).called(1);
-  });
+      expect(page.students.map((item) => item.classId).toSet(), <String>{
+        'team1',
+        'team2',
+      });
+      expect(page.lastDocument, same(lastDocument));
+      expect(page.hasReachedMax, isTrue);
+      verify(
+        () => repository.getStudentsPage(
+          limit: 20,
+          lastDocument: null,
+          classId: null,
+          classIds: any(named: 'classIds'),
+          groupName: null,
+          includeArchived: false,
+        ),
+      ).called(1);
+    },
+  );
 
   test(
     'fetchPage returns empty page for unauthorized servant team filter',

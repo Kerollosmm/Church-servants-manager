@@ -31,7 +31,7 @@ class StudentDataRepository implements IStudentRepository {
   Map<String, dynamic> _studentWriteData(StudentModel student) {
     final data = student.toMap();
     data['nameLower'] = student.name.trim().toLowerCase();
-    final normalizedUid = student.uid.trim();
+    final normalizedUid = student.canonicalLinkedUserId ?? '';
     data['linkedUserId'] = normalizedUid.isEmpty ? null : normalizedUid;
     return data;
   }

@@ -1,0 +1,14 @@
+fix(audit): resolve security, stability, and data integrity findings
+
+- Implement comprehensive attendance audit logging (mark creation, updates, and session events)
+- Enhance Firestore security rules for class and attendance collections
+- Refactor RoleRouter and AdminGate to handle AuthDegraded state with refresh-required screens
+- Fix attendance mark logic to prevent overwriting existing manual marks during bulk actions
+- Improve student data scoping for servants and implement server-side search/pagination
+- Update team archival logic to include servant unassignment and audit tracking
+- Expand test coverage across core and feature layers to verify audit fixes
+- Apply project-wide code formatting using dart format
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>

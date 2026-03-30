@@ -6,6 +6,8 @@ import 'package:church_management_system/core/constants/routes.dart';
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/routing/app_router.dart';
 import 'package:church_management_system/core/routing/route_args.dart';
+import 'package:church_management_system/features/attendance/presentation/bloc/attendance_history/attendance_history_cubit.dart';
+import 'package:church_management_system/features/attendance/presentation/bloc/session_admin/attendance_session_admin_cubit.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_cubit.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/student_attendance/student_attendance_cubit.dart';
 import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
@@ -137,6 +139,18 @@ void main() {
     if (!getIt.isRegistered<RestoreStudentUseCase>()) {
       getIt.registerFactory<RestoreStudentUseCase>(
         () => MockRestoreStudentUseCase(),
+      );
+    }
+    if (!getIt.isRegistered<AttendanceSessionAdminCubit>()) {
+      getIt.registerFactory<AttendanceSessionAdminCubit>(
+        () => AttendanceSessionAdminCubit(
+          repository: MockIAttendanceRepository(),
+        ),
+      );
+    }
+    if (!getIt.isRegistered<AttendanceHistoryCubit>()) {
+      getIt.registerFactory<AttendanceHistoryCubit>(
+        () => AttendanceHistoryCubit(repository: MockIAttendanceRepository()),
       );
     }
   });

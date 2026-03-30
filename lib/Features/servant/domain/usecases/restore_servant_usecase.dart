@@ -1,5 +1,4 @@
 import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
-import 'package:church_management_system/features/servant/data/models/servant_models.dart';
 import 'package:church_management_system/features/servant/data/repo/servant_data_repository.dart';
 import 'package:church_management_system/features/servant/domain/failures/servant_failures.dart';
 
@@ -13,7 +12,7 @@ class RestoreServantUseCase {
   final ServantDataRepository _repository;
   final AdminUserProvisioningService _adminUserProvisioningService;
 
-  Future<ServantModel> call(String docId) async {
+  Future<String> call(String docId, {required String performedByUid}) async {
     final existing = await _repository.getServantById(
       docId,
       includeArchived: true,
@@ -21,11 +20,11 @@ class RestoreServantUseCase {
     if (existing == null) {
       throw const GenericServantFailure('لم يتم العثور على الخادم.');
     }
-    await _repository.restoreServant(docId);
+    await _repository.restoreServant(docId, performedByUid: performedByUid);
     final normalizedUid = existing.uid?.trim();
     if (normalizedUid != null && normalizedUid.isNotEmpty) {
-      await _adminUserProvisioningService.restoreUser(uid: normalizedUid);
+      return _adminUserProvisioningService.restoreUser(uid: normalizedUid);
     }
-    return existing;
+    return 'تمت استعادة الخادم بنجاح.';
   }
 }

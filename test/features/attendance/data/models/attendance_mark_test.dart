@@ -29,4 +29,18 @@ void main() {
 
     expect(mark.toMap().containsKey('studentId'), isFalse);
   });
+
+  test('fromMap falls back to updatedAt instead of DateTime.now', () {
+    final updatedAt = DateTime(2026, 3, 9, 18, 5);
+    final mark = AttendanceMark.fromMap({
+      'studentNameSnapshot': 'Mina',
+      'status': 'present',
+      'markedByUserId': 'servant-1',
+      'markedByName': 'Servant',
+      'updatedAt': updatedAt,
+    }, 'student-1');
+
+    expect(mark.markedAt, updatedAt);
+    expect(mark.updatedAt, updatedAt);
+  });
 }
