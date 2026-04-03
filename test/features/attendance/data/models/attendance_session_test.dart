@@ -45,12 +45,15 @@ void main() {
     );
 
     expect(session.isOpenAt(DateTime(2026, 3, 9, 18, 10)), isTrue);
-    expect(session.isEffectivelyClosedAt(DateTime(2026, 3, 9, 18, 10)), isFalse);
-    expect(session.isOpenAt(DateTime(2026, 3, 9, 18, 30)), isFalse);
     expect(
-      session.isEffectivelyClosedAt(DateTime(2026, 3, 9, 18, 30)),
-      isTrue,
+      session.isEffectivelyClosedAt(DateTime(2026, 3, 9, 18, 10)),
+      isFalse,
     );
-    expect(session.copyWith(isClosed: true).isOpenAt(DateTime(2026, 3, 9, 18, 10)), isFalse);
+    expect(session.isOpenAt(DateTime(2026, 3, 9, 18, 30)), isFalse);
+    expect(session.isEffectivelyClosedAt(DateTime(2026, 3, 9, 18, 30)), isTrue);
+    expect(
+      session.copyWith(isClosed: true).isOpenAt(DateTime(2026, 3, 9, 18, 10)),
+      isFalse,
+    );
   });
 }

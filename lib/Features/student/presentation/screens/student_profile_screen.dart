@@ -59,7 +59,8 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
       ),
       body: BlocBuilder<StudentProfileCubit, StudentProfileState>(
         builder: (context, state) {
-          if (state is StudentProfileLoading || state is StudentProfileInitial) {
+          if (state is StudentProfileLoading ||
+              state is StudentProfileInitial) {
             return const Center(child: CircularProgressIndicator());
           }
 
@@ -101,7 +102,8 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
             children: [
               AppProfileHeaderCard(
                 title: student.name,
-                subtitle: 'Group ${student.group.name} • Grade ${student.grade}',
+                subtitle:
+                    'Group ${student.group.name} • Grade ${student.grade}',
                 avatarText: student.name.isNotEmpty
                     ? student.name[0].toUpperCase()
                     : '?',

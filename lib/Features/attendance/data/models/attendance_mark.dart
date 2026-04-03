@@ -27,7 +27,10 @@ class AttendanceMark with _$AttendanceMark {
   factory AttendanceMark.fromJson(Map<String, dynamic> json) =>
       _$AttendanceMarkFromJson(json);
 
-  factory AttendanceMark.fromMap(Map<String, dynamic> data, String studentDocId) {
+  factory AttendanceMark.fromMap(
+    Map<String, dynamic> data,
+    String studentDocId,
+  ) {
     String? readString(String key) {
       final value = data[key];
       if (value == null) return null;

@@ -139,7 +139,9 @@ class _ServantListScreenState extends State<ServantListScreen> {
             actions: [
               IconButton(
                 icon: Icon(
-                  _showArchived ? Icons.unarchive_outlined : Icons.archive_outlined,
+                  _showArchived
+                      ? Icons.unarchive_outlined
+                      : Icons.archive_outlined,
                 ),
                 tooltip: _showArchived ? 'إخفاء المؤرشف' : 'عرض المؤرشف',
                 onPressed: () {
@@ -243,7 +245,9 @@ class _ServantListScreenState extends State<ServantListScreen> {
                       SliverFillRemaining(
                         hasScrollBody: false,
                         child: AppEmptyState(
-                          title: _showArchived ? 'لا يوجد خدام مؤرشفون' : 'لا يوجد خدام',
+                          title: _showArchived
+                              ? 'لا يوجد خدام مؤرشفون'
+                              : 'لا يوجد خدام',
                           subtitle: 'جرب البحث مرة أخرى أو قم بتحديث القائمة.',
                           refreshLabel: 'تحديث',
                           onRefresh: () => _refresh(actor),

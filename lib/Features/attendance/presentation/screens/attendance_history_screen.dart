@@ -26,7 +26,8 @@ class AttendanceHistoryScreen extends StatefulWidget {
   const AttendanceHistoryScreen({super.key});
 
   @override
-  State<AttendanceHistoryScreen> createState() => _AttendanceHistoryScreenState();
+  State<AttendanceHistoryScreen> createState() =>
+      _AttendanceHistoryScreenState();
 }
 
 class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
@@ -50,7 +51,8 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
     );
     final actor = _currentActorOrNull();
     if (actor != null) {
-      _selectedTeamId = actor.role == UserRole.servant &&
+      _selectedTeamId =
+          actor.role == UserRole.servant &&
               actor.effectiveAssignedTeamIds.length == 1
           ? actor.effectiveAssignedTeamIds.first
           : null;
@@ -157,7 +159,10 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
           ],
           child: MultiBlocListener(
             listeners: [
-              BlocListener<AttendanceSessionAdminCubit, AttendanceSessionAdminState>(
+              BlocListener<
+                AttendanceSessionAdminCubit,
+                AttendanceSessionAdminState
+              >(
                 listener: (context, state) {
                   if (state is AttendanceSessionAdminError) {
                     AppSnackbars.showError(context, state.message);
@@ -187,8 +192,8 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                   ),
                 ],
               ),
-              floatingActionButton: actor.role == UserRole.admin
-                  || actor.role == UserRole.servant
+              floatingActionButton:
+                  actor.role == UserRole.admin || actor.role == UserRole.servant
                   ? FloatingActionButton.extended(
                       onPressed: _openCreateScreen,
                       icon: const Icon(Icons.add_task_outlined),
@@ -214,13 +219,15 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                         child: TeamDropdown(
                           teams: teams,
                           selectedTeamId: _selectedTeamId,
-                          isLoading: teamState is TeamLoading ||
+                          isLoading:
+                              teamState is TeamLoading ||
                               teamState is TeamInitial,
                           errorMessage: teamState is TeamError
                               ? teamState.message
                               : null,
                           showAllOption: false,
-                          restrictToTeamIds: actor.role == UserRole.servant &&
+                          restrictToTeamIds:
+                              actor.role == UserRole.servant &&
                                   actor.effectiveAssignedTeamIds.isNotEmpty
                               ? actor.effectiveAssignedTeamIds
                               : null,
@@ -243,114 +250,128 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                         ),
                       ),
                       Expanded(
-                        child: BlocBuilder<AttendanceHistoryCubit, AttendanceHistoryState>(
-                          builder: (context, state) {
-                            if (_selectedTeamId == null) {
-                              return const Center(
-                                child: Text('اختر فريقا لعرض جلسات الحضور.'),
-                              );
-                            }
+                        child:
+                            BlocBuilder<
+                              AttendanceHistoryCubit,
+                              AttendanceHistoryState
+                            >(
+                              builder: (context, state) {
+                                if (_selectedTeamId == null) {
+                                  return const Center(
+                                    child: Text(
+                                      'اختر فريقا لعرض جلسات الحضور.',
+                                    ),
+                                  );
+                                }
 
-                            if (state is AttendanceHistoryLoading) {
-                              return const Center(
-                                child: CircularProgressIndicator(),
-                              );
-                            }
+                                if (state is AttendanceHistoryLoading) {
+                                  return const Center(
+                                    child: CircularProgressIndicator(),
+                                  );
+                                }
 
-                            if (state is AttendanceHistoryError) {
-                              return Center(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(AppSpacing.lg),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(
-                                        Icons.error_outline,
-                                        size: 48,
-                                        color: AppColors.error,
+                                if (state is AttendanceHistoryError) {
+                                  return Center(
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(
+                                        AppSpacing.lg,
                                       ),
-                                      AppSpacing.gapMd,
-                                      Text(
-                                        state.message,
-                                        textAlign: TextAlign.center,
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(
+                                            Icons.error_outline,
+                                            size: 48,
+                                            color: AppColors.error,
+                                          ),
+                                          AppSpacing.gapMd,
+                                          Text(
+                                            state.message,
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        ],
                                       ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            }
+                                    ),
+                                  );
+                                }
 
-                            if (state is! AttendanceHistoryLoaded) {
-                              return const SizedBox.shrink();
-                            }
+                                if (state is! AttendanceHistoryLoaded) {
+                                  return const SizedBox.shrink();
+                                }
 
-                            final activeSession = state.activeSession;
-                            final sessions = state.sessions;
+                                final activeSession = state.activeSession;
+                                final sessions = state.sessions;
 
-                            if (sessions.isEmpty) {
-                              return AppEmptyState(
-                                title: 'لا توجد جلسات حضور',
-                                subtitle:
-                                    'أنشئ جلسة جديدة لبدء تسجيل الحضور لهذا الفريق.',
-                                onRefresh: () async {
-                                  _historyCubit.loadForTeam(_selectedTeamId!);
-                                },
-                              );
-                            }
-
-                            return ListView(
-                              padding: const EdgeInsets.all(AppSpacing.md),
-                              children: [
-                                if (activeSession != null)
-                                  _ActiveSessionCard(
-                                    teamName: _teamName(teams, _selectedTeamId),
-                                    session: activeSession,
-                                    canClose: actor.role == UserRole.admin,
-                                    onOpen: () {
-                                      Navigator.pushNamed(
-                                        context,
-                                        attendanceTaking,
-                                        arguments: AttendanceTakingArgs(
-                                          actor: actor,
-                                          teamId: activeSession.teamId,
-                                          sessionId: activeSession.id,
-                                        ),
+                                if (sessions.isEmpty) {
+                                  return AppEmptyState(
+                                    title: 'لا توجد جلسات حضور',
+                                    subtitle:
+                                        'أنشئ جلسة جديدة لبدء تسجيل الحضور لهذا الفريق.',
+                                    onRefresh: () async {
+                                      _historyCubit.loadForTeam(
+                                        _selectedTeamId!,
                                       );
                                     },
-                                    onClose: actor.role == UserRole.admin
-                                        ? () => _closeActiveSession(
-                                            actor,
-                                            activeSession,
-                                          )
-                                        : null,
-                                  ),
-                                if (activeSession != null) AppSpacing.gapMd,
-                                ...sessions.map(
-                                  (session) => Padding(
-                                    padding: const EdgeInsets.only(
-                                      bottom: AppSpacing.md,
+                                  );
+                                }
+
+                                return ListView(
+                                  padding: const EdgeInsets.all(AppSpacing.md),
+                                  children: [
+                                    if (activeSession != null)
+                                      _ActiveSessionCard(
+                                        teamName: _teamName(
+                                          teams,
+                                          _selectedTeamId,
+                                        ),
+                                        session: activeSession,
+                                        canClose: actor.role == UserRole.admin,
+                                        onOpen: () {
+                                          Navigator.pushNamed(
+                                            context,
+                                            attendanceTaking,
+                                            arguments: AttendanceTakingArgs(
+                                              actor: actor,
+                                              teamId: activeSession.teamId,
+                                              sessionId: activeSession.id,
+                                            ),
+                                          );
+                                        },
+                                        onClose: actor.role == UserRole.admin
+                                            ? () => _closeActiveSession(
+                                                actor,
+                                                activeSession,
+                                              )
+                                            : null,
+                                      ),
+                                    if (activeSession != null) AppSpacing.gapMd,
+                                    ...sessions.map(
+                                      (session) => Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: AppSpacing.md,
+                                        ),
+                                        child: _SessionHistoryCard(
+                                          session: session,
+                                          isActive:
+                                              activeSession?.id == session.id,
+                                          onTap: () {
+                                            Navigator.pushNamed(
+                                              context,
+                                              attendanceTaking,
+                                              arguments: AttendanceTakingArgs(
+                                                actor: actor,
+                                                teamId: session.teamId,
+                                                sessionId: session.id,
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
                                     ),
-                                    child: _SessionHistoryCard(
-                                      session: session,
-                                      isActive: activeSession?.id == session.id,
-                                      onTap: () {
-                                        Navigator.pushNamed(
-                                          context,
-                                          attendanceTaking,
-                                          arguments: AttendanceTakingArgs(
-                                            actor: actor,
-                                            teamId: session.teamId,
-                                            sessionId: session.id,
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            );
-                          },
-                        ),
+                                  ],
+                                );
+                              },
+                            ),
                       ),
                     ],
                   );
@@ -453,14 +474,17 @@ class _SessionHistoryCard extends StatelessWidget {
       child: ListTile(
         onTap: onTap,
         leading: CircleAvatar(
-          backgroundColor:
-              isActive ? const Color(0xFFE9F7EF) : const Color(0xFFF3F4F6),
+          backgroundColor: isActive
+              ? const Color(0xFFE9F7EF)
+              : const Color(0xFFF3F4F6),
           child: Icon(
             isActive ? Icons.schedule : Icons.history,
             color: isActive ? AppColors.secondary : AppColors.primary,
           ),
         ),
-        title: Text(session.title?.isNotEmpty == true ? session.title! : 'جلسة حضور'),
+        title: Text(
+          session.title?.isNotEmpty == true ? session.title! : 'جلسة حضور',
+        ),
         subtitle: Text(
           '${_formatDateTime(session.startsAt)} - ${_formatTime(session.endsAt)}',
         ),

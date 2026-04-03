@@ -31,7 +31,10 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
     final membersCubit = context.read<TeamMembersCubit>();
     if (membersCubit.state.isSaving) return;
 
-    await membersCubit.saveMembers(actor: widget.args.actor, team: widget.args.team);
+    await membersCubit.saveMembers(
+      actor: widget.args.actor,
+      team: widget.args.team,
+    );
   }
 
   @override
@@ -136,7 +139,8 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
                 children: [
                   if (state.loadedFromCache)
                     const AppInfoBanner(
-                      message: 'وضع عدم الاتصال: يتم عرض البيانات المخزنة مؤقتا.',
+                      message:
+                          'وضع عدم الاتصال: يتم عرض البيانات المخزنة مؤقتا.',
                       icon: Icons.cloud_off_outlined,
                       margin: EdgeInsets.fromLTRB(
                         AppSpacing.md,

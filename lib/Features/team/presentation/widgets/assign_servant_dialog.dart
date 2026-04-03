@@ -101,7 +101,8 @@ class _AssignServantDialogState extends State<AssignServantDialog> {
                   const Padding(
                     padding: EdgeInsets.only(bottom: AppSpacing.sm),
                     child: AppInfoBanner(
-                      message: 'وضع عدم الاتصال: يتم عرض الخدام المخزنين مؤقتا.',
+                      message:
+                          'وضع عدم الاتصال: يتم عرض الخدام المخزنين مؤقتا.',
                       icon: Icons.cloud_off_outlined,
                       padding: EdgeInsets.all(AppSpacing.sm),
                     ),

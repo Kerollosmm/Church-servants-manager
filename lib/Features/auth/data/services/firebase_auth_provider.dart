@@ -293,8 +293,7 @@ class FirebaseAuthProvider implements AuthProvider {
       // when available, then fall back to explicit cache on failures.
       final user = await _userProfileStore.fetchUser(uid);
       final firebaseUser = _auth.currentUser;
-      final syncedUser =
-          firebaseUser != null && firebaseUser.uid == uid
+      final syncedUser = firebaseUser != null && firebaseUser.uid == uid
           ? user.copyWith(
               email: firebaseUser.email ?? user.email,
               name: firebaseUser.displayName?.trim().isNotEmpty == true

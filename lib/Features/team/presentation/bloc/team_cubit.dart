@@ -134,9 +134,8 @@ class TeamCubit extends Cubit<TeamState> {
   /// Load all teams across all groups (admin use).
   Future<void> loadAllTeams({bool includeArchived = false}) async {
     await _runTeamLoad(
-      action: () => _teamRepository.getAllTeams(
-        includeArchived: includeArchived,
-      ),
+      action: () =>
+          _teamRepository.getAllTeams(includeArchived: includeArchived),
       includeArchived: includeArchived,
       errorContext: 'Failed to load all teams',
       errorMessage: 'تعذر تحميل الفرق. تحقق من الاتصال وحاول مرة أخرى.',

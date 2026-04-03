@@ -123,11 +123,7 @@ class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
     if (_isMutating) return;
     if (!currentState.session.isOpenAt(_nowProvider())) {
       _mutationError = 'انتهى وقت تسجيل الحضور لهذه الجلسة.';
-      emit(
-        currentState.copyWith(
-          mutationError: _mutationError,
-        ),
-      );
+      emit(currentState.copyWith(mutationError: _mutationError));
       return;
     }
 

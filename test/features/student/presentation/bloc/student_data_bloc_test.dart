@@ -141,57 +141,64 @@ void main() {
     await bloc.close();
   });
 
-  test('search with changed team reloads the student stream for the new team', () async {
-    final admin = actor(UserRole.admin);
-    final team1Controller = StreamController<List<StudentModel>>.broadcast();
-    final team2Controller = StreamController<List<StudentModel>>.broadcast();
+  test(
+    'search with changed team reloads the student stream for the new team',
+    () async {
+      final admin = actor(UserRole.admin);
+      final team1Controller = StreamController<List<StudentModel>>.broadcast();
+      final team2Controller = StreamController<List<StudentModel>>.broadcast();
 
-    when(
-      () => getStudentsStream(actor: admin, teamId: 'team1'),
-    ).thenAnswer((_) => team1Controller.stream);
-    when(
-      () => getStudentsStream(actor: admin, teamId: 'team2'),
-    ).thenAnswer((_) => team2Controller.stream);
+      when(
+        () => getStudentsStream(actor: admin, teamId: 'team1'),
+      ).thenAnswer((_) => team1Controller.stream);
+      when(
+        () => getStudentsStream(actor: admin, teamId: 'team2'),
+      ).thenAnswer((_) => team2Controller.stream);
 
-    final bloc = StudentDataBloc(
-      studentRepository: repository,
-      getStudentsStream: getStudentsStream,
-      canMutateStudent: canMutateStudent,
-      adminUserProvisioningService: adminUserProvisioningService,
-    );
+      final bloc = StudentDataBloc(
+        studentRepository: repository,
+        getStudentsStream: getStudentsStream,
+        canMutateStudent: canMutateStudent,
+        adminUserProvisioningService: adminUserProvisioningService,
+      );
 
-    final expectation = expectLater(
-      bloc.stream,
-      emitsInOrder([
-        isA<StudentDataLoading>(),
-        isA<StudentDataLoaded>().having(
-          (s) => s.currentFilterTeamId,
-          'team',
-          'team1',
+      final expectation = expectLater(
+        bloc.stream,
+        emitsInOrder([
+          isA<StudentDataLoading>(),
+          isA<StudentDataLoaded>().having(
+            (s) => s.currentFilterTeamId,
+            'team',
+            'team1',
+          ),
+          isA<StudentDataLoading>(),
+          isA<StudentDataLoaded>()
+              .having((s) => s.currentFilterTeamId, 'team', 'team2')
+              .having((s) => s.students.single.docID, 'student', 's2'),
+        ]),
+      );
+
+      bloc.add(StudentsLoadRequested(actor: admin, teamId: 'team1'));
+      await Future<void>.delayed(Duration.zero);
+      team1Controller.add([student(id: 's1')]);
+      await Future<void>.delayed(Duration.zero);
+
+      bloc.add(
+        StudentsSearchRequested(
+          actor: admin,
+          query: 'Student',
+          teamId: 'team2',
         ),
-        isA<StudentDataLoading>(),
-        isA<StudentDataLoaded>()
-            .having((s) => s.currentFilterTeamId, 'team', 'team2')
-            .having((s) => s.students.single.docID, 'student', 's2'),
-      ]),
-    );
+      );
+      await Future<void>.delayed(Duration.zero);
+      team2Controller.add([student(id: 's2')]);
 
-    bloc.add(StudentsLoadRequested(actor: admin, teamId: 'team1'));
-    await Future<void>.delayed(Duration.zero);
-    team1Controller.add([student(id: 's1')]);
-    await Future<void>.delayed(Duration.zero);
-
-    bloc.add(
-      StudentsSearchRequested(actor: admin, query: 'Student', teamId: 'team2'),
-    );
-    await Future<void>.delayed(Duration.zero);
-    team2Controller.add([student(id: 's2')]);
-
-    await expectation;
-    await team1Controller.close();
-    await team2Controller.close();
-    await bloc.close();
-  });
+      await expectation;
+      await team1Controller.close();
+      await team2Controller.close();
+      await bloc.close();
+    },
+  );
 
   test('create emits not-allowed when actor cannot mutate student', () async {
     final servant = actor(UserRole.servant);
@@ -449,7 +456,9 @@ void main() {
     final adminActor = actor(UserRole.admin);
     final existing = student(id: 's3');
 
-    when(() => repository.getStudentById('s3')).thenAnswer((_) async => existing);
+    when(
+      () => repository.getStudentById('s3'),
+    ).thenAnswer((_) async => existing);
     when(() => canMutateStudent(adminActor, existing)).thenReturn(true);
     when(() => repository.deleteStudent('s3')).thenAnswer((_) async {});
     when(

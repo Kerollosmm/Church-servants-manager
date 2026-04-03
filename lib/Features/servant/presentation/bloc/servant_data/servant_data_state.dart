@@ -75,7 +75,9 @@ final class ServantDataLoaded extends ServantDataState {
       currentFilterTeamName: clearCurrentFilterTeamName
           ? null
           : (currentFilterTeamName ?? this.currentFilterTeamName),
-      currentQuery: clearCurrentQuery ? null : (currentQuery ?? this.currentQuery),
+      currentQuery: clearCurrentQuery
+          ? null
+          : (currentQuery ?? this.currentQuery),
       hasMore: hasMore ?? this.hasMore,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       includeArchived: includeArchived ?? this.includeArchived,

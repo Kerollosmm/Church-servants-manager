@@ -112,7 +112,10 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
     }
   }
 
-  Future<void> _openStudentEditor(AuthUser actor, {StudentModel? student}) async {
+  Future<void> _openStudentEditor(
+    AuthUser actor, {
+    StudentModel? student,
+  }) async {
     final result = await Navigator.pushNamed(
       context,
       studentEdit,
@@ -195,7 +198,9 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
               title: Text(
                 _showArchived
                     ? 'المخدومون المؤرشفون'
-                    : (actor.role == UserRole.admin ? 'إدارة المخدومين' : 'مخدومي'),
+                    : (actor.role == UserRole.admin
+                          ? 'إدارة المخدومين'
+                          : 'مخدومي'),
               ),
               actions: [
                 IconButton(
@@ -207,7 +212,9 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                 ),
                 IconButton(
                   icon: Icon(
-                    _showArchived ? Icons.unarchive_outlined : Icons.archive_outlined,
+                    _showArchived
+                        ? Icons.unarchive_outlined
+                        : Icons.archive_outlined,
                   ),
                   tooltip: _showArchived ? 'إخفاء المؤرشف' : 'عرض المؤرشف',
                   onPressed: () {
@@ -237,7 +244,8 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                 if (state is StudentDataError) {
                   AppSnackbars.showError(context, state.message);
                 }
-                if (state is StudentDataLoaded && state.successMessage != null) {
+                if (state is StudentDataLoaded &&
+                    state.successMessage != null) {
                   if (state.mutationStatus != StudentMutationStatus.success) {
                     return;
                   }
@@ -252,130 +260,137 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                 final viewData = _buildViewData(state);
 
                 return RefreshIndicator(
-                  onRefresh: () => context.read<StudentDataBloc>().refresh(actor),
+                  onRefresh: () =>
+                      context.read<StudentDataBloc>().refresh(actor),
                   child: CustomScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     slivers: [
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(
-                          AppSpacing.md,
-                          AppSpacing.md,
-                          AppSpacing.md,
-                          AppSpacing.sm,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            LiveSearchPanel(
-                              controller: _searchController,
-                              label: 'ابحث باسم المخدوم',
-                              hint: 'ابحث بالاسم',
-                              clearTooltip: 'مسح',
-                              liveLabel: 'متصل بـ Firestore',
-                              isLoading: viewData.isLoading,
-                              onChanged: (v) => _onSearchChanged(actor, v),
-                              onSubmitted: (v) => _dispatchSearch(
-                                actor,
-                                v,
-                                teamId: _selectedTeamId,
-                              ),
-                              onClear: () => _clearSearch(actor),
-                              bottom: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  if (actor.role == UserRole.servant)
-                                    Text(
-                                      assignedTeamIds.isNotEmpty
-                                          ? 'نطاق الخادم: ${assignedTeamIds.length} فريق'
-                                          : actor.groupId == null
-                                          ? 'نطاق الخادم: غير مخصص'
-                                          : 'نطاق الخادم: ${actor.groupId}',
-                                      style: theme.textTheme.bodySmall
-                                          ?.copyWith(
-                                            color: AppColors.textSecondary,
-                                          ),
-                                    ),
-                                  AppSpacing.gapSm,
-                                  BlocBuilder<TeamCubit, TeamState>(
-                                    builder: (context, teamState) {
-                                      final teams = teamState is TeamLoaded
-                                          ? teamState.teams
-                                          : const <TeamModel>[];
-                                      final loading =
-                                          teamState is TeamLoading ||
-                                          teamState is TeamInitial;
-                                      final errorMessage =
-                                          teamState is TeamError
-                                          ? teamState.message
-                                          : null;
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                            AppSpacing.md,
+                            AppSpacing.md,
+                            AppSpacing.md,
+                            AppSpacing.sm,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              LiveSearchPanel(
+                                controller: _searchController,
+                                label: 'ابحث باسم المخدوم',
+                                hint: 'ابحث بالاسم',
+                                clearTooltip: 'مسح',
+                                liveLabel: 'متصل بـ Firestore',
+                                isLoading: viewData.isLoading,
+                                onChanged: (v) => _onSearchChanged(actor, v),
+                                onSubmitted: (v) => _dispatchSearch(
+                                  actor,
+                                  v,
+                                  teamId: _selectedTeamId,
+                                ),
+                                onClear: () => _clearSearch(actor),
+                                bottom: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (actor.role == UserRole.servant)
+                                      Text(
+                                        assignedTeamIds.isNotEmpty
+                                            ? 'نطاق الخادم: ${assignedTeamIds.length} فريق'
+                                            : actor.groupId == null
+                                            ? 'نطاق الخادم: غير مخصص'
+                                            : 'نطاق الخادم: ${actor.groupId}',
+                                        style: theme.textTheme.bodySmall
+                                            ?.copyWith(
+                                              color: AppColors.textSecondary,
+                                            ),
+                                      ),
+                                    AppSpacing.gapSm,
+                                    BlocBuilder<TeamCubit, TeamState>(
+                                      builder: (context, teamState) {
+                                        final teams = teamState is TeamLoaded
+                                            ? teamState.teams
+                                            : const <TeamModel>[];
+                                        final loading =
+                                            teamState is TeamLoading ||
+                                            teamState is TeamInitial;
+                                        final errorMessage =
+                                            teamState is TeamError
+                                            ? teamState.message
+                                            : null;
 
-                                      return TeamDropdown(
-                                        teams: teams,
-                                        selectedTeamId: _selectedTeamId,
-                                        isLoading: loading,
-                                        errorMessage: errorMessage,
-                                        showAllOption:
-                                            actor.role == UserRole.admin ||
-                                            (actor.role == UserRole.servant &&
-                                                assignedTeamIds.length > 1),
-                                        restrictToTeamIds:
-                                            actor.role == UserRole.servant &&
-                                                assignedTeamIds.isNotEmpty
-                                            ? assignedTeamIds
-                                            : null,
-                                        label: 'تصفية حسب الفريق',
-                                        onChanged: (teamId) =>
-                                            _onTeamFilterChanged(actor, teamId),
-                                      );
-                                    },
-                                  ),
-                                ],
+                                        return TeamDropdown(
+                                          teams: teams,
+                                          selectedTeamId: _selectedTeamId,
+                                          isLoading: loading,
+                                          errorMessage: errorMessage,
+                                          showAllOption:
+                                              actor.role == UserRole.admin ||
+                                              (actor.role == UserRole.servant &&
+                                                  assignedTeamIds.length > 1),
+                                          restrictToTeamIds:
+                                              actor.role == UserRole.servant &&
+                                                  assignedTeamIds.isNotEmpty
+                                              ? assignedTeamIds
+                                              : null,
+                                          label: 'تصفية حسب الفريق',
+                                          onChanged: (teamId) =>
+                                              _onTeamFilterChanged(
+                                                actor,
+                                                teamId,
+                                              ),
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                    if (viewData.showInitialLoading)
-                      const SliverFillRemaining(
-                        hasScrollBody: false,
-                        child: Center(child: CircularProgressIndicator()),
-                      )
-                    else if (viewData.showEmptyState)
-                      SliverFillRemaining(
-                        hasScrollBody: false,
-                        child: AppEmptyState(
-                          title: _showArchived
-                              ? 'لا يوجد مخدومون مؤرشفون'
-                              : 'لا يوجد مخدومون',
-                          subtitle: _showArchived
-                              ? 'عند أرشفة مخدوم سيظهر هنا.'
-                              : 'جرّب بحثا مختلفا أو حدّث القائمة.',
-                          onRefresh: () =>
-                              context.read<StudentDataBloc>().refresh(actor),
+                      if (viewData.showInitialLoading)
+                        const SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: Center(child: CircularProgressIndicator()),
+                        )
+                      else if (viewData.showEmptyState)
+                        SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: AppEmptyState(
+                            title: _showArchived
+                                ? 'لا يوجد مخدومون مؤرشفون'
+                                : 'لا يوجد مخدومون',
+                            subtitle: _showArchived
+                                ? 'عند أرشفة مخدوم سيظهر هنا.'
+                                : 'جرّب بحثا مختلفا أو حدّث القائمة.',
+                            onRefresh: () =>
+                                context.read<StudentDataBloc>().refresh(actor),
+                          ),
+                        )
+                      else
+                        SliverList(
+                          delegate: SliverChildBuilderDelegate((
+                            context,
+                            index,
+                          ) {
+                            final student = viewData.students[index];
+                            return Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                AppSpacing.md,
+                                0,
+                                AppSpacing.md,
+                                AppSpacing.md,
+                              ),
+                              child: _StudentCard(
+                                key: ValueKey(student.docID),
+                                actor: actor,
+                                student: student,
+                                onTap: () => _openStudentDetail(actor, student),
+                              ),
+                            );
+                          }, childCount: viewData.students.length),
                         ),
-                      )
-                    else
-                      SliverList(
-                        delegate: SliverChildBuilderDelegate((context, index) {
-                          final student = viewData.students[index];
-                          return Padding(
-                            padding: const EdgeInsets.fromLTRB(
-                              AppSpacing.md,
-                              0,
-                              AppSpacing.md,
-                              AppSpacing.md,
-                            ),
-                            child: _StudentCard(
-                              key: ValueKey(student.docID),
-                              actor: actor,
-                              student: student,
-                              onTap: () => _openStudentDetail(actor, student),
-                            ),
-                          );
-                        }, childCount: viewData.students.length),
-                      ),
                     ],
                   ),
                 );

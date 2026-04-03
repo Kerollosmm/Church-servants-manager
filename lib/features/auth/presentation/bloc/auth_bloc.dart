@@ -29,10 +29,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<_AuthEventSessionChanged>(_onSessionChanged);
     on<_AuthEventSessionError>(_onSessionError);
 
-    _authStateSubscription = _authService.authStateChanges.skip(1).listen(
-      (user) => add(_AuthEventSessionChanged(user)),
-      onError: (error, stackTrace) => add(const _AuthEventSessionError()),
-    );
+    _authStateSubscription = _authService.authStateChanges
+        .skip(1)
+        .listen(
+          (user) => add(_AuthEventSessionChanged(user)),
+          onError: (error, stackTrace) => add(const _AuthEventSessionError()),
+        );
   }
 
   Future<void> _emitResolvedState(
@@ -204,10 +206,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     await _emitResolvedState(emit, event.user);
   }
 
-  void _onSessionError(
-    _AuthEventSessionError event,
-    Emitter<AuthState> emit,
-  ) {
+  void _onSessionError(_AuthEventSessionError event, Emitter<AuthState> emit) {
     _emitDegradedOrError(
       emit,
       fallbackErrorMessage: 'Unable to refresh account data. Please try again.',

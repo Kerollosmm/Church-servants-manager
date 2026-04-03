@@ -70,7 +70,9 @@ class AttendanceRosterItem extends Equatable {
       studentName: studentName ?? this.studentName,
       teamId: teamId ?? this.teamId,
       sessionId: sessionId ?? this.sessionId,
-      manualStatus: clearManualStatus ? null : (manualStatus ?? this.manualStatus),
+      manualStatus: clearManualStatus
+          ? null
+          : (manualStatus ?? this.manualStatus),
       effectiveStatus: effectiveStatus ?? this.effectiveStatus,
       isMarked: isMarked ?? this.isMarked,
       markedAt: clearMarkedAt ? null : (markedAt ?? this.markedAt),

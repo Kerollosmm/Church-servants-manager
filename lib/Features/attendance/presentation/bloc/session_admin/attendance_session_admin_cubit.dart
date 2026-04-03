@@ -22,7 +22,11 @@ class AttendanceSessionAdminCubit extends Cubit<AttendanceSessionAdminState> {
   }) async {
     final normalizedTeamId = teamId.trim();
     if (normalizedTeamId.isEmpty) {
-      emit(const AttendanceSessionAdminError('يجب اختيار الفريق قبل إنشاء الجلسة.'));
+      emit(
+        const AttendanceSessionAdminError(
+          'يجب اختيار الفريق قبل إنشاء الجلسة.',
+        ),
+      );
       return;
     }
     if (durationMinutes <= 0 || durationMinutes > 480) {

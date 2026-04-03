@@ -57,11 +57,7 @@ class ServantDataRepository implements IServantRepository {
   ) {
     final servants = <ServantModel>[];
     for (final doc in docs) {
-      final servant = _servantFromData(
-        doc.data(),
-        doc.id,
-        includeArchived,
-      );
+      final servant = _servantFromData(doc.data(), doc.id, includeArchived);
       if (servant != null) {
         servants.add(servant);
       }
@@ -71,7 +67,7 @@ class ServantDataRepository implements IServantRepository {
 
   Map<String, dynamic> _normalizeServantWriteData(ServantModel servant) {
     final data = servant.toMap();
-        data['role'] = servant.role.name;
+    data['role'] = servant.role.name;
 
     if (servant.role != UserRole.servant) {
       // Clear servant-only scoping fields when user is no longer a servant.
@@ -112,11 +108,7 @@ class ServantDataRepository implements IServantRepository {
       if (canonicalDoc.exists && canonicalDoc.data() != null) {
         final data = canonicalDoc.data()!;
         if (data['role'] == UserRole.servant.name) {
-          return _servantFromData(
-            data,
-            canonicalDoc.id,
-            includeArchived,
-          );
+          return _servantFromData(data, canonicalDoc.id, includeArchived);
         }
       }
 
@@ -126,11 +118,7 @@ class ServantDataRepository implements IServantRepository {
           .get();
       if (snapshot.docs.isEmpty) return null;
       final doc = snapshot.docs.first;
-      return _servantFromData(
-        doc.data(),
-        doc.id,
-        includeArchived,
-      );
+      return _servantFromData(doc.data(), doc.id, includeArchived);
     } catch (e) {
       throw mapExceptionToServantFailure(e);
     }
@@ -148,10 +136,7 @@ class ServantDataRepository implements IServantRepository {
           .get(const GetOptions(source: Source.cache));
       if (cacheSnapshot.docs.isNotEmpty) {
         return (
-          servants: _servantsFromDocs(
-            cacheSnapshot.docs,
-            includeArchived,
-          ),
+          servants: _servantsFromDocs(cacheSnapshot.docs, includeArchived),
           isFromCache: true,
         );
       }
@@ -163,10 +148,7 @@ class ServantDataRepository implements IServantRepository {
           .where('groupId', isEqualTo: groupId)
           .get(const GetOptions(source: Source.server));
       return (
-        servants: _servantsFromDocs(
-          serverSnapshot.docs,
-          includeArchived,
-        ),
+        servants: _servantsFromDocs(serverSnapshot.docs, includeArchived),
         isFromCache: false,
       );
     } catch (e) {
@@ -195,10 +177,7 @@ class ServantDataRepository implements IServantRepository {
         const GetOptions(source: Source.cache),
       );
       if (cacheSnapshot.docs.isNotEmpty) {
-        return _servantsFromDocs(
-          cacheSnapshot.docs,
-          includeArchived,
-        );
+        return _servantsFromDocs(cacheSnapshot.docs, includeArchived);
       }
     } catch (_) {}
 
@@ -206,10 +185,7 @@ class ServantDataRepository implements IServantRepository {
       final serverSnapshot = await query.get(
         const GetOptions(source: Source.server),
       );
-      return _servantsFromDocs(
-        serverSnapshot.docs,
-        includeArchived,
-      );
+      return _servantsFromDocs(serverSnapshot.docs, includeArchived);
     } catch (e) {
       throw mapExceptionToServantFailure(e);
     }
@@ -235,10 +211,7 @@ class ServantDataRepository implements IServantRepository {
       final pageDocs = hasMore ? docs.take(limit).toList() : docs;
 
       return ServantsPage(
-        servants: _servantsFromDocs(
-          pageDocs,
-          includeArchived,
-        ),
+        servants: _servantsFromDocs(pageDocs, includeArchived),
         lastDocument: pageDocs.isEmpty ? lastDocument : pageDocs.last,
         hasMore: hasMore,
       );
@@ -260,10 +233,7 @@ class ServantDataRepository implements IServantRepository {
             .get(const GetOptions(source: Source.cache));
 
         if (cacheSnapshot.docs.isNotEmpty) {
-          return _servantsFromDocs(
-            cacheSnapshot.docs,
-            includeArchived,
-          );
+          return _servantsFromDocs(cacheSnapshot.docs, includeArchived);
         }
       } catch (_) {}
 

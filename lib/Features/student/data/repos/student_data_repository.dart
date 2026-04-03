@@ -53,7 +53,10 @@ class StudentDataRepository implements IStudentRepository {
     String docId, {
     bool includeArchived = false,
   }) async {
-    return _queryService.getStudentById(docId, includeArchived: includeArchived);
+    return _queryService.getStudentById(
+      docId,
+      includeArchived: includeArchived,
+    );
   }
 
   @override

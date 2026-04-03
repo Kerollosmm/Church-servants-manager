@@ -14,7 +14,8 @@ class StudentAttendanceScreen extends StatefulWidget {
   final StudentAttendanceArgs args;
 
   @override
-  State<StudentAttendanceScreen> createState() => _StudentAttendanceScreenState();
+  State<StudentAttendanceScreen> createState() =>
+      _StudentAttendanceScreenState();
 }
 
 class _StudentAttendanceScreenState extends State<StudentAttendanceScreen> {
@@ -23,12 +24,13 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen> {
   @override
   void initState() {
     super.initState();
-    _cubit = StudentAttendanceCubit(
-      repository: context.read<IAttendanceRepository>(),
-    )..loadForStudent(
-        studentId: widget.args.studentId,
-        teamId: widget.args.filterTeamId,
-      );
+    _cubit =
+        StudentAttendanceCubit(
+          repository: context.read<IAttendanceRepository>(),
+        )..loadForStudent(
+          studentId: widget.args.studentId,
+          teamId: widget.args.filterTeamId,
+        );
   }
 
   @override
@@ -73,101 +75,98 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen> {
           builder: (context, state) {
             return switch (state) {
               StudentAttendanceLoading() => const Center(
-                  child: CircularProgressIndicator(),
-                ),
+                child: CircularProgressIndicator(),
+              ),
               StudentAttendanceError() => Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    child: Text(state.message, textAlign: TextAlign.center),
-                  ),
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: Text(state.message, textAlign: TextAlign.center),
                 ),
+              ),
               StudentAttendanceLoaded() => ListView(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  children: [
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(AppSpacing.md),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'إحصاءات الجلسات المكتملة',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.w700),
-                            ),
-                            AppSpacing.gapMd,
-                            Wrap(
-                              spacing: AppSpacing.md,
-                              runSpacing: AppSpacing.md,
-                              children: [
-                                _StatTile(
-                                  label: 'نسبة الحضور',
-                                  value:
-                                      '${state.stats.attendancePercentage.toStringAsFixed(1)}%',
-                                ),
-                                _StatTile(
-                                  label: 'حاضر',
-                                  value: '${state.stats.presentCount}',
-                                ),
-                                _StatTile(
-                                  label: 'متأخر',
-                                  value: '${state.stats.lateCount}',
-                                ),
-                                _StatTile(
-                                  label: 'غائب',
-                                  value: '${state.stats.absentCount}',
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
+                padding: const EdgeInsets.all(AppSpacing.md),
+                children: [
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'إحصاءات الجلسات المكتملة',
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w700),
+                          ),
+                          AppSpacing.gapMd,
+                          Wrap(
+                            spacing: AppSpacing.md,
+                            runSpacing: AppSpacing.md,
+                            children: [
+                              _StatTile(
+                                label: 'نسبة الحضور',
+                                value:
+                                    '${state.stats.attendancePercentage.toStringAsFixed(1)}%',
+                              ),
+                              _StatTile(
+                                label: 'حاضر',
+                                value: '${state.stats.presentCount}',
+                              ),
+                              _StatTile(
+                                label: 'متأخر',
+                                value: '${state.stats.lateCount}',
+                              ),
+                              _StatTile(
+                                label: 'غائب',
+                                value: '${state.stats.absentCount}',
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
-                    AppSpacing.gapMd,
-                    if (state.history.isEmpty)
-                      const Center(child: Text('لا يوجد سجل حضور لهذا المخدوم.'))
-                    else
-                      ...state.history.map(
-                        (item) => Padding(
-                          padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                          child: Card(
-                            child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor:
-                                    _statusColor(item.effectiveStatus).withValues(
-                                  alpha: 0.14,
-                                ),
-                                child: Icon(
-                                  Icons.history,
-                                  color: _statusColor(item.effectiveStatus),
-                                ),
+                  ),
+                  AppSpacing.gapMd,
+                  if (state.history.isEmpty)
+                    const Center(child: Text('لا يوجد سجل حضور لهذا المخدوم.'))
+                  else
+                    ...state.history.map(
+                      (item) => Padding(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                        child: Card(
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: _statusColor(
+                                item.effectiveStatus,
+                              ).withValues(alpha: 0.14),
+                              child: Icon(
+                                Icons.history,
+                                color: _statusColor(item.effectiveStatus),
                               ),
-                              title: Text(
-                                item.title?.isNotEmpty == true
-                                    ? item.title!
-                                    : (item.teamNameSnapshot ?? 'جلسة حضور'),
-                              ),
-                              subtitle: Text(
-                                '${_formatDate(item.sessionStartsAt)} • ${item.markedByName ?? 'بدون تسجيل يدوي'}',
-                              ),
-                              trailing: Chip(
-                                label: Text(_statusLabel(item.effectiveStatus)),
-                                backgroundColor: _statusColor(
-                                  item.effectiveStatus,
-                                ).withValues(alpha: 0.14),
-                                labelStyle: TextStyle(
-                                  color: _statusColor(item.effectiveStatus),
-                                  fontWeight: FontWeight.w700,
-                                ),
+                            ),
+                            title: Text(
+                              item.title?.isNotEmpty == true
+                                  ? item.title!
+                                  : (item.teamNameSnapshot ?? 'جلسة حضور'),
+                            ),
+                            subtitle: Text(
+                              '${_formatDate(item.sessionStartsAt)} • ${item.markedByName ?? 'بدون تسجيل يدوي'}',
+                            ),
+                            trailing: Chip(
+                              label: Text(_statusLabel(item.effectiveStatus)),
+                              backgroundColor: _statusColor(
+                                item.effectiveStatus,
+                              ).withValues(alpha: 0.14),
+                              labelStyle: TextStyle(
+                                color: _statusColor(item.effectiveStatus),
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                           ),
                         ),
                       ),
-                  ],
-                ),
+                    ),
+                ],
+              ),
               _ => const SizedBox.shrink(),
             };
           },
@@ -197,17 +196,16 @@ class _StatTile extends StatelessWidget {
         children: [
           Text(
             label,
-            style: Theme.of(context)
-                .textTheme
-                .bodySmall
-                ?.copyWith(color: AppColors.textSecondary),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
           ),
           AppSpacing.gapXs,
           Text(
             value,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
           ),
         ],
       ),

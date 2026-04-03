@@ -88,13 +88,16 @@ void main() {
       expect(Validators.validateEmailArabic('user@example.com'), isNull);
     });
 
-    test('validateOptionalEmailArabic allows empty but rejects malformed values', () {
-      expect(Validators.validateOptionalEmailArabic(''), isNull);
-      expect(
-        Validators.validateOptionalEmailArabic('bad'),
-        'أدخل بريدا إلكترونيا صحيحا',
-      );
-    });
+    test(
+      'validateOptionalEmailArabic allows empty but rejects malformed values',
+      () {
+        expect(Validators.validateOptionalEmailArabic(''), isNull);
+        expect(
+          Validators.validateOptionalEmailArabic('bad'),
+          'أدخل بريدا إلكترونيا صحيحا',
+        );
+      },
+    );
 
     test('validatePhoneArabic enforces 11 digits', () {
       expect(Validators.validatePhoneArabic(''), 'رقم الهاتف مطلوب');

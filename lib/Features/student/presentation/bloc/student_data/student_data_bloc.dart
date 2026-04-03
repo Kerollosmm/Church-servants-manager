@@ -69,7 +69,9 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
 
     final completer = Completer<void>();
     _pendingRefreshCompleter = completer;
-    add(StudentsRefreshRequested(actor: actor, includeArchived: _includeArchived));
+    add(
+      StudentsRefreshRequested(actor: actor, includeArchived: _includeArchived),
+    );
     return completer.future.timeout(
       const Duration(seconds: 10),
       onTimeout: () {
@@ -437,7 +439,9 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
       }
       await _studentRepository.deleteStudent(event.docId);
       if (existing.uid.trim().isNotEmpty) {
-        await _adminUserProvisioningService.archiveUser(uid: existing.uid.trim());
+        await _adminUserProvisioningService.archiveUser(
+          uid: existing.uid.trim(),
+        );
       }
       _emitSuccessWithData(emit, 'تمت أرشفة المخدوم بنجاح');
     } catch (e) {
@@ -465,7 +469,9 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
 
       await _studentRepository.restoreStudent(event.docId);
       if (existing.uid.trim().isNotEmpty) {
-        await _adminUserProvisioningService.restoreUser(uid: existing.uid.trim());
+        await _adminUserProvisioningService.restoreUser(
+          uid: existing.uid.trim(),
+        );
       }
       _emitSuccessWithData(emit, 'تمت استعادة المخدوم بنجاح');
     } catch (e) {

@@ -64,7 +64,8 @@ void main() {
     DateTime? endsAt,
   }) {
     final sessionStartsAt = startsAt ?? currentTime;
-    final sessionEndsAt = endsAt ?? sessionStartsAt.add(const Duration(minutes: 30));
+    final sessionEndsAt =
+        endsAt ?? sessionStartsAt.add(const Duration(minutes: 30));
     return AttendanceSession(
       id: '2026-03-09_${sessionStartsAt.toUtc().millisecondsSinceEpoch}_session',
       teamId: 'team-1',
@@ -118,33 +119,38 @@ void main() {
     await clockController.close();
   });
 
-  test('createSession writes to the team attendance path with frozen roster', () async {
-    await seedStudent(student(id: 'student-1', name: 'Mina'));
-    await seedStudent(student(id: 'student-2', name: 'Andrew').copyWith(classId: 'team-1'));
+  test(
+    'createSession writes to the team attendance path with frozen roster',
+    () async {
+      await seedStudent(student(id: 'student-1', name: 'Mina'));
+      await seedStudent(
+        student(id: 'student-2', name: 'Andrew').copyWith(classId: 'team-1'),
+      );
 
-    final session = await repository.createSession(
-      teamId: 'team-1',
-      teamNameSnapshot: 'Team A',
-      startsAt: currentTime,
-      durationMinutes: 30,
-      createdBy: admin,
-      title: 'Wednesday',
-    );
+      final session = await repository.createSession(
+        teamId: 'team-1',
+        teamNameSnapshot: 'Team A',
+        startsAt: currentTime,
+        durationMinutes: 30,
+        createdBy: admin,
+        title: 'Wednesday',
+      );
 
-    final doc = await firestore
-        .collection('Classes')
-        .doc('team-1')
-        .collection('attendance_sessions')
-        .doc(session.id)
-        .get();
+      final doc = await firestore
+          .collection('Classes')
+          .doc('team-1')
+          .collection('attendance_sessions')
+          .doc(session.id)
+          .get();
 
-    expect(doc.exists, isTrue);
-    expect(doc.data()!['teamId'], 'team-1');
-    expect(List<String>.from(doc.data()!['studentIdsSnapshot']), [
-      'student-2',
-      'student-1',
-    ]);
-  });
+      expect(doc.exists, isTrue);
+      expect(doc.data()!['teamId'], 'team-1');
+      expect(List<String>.from(doc.data()!['studentIdsSnapshot']), [
+        'student-2',
+        'student-1',
+      ]);
+    },
+  );
 
   test('createSession prevents duplicate open sessions', () async {
     await seedStudent(student(id: 'student-1', name: 'Mina'));
@@ -206,43 +212,46 @@ void main() {
     );
   });
 
-  test('markStudentPresent uses studentId as document id and remains idempotent', () async {
-    await seedStudent(student(id: 'student-1', name: 'Mina'));
-    final session = await repository.createSession(
-      teamId: 'team-1',
-      teamNameSnapshot: 'Team A',
-      startsAt: currentTime,
-      durationMinutes: 30,
-      createdBy: admin,
-      title: 'Wednesday',
-    );
+  test(
+    'markStudentPresent uses studentId as document id and remains idempotent',
+    () async {
+      await seedStudent(student(id: 'student-1', name: 'Mina'));
+      final session = await repository.createSession(
+        teamId: 'team-1',
+        teamNameSnapshot: 'Team A',
+        startsAt: currentTime,
+        durationMinutes: 30,
+        createdBy: admin,
+        title: 'Wednesday',
+      );
 
-    await repository.markStudentPresent(
-      teamId: 'team-1',
-      sessionId: session.id,
-      studentId: 'student-1',
-      studentNameSnapshot: 'Mina',
-      markedBy: servant,
-    );
-    await repository.markStudentPresent(
-      teamId: 'team-1',
-      sessionId: session.id,
-      studentId: 'student-1',
-      studentNameSnapshot: 'Mina',
-      markedBy: servant,
-    );
+      await repository.markStudentPresent(
+        teamId: 'team-1',
+        sessionId: session.id,
+        studentId: 'student-1',
+        studentNameSnapshot: 'Mina',
+        markedBy: servant,
+      );
+      await repository.markStudentPresent(
+        teamId: 'team-1',
+        sessionId: session.id,
+        studentId: 'student-1',
+        studentNameSnapshot: 'Mina',
+        markedBy: servant,
+      );
 
-    final marks = await firestore
-        .collection('Classes')
-        .doc('team-1')
-        .collection('attendance_sessions')
-        .doc(session.id)
-        .collection('marks')
-        .get();
+      final marks = await firestore
+          .collection('Classes')
+          .doc('team-1')
+          .collection('attendance_sessions')
+          .doc(session.id)
+          .collection('marks')
+          .get();
 
-    expect(marks.docs.length, 1);
-    expect(marks.docs.single.id, 'student-1');
-  });
+      expect(marks.docs.length, 1);
+      expect(marks.docs.single.id, 'student-1');
+    },
+  );
 
   test('markStudentPresent on closed session throws', () async {
     await seedStudent(student(id: 'student-1', name: 'Mina'));
@@ -275,7 +284,10 @@ void main() {
     await seedSession(session);
 
     final iterator = StreamIterator(
-      repository.watchSessionRosterSnapshot(teamId: 'team-1', sessionId: session.id),
+      repository.watchSessionRosterSnapshot(
+        teamId: 'team-1',
+        sessionId: session.id,
+      ),
     );
 
     expect(await iterator.moveNext(), isTrue);
@@ -320,7 +332,10 @@ void main() {
     final presentRoster = await repository
         .watchSessionRoster(teamId: 'team-1', sessionId: session.id)
         .first;
-    expect(presentRoster.single.effectiveStatus, AttendanceEffectiveStatus.present);
+    expect(
+      presentRoster.single.effectiveStatus,
+      AttendanceEffectiveStatus.present,
+    );
 
     await firestore
         .collection('Classes')

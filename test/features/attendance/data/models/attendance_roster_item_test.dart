@@ -4,7 +4,10 @@ import 'package:church_management_system/features/attendance/data/models/attenda
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  AttendanceSession buildSession({required bool isClosed, required DateTime endsAt}) {
+  AttendanceSession buildSession({
+    required bool isClosed,
+    required DateTime endsAt,
+  }) {
     return AttendanceSession(
       id: 'session-1',
       teamId: 'team-1',
@@ -44,39 +47,42 @@ void main() {
     );
   });
 
-  test('resolveEffectiveStatus derives unmarked while open and absent after close', () {
-    final openSession = buildSession(
-      isClosed: false,
-      endsAt: DateTime(2026, 3, 9, 18, 30),
-    );
-    final closedSession = buildSession(
-      isClosed: true,
-      endsAt: DateTime(2026, 3, 9, 18, 30),
-    );
+  test(
+    'resolveEffectiveStatus derives unmarked while open and absent after close',
+    () {
+      final openSession = buildSession(
+        isClosed: false,
+        endsAt: DateTime(2026, 3, 9, 18, 30),
+      );
+      final closedSession = buildSession(
+        isClosed: true,
+        endsAt: DateTime(2026, 3, 9, 18, 30),
+      );
 
-    expect(
-      AttendanceRosterItem.resolveEffectiveStatus(
-        manualStatus: null,
-        session: openSession,
-        now: DateTime(2026, 3, 9, 18, 5),
-      ),
-      AttendanceEffectiveStatus.unmarked,
-    );
-    expect(
-      AttendanceRosterItem.resolveEffectiveStatus(
-        manualStatus: null,
-        session: closedSession,
-        now: DateTime(2026, 3, 9, 18, 5),
-      ),
-      AttendanceEffectiveStatus.absent,
-    );
-    expect(
-      AttendanceRosterItem.resolveEffectiveStatus(
-        manualStatus: null,
-        session: openSession,
-        now: DateTime(2026, 3, 9, 18, 45),
-      ),
-      AttendanceEffectiveStatus.absent,
-    );
-  });
+      expect(
+        AttendanceRosterItem.resolveEffectiveStatus(
+          manualStatus: null,
+          session: openSession,
+          now: DateTime(2026, 3, 9, 18, 5),
+        ),
+        AttendanceEffectiveStatus.unmarked,
+      );
+      expect(
+        AttendanceRosterItem.resolveEffectiveStatus(
+          manualStatus: null,
+          session: closedSession,
+          now: DateTime(2026, 3, 9, 18, 5),
+        ),
+        AttendanceEffectiveStatus.absent,
+      );
+      expect(
+        AttendanceRosterItem.resolveEffectiveStatus(
+          manualStatus: null,
+          session: openSession,
+          now: DateTime(2026, 3, 9, 18, 45),
+        ),
+        AttendanceEffectiveStatus.absent,
+      );
+    },
+  );
 }

@@ -139,21 +139,20 @@ class _AddEditServantScreenState extends State<AddEditServantScreen> {
                   phoneController: _controllers.phone,
                   emailController: _controllers.email,
                   passwordController: _controllers.password,
-                   isEditing: isEditing,
-                   selectedRole: _selectedRole,
-                   selectedGroup: _selectedGroup,
-                   onRoleChanged: (value) {
-                     setState(() => _selectedRole = value);
-                   },
-                   onGroupChanged: (value) {
-                     setState(() => _selectedGroup = value);
-                   },
-                   passwordValidator: _passwordValidator,
-                 ),
+                  isEditing: isEditing,
+                  selectedRole: _selectedRole,
+                  selectedGroup: _selectedGroup,
+                  onRoleChanged: (value) {
+                    setState(() => _selectedRole = value);
+                  },
+                  onGroupChanged: (value) {
+                    setState(() => _selectedGroup = value);
+                  },
+                  passwordValidator: _passwordValidator,
+                ),
                 AppSpacing.gapMd,
                 ServantSecondaryDetailsSection(
-                  fatherOfConfessionController:
-                      _controllers.fatherOfConfession,
+                  fatherOfConfessionController: _controllers.fatherOfConfession,
                   notesController: _controllers.notes,
                   imageUrlController: _controllers.imageUrl,
                   birthdate: _birthdate,
@@ -162,7 +161,8 @@ class _AddEditServantScreenState extends State<AddEditServantScreen> {
                 AppSpacing.gapMd,
                 BlocBuilder<ServantDataCubit, ServantDataState>(
                   builder: (context, state) {
-                    final isSubmitting = state is ServantDataLoading ||
+                    final isSubmitting =
+                        state is ServantDataLoading ||
                         (state is ServantDataLoaded &&
                             state.mutationStatus ==
                                 ServantMutationStatus.inProgress);

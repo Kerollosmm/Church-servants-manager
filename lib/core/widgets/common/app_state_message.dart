@@ -30,11 +30,7 @@ class AppStateMessage extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              size: 64,
-              color: iconColor ?? AppColors.outline,
-            ),
+            Icon(icon, size: 64, color: iconColor ?? AppColors.outline),
             AppSpacing.gapMd,
             Text(title, style: theme.textTheme.titleMedium),
             AppSpacing.gapSm,

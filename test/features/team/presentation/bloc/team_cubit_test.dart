@@ -119,7 +119,9 @@ void main() {
     await cubit.createTeam(team);
     await expectation;
     verify(() => repository.createTeam(team)).called(1);
-    verify(() => repository.getTeamsByGroup('year1', includeArchived: false)).called(1);
+    verify(
+      () => repository.getTeamsByGroup('year1', includeArchived: false),
+    ).called(1);
     await cubit.close();
   });
 
@@ -164,7 +166,9 @@ void main() {
       await cubit.updateTeam(team);
       await expectation;
       verify(() => repository.updateTeam(team)).called(1);
-      verify(() => repository.getTeamsByGroup('year1', includeArchived: false)).called(2);
+      verify(
+        () => repository.getTeamsByGroup('year1', includeArchived: false),
+      ).called(2);
       await cubit.close();
     },
   );

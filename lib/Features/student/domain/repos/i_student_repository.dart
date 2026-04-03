@@ -5,10 +5,16 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 /// Defines the contract for interacting with student data.
 abstract class IStudentRepository {
   /// Get a single student by document ID
-  Future<StudentModel?> getStudentById(String docId, {bool includeArchived = false});
+  Future<StudentModel?> getStudentById(
+    String docId, {
+    bool includeArchived = false,
+  });
 
   /// Get a student by Firebase Auth UID (or app UID).
-  Future<StudentModel?> getStudentByUid(String uid, {bool includeArchived = false});
+  Future<StudentModel?> getStudentByUid(
+    String uid, {
+    bool includeArchived = false,
+  });
 
   /// Get all students with pagination support.
   Future<List<StudentModel>> getAllStudents({

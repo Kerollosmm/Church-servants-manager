@@ -40,9 +40,7 @@ class AppComponentThemes {
         horizontal: AppSpacing.md,
         vertical: 18,
       ),
-      hintStyle: textTheme.bodyMedium?.copyWith(
-        color: AppColors.textSecondary,
-      ),
+      hintStyle: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
       labelStyle: textTheme.bodyMedium?.copyWith(
         color: AppColors.textSecondary,
       ),

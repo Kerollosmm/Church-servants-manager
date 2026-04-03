@@ -126,10 +126,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                       AppSpacing.gapLg,
 
-                      AuthSubmitButton(
-                        text: 'إنشاء حساب',
-                        onPressed: _submit,
-                      ),
+                      AuthSubmitButton(text: 'إنشاء حساب', onPressed: _submit),
                       AppSpacing.gapLg,
 
                       Row(

@@ -154,7 +154,9 @@ class ServantDetailScreen extends StatelessWidget {
           ),
           AppSpacing.gapMd,
           AppInfoBanner(
-            icon: servant.isArchived ? Icons.archive_outlined : Icons.cloud_done,
+            icon: servant.isArchived
+                ? Icons.archive_outlined
+                : Icons.cloud_done,
             message: servant.isArchived
                 ? 'هذا الخادم مؤرشف حاليا ويحتاج إلى إعادة تعيين فريق بعد الاستعادة.'
                 : canEdit

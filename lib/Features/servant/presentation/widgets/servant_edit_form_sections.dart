@@ -58,7 +58,9 @@ class ServantPrimaryDetailsSection extends StatelessWidget {
         AppSpacing.gapMd,
         AppTextFormField(
           controller: emailController,
-          labelText: isEditing ? 'البريد الإلكتروني (اختياري)' : 'البريد الإلكتروني',
+          labelText: isEditing
+              ? 'البريد الإلكتروني (اختياري)'
+              : 'البريد الإلكتروني',
           prefixIcon: Icons.email_outlined,
           validator: isEditing
               ? Validators.validateOptionalEmailArabic
@@ -99,7 +101,10 @@ class ServantPrimaryDetailsSection extends StatelessWidget {
           labelText: 'السنة الدراسية',
           prefixIcon: Icons.school_outlined,
           items: Group.values
-              .map((group) => DropdownMenuItem(value: group, child: Text(group.name)))
+              .map(
+                (group) =>
+                    DropdownMenuItem(value: group, child: Text(group.name)),
+              )
               .toList(growable: false),
           onChanged: (value) {
             if (value != null) {

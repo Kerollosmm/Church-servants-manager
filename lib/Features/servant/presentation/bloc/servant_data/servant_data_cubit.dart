@@ -96,7 +96,9 @@ class ServantDataCubit extends Cubit<ServantDataState> {
     if (!_ensureAdmin(actor)) return;
 
     _includeArchived = includeArchived;
-    if (!forceRefresh && state is ServantDataLoaded && _allServants.isNotEmpty) {
+    if (!forceRefresh &&
+        state is ServantDataLoaded &&
+        _allServants.isNotEmpty) {
       _lastLimit = limit <= 0 ? _lastLimit : limit;
       _lastQuery = null;
       _emitLoaded();
@@ -125,9 +127,11 @@ class ServantDataCubit extends Cubit<ServantDataState> {
     try {
       _lastQuery = query;
       final normalizedQuery = query.toLowerCase();
-      final filteredServants = _allServants.where((servant) {
-        return servant.name.toLowerCase().contains(normalizedQuery);
-      }).toList(growable: false);
+      final filteredServants = _allServants
+          .where((servant) {
+            return servant.name.toLowerCase().contains(normalizedQuery);
+          })
+          .toList(growable: false);
       emit(
         ServantDataLoaded(
           servants: _sortByName(filteredServants),
@@ -231,10 +235,15 @@ class ServantDataCubit extends Cubit<ServantDataState> {
     final previousLoaded = _loadedState;
     _emitLoaded(mutationStatus: ServantMutationStatus.inProgress);
     try {
-      final existing = await _repository.getServantById(docId, includeArchived: true);
+      final existing = await _repository.getServantById(
+        docId,
+        includeArchived: true,
+      );
       await _repository.deleteServant(docId);
       if (existing?.uid?.trim().isNotEmpty == true) {
-        await _adminUserProvisioningService.archiveUser(uid: existing!.uid!.trim());
+        await _adminUserProvisioningService.archiveUser(
+          uid: existing!.uid!.trim(),
+        );
       }
       final didOptimisticUpdate = _tryEmitOptimisticUpdate(previousLoaded, (
         servants,
@@ -261,9 +270,14 @@ class ServantDataCubit extends Cubit<ServantDataState> {
     if (!_ensureAdmin(actor)) return;
     _emitLoaded(mutationStatus: ServantMutationStatus.inProgress);
     try {
-      final existing = await _repository.getServantById(docId, includeArchived: true);
+      final existing = await _repository.getServantById(
+        docId,
+        includeArchived: true,
+      );
       if (existing == null) {
-        _emitMutationFailure(const GenericServantFailure('لم يتم العثور على الخادم.'));
+        _emitMutationFailure(
+          const GenericServantFailure('لم يتم العثور على الخادم.'),
+        );
         return;
       }
       await _repository.restoreServant(docId);
@@ -309,7 +323,9 @@ class ServantDataCubit extends Cubit<ServantDataState> {
         includeArchived: _includeArchived,
       );
 
-      final byId = <String, ServantModel>{for (final s in _allServants) s.docID: s};
+      final byId = <String, ServantModel>{
+        for (final s in _allServants) s.docID: s,
+      };
       for (final servant in page.servants) {
         byId[servant.docID] = servant;
       }
@@ -357,7 +373,10 @@ class ServantDataCubit extends Cubit<ServantDataState> {
     String? email,
     String? password,
   }) async {
-    if (email == null || email.isEmpty || password == null || password.isEmpty) {
+    if (email == null ||
+        email.isEmpty ||
+        password == null ||
+        password.isEmpty) {
       return null;
     }
     return _adminUserProvisioningService.createUser(

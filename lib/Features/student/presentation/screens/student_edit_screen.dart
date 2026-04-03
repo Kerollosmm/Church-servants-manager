@@ -191,15 +191,15 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
     final student = widget.args.student;
 
     return BlocProvider(
-      create: (context) => StudentFormTeamsCubit(
-        teamRepository: context.read<TeamRepository>(),
-      )..loadTeamsForGroup(
-          actor: actor,
-          groupId: _group.name,
-          preferredTeamId: student?.classId,
-          preferredTeamName: student?.teamName,
-          currentSelection: student?.classId,
-        ),
+      create: (context) =>
+          StudentFormTeamsCubit(teamRepository: context.read<TeamRepository>())
+            ..loadTeamsForGroup(
+              actor: actor,
+              groupId: _group.name,
+              preferredTeamId: student?.classId,
+              preferredTeamName: student?.teamName,
+              currentSelection: student?.classId,
+            ),
       child: BlocListener<StudentDataBloc, StudentDataState>(
         listener: (context, state) {
           if (state is StudentDataLoaded &&
@@ -245,7 +245,9 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
                           setState(() => _selectedRole = role);
                         },
                         onGroupChanged: _handleGroupChanged,
-                        onTeamChanged: context.read<StudentFormTeamsCubit>().selectTeam,
+                        onTeamChanged: context
+                            .read<StudentFormTeamsCubit>()
+                            .selectTeam,
                         onEducationStageChanged: (value) {
                           setState(() => _educationStage = value);
                         },
@@ -272,20 +274,24 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
                         onPickBirthdate: _pickBirthdate,
                       ),
                       AppSpacing.gapMd,
-                       FilledButton.icon(
-                         key: const Key('submit_student_button'),
-                         onPressed: _isSubmitting ? null : () => _submit(teamsState),
-                         icon: _isSubmitting
-                             ? const SizedBox(
-                                 width: 18,
-                                 height: 18,
-                                 child: CircularProgressIndicator(strokeWidth: 2),
-                               )
-                             : Icon(isEditing ? Icons.save_outlined : Icons.add),
-                         label: Text(
-                           isEditing ? 'حفظ التعديلات' : 'إنشاء مخدوم',
-                         ),
-                       ),
+                      FilledButton.icon(
+                        key: const Key('submit_student_button'),
+                        onPressed: _isSubmitting
+                            ? null
+                            : () => _submit(teamsState),
+                        icon: _isSubmitting
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Icon(isEditing ? Icons.save_outlined : Icons.add),
+                        label: Text(
+                          isEditing ? 'حفظ التعديلات' : 'إنشاء مخدوم',
+                        ),
+                      ),
                     ],
                   ),
                 );

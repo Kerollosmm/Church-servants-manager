@@ -32,8 +32,7 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
     super.initState();
     _takingCubit = AttendanceTakingCubit(
       repository: context.read<IAttendanceRepository>(),
-    )
-      ..initialize(teamId: widget.args.teamId, sessionId: widget.args.sessionId);
+    )..initialize(teamId: widget.args.teamId, sessionId: widget.args.sessionId);
     _sessionAdminCubit = AttendanceSessionAdminCubit(
       repository: context.read<IAttendanceRepository>(),
     );
@@ -85,7 +84,9 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
     return MultiBlocProvider(
       providers: [
         BlocProvider<AttendanceTakingCubit>.value(value: _takingCubit),
-        BlocProvider<AttendanceSessionAdminCubit>.value(value: _sessionAdminCubit),
+        BlocProvider<AttendanceSessionAdminCubit>.value(
+          value: _sessionAdminCubit,
+        ),
       ],
       child: MultiBlocListener(
         listeners: [
@@ -100,7 +101,8 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
               return prevMessage != currentMessage && currentMessage != null;
             },
             listener: (context, state) {
-              if (state is AttendanceTakingLoaded && state.mutationError != null) {
+              if (state is AttendanceTakingLoaded &&
+                  state.mutationError != null) {
                 AppSnackbars.showError(context, state.mutationError!);
               }
               if (state is AttendanceTakingError) {
@@ -108,7 +110,10 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
               }
             },
           ),
-          BlocListener<AttendanceSessionAdminCubit, AttendanceSessionAdminState>(
+          BlocListener<
+            AttendanceSessionAdminCubit,
+            AttendanceSessionAdminState
+          >(
             listener: (context, state) {
               if (state is AttendanceSessionAdminError) {
                 AppSnackbars.showError(context, state.message);
@@ -127,7 +132,8 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
         child: BlocBuilder<AttendanceTakingCubit, AttendanceTakingState>(
           builder: (context, state) {
             final loadedState = state is AttendanceTakingLoaded ? state : null;
-            final title = loadedState != null &&
+            final title =
+                loadedState != null &&
                     loadedState.session.title?.isNotEmpty == true
                 ? loadedState.session.title!
                 : 'تسجيل الحضور';
@@ -136,7 +142,8 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
               appBar: AppBar(
                 title: Text(title),
                 actions: [
-                  if (loadedState != null && loadedState.session.isOpenAt(DateTime.now()))
+                  if (loadedState != null &&
+                      loadedState.session.isOpenAt(DateTime.now()))
                     IconButton(
                       tooltip: 'تحديد الباقي حاضر',
                       icon: const Icon(Icons.done_all_outlined),
@@ -158,148 +165,179 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
               ),
               body: switch (state) {
                 AttendanceTakingLoading() => const Center(
-                    child: CircularProgressIndicator(),
-                  ),
+                  child: CircularProgressIndicator(),
+                ),
                 AttendanceTakingError() => Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(AppSpacing.lg),
-                      child: Text(state.message, textAlign: TextAlign.center),
-                    ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    child: Text(state.message, textAlign: TextAlign.center),
                   ),
+                ),
                 AttendanceTakingLoaded() => Builder(
-                    builder: (context) {
-                      final loaded = state;
-                      return Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(AppSpacing.md),
-                        child: Column(
-                          children: [
-                            AppInfoBanner(
-                              icon: loaded.session.isOpenAt(DateTime.now())
-                                  ? Icons.schedule
-                                  : Icons.lock_clock,
-                              message: loaded.session.isOpenAt(DateTime.now())
-                                  ? 'الجلسة مفتوحة الآن. يمكنك تحديد حاضر أو متأخر فقط.'
-                                  : 'الجلسة مغلقة الآن. أي مخدوم غير محدد يظهر كغائب تلقائيا.',
-                            ),
-                            AppSpacing.gapSm,
-                            _SessionHeaderCard(session: loaded.session),
-                          ],
+                  builder: (context) {
+                    final loaded = state;
+                    return Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          child: Column(
+                            children: [
+                              AppInfoBanner(
+                                icon: loaded.session.isOpenAt(DateTime.now())
+                                    ? Icons.schedule
+                                    : Icons.lock_clock,
+                                message: loaded.session.isOpenAt(DateTime.now())
+                                    ? 'الجلسة مفتوحة الآن. يمكنك تحديد حاضر أو متأخر فقط.'
+                                    : 'الجلسة مغلقة الآن. أي مخدوم غير محدد يظهر كغائب تلقائيا.',
+                              ),
+                              AppSpacing.gapSm,
+                              _SessionHeaderCard(session: loaded.session),
+                            ],
+                          ),
                         ),
-                      ),
-                      Expanded(
-                        child: loaded.roster.isEmpty
-                            ? const Center(
-                                child: Text('لا يوجد مخدومون ضمن هذه الجلسة.'),
-                              )
-                            : ListView.separated(
-                                padding: const EdgeInsets.fromLTRB(
-                                  AppSpacing.md,
-                                  0,
-                                  AppSpacing.md,
-                                  AppSpacing.md,
-                                ),
-                                itemBuilder: (context, index) {
-                                  final item = loaded.roster[index];
-                                  final isOpen = loaded.session.isOpenAt(
-                                    DateTime.now(),
-                                  );
-                                  return Card(
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(AppSpacing.md),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              Expanded(
-                                                child: Text(
-                                                  item.studentName,
-                                                  style: Theme.of(context)
-                                                      .textTheme
-                                                      .titleMedium
-                                                      ?.copyWith(
-                                                        fontWeight: FontWeight.w700,
-                                                      ),
-                                                ),
-                                              ),
-                                              Chip(
-                                                label: Text(
-                                                  _statusLabel(item.effectiveStatus),
-                                                ),
-                                                backgroundColor: _statusColor(
-                                                  item.effectiveStatus,
-                                                ).withValues(alpha: 0.14),
-                                                labelStyle: TextStyle(
-                                                  color: _statusColor(
-                                                    item.effectiveStatus,
+                        Expanded(
+                          child: loaded.roster.isEmpty
+                              ? const Center(
+                                  child: Text(
+                                    'لا يوجد مخدومون ضمن هذه الجلسة.',
+                                  ),
+                                )
+                              : ListView.separated(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    AppSpacing.md,
+                                    0,
+                                    AppSpacing.md,
+                                    AppSpacing.md,
+                                  ),
+                                  itemBuilder: (context, index) {
+                                    final item = loaded.roster[index];
+                                    final isOpen = loaded.session.isOpenAt(
+                                      DateTime.now(),
+                                    );
+                                    return Card(
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(
+                                          AppSpacing.md,
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    item.studentName,
+                                                    style: Theme.of(context)
+                                                        .textTheme
+                                                        .titleMedium
+                                                        ?.copyWith(
+                                                          fontWeight:
+                                                              FontWeight.w700,
+                                                        ),
                                                   ),
-                                                  fontWeight: FontWeight.w700,
                                                 ),
+                                                Chip(
+                                                  label: Text(
+                                                    _statusLabel(
+                                                      item.effectiveStatus,
+                                                    ),
+                                                  ),
+                                                  backgroundColor: _statusColor(
+                                                    item.effectiveStatus,
+                                                  ).withValues(alpha: 0.14),
+                                                  labelStyle: TextStyle(
+                                                    color: _statusColor(
+                                                      item.effectiveStatus,
+                                                    ),
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            if (item.markedByName != null) ...[
+                                              AppSpacing.gapXs,
+                                              Text(
+                                                'تم التسجيل بواسطة ${item.markedByName}',
+                                                style: Theme.of(
+                                                  context,
+                                                ).textTheme.bodySmall,
                                               ),
                                             ],
-                                          ),
-                                          if (item.markedByName != null) ...[
-                                            AppSpacing.gapXs,
-                                            Text(
-                                              'تم التسجيل بواسطة ${item.markedByName}',
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodySmall,
+                                            AppSpacing.gapMd,
+                                            Wrap(
+                                              spacing: AppSpacing.sm,
+                                              runSpacing: AppSpacing.sm,
+                                              children: [
+                                                OutlinedButton.icon(
+                                                  onPressed:
+                                                      !isOpen ||
+                                                          loaded.isMutating
+                                                      ? null
+                                                      : () => _takingCubit
+                                                            .markPresent(
+                                                              actor: widget
+                                                                  .args
+                                                                  .actor,
+                                                              item: item,
+                                                            ),
+                                                  icon: const Icon(
+                                                    Icons.check_circle_outline,
+                                                  ),
+                                                  label: const Text('حاضر'),
+                                                ),
+                                                OutlinedButton.icon(
+                                                  onPressed:
+                                                      !isOpen ||
+                                                          loaded.isMutating
+                                                      ? null
+                                                      : () => _takingCubit
+                                                            .markLate(
+                                                              actor: widget
+                                                                  .args
+                                                                  .actor,
+                                                              item: item,
+                                                            ),
+                                                  icon: const Icon(
+                                                    Icons.alarm_on_outlined,
+                                                  ),
+                                                  label: const Text('متأخر'),
+                                                ),
+                                                if (item.isMarked)
+                                                  TextButton.icon(
+                                                    onPressed:
+                                                        !isOpen ||
+                                                            loaded.isMutating
+                                                        ? null
+                                                        : () => _takingCubit
+                                                              .clearMark(
+                                                                actor: widget
+                                                                    .args
+                                                                    .actor,
+                                                                item: item,
+                                                              ),
+                                                    icon: const Icon(
+                                                      Icons.clear,
+                                                    ),
+                                                    label: const Text(
+                                                      'مسح التحديد',
+                                                    ),
+                                                  ),
+                                              ],
                                             ),
                                           ],
-                                          AppSpacing.gapMd,
-                                          Wrap(
-                                            spacing: AppSpacing.sm,
-                                            runSpacing: AppSpacing.sm,
-                                            children: [
-                                              OutlinedButton.icon(
-                                                onPressed: !isOpen || loaded.isMutating
-                                                    ? null
-                                                    : () => _takingCubit.markPresent(
-                                                        actor: widget.args.actor,
-                                                        item: item,
-                                                      ),
-                                                icon: const Icon(Icons.check_circle_outline),
-                                                label: const Text('حاضر'),
-                                              ),
-                                              OutlinedButton.icon(
-                                                onPressed: !isOpen || loaded.isMutating
-                                                    ? null
-                                                    : () => _takingCubit.markLate(
-                                                        actor: widget.args.actor,
-                                                        item: item,
-                                                      ),
-                                                icon: const Icon(Icons.alarm_on_outlined),
-                                                label: const Text('متأخر'),
-                                              ),
-                                              if (item.isMarked)
-                                                TextButton.icon(
-                                                  onPressed: !isOpen || loaded.isMutating
-                                                      ? null
-                                                      : () => _takingCubit.clearMark(
-                                                          actor: widget.args.actor,
-                                                          item: item,
-                                                        ),
-                                                  icon: const Icon(Icons.clear),
-                                                  label: const Text('مسح التحديد'),
-                                                ),
-                                            ],
-                                          ),
-                                        ],
+                                        ),
                                       ),
-                                    ),
-                                  );
-                                },
-                                separatorBuilder: (_, _) => AppSpacing.gapSm,
-                                itemCount: loaded.roster.length,
-                              ),
-                      ),
-                    ],
-                  );
-                    },
-                  ),
+                                    );
+                                  },
+                                  separatorBuilder: (_, _) => AppSpacing.gapSm,
+                                  itemCount: loaded.roster.length,
+                                ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
                 _ => const SizedBox.shrink(),
               },
             );
@@ -325,9 +363,9 @@ class _SessionHeaderCard extends StatelessWidget {
           children: [
             Text(
               session.teamNameSnapshot ?? 'الفريق',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
             AppSpacing.gapXs,
             Text('البداية: ${_formatDateTime(session.startsAt)}'),
