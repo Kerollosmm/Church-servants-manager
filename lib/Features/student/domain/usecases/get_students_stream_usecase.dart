@@ -1,13 +1,13 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
-import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
+import 'package:church_management_system/features/student/data/repos/student_data_repository.dart';
 import 'package:rxdart/rxdart.dart';
 
 /// Returns a real-time [Stream] of students filtered by the
 /// actor's role and optional team filter.
 class GetStudentsStreamUseCase {
-  final IStudentRepository _repository;
+  final StudentDataRepository _repository;
 
   const GetStudentsStreamUseCase(this._repository);
 

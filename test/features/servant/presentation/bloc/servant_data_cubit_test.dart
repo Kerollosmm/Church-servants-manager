@@ -48,7 +48,7 @@ void main() {
         isA<ServantDataError>().having(
           (s) => s.message,
           'message',
-          'Permission denied: Only admins can manage servants.',
+          'خطأ في الصلاحية: المسؤول فقط يمكنه إدارة الخدام.',
         ),
       ]),
     );

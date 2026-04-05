@@ -1,0 +1,233 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:church_management_system/core/constants/firestore_collections.dart';
+import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
+import 'package:church_management_system/features/attendance/data/models/attendance_mark.dart';
+import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
+import 'package:church_management_system/features/attendance/domain/failures/attendance_failures.dart';
+import 'package:church_management_system/features/auth/data/models/auth_user.dart';
+import 'package:flutter/foundation.dart';
+
+/// Repository responsible for attendance mark CRUD operations.
+/// Handles creating, updating, and deleting individual student marks within a session.
+class AttendanceMarkRepository {
+  AttendanceMarkRepository({FirebaseFirestore? firestore})
+    : _firestore = firestore ?? FirebaseFirestore.instance;
+
+  final FirebaseFirestore _firestore;
+
+  CollectionReference<Map<String, dynamic>> get _classesCollection =>
+      _firestore.collection(FirestoreCollections.classes);
+
+  CollectionReference<Map<String, dynamic>> _sessionsCol(String teamId) =>
+      _classesCollection
+          .doc(teamId)
+          .collection(FirestoreCollections.attendanceSessions);
+
+  DocumentReference<Map<String, dynamic>> _sessionDoc(
+    String teamId,
+    String sessionId,
+  ) => _sessionsCol(teamId).doc(sessionId);
+
+  CollectionReference<Map<String, dynamic>> _marksCol(
+    String teamId,
+    String sessionId,
+  ) => _sessionDoc(
+    teamId,
+    sessionId,
+  ).collection(FirestoreCollections.attendanceMarks);
+
+  DocumentReference<Map<String, dynamic>> _markDoc(
+    String teamId,
+    String sessionId,
+    String studentId,
+  ) => _marksCol(teamId, sessionId).doc(studentId);
+
+  /// Creates a new attendance mark for a student.
+  Future<void> createMark({
+    required String teamId,
+    required String sessionId,
+    required String studentId,
+    required String studentNameSnapshot,
+    required AuthUser markedBy,
+    required AttendanceMarkStatus status,
+    String? note,
+  }) async {
+    final normalizedStudentId = studentId.trim();
+    final markRef = _markDoc(teamId, sessionId, normalizedStudentId);
+    final effectiveStudentName = studentNameSnapshot.trim().isNotEmpty
+        ? studentNameSnapshot.trim()
+        : 'مخدوم';
+    final normalizedNote = note?.trim();
+
+    final data = <String, dynamic>{
+      'studentNameSnapshot': effectiveStudentName,
+      'status': status.name,
+      'markedByUserId': markedBy.uid,
+      'markedByName': markedBy.name,
+      'markedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+    if (normalizedNote != null && normalizedNote.isNotEmpty) {
+      data['note'] = normalizedNote;
+    }
+
+    await markRef.set(data);
+  }
+
+  /// Updates an existing attendance mark.
+  Future<void> updateMark({
+    required String teamId,
+    required String sessionId,
+    required String studentId,
+    required AttendanceMarkStatus status,
+    required AuthUser markedBy,
+    String? note,
+  }) async {
+    final normalizedStudentId = studentId.trim();
+    final markRef = _markDoc(teamId, sessionId, normalizedStudentId);
+    final normalizedNote = note?.trim();
+
+    await markRef.update({
+      'status': status.name,
+      'markedByUserId': markedBy.uid,
+      'markedByName': markedBy.name,
+      'updatedAt': FieldValue.serverTimestamp(),
+      'note': normalizedNote == null || normalizedNote.isEmpty
+          ? FieldValue.delete()
+          : normalizedNote,
+    });
+  }
+
+  /// Deletes an attendance mark (toggle-off behavior per FR-08.7).
+  Future<void> deleteMark({
+    required String teamId,
+    required String sessionId,
+    required String studentId,
+  }) async {
+    final normalizedStudentId = studentId.trim();
+    await _markDoc(teamId, sessionId, normalizedStudentId).delete();
+  }
+
+  /// Gets all marks for a session.
+  Future<Map<String, AttendanceMark>> getMarksForSession({
+    required String teamId,
+    required String sessionId,
+  }) async {
+    final snapshot = await _marksCol(teamId, sessionId).get();
+    final marks = <String, AttendanceMark>{};
+    for (final doc in snapshot.docs) {
+      try {
+        marks[doc.id] = AttendanceMark.fromMap(doc.data(), doc.id);
+      } catch (error) {
+        if (kDebugMode) {
+          debugPrint(
+            'AttendanceMarkRepository: skipped malformed mark '
+            '${doc.reference.path} (${error.runtimeType})',
+          );
+        }
+      }
+    }
+    return marks;
+  }
+
+  /// Watches all marks for a session in real-time.
+  Stream<Map<String, AttendanceMark>> watchMarksForSession({
+    required String teamId,
+    required String sessionId,
+  }) {
+    return _marksCol(teamId, sessionId).snapshots().map((snapshot) {
+      final marks = <String, AttendanceMark>{};
+      for (final doc in snapshot.docs) {
+        try {
+          marks[doc.id] = AttendanceMark.fromMap(doc.data(), doc.id);
+        } catch (error) {
+          if (kDebugMode) {
+            debugPrint(
+              'AttendanceMarkRepository: skipped malformed mark '
+              '${doc.reference.path} (${error.runtimeType})',
+            );
+          }
+        }
+      }
+      return marks;
+    });
+  }
+
+  /// Gets a single mark for a student in a session.
+  Future<AttendanceMark?> getMarkForStudent({
+    required String teamId,
+    required String sessionId,
+    required String studentId,
+  }) async {
+    final normalizedStudentId = studentId.trim();
+    final doc = await _markDoc(teamId, sessionId, normalizedStudentId).get();
+    final data = doc.data();
+    if (!doc.exists || data == null) return null;
+    try {
+      return AttendanceMark.fromMap(data, doc.id);
+    } catch (error) {
+      if (kDebugMode) {
+        debugPrint(
+          'AttendanceMarkRepository: skipped malformed mark '
+          '${doc.reference.path} (${error.runtimeType})',
+        );
+      }
+      return null;
+    }
+  }
+
+  /// Watches a single mark for a student in real-time.
+  Stream<AttendanceMark?> watchMarkForStudent({
+    required String teamId,
+    required String sessionId,
+    required String studentId,
+  }) {
+    final normalizedStudentId = studentId.trim();
+    return _markDoc(teamId, sessionId, normalizedStudentId).snapshots().map((
+      doc,
+    ) {
+      final data = doc.data();
+      if (!doc.exists || data == null) return null;
+      try {
+        return AttendanceMark.fromMap(data, doc.id);
+      } catch (error) {
+        if (kDebugMode) {
+          debugPrint(
+            'AttendanceMarkRepository: skipped malformed mark '
+            '${doc.reference.path} (${error.runtimeType})',
+          );
+        }
+        return null;
+      }
+    });
+  }
+
+  /// Validates that a mark can be written (session is writable, student is in roster).
+  Future<void> assertCanWriteMark({
+    required String teamId,
+    required String sessionId,
+    required String studentId,
+    required AuthUser user,
+    required DateTime now,
+    required Future<AttendanceSession?> Function() getSession,
+    required Future<bool> Function() canManage,
+  }) async {
+    final normalizedStudentId = studentId.trim();
+    if (!await canManage()) {
+      throw const AttendancePermissionDeniedFailure();
+    }
+
+    final session = await getSession();
+    if (session == null) {
+      throw const AttendanceSessionNotFoundFailure();
+    }
+
+    if (!session.studentIdsSnapshot.contains(normalizedStudentId)) {
+      throw const AttendanceStudentNotInSessionFailure();
+    }
+
+    if (!session.isOpenAt(now)) {
+      throw const AttendanceSessionClosedFailure();
+    }
+  }
+}

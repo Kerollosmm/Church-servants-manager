@@ -41,7 +41,8 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 1. **Setup**: Run `.specify/scripts/powershell/check-prerequisites.ps1 -Json` from repo root and parse JSON for FEATURE_DIR and AVAILABLE_DOCS list.
    - All file paths must be absolute.
-   - For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
+   - When running from bash/sh: For single quotes in args like "I'm Groot", use escape syntax: e.g. 'I'\''m Groot'.
+   - When running from PowerShell: Use PowerShell-safe variants (e.g., double-quote "I'm Groot" or doubled single quotes 'I''m Groot').
 
 2. **Clarify intent (dynamic)**: Derive up to THREE initial contextual clarifying questions (no pre-baked catalog). They MUST:
    - Be generated from the user's phrasing + extracted signals from spec/plan/tasks
@@ -99,8 +100,13 @@ You **MUST** consider the user input before proceeding (if not empty).
      - Format: `[domain].md`
    - File handling behavior:
      - If file does NOT exist: Create new file and number items starting from CHK001
-     - If file exists: Append new items to existing file, continuing from the last CHK ID (e.g., if last item is CHK015, start new items at CHK016)
-   - Never delete or replace existing checklist content - always preserve and append
+      - If file exists: Implement a robust append algorithm:
+        1. Scan the entire existing markdown for the regex pattern `CHK\d+` and extract all numeric parts, then compute `max ID`.
+        2. Validate the file structure by checking for expected checklist markers/headings.
+        3. Detect duplicate or non-sequential CHK IDs — if duplicates exist or parsing fails, treat the file as incompatible.
+        4. If incompatible, create a new file with a numeric suffix (e.g., `ux-2.md`) instead of modifying the original.
+        5. Before writing, ensure no new items duplicate existing CHK IDs, then assign new sequential IDs starting at `max + 1`.
+   - ALWAYS preserve the original file content (never delete/replace) and append only when validation succeeds.
 
    **CORE PRINCIPLE - Test the Requirements, Not the Implementation**:
    Every checklist item MUST evaluate the REQUIREMENTS THEMSELVES for:

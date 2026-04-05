@@ -25,6 +25,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthEventSignOut>(_onSignOut);
     on<AuthEventSendVerification>(_onSendVerification);
     on<AuthEventForgotPassword>(_onForgotPassword);
+    on<AuthEventForcePasswordReset>(_onForcePasswordReset);
     on<AuthEventRefreshUser>(_onRefreshUser);
     on<_AuthEventSessionChanged>(_onSessionChanged);
     on<_AuthEventSessionError>(_onSessionError);
@@ -48,6 +49,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
     if (user.isArchived) {
       emit(AuthArchived(message: _archivedMessage, email: user.email));
+      return;
+    }
+
+    if (user.restorePendingPasswordReset) {
+      emit(const AuthNeedsPasswordReset());
       return;
     }
 
@@ -211,6 +217,25 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       emit,
       fallbackErrorMessage: 'Unable to refresh account data. Please try again.',
     );
+  }
+
+  Future<void> _onForcePasswordReset(
+    AuthEventForcePasswordReset event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(const AuthLoading());
+    try {
+      final user = _authService.currentUser;
+      if (user == null) {
+        emit(const AuthError('لم يتم العثور على المستخدم.'));
+        return;
+      }
+      await _authService.updatePassword(event.newPassword);
+      await _authService.clearRestorePendingPasswordReset(user.uid);
+      emit(const AuthPasswordResetSuccess());
+    } catch (e) {
+      emit(AuthError('فشل في تغيير كلمة المرور. حاول مرة أخرى.'));
+    }
   }
 
   bool _emitUnauthenticatedIfNoFirebaseUser(

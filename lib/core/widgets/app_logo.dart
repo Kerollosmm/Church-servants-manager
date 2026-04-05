@@ -7,11 +7,10 @@ class AppLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Image.asset(
-      'assets/app_logo.png',
-      width: size,
-      height: size,
-      fit: BoxFit.contain,
+    return Icon(
+      Icons.church,
+      size: size,
+      color: Theme.of(context).primaryColor,
     );
   }
 }

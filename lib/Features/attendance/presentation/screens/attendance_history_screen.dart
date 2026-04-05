@@ -8,7 +8,7 @@ import 'package:church_management_system/core/widgets/common/app_info_banner.dar
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
-import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
+import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/attendance_history/attendance_history_cubit.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/attendance_history/attendance_history_state.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/session_admin/attendance_session_admin_cubit.dart';
@@ -40,10 +40,10 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
   void initState() {
     super.initState();
     _historyCubit = AttendanceHistoryCubit(
-      repository: context.read<IAttendanceRepository>(),
+      repository: context.read<AttendanceRepository>(),
     );
     _sessionAdminCubit = AttendanceSessionAdminCubit(
-      repository: context.read<IAttendanceRepository>(),
+      repository: context.read<AttendanceRepository>(),
     );
     _teamCubit = TeamCubit(
       teamRepository: context.read<TeamRepository>(),
@@ -100,14 +100,26 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
     final allowedTeamIds = actor.role == UserRole.servant
         ? actor.effectiveAssignedTeamIds.toSet()
         : null;
-    final candidate = teams.firstWhere(
-      (team) => allowedTeamIds == null || allowedTeamIds.contains(team.id),
-      orElse: () => teams.first,
-    );
+
+    TeamModel? candidate;
+    try {
+      candidate = teams.firstWhere(
+        (team) => allowedTeamIds == null || allowedTeamIds.contains(team.id),
+      );
+    } on StateError {
+      candidate = null;
+    }
+
+    if (allowedTeamIds != null && candidate == null) {
+      return;
+    }
+
+    candidate ??= teams.first;
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      setState(() => _selectedTeamId = candidate.id);
-      _historyCubit.loadForTeam(candidate.id);
+      setState(() => _selectedTeamId = candidate!.id);
+      _historyCubit.loadForTeam(candidate!.id);
     });
   }
 
@@ -345,29 +357,34 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                                             : null,
                                       ),
                                     if (activeSession != null) AppSpacing.gapMd,
-                                    ...sessions.map(
-                                      (session) => Padding(
-                                        padding: const EdgeInsets.only(
-                                          bottom: AppSpacing.md,
+                                    ...sessions
+                                        .where(
+                                          (session) =>
+                                              activeSession == null ||
+                                              session.id != activeSession.id,
+                                        )
+                                        .map(
+                                          (session) => Padding(
+                                            padding: const EdgeInsets.only(
+                                              bottom: AppSpacing.md,
+                                            ),
+                                            child: _SessionHistoryCard(
+                                              session: session,
+                                              onTap: () {
+                                                Navigator.pushNamed(
+                                                  context,
+                                                  attendanceTaking,
+                                                  arguments:
+                                                      AttendanceTakingArgs(
+                                                        actor: actor,
+                                                        teamId: session.teamId,
+                                                        sessionId: session.id,
+                                                      ),
+                                                );
+                                              },
+                                            ),
+                                          ),
                                         ),
-                                        child: _SessionHistoryCard(
-                                          session: session,
-                                          isActive:
-                                              activeSession?.id == session.id,
-                                          onTap: () {
-                                            Navigator.pushNamed(
-                                              context,
-                                              attendanceTaking,
-                                              arguments: AttendanceTakingArgs(
-                                                actor: actor,
-                                                teamId: session.teamId,
-                                                sessionId: session.id,
-                                              ),
-                                            );
-                                          },
-                                        ),
-                                      ),
-                                    ),
                                   ],
                                 );
                               },
@@ -458,14 +475,9 @@ class _ActiveSessionCard extends StatelessWidget {
 }
 
 class _SessionHistoryCard extends StatelessWidget {
-  const _SessionHistoryCard({
-    required this.session,
-    required this.isActive,
-    required this.onTap,
-  });
+  const _SessionHistoryCard({required this.session, required this.onTap});
 
   final AttendanceSession session;
-  final bool isActive;
   final VoidCallback onTap;
 
   @override
@@ -473,14 +485,9 @@ class _SessionHistoryCard extends StatelessWidget {
     return Card(
       child: ListTile(
         onTap: onTap,
-        leading: CircleAvatar(
-          backgroundColor: isActive
-              ? const Color(0xFFE9F7EF)
-              : const Color(0xFFF3F4F6),
-          child: Icon(
-            isActive ? Icons.schedule : Icons.history,
-            color: isActive ? AppColors.secondary : AppColors.primary,
-          ),
+        leading: const CircleAvatar(
+          backgroundColor: Color(0xFFF3F4F6),
+          child: Icon(Icons.history, color: AppColors.primary),
         ),
         title: Text(
           session.title?.isNotEmpty == true ? session.title! : 'جلسة حضور',
@@ -488,7 +495,7 @@ class _SessionHistoryCard extends StatelessWidget {
         subtitle: Text(
           '${_formatDateTime(session.startsAt)} - ${_formatTime(session.endsAt)}',
         ),
-        trailing: Chip(label: Text(isActive ? 'مفتوحة' : 'مغلقة')),
+        trailing: const Chip(label: Text('مغلقة')),
       ),
     );
   }

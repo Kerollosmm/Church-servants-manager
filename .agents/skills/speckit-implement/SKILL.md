@@ -25,7 +25,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 - Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
 - For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
   - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
-  - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
+  - If the hook defines a non-empty `condition`, pass it through to the HookExecutor implementation (do not skip it; the HookExecutor will evaluate the condition and decide whether to run it)
 - For each executable hook, output the following based on its `optional` flag:
   - **Optional hook** (`optional: true`):
     ```
@@ -128,7 +128,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **C**: `build/`, `bin/`, `obj/`, `out/`, `*.o`, `*.a`, `*.so`, `*.exe`, `*.dll`, `autom4te.cache/`, `config.status`, `config.log`, `.idea/`, `*.log`, `.env*`
    - **Swift**: `.build/`, `DerivedData/`, `*.swiftpm/`, `Packages/`
    - **R**: `.Rproj.user/`, `.Rhistory`, `.RData`, `.Ruserdata`, `*.Rproj`, `packrat/`, `renv/`
-   - **Universal**: `.DS_Store`, `Thumbs.db`, `*.tmp`, `*.swp`, `.vscode/`, `.idea/`
+    - **Universal**: `.DS_Store`, `*.swp`, `.idea/`
 
    **Tool-Specific Patterns**:
    - **Docker**: `node_modules/`, `.git/`, `Dockerfile*`, `.dockerignore`, `*.log*`, `.env*`, `coverage/`
@@ -180,7 +180,7 @@ Note: This command assumes a complete task breakdown exists in tasks.md. If task
     - Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
     - For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
       - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
-      - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
+      - If the hook defines a non-empty `condition`, pass it through to the HookExecutor implementation (do not skip it; the HookExecutor will evaluate the condition and decide whether to run it)
     - For each executable hook, output the following based on its `optional` flag:
       - **Optional hook** (`optional: true`):
         ```

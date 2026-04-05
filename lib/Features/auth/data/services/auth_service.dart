@@ -109,4 +109,23 @@ class AuthService implements AuthRepository {
     await reloadUser();
     return getCurrentAppUser(forceRefresh: true);
   }
+
+  @override
+  Future<void> updatePassword(String newPassword) async {
+    try {
+      await _provider.updatePassword(newPassword);
+    } catch (e) {
+      throw AuthErrorMapper.mapException(e);
+    }
+  }
+
+  /// Clear the restorePendingPasswordReset flag on the user's Firestore doc
+  @override
+  Future<void> clearRestorePendingPasswordReset(String uid) async {
+    try {
+      await _provider.clearRestorePendingPasswordReset(uid);
+    } catch (e) {
+      throw AuthErrorMapper.mapException(e);
+    }
+  }
 }

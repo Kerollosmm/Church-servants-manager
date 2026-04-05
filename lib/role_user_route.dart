@@ -1,6 +1,7 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/admin/presentation/screens/admin_dashboard_screen.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:church_management_system/features/auth/presentation/screens/forced_password_reset_screen.dart';
 import 'package:church_management_system/features/auth/presentation/screens/login_screen.dart';
 import 'package:church_management_system/features/auth/presentation/screens/verify_email_screen.dart';
 import 'package:church_management_system/features/servant/presentation/screens/servant_dashboard_screen.dart';
@@ -94,6 +95,11 @@ class RoleUserRoute extends StatelessWidget {
           // Needs verification
           if (state is AuthNeedsVerification) {
             return const VerifyEmailScreen();
+          }
+
+          // Needs forced password reset
+          if (state is AuthNeedsPasswordReset) {
+            return const ForcedPasswordResetScreen();
           }
 
           return const LoginScreen();

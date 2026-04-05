@@ -77,6 +77,7 @@ class _StartupFailureApp extends StatelessWidget {
                 const Icon(
                   Icons.error_outline,
                   size: 64,
+
                   color: Colors.redAccent,
                 ),
                 const SizedBox(height: 16),

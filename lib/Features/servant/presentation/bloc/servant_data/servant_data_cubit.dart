@@ -5,6 +5,7 @@ import 'package:church_management_system/features/auth/data/services/admin_user_
 import 'package:church_management_system/features/servant/data/models/servant_models.dart';
 import 'package:church_management_system/features/servant/data/repo/servant_data_repository.dart';
 import 'package:church_management_system/features/servant/domain/failures/servant_failures.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'servant_data_state.dart';
@@ -40,7 +41,7 @@ class ServantDataCubit extends Cubit<ServantDataState> {
     emit(
       const ServantDataError(
         GenericServantFailure(
-          'Permission denied: Only admins can manage servants.',
+          'خطأ في الصلاحية: المسؤول فقط يمكنه إدارة الخدام.',
         ),
       ),
     );
@@ -123,6 +124,9 @@ class ServantDataCubit extends Cubit<ServantDataState> {
     if (!_ensureAdmin(actor)) return;
 
     _includeArchived = includeArchived;
+    if (_allServants.isEmpty) {
+      await loadServants(actor: actor, includeArchived: includeArchived);
+    }
     _emitLoading();
     try {
       _lastQuery = query;
@@ -241,9 +245,34 @@ class ServantDataCubit extends Cubit<ServantDataState> {
       );
       await _repository.deleteServant(docId);
       if (existing?.uid?.trim().isNotEmpty == true) {
-        await _adminUserProvisioningService.archiveUser(
-          uid: existing!.uid!.trim(),
-        );
+        try {
+          await _adminUserProvisioningService.archiveUser(
+            uid: existing!.uid!.trim(),
+          );
+        } catch (archiveError) {
+          if (kDebugMode) {
+            debugPrint(
+              'ServantDataCubit: archiveUser failed after deleteServant '
+              'for uid=${existing!.uid}, orphaned auth user: $archiveError',
+            );
+          }
+          try {
+            await _repository.restoreServant(docId);
+          } catch (rollbackError) {
+            if (kDebugMode) {
+              debugPrint(
+                'ServantDataCubit: rollback of deleteServant also failed: '
+                '$rollbackError',
+              );
+            }
+          }
+          _emitMutationFailure(
+            Exception(
+              'تم حذف الخادم لكن فشل في أرشفة الحساب. الرجاء مراجعة المسؤول.',
+            ),
+          );
+          return;
+        }
       }
       final didOptimisticUpdate = _tryEmitOptimisticUpdate(previousLoaded, (
         servants,
@@ -283,7 +312,32 @@ class ServantDataCubit extends Cubit<ServantDataState> {
       await _repository.restoreServant(docId);
       final normalizedUid = existing.uid?.trim();
       if (normalizedUid != null && normalizedUid.isNotEmpty) {
-        await _adminUserProvisioningService.restoreUser(uid: normalizedUid);
+        try {
+          await _adminUserProvisioningService.restoreUser(uid: normalizedUid);
+        } catch (restoreError) {
+          if (kDebugMode) {
+            debugPrint(
+              'ServantDataCubit: restoreUser failed for uid=$normalizedUid, '
+              'rolling back servant restore: $restoreError',
+            );
+          }
+          try {
+            await _repository.deleteServant(docId);
+          } catch (rollbackError) {
+            if (kDebugMode) {
+              debugPrint(
+                'ServantDataCubit: rollback of restoreServant also failed: '
+                '$rollbackError',
+              );
+            }
+          }
+          _emitMutationFailure(
+            Exception(
+              'تمت استعادة الخادم لكن فشل في استعادة الحساب. الرجاء مراجعة المسؤول.',
+            ),
+          );
+          return;
+        }
       }
       await _reloadFromServer(actor);
       _emitLoaded(
@@ -397,10 +451,11 @@ class ServantDataCubit extends Cubit<ServantDataState> {
     List<ServantModel> Function(List<ServantModel> servants) update,
   ) {
     if (previousLoaded == null) return false;
-
-    _allServants = update(List<ServantModel>.from(_allServants));
-
     if (!_canOptimisticallyUpdate(previousLoaded)) return false;
+
+    final updatedServants = update(List<ServantModel>.from(_allServants));
+    _allServants = updatedServants;
+
     var updated = update(List<ServantModel>.from(previousLoaded.servants));
     updated = _sortByName(updated);
     emit(

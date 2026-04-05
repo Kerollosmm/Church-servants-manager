@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:church_management_system/features/attendance/data/models/attendance_roster_item.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_roster_snapshot.dart';
 import 'package:church_management_system/features/attendance/domain/failures/attendance_failures.dart';
-import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
+import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_state.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:flutter/foundation.dart';
@@ -11,13 +11,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
   AttendanceTakingCubit({
-    required IAttendanceRepository repository,
+    required AttendanceRepository repository,
     DateTime Function()? nowProvider,
   }) : _repository = repository,
        _nowProvider = nowProvider ?? DateTime.now,
        super(const AttendanceTakingInitial());
 
-  final IAttendanceRepository _repository;
+  final AttendanceRepository _repository;
   final DateTime Function() _nowProvider;
 
   StreamSubscription<AttendanceRosterSnapshot>? _subscription;

@@ -150,6 +150,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     required List<StudentModel> students,
     String? query,
     StudentMutationStatus mutationStatus = StudentMutationStatus.idle,
+    StudentMutationOperation? mutationOperation,
     String? successMessage,
   }) {
     emit(
@@ -160,18 +161,24 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
         currentQuery: query,
         includeArchived: _includeArchived,
         mutationStatus: mutationStatus,
+        mutationOperation: mutationOperation,
         successMessage: successMessage,
       ),
     );
   }
 
-  void _emitSuccessWithData(Emitter<StudentDataState> emit, String message) {
+  void _emitSuccessWithData(
+    Emitter<StudentDataState> emit,
+    String message, {
+    StudentMutationOperation? mutationOperation,
+  }) {
     final students = _resolveVisibleStudents(_lastQuery);
     _emitLoadedState(
       emit,
       students: students,
       query: _lastQuery,
       mutationStatus: StudentMutationStatus.success,
+      mutationOperation: mutationOperation,
       successMessage: message,
     );
   }
@@ -409,7 +416,10 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
         return;
       }
 
-      if (isRoleChange) {
+      final uid = event.student.uid.trim();
+      final hasLinkedUser = uid.isNotEmpty;
+
+      if (isRoleChange || hasLinkedUser) {
         await _studentRepository.updateStudentAndSyncLinkedUserRole(
           updatedStudent: event.student,
           previousRole: existing.role,
@@ -437,13 +447,38 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
         _emitNotAllowed(emit);
         return;
       }
-      await _studentRepository.deleteStudent(event.docId);
       if (existing.uid.trim().isNotEmpty) {
         await _adminUserProvisioningService.archiveUser(
           uid: existing.uid.trim(),
         );
       }
-      _emitSuccessWithData(emit, 'تمت أرشفة المخدوم بنجاح');
+      try {
+        await _studentRepository.archiveStudent(
+          event.docId,
+          performedByUid: event.actor.uid,
+        );
+      } catch (e) {
+        if (existing.uid.trim().isNotEmpty) {
+          try {
+            await _adminUserProvisioningService.restoreUser(
+              uid: existing.uid.trim(),
+            );
+          } catch (rollbackError) {
+            if (kDebugMode) {
+              debugPrint(
+                'StudentDataBloc: restoreUser rollback failed after '
+                'deleteStudent for uid=${existing.uid}: $rollbackError',
+              );
+            }
+          }
+        }
+        rethrow;
+      }
+      _emitSuccessWithData(
+        emit,
+        'تمت أرشفة المخدوم بنجاح',
+        mutationOperation: StudentMutationOperation.archive,
+      );
     } catch (e) {
       _emitError(emit, 'تعذر أرشفة المخدوم', e);
     }
@@ -467,13 +502,35 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
         return;
       }
 
-      await _studentRepository.restoreStudent(event.docId);
       if (existing.uid.trim().isNotEmpty) {
         await _adminUserProvisioningService.restoreUser(
           uid: existing.uid.trim(),
         );
       }
-      _emitSuccessWithData(emit, 'تمت استعادة المخدوم بنجاح');
+      try {
+        await _studentRepository.restoreStudent(event.docId);
+      } catch (e, st) {
+        if (existing.uid.trim().isNotEmpty) {
+          try {
+            await _adminUserProvisioningService.archiveUser(
+              uid: existing.uid.trim(),
+            );
+          } catch (rollbackError) {
+            if (kDebugMode) {
+              debugPrint(
+                'StudentDataBloc: archiveUser rollback failed after '
+                'restoreStudent for uid=${existing.uid}: $rollbackError',
+              );
+            }
+          }
+        }
+        Error.throwWithStackTrace(e, st);
+      }
+      _emitSuccessWithData(
+        emit,
+        'تمت استعادة المخدوم بنجاح',
+        mutationOperation: StudentMutationOperation.restore,
+      );
     } catch (e) {
       _emitError(emit, 'تعذر استعادة المخدوم', e);
     }

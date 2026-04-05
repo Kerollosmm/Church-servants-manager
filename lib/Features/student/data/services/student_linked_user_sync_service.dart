@@ -19,19 +19,25 @@ class StudentLinkedUserSyncService {
   Map<String, dynamic> buildLinkedUserRolePatch({
     required StudentModel updatedStudent,
     required UserRole previousRole,
+    String? updatedEmail,
   }) {
     final uid = updatedStudent.uid.trim();
     if (uid.isEmpty) {
       throw const GenericStudentFailure(
-        'Cannot change role for student without linked user account.',
+        'Cannot sync student profile without linked user account.',
       );
     }
 
     final payload = <String, dynamic>{
       'uid': uid,
+      'name': updatedStudent.name,
       'role': updatedStudent.role.name,
       'updatedAt': FieldValue.serverTimestamp(),
     };
+
+    if (updatedEmail != null) {
+      payload['email'] = updatedEmail;
+    }
 
     if (updatedStudent.role == UserRole.servant) {
       payload['groupId'] = updatedStudent.group.name;
@@ -56,12 +62,14 @@ class StudentLinkedUserSyncService {
   Future<void> syncLinkedUserRoleFromStudent({
     required StudentModel updatedStudent,
     required UserRole previousRole,
+    String? updatedEmail,
   }) async {
     try {
       final uid = updatedStudent.uid.trim();
       final payload = buildLinkedUserRolePatch(
         updatedStudent: updatedStudent,
         previousRole: previousRole,
+        updatedEmail: updatedEmail,
       );
       await _usersCollection.doc(uid).set(payload, SetOptions(merge: true));
     } catch (e) {
@@ -73,19 +81,21 @@ class StudentLinkedUserSyncService {
   Future<void> updateStudentAndSyncLinkedUserRole({
     required StudentModel updatedStudent,
     required UserRole previousRole,
+    String? updatedEmail,
   }) async {
     try {
-      if (updatedStudent.role == previousRole) {
+      final uid = updatedStudent.uid.trim();
+      if (uid.isEmpty) {
         await _studentsCollection
             .doc(updatedStudent.docID)
             .update(updatedStudent.toMap());
         return;
       }
 
-      final uid = updatedStudent.uid.trim();
       final linkedUserPatch = buildLinkedUserRolePatch(
         updatedStudent: updatedStudent,
         previousRole: previousRole,
+        updatedEmail: updatedEmail,
       );
 
       final batch = _firestore.batch();

@@ -18,6 +18,7 @@ class TeamCubit extends Cubit<TeamState> {
   List<TeamModel> _currentTeams = const [];
   String? _selectedTeamId;
   bool _includeArchived = false;
+  String? _currentLoadGroupId;
 
   TeamCubit({
     required TeamRepository teamRepository,
@@ -52,6 +53,7 @@ class TeamCubit extends Cubit<TeamState> {
     required Future<List<TeamModel>> Function() action,
     String? selectedTeamId,
     bool includeArchived = false,
+    String? loadGroupId,
     required String errorContext,
     required String errorMessage,
   }) async {
@@ -61,6 +63,7 @@ class TeamCubit extends Cubit<TeamState> {
       _currentTeams = teams;
       _selectedTeamId = selectedTeamId;
       _includeArchived = includeArchived;
+      _currentLoadGroupId = loadGroupId;
       emit(TeamLoaded(teams: teams, selectedTeamId: selectedTeamId));
     } catch (e) {
       if (kDebugMode) {
@@ -96,6 +99,13 @@ class TeamCubit extends Cubit<TeamState> {
           includeArchived: _includeArchived,
         );
         _currentTeams = teams;
+        _currentLoadGroupId = reloadGroupId;
+      } else if (_currentLoadGroupId != null) {
+        final teams = await _teamRepository.getTeamsByGroup(
+          _currentLoadGroupId!,
+          includeArchived: _includeArchived,
+        );
+        _currentTeams = teams;
       }
       emit(
         TeamLoaded(
@@ -105,9 +115,6 @@ class TeamCubit extends Cubit<TeamState> {
           feedbackMessage: successMessage,
         ),
       );
-      if (reloadGroupId == null && _currentTeams.isEmpty) {
-        emit(TeamLoaded(teams: _currentTeams, selectedTeamId: _selectedTeamId));
-      }
     } catch (e) {
       _emitUserFacingError(errorContext, e, errorMessage);
     }
@@ -126,6 +133,7 @@ class TeamCubit extends Cubit<TeamState> {
       ),
       selectedTeamId: defaultTeamId,
       includeArchived: includeArchived,
+      loadGroupId: groupId,
       errorContext: 'Failed to load teams',
       errorMessage: 'تعذر تحميل الفرق. تحقق من الاتصال وحاول مرة أخرى.',
     );
@@ -137,7 +145,30 @@ class TeamCubit extends Cubit<TeamState> {
       action: () =>
           _teamRepository.getAllTeams(includeArchived: includeArchived),
       includeArchived: includeArchived,
+      loadGroupId: null,
       errorContext: 'Failed to load all teams',
+      errorMessage: 'تعذر تحميل الفرق. تحقق من الاتصال وحاول مرة أخرى.',
+    );
+  }
+
+  /// Load teams by specific IDs (for servants with assignedTeamIds but no groupId).
+  Future<void> loadTeamsByIds(
+    List<String> ids, {
+    String? defaultTeamId,
+    bool includeArchived = false,
+  }) async {
+    await _runTeamLoad(
+      action: () async {
+        final allTeams = await _teamRepository.getAllTeams(
+          includeArchived: includeArchived,
+        );
+        final idSet = ids.toSet();
+        return allTeams.where((t) => idSet.contains(t.id)).toList();
+      },
+      selectedTeamId: defaultTeamId,
+      includeArchived: includeArchived,
+      loadGroupId: null,
+      errorContext: 'Failed to load teams by IDs',
       errorMessage: 'تعذر تحميل الفرق. تحقق من الاتصال وحاول مرة أخرى.',
     );
   }
@@ -249,6 +280,7 @@ class TeamCubit extends Cubit<TeamState> {
       successMessage: 'تم تحديث أعضاء الفريق بنجاح',
       errorContext: 'Failed to set team members',
       errorMessage: 'تعذر تحديث أعضاء الفريق. حاول مرة أخرى.',
+      reloadGroupId: team.groupId,
     );
   }
 }

@@ -9,7 +9,6 @@ import 'package:church_management_system/features/attendance/data/models/attenda
 import 'package:church_management_system/features/attendance/data/models/attendance_stats.dart';
 import 'package:church_management_system/features/attendance/data/models/student_attendance_history_item.dart';
 import 'package:church_management_system/features/attendance/domain/failures/attendance_failures.dart';
-import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/student/data/services/student_query_service.dart';
@@ -17,7 +16,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:rxdart/rxdart.dart';
 
-class AttendanceRepository implements IAttendanceRepository {
+class AttendanceRepository {
   AttendanceRepository({
     FirebaseFirestore? firestore,
     StudentQueryService? studentQueryService,
@@ -315,14 +314,17 @@ class AttendanceRepository implements IAttendanceRepository {
     required String studentId,
     String? teamId,
   }) {
-    Query<Map<String, dynamic>> query = _firestore
-        .collectionGroup(FirestoreCollections.attendanceSessions)
-        .where('studentIdsSnapshot', arrayContains: studentId);
     final normalizedTeamId = teamId?.trim() ?? '';
     if (normalizedTeamId.isNotEmpty) {
-      query = query.where('teamId', isEqualTo: normalizedTeamId);
+      return _sessionsCol(normalizedTeamId).where(
+        'studentIdsSnapshot',
+        arrayContains: studentId,
+      );
     }
-    return query;
+
+    return _firestore
+        .collectionGroup(FirestoreCollections.attendanceSessions)
+        .where('studentIdsSnapshot', arrayContains: studentId);
   }
 
   Stream<List<AttendanceSession>> _watchStudentSessions({
@@ -403,31 +405,33 @@ class AttendanceRepository implements IAttendanceRepository {
       _assertSessionWritable(session, _nowProvider());
 
       final markRef = _markDoc(teamId, sessionId, studentId);
-      final existing = await markRef.get();
-      final existingMarkedAt = existing.data()?['markedAt'];
       final effectiveStudentName = studentNameSnapshot.trim().isNotEmpty
           ? studentNameSnapshot.trim()
           : (session.studentNameSnapshots[studentId] ?? 'مخدوم');
       final normalizedNote = note?.trim();
 
-      await markRef.set({
-        'studentNameSnapshot': effectiveStudentName,
-        'status': status.name,
-        'markedByUserId': markedBy.uid,
-        'markedByName': markedBy.name,
-        'markedAt': existingMarkedAt ?? FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-        'note': normalizedNote == null || normalizedNote.isEmpty
-            ? FieldValue.delete()
-            : normalizedNote,
-      }, SetOptions(merge: true));
+      await _firestore.runTransaction((transaction) async {
+        final existingDoc = await transaction.get(markRef);
+        final existingMarkedAt = existingDoc.data()?['markedAt'];
+
+        transaction.set(markRef, {
+          'studentNameSnapshot': effectiveStudentName,
+          'status': status.name,
+          'markedByUserId': markedBy.uid,
+          'markedByName': markedBy.name,
+          'markedAt': existingMarkedAt ?? FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+          'note': normalizedNote == null || normalizedNote.isEmpty
+              ? FieldValue.delete()
+              : normalizedNote,
+        }, SetOptions(merge: true));
+      });
     } catch (error) {
       if (error is AttendanceFailure) rethrow;
       throw mapExceptionToAttendanceFailure(error);
     }
   }
 
-  @override
   Future<AttendanceSession> createSession({
     required String teamId,
     required String teamNameSnapshot,
@@ -523,7 +527,6 @@ class AttendanceRepository implements IAttendanceRepository {
     }
   }
 
-  @override
   Future<void> closeSession({
     required String teamId,
     required String sessionId,
@@ -549,7 +552,6 @@ class AttendanceRepository implements IAttendanceRepository {
     }
   }
 
-  @override
   Stream<List<AttendanceSession>> watchSessionsForTeam(String teamId) {
     return _sessionsCol(teamId)
         .orderBy('startsAt', descending: true)
@@ -557,7 +559,6 @@ class AttendanceRepository implements IAttendanceRepository {
         .map(_mapSessionsSnapshot);
   }
 
-  @override
   Stream<AttendanceSession?> watchActiveSessionForTeam(String teamId) {
     return Rx.combineLatest2(watchSessionsForTeam(teamId), _watchClock(), (
       List<AttendanceSession> sessions,
@@ -572,7 +573,6 @@ class AttendanceRepository implements IAttendanceRepository {
     });
   }
 
-  @override
   Stream<AttendanceSession?> watchSessionById({
     required String teamId,
     required String sessionId,
@@ -584,7 +584,6 @@ class AttendanceRepository implements IAttendanceRepository {
     });
   }
 
-  @override
   Future<AttendanceSession?> getSessionById({
     required String teamId,
     required String sessionId,
@@ -599,7 +598,6 @@ class AttendanceRepository implements IAttendanceRepository {
     }
   }
 
-  @override
   Future<void> markStudentPresent({
     required String teamId,
     required String sessionId,
@@ -619,7 +617,6 @@ class AttendanceRepository implements IAttendanceRepository {
     );
   }
 
-  @override
   Future<void> markStudentLate({
     required String teamId,
     required String sessionId,
@@ -639,7 +636,6 @@ class AttendanceRepository implements IAttendanceRepository {
     );
   }
 
-  @override
   Future<void> clearStudentMark({
     required String teamId,
     required String sessionId,
@@ -661,7 +657,6 @@ class AttendanceRepository implements IAttendanceRepository {
     }
   }
 
-  @override
   Future<void> markAllPresentForRemainingStudents({
     required String teamId,
     required String sessionId,
@@ -683,30 +678,31 @@ class AttendanceRepository implements IAttendanceRepository {
       if (remainingIds.isEmpty) return;
 
       final liveNames = await _loadStudentNamesByIds(remainingIds);
-      final batch = _firestore.batch();
+      final chunks = _chunkList(remainingIds, 500);
 
-      for (final studentId in remainingIds) {
-        batch.set(_markDoc(teamId, sessionId, studentId), {
-          'studentNameSnapshot':
-              liveNames[studentId] ??
-              session.studentNameSnapshots[studentId] ??
-              'مخدوم',
-          'status': AttendanceMarkStatus.present.name,
-          'markedByUserId': markedBy.uid,
-          'markedByName': markedBy.name,
-          'markedAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+      for (final chunk in chunks) {
+        final batch = _firestore.batch();
+        for (final studentId in chunk) {
+          batch.set(_markDoc(teamId, sessionId, studentId), {
+            'studentNameSnapshot':
+                liveNames[studentId] ??
+                session.studentNameSnapshots[studentId] ??
+                'مخدوم',
+            'status': AttendanceMarkStatus.present.name,
+            'markedByUserId': markedBy.uid,
+            'markedByName': markedBy.name,
+            'markedAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        }
+        await batch.commit();
       }
-
-      await batch.commit();
     } catch (error) {
       if (error is AttendanceFailure) rethrow;
       throw mapExceptionToAttendanceFailure(error);
     }
   }
 
-  @override
   Stream<List<AttendanceRosterItem>> watchSessionRoster({
     required String teamId,
     required String sessionId,
@@ -717,7 +713,6 @@ class AttendanceRepository implements IAttendanceRepository {
     ).map((snapshot) => snapshot.roster);
   }
 
-  @override
   Stream<AttendanceRosterSnapshot> watchSessionRosterSnapshot({
     required String teamId,
     required String sessionId,
@@ -752,7 +747,6 @@ class AttendanceRepository implements IAttendanceRepository {
         });
   }
 
-  @override
   Stream<List<StudentAttendanceHistoryItem>> watchStudentAttendanceHistory({
     required String studentId,
     String? teamId,
@@ -817,7 +811,6 @@ class AttendanceRepository implements IAttendanceRepository {
     });
   }
 
-  @override
   Future<StudentAttendanceStats> getStudentAttendanceStats({
     required String studentId,
     String? teamId,
@@ -867,7 +860,6 @@ class AttendanceRepository implements IAttendanceRepository {
     }
   }
 
-  @override
   Future<TeamAttendanceStats> getTeamAttendanceStats({
     required String teamId,
     DateTimeRange? range,
@@ -938,7 +930,6 @@ class AttendanceRepository implements IAttendanceRepository {
     }
   }
 
-  @override
   Future<bool> canUserManageAttendance({
     required AuthUser user,
     required String teamId,
@@ -949,7 +940,6 @@ class AttendanceRepository implements IAttendanceRepository {
     return user.effectiveAssignedTeamIds.contains(teamId.trim());
   }
 
-  @override
   Future<void> assertUserCanManageAttendance({
     required AuthUser user,
     required String teamId,

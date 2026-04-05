@@ -27,8 +27,8 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
     super.dispose();
   }
 
-  Future<void> _save() async {
-    final membersCubit = context.read<TeamMembersCubit>();
+  Future<void> _save(BuildContext innerContext) async {
+    final membersCubit = innerContext.read<TeamMembersCubit>();
     if (membersCubit.state.isSaving) return;
 
     await membersCubit.saveMembers(
@@ -84,7 +84,7 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
               BlocBuilder<TeamMembersCubit, TeamMembersState>(
                 builder: (context, state) {
                   return TextButton.icon(
-                    onPressed: state.isSaving ? null : _save,
+                    onPressed: state.isSaving ? null : () => _save(context),
                     icon: state.isSaving
                         ? const SizedBox(
                             width: 18,

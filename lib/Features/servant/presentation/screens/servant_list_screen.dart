@@ -165,12 +165,15 @@ class _ServantListScreenState extends State<ServantListScreen> {
           ),
           floatingActionButton: _canManage(actor)
               ? FloatingActionButton.extended(
-                  onPressed: () {
-                    Navigator.pushNamed(
+                  onPressed: () async {
+                    final result = await Navigator.pushNamed(
                       context,
                       servantEdit,
                       arguments: ServantEditArgs(actor: actor),
                     );
+                    if (result == true && mounted) {
+                      _refresh(actor);
+                    }
                   },
                   icon: const Icon(Icons.person_add),
                   label: const Text('إضافة خادم'), // Add Servant

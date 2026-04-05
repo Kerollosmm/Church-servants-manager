@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/servant/domain/failures/servant_failures.dart';
-import 'package:church_management_system/features/servant/domain/repo/i_servant_repository.dart';
+import 'package:flutter/foundation.dart';
 import '../models/servant_models.dart';
 
 typedef _ServantDoc = QueryDocumentSnapshot<Map<String, dynamic>>;
@@ -21,7 +21,7 @@ class ServantsPage {
 
 /// Repository for managing servant data.
 /// Servants are stored in the Users collection with role == 'servant'.
-class ServantDataRepository implements IServantRepository {
+class ServantDataRepository {
   final FirebaseFirestore _firestore;
 
   ServantDataRepository({FirebaseFirestore? firestore})
@@ -79,7 +79,6 @@ class ServantDataRepository implements IServantRepository {
     return data;
   }
 
-  @override
   Future<ServantModel?> getServantById(
     String docId, {
     bool includeArchived = false,
@@ -98,7 +97,6 @@ class ServantDataRepository implements IServantRepository {
     }
   }
 
-  @override
   Future<ServantModel?> getServantByUid(
     String uid, {
     bool includeArchived = false,
@@ -156,7 +154,6 @@ class ServantDataRepository implements IServantRepository {
     }
   }
 
-  @override
   Future<List<ServantModel>> getAllServants({
     int limit = 20,
     DocumentSnapshot? lastDocument,
@@ -220,7 +217,6 @@ class ServantDataRepository implements IServantRepository {
     }
   }
 
-  @override
   Future<List<ServantModel>> getServantsByTeam(
     String teamName, {
     bool includeArchived = false,
@@ -248,7 +244,6 @@ class ServantDataRepository implements IServantRepository {
     }
   }
 
-  @override
   Future<List<ServantModel>> searchServants(
     String query, {
     int limit = 20,
@@ -271,14 +266,12 @@ class ServantDataRepository implements IServantRepository {
     }
   }
 
-  @override
   Stream<List<ServantModel>> getServantsStream({bool includeArchived = false}) {
     return _sortedServantsQuery().snapshots().map((snapshot) {
       return _servantsFromDocs(snapshot.docs, includeArchived);
     });
   }
 
-  @override
   Future<String> createServant(ServantModel servant) async {
     try {
       final normalizedUid = servant.uid?.trim();
@@ -299,7 +292,6 @@ class ServantDataRepository implements IServantRepository {
     }
   }
 
-  @override
   Future<void> upsertServant(ServantModel servant) async {
     try {
       final data = _normalizeServantWriteData(servant);
@@ -312,7 +304,6 @@ class ServantDataRepository implements IServantRepository {
     }
   }
 
-  @override
   Future<void> updateServant(ServantModel servant) async {
     try {
       final data = _normalizeServantWriteData(servant);
@@ -322,7 +313,6 @@ class ServantDataRepository implements IServantRepository {
     }
   }
 
-  @override
   Future<void> updateServantFields(
     String docId,
     Map<String, dynamic> fields,
@@ -334,7 +324,6 @@ class ServantDataRepository implements IServantRepository {
     }
   }
 
-  @override
   Future<void> deleteServant(String docId) async {
     try {
       await _usersCollection.doc(docId).set({
@@ -351,17 +340,64 @@ class ServantDataRepository implements IServantRepository {
     }
   }
 
-  @override
   Future<void> restoreServant(String docId) async {
     try {
       await _usersCollection.doc(docId).set({
         'isArchived': false,
         'restorePendingPasswordReset': true,
         'restoredAt': FieldValue.serverTimestamp(),
+        'restoredByUserId': 'system',
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     } catch (e) {
       throw mapExceptionToServantFailure(e);
     }
+  }
+
+  /// Propagates a servant's name change to all teams where this servant
+  /// is assigned as the responsible servant (NFR-04.2(a)).
+  ///
+  /// This is the single update owner for `assignedServantName` denormalization.
+  /// Called after servant name is successfully updated. Best-effort: catches
+  /// and logs failures via debugPrint rather than throwing.
+  /// Chunks updates into batches of 500 to respect Firestore limits.
+  Future<void> propagateServantNameToTeams({
+    required String servantUid,
+    required String newName,
+  }) async {
+    try {
+      final teamsSnapshot = await _firestore
+          .collection(FirestoreCollections.classes)
+          .where('assignedServantId', isEqualTo: servantUid)
+          .get();
+
+      if (teamsSnapshot.docs.isEmpty) return;
+
+      final chunks = _chunkList(teamsSnapshot.docs, 500);
+      for (final chunk in chunks) {
+        final batch = _firestore.batch();
+        for (final teamDoc in chunk) {
+          batch.update(teamDoc.reference, {
+            'assignedServantName': newName,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        }
+        await batch.commit();
+      }
+    } catch (e) {
+      debugPrint(
+        'ServantDataRepository: Failed to propagate servant name '
+        '($servantUid → "$newName") to teams: $e',
+      );
+    }
+  }
+
+  List<List<T>> _chunkList<T>(List<T> values, int size) {
+    final chunks = <List<T>>[];
+    for (var index = 0; index < values.length; index += size) {
+      final end = index + size > values.length ? values.length : index + size;
+      chunks.add(values.sublist(index, end));
+    }
+    return chunks;
   }
 }

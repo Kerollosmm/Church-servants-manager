@@ -102,8 +102,10 @@ class ServantPrimaryDetailsSection extends StatelessWidget {
           prefixIcon: Icons.school_outlined,
           items: Group.values
               .map(
-                (group) =>
-                    DropdownMenuItem(value: group, child: Text(group.name)),
+                (group) => DropdownMenuItem(
+                  value: group,
+                  child: Text(group.displayName),
+                ),
               )
               .toList(growable: false),
           onChanged: (value) {

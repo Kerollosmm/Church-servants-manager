@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/data/services/auth_user_profile_store.dart';
@@ -218,9 +219,8 @@ class FirebaseAuthProvider implements AuthProvider {
     if (user != null) {
       _userCache.remove(user.uid);
       await _auth.signOut();
-    } else {
-      throw UserNotLoggedInAuthException();
     }
+    // Idempotent: no-op if already logged out
   }
 
   @override
@@ -249,7 +249,6 @@ class FirebaseAuthProvider implements AuthProvider {
           rethrow;
       }
     } catch (e) {
-      if (e is FirebaseAuthException) rethrow;
       throw const PasswordResetAuthException();
     }
   }
@@ -279,6 +278,20 @@ class FirebaseAuthProvider implements AuthProvider {
       // Invalidate cache to force fetch on next access
       _userCache.remove(user.uid);
     }
+  }
+
+  Future<void> updatePassword(String newPassword) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw UserNotLoggedInAuthException();
+    }
+    await user.updatePassword(newPassword);
+  }
+
+  Future<void> clearRestorePendingPasswordReset(String uid) async {
+    await FirebaseFirestore.instance.collection('Users').doc(uid).set({
+      'restorePendingPasswordReset': false,
+    }, SetOptions(merge: true));
   }
 
   /// Get user data from Firestore with improved cache/server fallback

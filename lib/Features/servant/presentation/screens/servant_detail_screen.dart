@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/routes.dart';
 import 'package:church_management_system/core/routing/route_args.dart';
@@ -6,6 +8,7 @@ import 'package:church_management_system/core/widgets/common/app_detail_section_
 import 'package:church_management_system/core/widgets/common/app_info_banner.dart';
 import 'package:church_management_system/core/widgets/common/app_key_value_row.dart';
 import 'package:church_management_system/core/widgets/common/app_profile_header_card.dart';
+import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
 import 'package:church_management_system/core/widgets/dialogs/generic_dialog.dart';
 import 'package:church_management_system/features/servant/presentation/bloc/servant_data/servant_data_cubit.dart';
 import 'package:flutter/material.dart';
@@ -60,16 +63,49 @@ class ServantDetailScreen extends StatelessWidget {
                   optionBuilder: () => {'إلغاء': false, 'أرشفة': true},
                 );
                 if (shouldArchive != true || !context.mounted) return;
-                await context.read<ServantDataCubit>().deleteServant(
+
+                final cubit = context.read<ServantDataCubit>();
+                final completer = Completer<void>();
+                late final StreamSubscription<ServantDataState> sub;
+                sub = cubit.stream.listen((state) {
+                  if (state is ServantDataLoaded) {
+                    if (state.mutationStatus == ServantMutationStatus.success) {
+                      if (context.mounted) Navigator.pop(context, true);
+                    } else if (state.mutationStatus ==
+                        ServantMutationStatus.failure) {
+                      if (context.mounted) {
+                        AppSnackbars.showError(
+                          context,
+                          state.feedbackMessage ?? 'فشل في أرشفة الخادم.',
+                        );
+                      }
+                    }
+                    if (!completer.isCompleted) completer.complete();
+                  } else if (state is ServantDataError) {
+                    if (context.mounted) {
+                      AppSnackbars.showError(context, state.message);
+                    }
+                    if (!completer.isCompleted) completer.complete();
+                  }
+                });
+                await cubit.deleteServant(
                   actor: args.actor,
                   docId: servant.docID,
                 );
-                if (!context.mounted) return;
-                final currentState = context.read<ServantDataCubit>().state;
-                if (currentState is ServantDataLoaded &&
-                    currentState.mutationStatus ==
-                        ServantMutationStatus.success) {
-                  Navigator.pop(context, true);
+                try {
+                  await completer.future.timeout(
+                    const Duration(seconds: 10),
+                    onTimeout: () {
+                      if (context.mounted) {
+                        AppSnackbars.showError(context, 'انتهت مهلة العملية.');
+                      }
+                      throw TimeoutException('Archive timed out');
+                    },
+                  );
+                } catch (_) {
+                  // Error already shown via snackbar or timeout handler
+                } finally {
+                  sub.cancel();
                 }
               },
             ),
@@ -86,16 +122,49 @@ class ServantDetailScreen extends StatelessWidget {
                   optionBuilder: () => {'إلغاء': false, 'استعادة': true},
                 );
                 if (shouldRestore != true || !context.mounted) return;
-                await context.read<ServantDataCubit>().restoreServant(
+
+                final cubit = context.read<ServantDataCubit>();
+                final completer = Completer<void>();
+                late final StreamSubscription<ServantDataState> sub;
+                sub = cubit.stream.listen((state) {
+                  if (state is ServantDataLoaded) {
+                    if (state.mutationStatus == ServantMutationStatus.success) {
+                      if (context.mounted) Navigator.pop(context, true);
+                    } else if (state.mutationStatus ==
+                        ServantMutationStatus.failure) {
+                      if (context.mounted) {
+                        AppSnackbars.showError(
+                          context,
+                          state.feedbackMessage ?? 'فشل في استعادة الخادم.',
+                        );
+                      }
+                    }
+                    if (!completer.isCompleted) completer.complete();
+                  } else if (state is ServantDataError) {
+                    if (context.mounted) {
+                      AppSnackbars.showError(context, state.message);
+                    }
+                    if (!completer.isCompleted) completer.complete();
+                  }
+                });
+                await cubit.restoreServant(
                   actor: args.actor,
                   docId: servant.docID,
                 );
-                if (!context.mounted) return;
-                final currentState = context.read<ServantDataCubit>().state;
-                if (currentState is ServantDataLoaded &&
-                    currentState.mutationStatus ==
-                        ServantMutationStatus.success) {
-                  Navigator.pop(context, true);
+                try {
+                  await completer.future.timeout(
+                    const Duration(seconds: 10),
+                    onTimeout: () {
+                      if (context.mounted) {
+                        AppSnackbars.showError(context, 'انتهت مهلة العملية.');
+                      }
+                      throw TimeoutException('Restore timed out');
+                    },
+                  );
+                } catch (_) {
+                  // Error already shown via snackbar or timeout handler
+                } finally {
+                  sub.cancel();
                 }
               },
             ),

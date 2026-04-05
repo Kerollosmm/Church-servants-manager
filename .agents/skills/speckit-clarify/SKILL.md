@@ -29,7 +29,7 @@ Execution steps:
    - `FEATURE_SPEC`
    - (Optionally capture `IMPL_PLAN`, `TASKS` for future chained flows.)
    - If JSON parsing fails, abort and instruct user to re-run `/speckit.specify` or verify feature branch environment.
-   - For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
+   - For shell escaping (performed by the AI agent when invoking commands): when running from POSIX shells (bash/sh), use escape syntax like 'I'\''m Groot' for single quotes; when running from PowerShell, use PowerShell alternatives (backtick escape or doubled quotes like 'I''m Groot' or "I'm Groot").
 
 2. Load the current spec file. Perform a structured ambiguity & coverage scan using this taxonomy. For each category, mark status: Clear / Partial / Missing. Produce an internal coverage map used for prioritization (do not output raw map unless no questions will be asked).
 
@@ -145,7 +145,7 @@ Execution steps:
        - User interaction / actor distinction → Update User Stories or Actors subsection (if present) with clarified role, constraint, or scenario.
        - Data shape / entities → Update Data Model (add fields, types, relationships) preserving ordering; note added constraints succinctly.
        - Non-functional constraint → Add/modify measurable criteria in Success Criteria > Measurable Outcomes (convert vague adjective to metric or explicit target).
-       - Edge case / negative flow → Add a new bullet under Edge Cases / Error Handling (or create such subsection if template provides placeholder for it).
+       - Edge case / negative flow → Add a new bullet under Edge Cases / Error Handling (or create such subsection if template provides placeholder for it - meaning there is an existing heading or explicit placeholder comment under which new bullets/subsections may be added).
        - Terminology conflict → Normalize term across spec; retain original only if necessary by adding `(formerly referred to as "X")` once.
     - If the clarification invalidates an earlier ambiguous statement, replace that statement instead of duplicating; leave no obsolete contradictory text.
     - Save the spec file AFTER each integration to minimize risk of context loss (atomic overwrite).
@@ -157,10 +157,10 @@ Execution steps:
    - Total asked (accepted) questions ≤ 5.
    - Updated sections contain no lingering vague placeholders the new answer was meant to resolve.
    - No contradictory earlier statement remains (scan for now-invalid alternative choices removed).
-   - Markdown structure valid; only allowed new headings: `## Clarifications`, `### Session YYYY-MM-DD`.
-   - Terminology consistency: same canonical term used across all updated sections.
+    - Markdown structure valid; only allowed new top-level headings (##) to be added are `## Clarifications`. Contributors may add session subsections using `### Session YYYY-MM-DD` (a level-3 heading) within `## Clarifications`. Contributors are also allowed to create new subsection headings (### or deeper) within existing top-level sections (e.g., under "Functional Requirements", "Edge Cases / Error Handling", or "User Stories") for organization when integrating clarifications. Always preserve heading levels and ordering and avoid adding new standalone top-level sections beyond the permitted headings.
+    - Terminology consistency: same canonical term used across all updated sections.
 
-7. Write the updated spec back to `FEATURE_SPEC`.
+7. Final write & validation: After all integrations from Step 5 are complete, perform a final write/validation pass to `FEATURE_SPEC` to confirm the file is consistent, all checksums match, and no incremental save was corrupted. This step commits the fully-integrated spec as the canonical version.
 
 8. Report completion (after questioning loop ends or early termination):
    - Number of questions asked & answered.

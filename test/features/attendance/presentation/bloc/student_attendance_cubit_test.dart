@@ -1,12 +1,12 @@
 import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
 import 'package:church_management_system/features/attendance/data/models/student_attendance_history_item.dart';
-import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
+import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/student_attendance/student_attendance_cubit.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/student_attendance/student_attendance_state.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
-class MockAttendanceRepository extends Mock implements IAttendanceRepository {}
+class MockAttendanceRepository extends Mock implements AttendanceRepository {}
 
 void main() {
   late MockAttendanceRepository repository;

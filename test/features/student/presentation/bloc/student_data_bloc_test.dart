@@ -460,7 +460,9 @@ void main() {
       () => repository.getStudentById('s3'),
     ).thenAnswer((_) async => existing);
     when(() => canMutateStudent(adminActor, existing)).thenReturn(true);
-    when(() => repository.deleteStudent('s3')).thenAnswer((_) async {});
+    when(
+      () => repository.archiveStudent('s3', performedByUid: adminActor.uid),
+    ).thenAnswer((_) async {});
     when(
       () => adminUserProvisioningService.archiveUser(uid: 's3'),
     ).thenAnswer((_) async {});

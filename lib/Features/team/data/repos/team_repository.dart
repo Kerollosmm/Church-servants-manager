@@ -2,9 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/features/team/data/models/team_model.dart';
 import 'package:church_management_system/features/team/domain/failures/team_failures.dart';
-import 'package:church_management_system/features/team/domain/repos/i_team_repository.dart';
 
-class TeamRepository implements ITeamRepository {
+class TeamRepository {
   final FirebaseFirestore _firestore;
 
   TeamRepository({FirebaseFirestore? firestore})
@@ -151,7 +150,6 @@ class TeamRepository implements ITeamRepository {
     }, SetOptions(merge: true));
   }
 
-  @override
   Future<List<TeamModel>> getTeamsByGroup(
     String groupId, {
     bool includeArchived = false,
@@ -187,7 +185,6 @@ class TeamRepository implements ITeamRepository {
     }
   }
 
-  @override
   Stream<List<TeamModel>> watchTeamsByGroup(
     String groupId, {
     bool includeArchived = false,
@@ -204,7 +201,6 @@ class TeamRepository implements ITeamRepository {
         });
   }
 
-  @override
   Future<List<TeamModel>> getAllTeams({bool includeArchived = false}) async {
     try {
       try {
@@ -244,7 +240,6 @@ class TeamRepository implements ITeamRepository {
     }
   }
 
-  @override
   Stream<List<TeamModel>> watchAllTeams({bool includeArchived = false}) {
     return _classesCollection
         .orderBy('groupId')
@@ -258,7 +253,6 @@ class TeamRepository implements ITeamRepository {
         });
   }
 
-  @override
   Future<TeamModel?> getTeamById(
     String id, {
     bool includeArchived = false,
@@ -278,40 +272,92 @@ class TeamRepository implements ITeamRepository {
     }
   }
 
-  @override
   Future<String> createTeam(TeamModel team) async {
     try {
-      final docRef = await _classesCollection.add(team.toMap());
+      // NOTE: Firestore transactions cannot execute range queries (where).
+      // This pre-transaction check is a best-effort guard against duplicates.
+      // In the extremely rare case of concurrent creation, the deterministic
+      // ID or a registry document pattern would be needed for full atomicity.
+      final existingSnapshot = await _classesCollection
+          .where('groupId', isEqualTo: team.groupId)
+          .where('name', isEqualTo: team.name)
+          .get();
+
+      if (existingSnapshot.docs.isNotEmpty) {
+        throw StateError('يوجد فريق بنفس الاسم في هذه المجموعة بالفعل');
+      }
+
+      final docRef = await _firestore.runTransaction((transaction) async {
+        final newDocRef = _classesCollection.doc();
+        transaction.set(newDocRef, {
+          ...team.toMap(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        return newDocRef;
+      });
       return docRef.id;
     } catch (e) {
+      if (e is StateError) {
+        throw TeamValidationFailure(e.message);
+      }
       throw mapExceptionToTeamFailure(e);
     }
   }
 
-  @override
   Future<void> updateTeam(TeamModel team) async {
     try {
       final teamRef = _classesCollection.doc(team.id);
+
+      // Pre-transaction check for duplicate name within the same group.
+      // NOTE: Firestore transactions cannot execute range queries (where).
+      // This check is best-effort; concurrent edits could theoretically create
+      // duplicates, but this is extremely unlikely in practice.
       final existingDoc = await teamRef.get();
       if (!existingDoc.exists || existingDoc.data() == null) {
         throw const TeamNotFoundFailure();
       }
 
       final existing = TeamModel.fromMap(existingDoc.data()!, existingDoc.id);
-      await teamRef.update({
-        ...team.toMap(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
 
       if (existing.name != team.name || existing.groupId != team.groupId) {
-        await _syncTeamNameReferences(team);
+        final duplicateSnapshot = await _classesCollection
+            .where('groupId', isEqualTo: team.groupId)
+            .where('name', isEqualTo: team.name)
+            .get();
+
+        for (final doc in duplicateSnapshot.docs) {
+          if (doc.id != team.id) {
+            throw StateError('يوجد فريق بنفس الاسم في هذه المجموعة بالفعل');
+          }
+        }
+      }
+
+      await _firestore.runTransaction((transaction) async {
+        final currentDoc = await transaction.get(teamRef);
+        if (!currentDoc.exists) {
+          throw const TeamNotFoundFailure();
+        }
+
+        transaction.update(teamRef, {
+          ...team.toMap(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      });
+
+      // Sync team name references after successful transaction
+      final updatedDoc = await teamRef.get();
+      if (updatedDoc.exists && updatedDoc.data() != null) {
+        final updated = TeamModel.fromMap(updatedDoc.data()!, updatedDoc.id);
+        await _syncTeamNameReferences(updated);
       }
     } catch (e) {
+      if (e is StateError) {
+        throw TeamValidationFailure(e.message);
+      }
       throw mapExceptionToTeamFailure(e);
     }
   }
 
-  @override
   Future<void> deleteTeam(String id) async {
     try {
       final teamRef = _classesCollection.doc(id);
@@ -345,7 +391,6 @@ class TeamRepository implements ITeamRepository {
     }
   }
 
-  @override
   Future<void> restoreTeam(String id) async {
     try {
       final teamRef = _classesCollection.doc(id);

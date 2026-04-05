@@ -5,7 +5,7 @@ import 'package:church_management_system/core/theme/app_spacing.dart';
 import 'package:church_management_system/core/widgets/common/app_info_banner.dart';
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
-import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
+import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/session_admin/attendance_session_admin_cubit.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/session_admin/attendance_session_admin_state.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
@@ -40,7 +40,7 @@ class _AttendanceSessionCreateScreenState
   void initState() {
     super.initState();
     _cubit = AttendanceSessionAdminCubit(
-      repository: context.read<IAttendanceRepository>(),
+      repository: context.read<AttendanceRepository>(),
     );
     _teamCubit = TeamCubit(
       teamRepository: context.read<TeamRepository>(),
@@ -83,6 +83,11 @@ class _AttendanceSessionCreateScreenState
     if (groupId != null && groupId.isNotEmpty) {
       _teamCubit.loadTeamsByGroup(
         groupId,
+        defaultTeamId: teamIds.length == 1 ? teamIds.first : null,
+      );
+    } else if (teamIds.isNotEmpty) {
+      _teamCubit.loadTeamsByIds(
+        teamIds,
         defaultTeamId: teamIds.length == 1 ? teamIds.first : null,
       );
     }
@@ -139,8 +144,8 @@ class _AttendanceSessionCreateScreenState
       return;
     }
     final durationMinutes = int.tryParse(_durationController.text.trim());
-    if (durationMinutes == null) {
-      AppSnackbars.showError(context, 'أدخل مدة صحيحة بالدقائق.');
+    if (durationMinutes == null || durationMinutes <= 0) {
+      AppSnackbars.showError(context, 'أدخل مدة صحيحة أكبر من صفر.');
       return;
     }
 
@@ -166,8 +171,14 @@ class _AttendanceSessionCreateScreenState
         final actor = _currentActorOrNull();
         if (actor == null ||
             (actor.role != UserRole.admin && actor.role != UserRole.servant)) {
-          return const Scaffold(
-            body: Center(
+          return Scaffold(
+            appBar: AppBar(
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+            body: const Center(
               child: Text('هذه الشاشة متاحة للمسؤول أو الخادم المخصص فقط.'),
             ),
           );
@@ -190,15 +201,24 @@ class _AttendanceSessionCreateScreenState
                   }
                   if (state is AttendanceSessionAdminSuccess) {
                     AppSnackbars.showSuccess(context, state.message);
-                    Navigator.pushReplacementNamed(
-                      context,
-                      attendanceTaking,
-                      arguments: AttendanceTakingArgs(
-                        actor: actor,
-                        teamId: state.session.teamId,
-                        sessionId: state.session.id,
-                      ),
-                    );
+                    final currentActor = _currentActorOrNull();
+                    if (currentActor != null) {
+                      Navigator.pushReplacementNamed(
+                        context,
+                        attendanceTaking,
+                        arguments: AttendanceTakingArgs(
+                          actor: currentActor,
+                          teamId: state.session.teamId,
+                          sessionId: state.session.id,
+                        ),
+                      );
+                    } else {
+                      AppSnackbars.showError(
+                        context,
+                        'تم إنشاء الجلسة لكن لم يتم التحقق من المستخدم.',
+                      );
+                      Navigator.pushReplacementNamed(context, login);
+                    }
                   }
                 },
                 child: Scaffold(

@@ -2,7 +2,7 @@ import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/role_user_route.dart';
 import 'package:church_management_system/core/routing/app_router.dart';
 import 'package:church_management_system/core/theme/app_theme.dart';
-import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
+import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
 import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
 import 'package:church_management_system/features/auth/data/services/auth_service.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
@@ -46,8 +46,8 @@ class ChurchApp extends StatelessWidget {
         RepositoryProvider<CanMutateStudentUseCase>.value(
           value: getIt<CanMutateStudentUseCase>(),
         ),
-        RepositoryProvider<IAttendanceRepository>.value(
-          value: getIt<IAttendanceRepository>(),
+        RepositoryProvider<AttendanceRepository>.value(
+          value: getIt<AttendanceRepository>(),
         ),
       ],
       child: MultiBlocProvider(

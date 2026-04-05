@@ -42,7 +42,7 @@ class AttendanceMark with _$AttendanceMark {
     final markedAt =
         converter.fromJson(data['markedAt']) ??
         converter.fromJson(data['updatedAt']) ??
-        DateTime.now();
+        DateTime.fromMillisecondsSinceEpoch(0);
 
     return AttendanceMark.fromJson({
       ...data,

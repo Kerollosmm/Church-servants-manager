@@ -109,38 +109,16 @@ class _TeamManagementScreenState extends State<TeamManagementScreen>
     String? hintText,
     required ValueChanged<String> onSave,
   }) {
-    final nameController = TextEditingController(text: initialName);
-
     showDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(title),
-        content: TextField(
-          controller: nameController,
-          autofocus: true,
-          decoration: InputDecoration(
-            labelText: 'اسم الفريق',
-            hintText: hintText,
-          ),
-          textCapitalization: TextCapitalization.words,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('إلغاء'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final name = nameController.text.trim();
-              if (name.isEmpty) return;
-              onSave(name);
-              Navigator.pop(dialogContext);
-            },
-            child: Text(actionLabel),
-          ),
-        ],
+      builder: (dialogContext) => _TeamNameDialogContent(
+        title: title,
+        actionLabel: actionLabel,
+        initialName: initialName,
+        hintText: hintText,
+        onSave: onSave,
       ),
-    ).then((_) => nameController.dispose());
+    );
   }
 
   void _confirmDeleteTeam(TeamModel team) {
@@ -314,6 +292,72 @@ class _TeamManagementScreenState extends State<TeamManagementScreen>
           },
         ),
       ),
+    );
+  }
+}
+
+class _TeamNameDialogContent extends StatefulWidget {
+  final String title;
+  final String actionLabel;
+  final String initialName;
+  final String? hintText;
+  final ValueChanged<String> onSave;
+
+  const _TeamNameDialogContent({
+    required this.title,
+    required this.actionLabel,
+    this.initialName = '',
+    this.hintText,
+    required this.onSave,
+  });
+
+  @override
+  State<_TeamNameDialogContent> createState() => _TeamNameDialogContentState();
+}
+
+class _TeamNameDialogContentState extends State<_TeamNameDialogContent> {
+  late final TextEditingController _nameController;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.initialName);
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: TextField(
+        controller: _nameController,
+        autofocus: true,
+        decoration: InputDecoration(
+          labelText: 'اسم الفريق',
+          hintText: widget.hintText,
+        ),
+        textCapitalization: TextCapitalization.words,
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('إلغاء'),
+        ),
+        FilledButton(
+          onPressed: () {
+            final name = _nameController.text.trim();
+            if (name.isEmpty) return;
+            widget.onSave(name);
+            Navigator.pop(context);
+          },
+          child: Text(widget.actionLabel),
+        ),
+      ],
     );
   }
 }

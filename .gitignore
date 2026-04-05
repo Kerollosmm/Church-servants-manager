@@ -55,7 +55,9 @@ docs/
 
 # Agent and Skill rules
 .agent/
-functions/
+functions/node_modules/
+functions/lib/
+functions/dist/
 .kilocodemodes
 .kilocode
 csms_knowledge_base.md

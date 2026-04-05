@@ -2,7 +2,7 @@ import 'package:church_management_system/core/routing/route_args.dart';
 import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
-import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
+import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/student_attendance/student_attendance_cubit.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/student_attendance/student_attendance_state.dart';
 import 'package:flutter/material.dart';
@@ -25,12 +25,11 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen> {
   void initState() {
     super.initState();
     _cubit =
-        StudentAttendanceCubit(
-          repository: context.read<IAttendanceRepository>(),
-        )..loadForStudent(
-          studentId: widget.args.studentId,
-          teamId: widget.args.filterTeamId,
-        );
+        StudentAttendanceCubit(repository: context.read<AttendanceRepository>())
+          ..loadForStudent(
+            studentId: widget.args.studentId,
+            teamId: widget.args.filterTeamId,
+          );
   }
 
   @override

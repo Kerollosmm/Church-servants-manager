@@ -100,11 +100,22 @@ class _AddEditServantScreenState extends State<AddEditServantScreen> {
       return;
     }
 
+    final email = _controllers.email.text.trim();
+    final password = _controllers.password.text.trim();
+    if (email.isEmpty) {
+      AppSnackbars.showError(context, 'البريد الإلكتروني مطلوب.');
+      return;
+    }
+    if (password.isEmpty) {
+      AppSnackbars.showError(context, 'كلمة المرور مطلوبة.');
+      return;
+    }
+
     cubit.createServant(
       actor: actor,
       servant: servant,
-      email: _nullableTrimmed(_controllers.email.text),
-      password: _nullableTrimmed(_controllers.password.text),
+      email: email,
+      password: password,
     );
   }
 
@@ -115,8 +126,7 @@ class _AddEditServantScreenState extends State<AddEditServantScreen> {
     return BlocListener<ServantDataCubit, ServantDataState>(
       listener: (context, state) {
         if (state is ServantDataLoaded &&
-            state.mutationStatus == ServantMutationStatus.success &&
-            state.feedbackMessage != null) {
+            state.mutationStatus == ServantMutationStatus.success) {
           Navigator.pop(context);
         } else if (state is ServantDataError) {
           AppSnackbars.showError(context, state.message);

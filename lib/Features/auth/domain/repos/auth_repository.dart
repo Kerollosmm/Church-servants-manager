@@ -19,4 +19,10 @@ abstract class AuthRepository {
 
   /// Gets the currently authenticated user, if any.
   Future<AuthUser?> getCurrentUser();
+
+  /// Updates the current user's password.
+  Future<void> updatePassword(String newPassword);
+
+  /// Clears the restorePendingPasswordReset flag on the user's Firestore doc.
+  Future<void> clearRestorePendingPasswordReset(String uid);
 }

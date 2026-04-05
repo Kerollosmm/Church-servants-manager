@@ -69,11 +69,11 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
     final initial = _birthdate ?? DateTime(now.year - 14, now.month, now.day);
     final selected = await showDatePicker(
       context: context,
-      firstDate: DateTime(2012),
+      firstDate: DateTime(now.year - 100),
       lastDate: now,
       initialDate: initial,
     );
-    if (selected != null) {
+    if (selected != null && mounted) {
       setState(() => _birthdate = selected);
     }
   }
@@ -207,14 +207,14 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
               state.successMessage != null) {
             if (mounted) {
               setState(() => _isSubmitting = false);
+              AppSnackbars.showSuccess(context, state.successMessage!);
+              Navigator.pop(context);
             }
-            AppSnackbars.showSuccess(context, state.successMessage!);
-            Navigator.pop(context);
           } else if (state is StudentDataError) {
             if (mounted) {
               setState(() => _isSubmitting = false);
+              AppSnackbars.showError(context, state.message);
             }
-            AppSnackbars.showError(context, state.message);
           }
         },
         child: Scaffold(

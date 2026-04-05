@@ -31,7 +31,7 @@ class AppInfoBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(icon, color: AppColors.primary),
+          Icon(icon, color: foregroundColor),
           AppSpacing.gapSm,
           Expanded(
             child: Text(

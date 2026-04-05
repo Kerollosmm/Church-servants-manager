@@ -155,7 +155,9 @@ class StudentBasicsSection extends StatelessWidget {
               ? null
               : onTeamChanged,
           validator: (value) {
-            if (teamsState.isLoading) return null;
+            if (teamsState.isLoading) {
+              return 'الرجاء الانتظار حتى اكتمال تحميل الفرق';
+            }
             if (teamsState.teams.isEmpty) {
               return 'لا توجد فرق متاحة لهذه المجموعة';
             }
@@ -272,7 +274,7 @@ class StudentAdditionalSection extends StatelessWidget {
       children: [
         AppTextFormField(
           controller: fatherOfConfessionController,
-          labelText: 'أب الاعتراف',
+          labelText: 'أب الاعتراف *',
           prefixIcon: Icons.church_outlined,
           validator: Validators.validateNameArabic,
         ),

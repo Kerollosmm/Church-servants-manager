@@ -6,7 +6,7 @@ import 'package:church_management_system/core/widgets/common/app_info_banner.dar
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
-import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
+import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_cubit.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_state.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/session_admin/attendance_session_admin_cubit.dart';
@@ -31,10 +31,10 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
   void initState() {
     super.initState();
     _takingCubit = AttendanceTakingCubit(
-      repository: context.read<IAttendanceRepository>(),
+      repository: context.read<AttendanceRepository>(),
     )..initialize(teamId: widget.args.teamId, sessionId: widget.args.sessionId);
     _sessionAdminCubit = AttendanceSessionAdminCubit(
-      repository: context.read<IAttendanceRepository>(),
+      repository: context.read<AttendanceRepository>(),
     );
   }
 
@@ -98,7 +98,8 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
               final currentMessage = current is AttendanceTakingLoaded
                   ? current.mutationError
                   : null;
-              return prevMessage != currentMessage && currentMessage != null;
+              return prevMessage != currentMessage ||
+                  current is AttendanceTakingError;
             },
             listener: (context, state) {
               if (state is AttendanceTakingLoaded &&
@@ -131,6 +132,7 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
         ],
         child: BlocBuilder<AttendanceTakingCubit, AttendanceTakingState>(
           builder: (context, state) {
+            final now = DateTime.now();
             final loadedState = state is AttendanceTakingLoaded ? state : null;
             final title =
                 loadedState != null &&
@@ -142,8 +144,7 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
               appBar: AppBar(
                 title: Text(title),
                 actions: [
-                  if (loadedState != null &&
-                      loadedState.session.isOpenAt(DateTime.now()))
+                  if (loadedState != null && loadedState.session.isOpenAt(now))
                     IconButton(
                       tooltip: 'تحديد الباقي حاضر',
                       icon: const Icon(Icons.done_all_outlined),
@@ -155,11 +156,13 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
                     ),
                   if (widget.args.actor.role == UserRole.admin &&
                       loadedState != null &&
-                      loadedState.session.isOpenAt(DateTime.now()))
+                      loadedState.session.isOpenAt(now))
                     IconButton(
                       tooltip: 'إغلاق الجلسة',
                       icon: const Icon(Icons.lock_outline),
-                      onPressed: () => _closeSession(loadedState),
+                      onPressed: loadedState.isMutating
+                          ? null
+                          : () => _closeSession(loadedState),
                     ),
                 ],
               ),
@@ -183,10 +186,10 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
                           child: Column(
                             children: [
                               AppInfoBanner(
-                                icon: loaded.session.isOpenAt(DateTime.now())
+                                icon: loaded.session.isOpenAt(now)
                                     ? Icons.schedule
                                     : Icons.lock_clock,
-                                message: loaded.session.isOpenAt(DateTime.now())
+                                message: loaded.session.isOpenAt(now)
                                     ? 'الجلسة مفتوحة الآن. يمكنك تحديد حاضر أو متأخر فقط.'
                                     : 'الجلسة مغلقة الآن. أي مخدوم غير محدد يظهر كغائب تلقائيا.',
                               ),
@@ -211,9 +214,7 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
                                   ),
                                   itemBuilder: (context, index) {
                                     final item = loaded.roster[index];
-                                    final isOpen = loaded.session.isOpenAt(
-                                      DateTime.now(),
-                                    );
+                                    final isOpen = loaded.session.isOpenAt(now);
                                     return Card(
                                       child: Padding(
                                         padding: const EdgeInsets.all(

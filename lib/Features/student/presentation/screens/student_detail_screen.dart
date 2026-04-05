@@ -35,9 +35,7 @@ class StudentDetailScreen extends StatelessWidget {
         }
         if (state is StudentDataLoaded &&
             state.mutationStatus == StudentMutationStatus.success &&
-            state.successMessage != null &&
-            (state.successMessage!.contains('أرشفة') ||
-                state.successMessage!.contains('استعادة'))) {
+            state.mutationOperation != null) {
           Navigator.pop(context, true);
         }
       },
@@ -82,7 +80,7 @@ class StudentDetailScreen extends StatelessWidget {
                 icon: const Icon(Icons.archive_outlined),
                 tooltip: 'Archive',
                 onPressed: () async {
-                  final shouldDelete = await showGenericDialog<bool>(
+                  final shouldArchive = await showGenericDialog<bool>(
                     context: context,
                     title: 'أرشفة المخدوم؟',
                     content:
@@ -90,7 +88,7 @@ class StudentDetailScreen extends StatelessWidget {
                     optionBuilder: () => {'إلغاء': false, 'أرشفة': true},
                   );
 
-                  if (shouldDelete != true) return;
+                  if (shouldArchive != true) return;
                   if (!context.mounted) return;
 
                   context.read<StudentDataBloc>().add(
@@ -147,9 +145,15 @@ class StudentDetailScreen extends StatelessWidget {
             _InfoSection(
               title: 'Contact',
               children: [
-                _InfoRow(label: 'Mobile', value: student.mobile),
-                _InfoRow(label: 'Mother Phone', value: student.motherPhone),
-                _InfoRow(label: 'Father Phone', value: student.fatherPhone),
+                _InfoRow(label: 'Mobile', value: _optional(student.mobile)),
+                _InfoRow(
+                  label: 'Mother Phone',
+                  value: _optional(student.motherPhone),
+                ),
+                _InfoRow(
+                  label: 'Father Phone',
+                  value: _optional(student.fatherPhone),
+                ),
               ],
             ),
             AppSpacing.gapMd,
@@ -173,7 +177,7 @@ class StudentDetailScreen extends StatelessWidget {
                 ),
                 _InfoRow(
                   label: 'Father of Confession',
-                  value: student.fatherOfConfession,
+                  value: _optional(student.fatherOfConfession),
                 ),
                 _InfoRow(label: 'Notes', value: _optional(student.notes)),
               ],

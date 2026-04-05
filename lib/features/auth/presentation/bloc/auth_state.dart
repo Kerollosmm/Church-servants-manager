@@ -39,6 +39,10 @@ class AuthNeedsVerification extends AuthState {
   const AuthNeedsVerification();
 }
 
+class AuthNeedsPasswordReset extends AuthState {
+  const AuthNeedsPasswordReset();
+}
+
 class AuthVerificationSent extends AuthState {
   const AuthVerificationSent();
 }
@@ -50,4 +54,8 @@ class AuthError extends AuthState {
 
 class AuthPasswordResetSent extends AuthState {
   const AuthPasswordResetSent();
+}
+
+class AuthPasswordResetSuccess extends AuthState {
+  const AuthPasswordResetSuccess();
 }

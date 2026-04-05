@@ -7,6 +7,8 @@ sealed class StudentDataState {
 
 enum StudentMutationStatus { idle, success }
 
+enum StudentMutationOperation { archive, restore }
+
 /// Initial state - no data loaded yet.
 final class StudentDataInitial extends StudentDataState {
   const StudentDataInitial();
@@ -35,6 +37,7 @@ final class StudentDataLoaded extends StudentDataState {
   final String? currentQuery;
   final bool includeArchived;
   final StudentMutationStatus mutationStatus;
+  final StudentMutationOperation? mutationOperation;
 
   /// Optional one-shot message signaling a successful CRUD operation.
   final String? successMessage;
@@ -46,8 +49,38 @@ final class StudentDataLoaded extends StudentDataState {
     this.currentQuery,
     this.includeArchived = false,
     this.mutationStatus = StudentMutationStatus.idle,
+    this.mutationOperation,
     this.successMessage,
   });
+
+  StudentDataLoaded copyWith({
+    List<StudentModel>? students,
+    String? currentFilterGroupId,
+    String? currentFilterTeamId,
+    String? currentQuery,
+    bool? includeArchived,
+    StudentMutationStatus? mutationStatus,
+    StudentMutationOperation? mutationOperation,
+    String? successMessage,
+    bool clearMutation = false,
+  }) {
+    return StudentDataLoaded(
+      students: students ?? this.students,
+      currentFilterGroupId: currentFilterGroupId ?? this.currentFilterGroupId,
+      currentFilterTeamId: currentFilterTeamId ?? this.currentFilterTeamId,
+      currentQuery: currentQuery ?? this.currentQuery,
+      includeArchived: includeArchived ?? this.includeArchived,
+      mutationStatus: clearMutation
+          ? StudentMutationStatus.idle
+          : (mutationStatus ?? this.mutationStatus),
+      mutationOperation: clearMutation
+          ? null
+          : (mutationOperation ?? this.mutationOperation),
+      successMessage: clearMutation
+          ? null
+          : (successMessage ?? this.successMessage),
+    );
+  }
 
   /// Get student count.
   int get count => students.length;
@@ -65,6 +98,7 @@ final class StudentDataLoaded extends StudentDataState {
           currentQuery == other.currentQuery &&
           includeArchived == other.includeArchived &&
           mutationStatus == other.mutationStatus &&
+          mutationOperation == other.mutationOperation &&
           successMessage == other.successMessage &&
           const ListEquality<StudentModel>().equals(students, other.students);
 
@@ -76,6 +110,7 @@ final class StudentDataLoaded extends StudentDataState {
     currentQuery,
     includeArchived,
     mutationStatus,
+    mutationOperation,
     successMessage,
   );
 }

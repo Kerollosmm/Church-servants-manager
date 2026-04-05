@@ -5,14 +5,14 @@ import 'package:church_management_system/features/attendance/data/models/attenda
 import 'package:church_management_system/features/attendance/data/models/attendance_roster_item.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_roster_snapshot.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
-import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
+import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_cubit.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_state.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
-class MockAttendanceRepository extends Mock implements IAttendanceRepository {}
+class MockAttendanceRepository extends Mock implements AttendanceRepository {}
 
 void main() {
   late MockAttendanceRepository repository;
@@ -203,7 +203,7 @@ void main() {
           ],
         ),
       );
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await Future<void>.delayed(Duration.zero);
       expect(cubit.state, isA<AttendanceTakingLoaded>());
 
       unawaited(
@@ -215,7 +215,7 @@ void main() {
           ),
         ),
       );
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await Future<void>.delayed(Duration.zero);
 
       expect((cubit.state as AttendanceTakingLoaded).isMutating, isTrue);
 
@@ -230,14 +230,171 @@ void main() {
           ],
         ),
       );
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await Future<void>.delayed(Duration.zero);
 
       expect((cubit.state as AttendanceTakingLoaded).isMutating, isTrue);
 
       saveCompleter.complete();
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await Future<void>.delayed(Duration.zero);
 
       expect((cubit.state as AttendanceTakingLoaded).isMutating, isFalse);
+      await cubit.close();
+    },
+  );
+
+  test(
+    'markPresent on already-present student calls markStudentPresent (toggle-off handled by repo)',
+    () async {
+      final openSession = buildSession(isClosed: false);
+      when(
+        () => repository.markStudentPresent(
+          teamId: 'team-1',
+          sessionId: 'session-1',
+          studentId: 'student-1',
+          studentNameSnapshot: 'Mina',
+          markedBy: servant,
+        ),
+      ).thenAnswer((_) async {});
+
+      final cubit = AttendanceTakingCubit(
+        repository: repository,
+        nowProvider: () => DateTime(2026, 3, 9, 18, 10),
+      );
+      cubit.initialize(teamId: 'team-1', sessionId: 'session-1');
+      controller.add(
+        AttendanceRosterSnapshot(
+          session: openSession,
+          roster: [
+            buildRosterItem(
+              session: openSession,
+              status: AttendanceEffectiveStatus.present,
+            ),
+          ],
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      await cubit.markPresent(
+        actor: servant,
+        item: buildRosterItem(
+          session: openSession,
+          status: AttendanceEffectiveStatus.present,
+        ),
+      );
+
+      verify(
+        () => repository.markStudentPresent(
+          teamId: 'team-1',
+          sessionId: 'session-1',
+          studentId: 'student-1',
+          studentNameSnapshot: 'Mina',
+          markedBy: servant,
+        ),
+      ).called(1);
+      await cubit.close();
+    },
+  );
+
+  test(
+    'markLate on present student calls markStudentLate (status change)',
+    () async {
+      final openSession = buildSession(isClosed: false);
+      when(
+        () => repository.markStudentLate(
+          teamId: 'team-1',
+          sessionId: 'session-1',
+          studentId: 'student-1',
+          studentNameSnapshot: 'Mina',
+          markedBy: servant,
+        ),
+      ).thenAnswer((_) async {});
+
+      final cubit = AttendanceTakingCubit(
+        repository: repository,
+        nowProvider: () => DateTime(2026, 3, 9, 18, 10),
+      );
+      cubit.initialize(teamId: 'team-1', sessionId: 'session-1');
+      controller.add(
+        AttendanceRosterSnapshot(
+          session: openSession,
+          roster: [
+            buildRosterItem(
+              session: openSession,
+              status: AttendanceEffectiveStatus.present,
+            ),
+          ],
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      await cubit.markLate(
+        actor: servant,
+        item: buildRosterItem(
+          session: openSession,
+          status: AttendanceEffectiveStatus.present,
+        ),
+      );
+
+      verify(
+        () => repository.markStudentLate(
+          teamId: 'team-1',
+          sessionId: 'session-1',
+          studentId: 'student-1',
+          studentNameSnapshot: 'Mina',
+          markedBy: servant,
+        ),
+      ).called(1);
+      await cubit.close();
+    },
+  );
+
+  test(
+    'clearMark on present student calls clearStudentMark (toggle-off)',
+    () async {
+      final openSession = buildSession(isClosed: false);
+      when(
+        () => repository.clearStudentMark(
+          teamId: 'team-1',
+          sessionId: 'session-1',
+          studentId: 'student-1',
+          requestedBy: servant,
+        ),
+      ).thenAnswer((_) async {});
+
+      final cubit = AttendanceTakingCubit(
+        repository: repository,
+        nowProvider: () => DateTime(2026, 3, 9, 18, 10),
+      );
+      cubit.initialize(teamId: 'team-1', sessionId: 'session-1');
+      controller.add(
+        AttendanceRosterSnapshot(
+          session: openSession,
+          roster: [
+            buildRosterItem(
+              session: openSession,
+              status: AttendanceEffectiveStatus.present,
+            ),
+          ],
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      await cubit.clearMark(
+        actor: servant,
+        item: buildRosterItem(
+          session: openSession,
+          status: AttendanceEffectiveStatus.present,
+        ),
+      );
+
+      verify(
+        () => repository.clearStudentMark(
+          teamId: 'team-1',
+          sessionId: 'session-1',
+          studentId: 'student-1',
+          requestedBy: servant,
+        ),
+      ).called(1);
       await cubit.close();
     },
   );

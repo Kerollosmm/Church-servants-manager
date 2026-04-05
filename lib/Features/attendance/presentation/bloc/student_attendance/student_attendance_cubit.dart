@@ -3,17 +3,17 @@ import 'dart:async';
 import 'package:church_management_system/features/attendance/data/models/attendance_stats.dart';
 import 'package:church_management_system/features/attendance/data/models/student_attendance_history_item.dart';
 import 'package:church_management_system/features/attendance/domain/failures/attendance_failures.dart';
-import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
+import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/student_attendance/student_attendance_state.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class StudentAttendanceCubit extends Cubit<StudentAttendanceState> {
-  StudentAttendanceCubit({required IAttendanceRepository repository})
+  StudentAttendanceCubit({required AttendanceRepository repository})
     : _repository = repository,
       super(const StudentAttendanceInitial());
 
-  final IAttendanceRepository _repository;
+  final AttendanceRepository _repository;
 
   StreamSubscription<List<StudentAttendanceHistoryItem>>? _subscription;
   String? _studentId;
