@@ -6,6 +6,7 @@ import 'package:church_management_system/features/attendance/data/repos/attendan
 import 'package:church_management_system/features/attendance/presentation/bloc/attendance_history/attendance_history_state.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:rxdart/rxdart.dart';
 
 class AttendanceHistoryCubit extends Cubit<AttendanceHistoryState> {
   AttendanceHistoryCubit({required AttendanceRepository repository})
@@ -14,8 +15,7 @@ class AttendanceHistoryCubit extends Cubit<AttendanceHistoryState> {
 
   final AttendanceRepository _repository;
 
-  StreamSubscription<List<AttendanceSession>>? _sessionsSubscription;
-  StreamSubscription<AttendanceSession?>? _activeSessionSubscription;
+  StreamSubscription<void>? _sessionsSubscription;
   String? _teamId;
   List<AttendanceSession> _sessions = const <AttendanceSession>[];
   AttendanceSession? _activeSession;
@@ -33,21 +33,28 @@ class AttendanceHistoryCubit extends Cubit<AttendanceHistoryState> {
     emit(AttendanceHistoryLoading(teamId: normalizedTeamId));
 
     await _sessionsSubscription?.cancel();
-    await _activeSessionSubscription?.cancel();
 
-    _sessionsSubscription = _repository
-        .watchSessionsForTeam(normalizedTeamId)
-        .listen((sessions) {
-          _sessions = sessions;
-          _emitLoaded();
-        }, onError: _onStreamError);
+    final sessions$ = _repository.watchSessionsForTeam(normalizedTeamId);
+    final clock$ = Stream<DateTime>.periodic(
+      const Duration(seconds: 30),
+      (_) => DateTime.now(),
+    ).startWith(DateTime.now());
 
-    _activeSessionSubscription = _repository
-        .watchActiveSessionForTeam(normalizedTeamId)
-        .listen((session) {
-          _activeSession = session;
-          _emitLoaded();
-        }, onError: _onStreamError);
+    _sessionsSubscription = Rx.combineLatest2(
+      sessions$,
+      clock$,
+      (List<AttendanceSession> sessions, DateTime now) {
+        _sessions = sessions;
+        try {
+          _activeSession = sessions.firstWhere(
+            (s) => s.isOpenAt(now),
+          );
+        } catch (_) {
+          _activeSession = null;
+        }
+        _emitLoaded();
+      },
+    ).listen((_) {}, onError: _onStreamError);
   }
 
   void _emitLoaded() {
@@ -76,7 +83,6 @@ class AttendanceHistoryCubit extends Cubit<AttendanceHistoryState> {
   @override
   Future<void> close() async {
     await _sessionsSubscription?.cancel();
-    await _activeSessionSubscription?.cancel();
     return super.close();
   }
 }
