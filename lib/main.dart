@@ -7,6 +7,7 @@ import 'package:church_management_system/firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 Future<void> _initializeFirebase() async {
   try {
@@ -38,6 +39,7 @@ void main() {
 
       try {
         await _initializeFirebase();
+        GoogleFonts.config.allowRuntimeFetching = false;
         configureDependencies();
         runApp(const ChurchApp());
       } catch (error, stack) {

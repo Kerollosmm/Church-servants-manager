@@ -1,44 +1,51 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
 class AppTypography {
   static TextTheme getMainTextTheme(TextTheme base) {
-    return GoogleFonts.sourceSans3TextTheme(base).copyWith(
-      displayLarge: GoogleFonts.merriweather(
+    return base.copyWith(
+      displayLarge: const TextStyle(
+        fontFamily: 'Merriweather',
         fontSize: 32,
         fontWeight: FontWeight.bold,
         color: AppColors.textPrimary,
       ),
-      displayMedium: GoogleFonts.merriweather(
+      displayMedium: const TextStyle(
+        fontFamily: 'Merriweather',
         fontSize: 28,
         fontWeight: FontWeight.bold,
         color: AppColors.textPrimary,
       ),
-      headlineLarge: GoogleFonts.merriweather(
+      headlineLarge: const TextStyle(
+        fontFamily: 'Merriweather',
         fontSize: 24,
         fontWeight: FontWeight.bold,
         color: AppColors.textPrimary,
       ),
-      headlineMedium: GoogleFonts.merriweather(
+      headlineMedium: const TextStyle(
+        fontFamily: 'Merriweather',
         fontSize: 20,
         fontWeight: FontWeight.w600,
         color: AppColors.textPrimary,
       ),
-      titleLarge: GoogleFonts.merriweather(
+      titleLarge: const TextStyle(
+        fontFamily: 'Merriweather',
         fontSize: 18,
         fontWeight: FontWeight.w600,
         color: AppColors.textPrimary,
       ),
-      bodyLarge: GoogleFonts.sourceSans3(
+      bodyLarge: const TextStyle(
+        fontFamily: 'SourceSans3',
         fontSize: 16,
         color: AppColors.textPrimary,
       ),
-      bodyMedium: GoogleFonts.sourceSans3(
+      bodyMedium: const TextStyle(
+        fontFamily: 'SourceSans3',
         fontSize: 14,
         color: AppColors.textSecondary,
       ),
-      labelLarge: GoogleFonts.sourceSans3(
+      labelLarge: const TextStyle(
+        fontFamily: 'SourceSans3',
         fontSize: 14,
         fontWeight: FontWeight.w600,
         color: AppColors.textPrimary,

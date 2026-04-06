@@ -162,6 +162,7 @@ class AttendanceSessionRepository {
       // 3. Perform atomic creation and index update.
       transaction.set(docRef, {
         ...session.toMap(),
+        'teamIsActive': true,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });

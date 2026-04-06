@@ -46,11 +46,15 @@ class StudentQueryService {
   }
 
   Query<Map<String, dynamic>> _studentsByClassQuery(String classId) {
-    return _studentsCollection.where('classId', isEqualTo: classId);
+    return _studentsCollection
+        .where('classId', isEqualTo: classId)
+        .where('isArchived', isEqualTo: false);
   }
 
   Query<Map<String, dynamic>> _studentsByGroupQuery(String groupName) {
-    return _studentsCollection.where('group', isEqualTo: groupName);
+    return _studentsCollection
+        .where('group', isEqualTo: groupName)
+        .where('isArchived', isEqualTo: false);
   }
 
   List<List<T>> _chunkList<T>(List<T> list, int chunkSize) {
@@ -74,15 +78,6 @@ class StudentQueryService {
       }
     } catch (_) {}
     return const <StudentModel>[];
-  }
-
-  Future<List<StudentModel>> _getStudentsByClassFromServer(
-    String classId,
-  ) async {
-    final snapshot = await _studentsByClassQuery(
-      classId,
-    ).get(const GetOptions(source: Source.server));
-    return mapStudentDocs(snapshot.docs);
   }
 
   Future<List<String>> _getStudentIdsFromClassDocument(String classId) async {
@@ -189,22 +184,52 @@ class StudentQueryService {
     }
   }
 
+  Future<List<StudentModel>> _tryGetStudentsByQueryFromCache(
+    Query<Map<String, dynamic>> query,
+  ) async {
+    try {
+      final cacheSnapshot = await query.get(const GetOptions(source: Source.cache));
+      if (cacheSnapshot.docs.isNotEmpty) {
+        return mapStudentDocs(cacheSnapshot.docs);
+      }
+    } catch (_) {}
+    return const <StudentModel>[];
+  }
+
+  Future<List<StudentModel>> _getStudentsByQueryFromServer(
+    Query<Map<String, dynamic>> query,
+  ) async {
+    final snapshot = await query.get(const GetOptions(source: Source.server));
+    return mapStudentDocs(snapshot.docs);
+  }
+
   Future<List<StudentModel>> getStudentsByClass(
     String classId, {
     bool includeArchived = false,
   }) async {
     try {
-      final cacheStudents = _applyArchivedFilter(
-        await _tryGetStudentsByClassFromCache(classId),
-        includeArchived,
-      );
-      if (cacheStudents.isNotEmpty) {
-        return cacheStudents;
+      final cacheQuery = _studentsCollection
+          .where('classId', isEqualTo: classId)
+          .where('isArchived', isEqualTo: false);
+      if (!includeArchived) {
+        final cacheStudents = await _tryGetStudentsByQueryFromCache(
+          cacheQuery,
+        );
+        if (cacheStudents.isNotEmpty) {
+          return cacheStudents;
+        }
+      } else {
+        final cacheStudents = await _tryGetStudentsByClassFromCache(classId);
+        if (cacheStudents.isNotEmpty) {
+          return cacheStudents;
+        }
       }
 
-      final serverStudents = _applyArchivedFilter(
-        await _getStudentsByClassFromServer(classId),
-        includeArchived,
+      final serverQuery = _studentsCollection
+          .where('classId', isEqualTo: classId)
+          .where('isArchived', isEqualTo: false);
+      final serverStudents = await _getStudentsByQueryFromServer(
+        serverQuery,
       );
       if (serverStudents.isNotEmpty) {
         return serverStudents;
@@ -236,11 +261,13 @@ class StudentQueryService {
     bool includeArchived = false,
   }) async {
     try {
-      final snapshot = await _studentsByGroupQuery(groupName).get();
-      return _applyArchivedFilter(
-        mapStudentDocs(snapshot.docs),
-        includeArchived,
-      );
+      Query<Map<String, dynamic>> query = _studentsCollection
+          .where('group', isEqualTo: groupName);
+      if (!includeArchived) {
+        query = query.where('isArchived', isEqualTo: false);
+      }
+      final snapshot = await query.get();
+      return mapStudentDocs(snapshot.docs);
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
     }
@@ -307,30 +334,27 @@ class StudentQueryService {
   }
 
   Stream<List<StudentModel>> watchAllStudents({bool includeArchived = false}) {
-    return _studentsCollection
-        .orderBy('name')
-        .snapshots()
-        .map(
-          (snapshot) => _applyArchivedFilter(
-            mapStudentDocs(snapshot.docs),
-            includeArchived,
-          ),
-        );
+    Query<Map<String, dynamic>> query = _studentsCollection.orderBy('name');
+    if (!includeArchived) {
+      query = query.where('isArchived', isEqualTo: false);
+    }
+    return query.snapshots().map(
+      (snapshot) => mapStudentDocs(snapshot.docs),
+    );
   }
 
   Stream<List<StudentModel>> watchStudentsByClass(
     String classId, {
     bool includeArchived = false,
   }) {
-    return _studentsCollection
-        .where('classId', isEqualTo: classId)
-        .snapshots()
-        .map(
-          (snapshot) => _applyArchivedFilter(
-            mapStudentDocs(snapshot.docs),
-            includeArchived,
-          ),
-        );
+    Query<Map<String, dynamic>> query =
+        _studentsCollection.where('classId', isEqualTo: classId);
+    if (!includeArchived) {
+      query = query.where('isArchived', isEqualTo: false);
+    }
+    return query.snapshots().map(
+      (snapshot) => mapStudentDocs(snapshot.docs),
+    );
   }
 
   Stream<List<StudentModel>> watchStudentsByClasses(
@@ -383,14 +407,13 @@ class StudentQueryService {
     String groupName, {
     bool includeArchived = false,
   }) {
-    return _studentsCollection
-        .where('group', isEqualTo: groupName)
-        .snapshots()
-        .map(
-          (snapshot) => _applyArchivedFilter(
-            mapStudentDocs(snapshot.docs),
-            includeArchived,
-          ),
-        );
+    Query<Map<String, dynamic>> query =
+        _studentsCollection.where('group', isEqualTo: groupName);
+    if (!includeArchived) {
+      query = query.where('isArchived', isEqualTo: false);
+    }
+    return query.snapshots().map(
+      (snapshot) => mapStudentDocs(snapshot.docs),
+    );
   }
 }

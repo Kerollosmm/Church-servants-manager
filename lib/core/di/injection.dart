@@ -105,10 +105,10 @@ void configureDependencies() {
   );
 
   // ---- UseCases ----
-  getIt.registerFactory<GetStudentsStreamUseCase>(
+  getIt.registerLazySingleton<GetStudentsStreamUseCase>(
     () => GetStudentsStreamUseCase(getIt<StudentDataRepository>()),
   );
-  getIt.registerFactory<CanMutateStudentUseCase>(
+  getIt.registerLazySingleton<CanMutateStudentUseCase>(
     () => const CanMutateStudentUseCase(),
   );
 

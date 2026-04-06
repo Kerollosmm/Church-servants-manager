@@ -119,9 +119,15 @@ class StudentDataRepository {
     String query, {
     int limit = 20,
   }) async {
-    // In-memory, case-insensitive search is handled by StudentDataBloc.
-    // This repo method now simply fetches all students for the BLoC to filter.
-    return getAllStudents(limit: limit);
+    if (query.isEmpty) return getAllStudents(limit: limit);
+    final snapshot = await _studentsCollection
+        .where('isArchived', isEqualTo: false)
+        .orderBy('name')
+        .startAt([query])
+        .endAt([query + '\uf8ff'])
+        .limit(limit)
+        .get();
+    return _queryService.mapStudentDocs(snapshot.docs);
   }
 
   Future<String> createStudent(StudentModel student) async {

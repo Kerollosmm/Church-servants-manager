@@ -164,47 +164,44 @@ export const archiveManagedUser = onCall<ManagedUserLifecycleRequest>(async (req
     const targetData = targetDoc.data()!;
     const role = targetData['role'] as string;
 
-    // 1. Firestore updates FIRST (atomic batch)
-    const batch = adminDb.batch();
-    const userRef = adminDb.collection(USERS_COLLECTION).doc(payload.uid);
+    await adminDb.runTransaction(async (tx) => {
+      const userRef = adminDb.collection(USERS_COLLECTION).doc(payload.uid);
 
-    if (role === 'servant') {
-      const teamsSnapshot = await adminDb.collection('Classes')
-        .where('assignedServantId', '==', payload.uid)
-        .get();
+      if (role === 'servant') {
+        const teamsSnapshot = await tx.get(
+          adminDb.collection('Classes').where('assignedServantId', '==', payload.uid),
+        );
 
-      for (const teamDoc of teamsSnapshot.docs) {
-        batch.update(teamDoc.ref, {
-          assignedServantId: FieldValue.delete(),
-          assignedServantName: FieldValue.delete(),
-          updatedAt: FieldValue.serverTimestamp(),
+        for (const teamDoc of teamsSnapshot.docs) {
+          tx.update(teamDoc.ref, {
+            assignedServantId: FieldValue.delete(),
+            assignedServantName: FieldValue.delete(),
+            updatedAt: new Date(),
+          });
+        }
+
+        tx.update(userRef, {
+          ...buildArchivedUserPatch(),
+          assignedTeamIds: FieldValue.delete(),
+          assignedTeamId: FieldValue.delete(),
         });
+      } else {
+        tx.set(userRef, buildArchivedUserPatch(), { merge: true });
       }
 
-      batch.update(userRef, {
-        ...buildArchivedUserPatch(),
-        assignedTeamIds: FieldValue.delete(),
-        assignedTeamId: FieldValue.delete(),
-      });
-    } else {
-      batch.set(userRef, buildArchivedUserPatch(), { merge: true });
-    }
+      if (role === 'student' || role === 'servant') {
+        const studentSnap = await tx.get(
+          adminDb.collection(STUDENTS_COLLECTION).where('uid', '==', payload.uid).limit(1),
+        );
 
-    if (role === 'student' || role === 'servant') {
-      const studentSnap = await adminDb.collection(STUDENTS_COLLECTION)
-        .where('uid', '==', payload.uid)
-        .limit(1)
-        .get();
-
-      if (!studentSnap.empty) {
-        batch.update(studentSnap.docs[0].ref, {
-          isArchived: true,
-          updatedAt: FieldValue.serverTimestamp(),
-        });
+        if (!studentSnap.empty) {
+          tx.update(studentSnap.docs[0].ref, {
+            isArchived: true,
+            updatedAt: new Date(),
+          });
+        }
       }
-    }
-
-    await batch.commit();
+    });
 
     // 2. Auth updates AFTER Firestore succeeds
     await adminAuth.updateUser(payload.uid, { disabled: true });
@@ -460,11 +457,10 @@ export const changeUserRole = onCall<ChangeUserRoleRequest>(async (request) => {
     }
 
     if (newRole === 'student') {
-      const existingStudentSnap = await tx.get(
-        adminDb.collection(STUDENTS_COLLECTION).where('uid', '==', targetUid).limit(1),
-      );
+      const studentDocRef = adminDb.collection(STUDENTS_COLLECTION).doc(targetUid);
+      const existingStudentSnap = await tx.get(studentDocRef);
 
-      if (existingStudentSnap.empty) {
+      if (!existingStudentSnap.exists) {
         const newStudentDoc = adminDb.collection(STUDENTS_COLLECTION).doc();
         tx.set(newStudentDoc, {
           uid: targetUid,
@@ -479,8 +475,7 @@ export const changeUserRole = onCall<ChangeUserRoleRequest>(async (request) => {
           updatedAt: new Date(),
         });
       } else {
-        // If promoting back to student and they have an old record, unarchive it.
-        tx.update(existingStudentSnap.docs[0].ref, {
+        tx.update(existingStudentSnap.ref, {
           isArchived: false,
           updatedAt: new Date(),
         });
@@ -488,12 +483,11 @@ export const changeUserRole = onCall<ChangeUserRoleRequest>(async (request) => {
     }
 
     if (oldRole === 'student' && newRole !== 'student') {
-      const studentDocsSnap = await tx.get(
-        adminDb.collection(STUDENTS_COLLECTION).where('uid', '==', targetUid).limit(1),
-      );
+      const studentDocRef = adminDb.collection(STUDENTS_COLLECTION).doc(targetUid);
+      const studentDocsSnap = await tx.get(studentDocRef);
 
-      if (!studentDocsSnap.empty) {
-        tx.update(studentDocsSnap.docs[0].ref, {
+      if (studentDocsSnap.exists) {
+        tx.update(studentDocsSnap.ref, {
           isArchived: true,
           updatedAt: new Date(),
         });

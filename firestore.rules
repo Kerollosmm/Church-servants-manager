@@ -11,19 +11,16 @@ service cloud.firestore {
       return request.auth.uid;
     }
 
-    function callerUser() {
-      let userPath = /databases/$(database)/documents/Users/$(callerUid());
-      return exists(userPath) ? get(userPath).data : {};
-    }
-
     function isAdmin() {
-      let user = callerUser();
-      return isSignedIn() && user.get('isArchived', false) == false && user.get('role', 'none') == 'admin';
+      return isSignedIn() &&
+             request.auth.token.get('role', '') == 'admin' &&
+             request.auth.token.get('isArchived', false) == false;
     }
 
     function isServant() {
-      let user = callerUser();
-      return isSignedIn() && user.get('isArchived', false) == false && user.get('role', 'none') == 'servant';
+      return isSignedIn() &&
+             request.auth.token.get('role', '') == 'servant' &&
+             request.auth.token.get('isArchived', false) == false;
     }
 
     function teamIsActive(teamId) {
@@ -37,12 +34,11 @@ service cloud.firestore {
     }
 
     function servantCanReadStudent() {
-      let user = callerUser();
       let studentGroup = resource.data.get('group', null);
       let studentClassId = resource.data.get('classId', null);
-      let assignedTeamIds = user.get('assignedTeamIds', []);
-      let userGroupId = user.get('groupId', null);
-      let userAssignedTeamId = user.get('assignedTeamId', null);
+      let assignedTeamIds = request.auth.token.get('assignedTeamIds', []);
+      let userGroupId = request.auth.token.get('groupId', null);
+      let userAssignedTeamId = request.auth.token.get('assignedTeamId', null);
 
       return isServant() && (
         (studentGroup != null && userGroupId != null && studentGroup == userGroupId) ||
@@ -54,9 +50,8 @@ service cloud.firestore {
     }
 
     function servantCanManageTeam(teamId) {
-      let user = callerUser();
-      let assignedTeamIds = user.get('assignedTeamIds', []);
-      let userAssignedTeamId = user.get('assignedTeamId', null);
+      let assignedTeamIds = request.auth.token.get('assignedTeamIds', []);
+      let userAssignedTeamId = request.auth.token.get('assignedTeamId', null);
 
       return isServant() && (
         userAssignedTeamId == teamId ||
@@ -65,13 +60,12 @@ service cloud.firestore {
     }
 
     function servantCanManageStudentPayload(studentData) {
-      let user = callerUser();
       let studentGroup = studentData.get('group', null);
       let studentClassId = studentData.get('classId', null);
       let isArchived = studentData.get('isArchived', false);
-      let assignedTeamIds = user.get('assignedTeamIds', []);
-      let userGroupId = user.get('groupId', null);
-      let userAssignedTeamId = user.get('assignedTeamId', null);
+      let assignedTeamIds = request.auth.token.get('assignedTeamIds', []);
+      let userGroupId = request.auth.token.get('groupId', null);
+      let userAssignedTeamId = request.auth.token.get('assignedTeamId', null);
 
       return isServant() && isArchived == false && (
         (studentGroup != null && userGroupId != null && studentGroup == userGroupId) ||
@@ -102,7 +96,7 @@ service cloud.firestore {
       let session = sessionExists ? get(sessionPath).data : {};
 
       return sessionExists &&
-        teamIsActive(teamId) &&
+        session.get('teamIsActive', false) == true &&
         session.get('isClosed', false) == false &&
         request.time >= session.get('startsAt', request.time) &&
         request.time < session.get('endsAt', request.time + duration.value(1, 's'));
