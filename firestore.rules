@@ -86,17 +86,14 @@ service cloud.firestore {
       return callerUid() == userId &&
         request.resource.data.get('uid', '') == resource.data.get('uid', '') &&
         request.resource.data.get('role', '') == resource.data.get('role', '') &&
+        request.resource.data.get('email', '') == resource.data.get('email', '') &&
+        request.resource.data.get('isEmailVerified', false) == resource.data.get('isEmailVerified', false) &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'name',
-          'email',
-          'isEmailVerified',
           'updatedAt',
         ]) &&
         request.resource.data.get('name', '') is string &&
-        request.resource.data.get('name', '').size() > 0 &&
-        request.resource.data.get('email', '') is string &&
-        request.resource.data.get('email', '').size() > 0 &&
-        request.resource.data.get('isEmailVerified', false) is bool;
+        request.resource.data.get('name', '').size() > 0;
     }
 
     function sessionAcceptsMarks(teamId, sessionId) {

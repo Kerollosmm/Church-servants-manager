@@ -71,6 +71,7 @@ class ServantDetailScreen extends StatelessWidget {
                   if (state is ServantDataLoaded) {
                     if (state.mutationStatus == ServantMutationStatus.success) {
                       if (context.mounted) Navigator.pop(context, true);
+                      if (!completer.isCompleted) completer.complete();
                     } else if (state.mutationStatus ==
                         ServantMutationStatus.failure) {
                       if (context.mounted) {
@@ -79,8 +80,8 @@ class ServantDetailScreen extends StatelessWidget {
                           state.feedbackMessage ?? 'فشل في أرشفة الخادم.',
                         );
                       }
+                      if (!completer.isCompleted) completer.complete();
                     }
-                    if (!completer.isCompleted) completer.complete();
                   } else if (state is ServantDataError) {
                     if (context.mounted) {
                       AppSnackbars.showError(context, state.message);
@@ -130,6 +131,7 @@ class ServantDetailScreen extends StatelessWidget {
                   if (state is ServantDataLoaded) {
                     if (state.mutationStatus == ServantMutationStatus.success) {
                       if (context.mounted) Navigator.pop(context, true);
+                      if (!completer.isCompleted) completer.complete();
                     } else if (state.mutationStatus ==
                         ServantMutationStatus.failure) {
                       if (context.mounted) {
@@ -138,8 +140,8 @@ class ServantDetailScreen extends StatelessWidget {
                           state.feedbackMessage ?? 'فشل في استعادة الخادم.',
                         );
                       }
+                      if (!completer.isCompleted) completer.complete();
                     }
-                    if (!completer.isCompleted) completer.complete();
                   } else if (state is ServantDataError) {
                     if (context.mounted) {
                       AppSnackbars.showError(context, state.message);

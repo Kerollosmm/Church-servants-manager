@@ -316,10 +316,9 @@ class AttendanceRepository {
   }) {
     final normalizedTeamId = teamId?.trim() ?? '';
     if (normalizedTeamId.isNotEmpty) {
-      return _sessionsCol(normalizedTeamId).where(
-        'studentIdsSnapshot',
-        arrayContains: studentId,
-      );
+      return _sessionsCol(
+        normalizedTeamId,
+      ).where('studentIdsSnapshot', arrayContains: studentId);
     }
 
     return _firestore
@@ -678,16 +677,17 @@ class AttendanceRepository {
       if (remainingIds.isEmpty) return;
 
       final liveNames = await _loadStudentNamesByIds(remainingIds);
-      final chunks = _chunkList(remainingIds, 500);
 
-      for (final chunk in chunks) {
-        final batch = _firestore.batch();
-        for (final studentId in chunk) {
-          batch.set(_markDoc(teamId, sessionId, studentId), {
-            'studentNameSnapshot':
-                liveNames[studentId] ??
-                session.studentNameSnapshots[studentId] ??
-                'مخدوم',
+      await _firestore.runTransaction((transaction) async {
+        for (final studentId in remainingIds) {
+          final markRef = _markDoc(teamId, sessionId, studentId);
+          final studentName =
+              liveNames[studentId] ??
+              session.studentNameSnapshots[studentId] ??
+              'مخدوم';
+
+          transaction.set(markRef, {
+            'studentNameSnapshot': studentName,
             'status': AttendanceMarkStatus.present.name,
             'markedByUserId': markedBy.uid,
             'markedByName': markedBy.name,
@@ -695,8 +695,7 @@ class AttendanceRepository {
             'updatedAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
         }
-        await batch.commit();
-      }
+      });
     } catch (error) {
       if (error is AttendanceFailure) rethrow;
       throw mapExceptionToAttendanceFailure(error);

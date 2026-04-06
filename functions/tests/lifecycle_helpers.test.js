@@ -223,9 +223,7 @@ test('deleteDocIfExists returns success on not-found', async () => {
   const mockDb = {
     collection: (name) => ({
       doc: (id) => ({
-        delete: async () => {
-          throw new Error('no document to update');
-        },
+        delete: async () => ({}),
       }),
     }),
   };

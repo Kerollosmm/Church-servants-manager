@@ -11,6 +11,7 @@ import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:church_management_system/features/auth/domain/failures/auth_exceptions.dart';
 part 'student_data_event.dart';
 part 'student_data_state.dart';
 
@@ -447,32 +448,40 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
         _emitNotAllowed(emit);
         return;
       }
+      // 1. Archive student doc first (local)
+      await _studentRepository.archiveStudent(
+        event.docId,
+        performedByUid: event.actor.uid,
+      );
+
+      // 2. Archive Auth user (remote)
       if (existing.uid.trim().isNotEmpty) {
-        await _adminUserProvisioningService.archiveUser(
-          uid: existing.uid.trim(),
-        );
-      }
-      try {
-        await _studentRepository.archiveStudent(
-          event.docId,
-          performedByUid: event.actor.uid,
-        );
-      } catch (e) {
-        if (existing.uid.trim().isNotEmpty) {
+        try {
+          await _adminUserProvisioningService.archiveUser(
+            uid: existing.uid.trim(),
+          );
+        } catch (authError) {
+          // If Auth archive fails, attempt to rollback Firestore archive
           try {
-            await _adminUserProvisioningService.restoreUser(
-              uid: existing.uid.trim(),
+            await _studentRepository.restoreStudent(
+              event.docId,
+              performedByUid: event.actor.uid,
             );
           } catch (rollbackError) {
+            // CRITICAL: Both primary action (auth archive) and rollback (firestore restore) failed
             if (kDebugMode) {
               debugPrint(
-                'StudentDataBloc: restoreUser rollback failed after '
-                'deleteStudent for uid=${existing.uid}: $rollbackError',
+                'CRITICAL [StudentDataBloc]: FAILED to archive Auth user AND FAILED to rollback Firestore archive. '
+                'UID: ${existing.uid}, StudentDocId: ${event.docId}. '
+                'Primary Error: $authError, Rollback Error: $rollbackError',
               );
             }
+            throw GenericAuthException(
+              'خطأ فادح: النظام في حالة غير مستقرة. تعذر أرشفة الحساب وتعذر التراجع عن العملية (UID: ${existing.uid}).',
+            );
           }
+          rethrow; // Rethrow the original authError if rollback succeeded
         }
-        rethrow;
       }
       _emitSuccessWithData(
         emit,
@@ -502,29 +511,40 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
         return;
       }
 
+      // 1. Restore student doc first (local)
+      await _studentRepository.restoreStudent(
+        event.docId,
+        performedByUid: event.actor.uid,
+      );
+
+      // 2. Restore Auth user (remote)
       if (existing.uid.trim().isNotEmpty) {
-        await _adminUserProvisioningService.restoreUser(
-          uid: existing.uid.trim(),
-        );
-      }
-      try {
-        await _studentRepository.restoreStudent(event.docId);
-      } catch (e, st) {
-        if (existing.uid.trim().isNotEmpty) {
+        try {
+          await _adminUserProvisioningService.restoreUser(
+            uid: existing.uid.trim(),
+          );
+        } catch (authError) {
+          // If Auth restore fails, attempt to rollback Firestore restore
           try {
-            await _adminUserProvisioningService.archiveUser(
-              uid: existing.uid.trim(),
+            await _studentRepository.archiveStudent(
+              event.docId,
+              performedByUid: event.actor.uid,
             );
           } catch (rollbackError) {
+            // CRITICAL: Both primary action (auth restore) and rollback (firestore archive) failed
             if (kDebugMode) {
               debugPrint(
-                'StudentDataBloc: archiveUser rollback failed after '
-                'restoreStudent for uid=${existing.uid}: $rollbackError',
+                'CRITICAL [StudentDataBloc]: FAILED to restore Auth user AND FAILED to rollback Firestore restore. '
+                'UID: ${existing.uid}, StudentDocId: ${event.docId}. '
+                'Primary Error: $authError, Rollback Error: $rollbackError',
               );
             }
+            throw GenericAuthException(
+              'خطأ فادح: النظام في حالة غير مستقرة. تعذر استعادة الحساب وتعذر التراجع عن العملية (UID: ${existing.uid}).',
+            );
           }
+          rethrow; // Rethrow the original authError if rollback succeeded
         }
-        Error.throwWithStackTrace(e, st);
       }
       _emitSuccessWithData(
         emit,

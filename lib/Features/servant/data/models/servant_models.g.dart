@@ -30,6 +30,9 @@ _$ServantModelImpl _$$ServantModelImplFromJson(
   restoredAt: const FirestoreTimestampConverter().fromJson(json['restoredAt']),
   restoredByUserId: json['restoredByUserId'] as String?,
   assignedTeamId: json['assignedTeamId'] as String?,
+  assignedTeamIds: (json['assignedTeamIds'] as List<dynamic>?)
+      ?.map((e) => e as String)
+      .toList(),
 );
 
 Map<String, dynamic> _$$ServantModelImplToJson(
@@ -54,4 +57,5 @@ Map<String, dynamic> _$$ServantModelImplToJson(
   'restoredAt': const FirestoreTimestampConverter().toJson(instance.restoredAt),
   'restoredByUserId': instance.restoredByUserId,
   'assignedTeamId': instance.assignedTeamId,
+  'assignedTeamIds': instance.assignedTeamIds,
 };

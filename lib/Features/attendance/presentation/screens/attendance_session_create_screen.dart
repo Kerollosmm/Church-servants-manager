@@ -149,10 +149,7 @@ class _AttendanceSessionCreateScreenState
       return;
     }
 
-    final selectedTeam = teams.firstWhere(
-      (team) => team.id == teamId,
-      orElse: () => TeamModel(id: teamId, name: 'الفريق', groupId: ''),
-    );
+    final selectedTeam = teams.firstWhere((team) => team.id == teamId);
 
     await _cubit.createSession(
       actor: actor,
@@ -323,8 +320,11 @@ class _AttendanceSessionCreateScreenState
                             builder: (context, state) {
                               final isLoading =
                                   state is AttendanceSessionAdminLoading;
+                              final hasResolvedTeam = teams.any(
+                                (team) => team.id == _selectedTeamId,
+                              );
                               return FilledButton.icon(
-                                onPressed: isLoading
+                                onPressed: isLoading || !hasResolvedTeam
                                     ? null
                                     : () => _submit(actor, teams),
                                 icon: isLoading

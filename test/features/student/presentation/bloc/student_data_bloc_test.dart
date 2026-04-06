@@ -498,7 +498,12 @@ void main() {
     when(
       () => repository.getStudentById('s4', includeArchived: true),
     ).thenAnswer((_) async => archived);
-    when(() => repository.restoreStudent('s4')).thenAnswer((_) async {});
+    when(
+      () => repository.restoreStudent(
+        's4',
+        performedByUid: any(named: 'performedByUid'),
+      ),
+    ).thenAnswer((_) async {});
     when(
       () => adminUserProvisioningService.restoreUser(uid: 's4'),
     ).thenAnswer((_) async {});
@@ -523,7 +528,12 @@ void main() {
 
     bloc.add(StudentRestored(actor: adminActor, docId: 's4'));
     await expectation;
-    verify(() => repository.restoreStudent('s4')).called(1);
+    verify(
+      () => repository.restoreStudent(
+        's4',
+        performedByUid: any(named: 'performedByUid'),
+      ),
+    ).called(1);
     verify(() => adminUserProvisioningService.restoreUser(uid: 's4')).called(1);
     await bloc.close();
   });

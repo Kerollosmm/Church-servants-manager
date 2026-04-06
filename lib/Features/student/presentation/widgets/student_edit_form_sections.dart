@@ -113,7 +113,8 @@ class StudentBasicsSection extends StatelessWidget {
           enabled: !_isTeacher,
           dropdownMenuEntries: Group.values
               .map(
-                (value) => DropdownMenuEntry(value: value, label: value.name),
+                (value) =>
+                    DropdownMenuEntry(value: value, label: value.displayName),
               )
               .toList(growable: false),
           onSelected: (value) {
@@ -172,7 +173,8 @@ class StudentBasicsSection extends StatelessWidget {
           initialSelection: educationStage,
           dropdownMenuEntries: EducationStage.values
               .map(
-                (value) => DropdownMenuEntry(value: value, label: value.name),
+                (value) =>
+                    DropdownMenuEntry(value: value, label: value.displayName),
               )
               .toList(growable: false),
           onSelected: (value) {

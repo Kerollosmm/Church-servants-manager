@@ -71,6 +71,9 @@ mixin _$ServantModel {
   /// Assigned team/class ID within the servant's group.
   String? get assignedTeamId => throw _privateConstructorUsedError;
 
+  /// Multiple assigned team IDs (if applicable).
+  List<String>? get assignedTeamIds => throw _privateConstructorUsedError;
+
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
   @JsonKey(ignore: true)
   $ServantModelCopyWith<ServantModel> get copyWith =>
@@ -104,6 +107,7 @@ abstract class $ServantModelCopyWith<$Res> {
     @_TimestampConverter() DateTime? restoredAt,
     String? restoredByUserId,
     String? assignedTeamId,
+    List<String>? assignedTeamIds,
   });
 }
 
@@ -139,6 +143,7 @@ class _$ServantModelCopyWithImpl<$Res, $Val extends ServantModel>
     Object? restoredAt = freezed,
     Object? restoredByUserId = freezed,
     Object? assignedTeamId = freezed,
+    Object? assignedTeamIds = freezed,
   }) {
     return _then(
       _value.copyWith(
@@ -218,6 +223,10 @@ class _$ServantModelCopyWithImpl<$Res, $Val extends ServantModel>
                 ? _value.assignedTeamId
                 : assignedTeamId // ignore: cast_nullable_to_non_nullable
                       as String?,
+            assignedTeamIds: freezed == assignedTeamIds
+                ? _value.assignedTeamIds
+                : assignedTeamIds // ignore: cast_nullable_to_non_nullable
+                      as List<String>?,
           )
           as $Val,
     );
@@ -253,6 +262,7 @@ abstract class _$$ServantModelImplCopyWith<$Res>
     @_TimestampConverter() DateTime? restoredAt,
     String? restoredByUserId,
     String? assignedTeamId,
+    List<String>? assignedTeamIds,
   });
 }
 
@@ -287,6 +297,7 @@ class __$$ServantModelImplCopyWithImpl<$Res>
     Object? restoredAt = freezed,
     Object? restoredByUserId = freezed,
     Object? assignedTeamId = freezed,
+    Object? assignedTeamIds = freezed,
   }) {
     return _then(
       _$ServantModelImpl(
@@ -366,6 +377,10 @@ class __$$ServantModelImplCopyWithImpl<$Res>
             ? _value.assignedTeamId
             : assignedTeamId // ignore: cast_nullable_to_non_nullable
                   as String?,
+        assignedTeamIds: freezed == assignedTeamIds
+            ? _value._assignedTeamIds
+            : assignedTeamIds // ignore: cast_nullable_to_non_nullable
+                  as List<String>?,
       ),
     );
   }
@@ -394,7 +409,9 @@ class _$ServantModelImpl extends _ServantModel {
     @_TimestampConverter() this.restoredAt,
     this.restoredByUserId,
     this.assignedTeamId,
-  }) : super._();
+    final List<String>? assignedTeamIds,
+  }) : _assignedTeamIds = assignedTeamIds,
+       super._();
 
   factory _$ServantModelImpl.fromJson(Map<String, dynamic> json) =>
       _$$ServantModelImplFromJson(json);
@@ -470,9 +487,22 @@ class _$ServantModelImpl extends _ServantModel {
   @override
   final String? assignedTeamId;
 
+  /// Multiple assigned team IDs (if applicable).
+  final List<String>? _assignedTeamIds;
+
+  /// Multiple assigned team IDs (if applicable).
+  @override
+  List<String>? get assignedTeamIds {
+    final value = _assignedTeamIds;
+    if (value == null) return null;
+    if (_assignedTeamIds is EqualUnmodifiableListView) return _assignedTeamIds;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(value);
+  }
+
   @override
   String toString() {
-    return 'ServantModel(uid: $uid, docID: $docID, name: $name, role: $role, email: $email, phone: $phone, imageUrl: $imageUrl, teamName: $teamName, isEmailVerified: $isEmailVerified, fatherOfConfession: $fatherOfConfession, birthdate: $birthdate, notes: $notes, isArchived: $isArchived, archivedAt: $archivedAt, archivedByUserId: $archivedByUserId, archiveReason: $archiveReason, restoredAt: $restoredAt, restoredByUserId: $restoredByUserId, assignedTeamId: $assignedTeamId)';
+    return 'ServantModel(uid: $uid, docID: $docID, name: $name, role: $role, email: $email, phone: $phone, imageUrl: $imageUrl, teamName: $teamName, isEmailVerified: $isEmailVerified, fatherOfConfession: $fatherOfConfession, birthdate: $birthdate, notes: $notes, isArchived: $isArchived, archivedAt: $archivedAt, archivedByUserId: $archivedByUserId, archiveReason: $archiveReason, restoredAt: $restoredAt, restoredByUserId: $restoredByUserId, assignedTeamId: $assignedTeamId, assignedTeamIds: $assignedTeamIds)';
   }
 
   @override
@@ -510,7 +540,11 @@ class _$ServantModelImpl extends _ServantModel {
             (identical(other.restoredByUserId, restoredByUserId) ||
                 other.restoredByUserId == restoredByUserId) &&
             (identical(other.assignedTeamId, assignedTeamId) ||
-                other.assignedTeamId == assignedTeamId));
+                other.assignedTeamId == assignedTeamId) &&
+            const DeepCollectionEquality().equals(
+              other._assignedTeamIds,
+              _assignedTeamIds,
+            ));
   }
 
   @JsonKey(ignore: true)
@@ -536,6 +570,7 @@ class _$ServantModelImpl extends _ServantModel {
     restoredAt,
     restoredByUserId,
     assignedTeamId,
+    const DeepCollectionEquality().hash(_assignedTeamIds),
   ]);
 
   @JsonKey(ignore: true)
@@ -571,6 +606,7 @@ abstract class _ServantModel extends ServantModel {
     @_TimestampConverter() final DateTime? restoredAt,
     final String? restoredByUserId,
     final String? assignedTeamId,
+    final List<String>? assignedTeamIds,
   }) = _$ServantModelImpl;
   const _ServantModel._() : super._();
 
@@ -634,6 +670,9 @@ abstract class _ServantModel extends ServantModel {
   @override
   /// Assigned team/class ID within the servant's group.
   String? get assignedTeamId;
+  @override
+  /// Multiple assigned team IDs (if applicable).
+  List<String>? get assignedTeamIds;
   @override
   @JsonKey(ignore: true)
   _$$ServantModelImplCopyWith<_$ServantModelImpl> get copyWith =>

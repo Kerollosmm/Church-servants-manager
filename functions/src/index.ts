@@ -184,6 +184,20 @@ export const archiveManagedUser = onCall<ManagedUserLifecycleRequest>(async (req
       batch.set(userRef, buildArchivedUserPatch(), { merge: true });
     }
 
+    if (role === 'student' || role === 'servant') {
+      const studentSnap = await adminDb.collection(STUDENTS_COLLECTION)
+        .where('uid', '==', payload.uid)
+        .limit(1)
+        .get();
+
+      if (!studentSnap.empty) {
+        batch.update(studentSnap.docs[0].ref, {
+          isArchived: true,
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      }
+    }
+
     await batch.commit();
 
     // 2. Auth updates AFTER Firestore succeeds
@@ -230,10 +244,24 @@ export const restoreManagedUser = onCall<ManagedUserLifecycleRequest>(async (req
     // Generate password reset link for the restored user
     const resetLink = await adminAuth.generatePasswordResetLink(email);
 
-    await adminDb.collection(USERS_COLLECTION).doc(payload.uid).set(
-      buildRestoredUserPatch(),
-      { merge: true },
-    );
+    const userRef = adminDb.collection(USERS_COLLECTION).doc(payload.uid);
+    const batch = adminDb.batch();
+
+    batch.set(userRef, buildRestoredUserPatch(), { merge: true });
+
+    const studentSnap = await adminDb.collection(STUDENTS_COLLECTION)
+      .where('uid', '==', payload.uid)
+      .limit(1)
+      .get();
+
+    if (!studentSnap.empty) {
+      batch.update(studentSnap.docs[0].ref, {
+        isArchived: false,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    }
+
+    await batch.commit();
 
     await writeAuditLog({
       action: 'restoreManagedUser',
@@ -444,6 +472,12 @@ export const changeUserRole = onCall<ChangeUserRoleRequest>(async (request) => {
           createdAt: new Date(),
           updatedAt: new Date(),
         });
+      } else {
+        // If promoting back to student and they have an old record, unarchive it.
+        tx.update(existingStudentSnap.docs[0].ref, {
+          isArchived: false,
+          updatedAt: new Date(),
+        });
       }
     }
 
@@ -483,9 +517,12 @@ export const changeUserRole = onCall<ChangeUserRoleRequest>(async (request) => {
   }
 
   if (!claimsSet) {
-    console.error(
-      `CRITICAL: changeUserRole failed to set claims for ${targetUid} (newRole=${result.newRole}). ` +
-      `Firestore was updated but Auth claims were not. Manual reconciliation required.`,
+    const errMsg = `CRITICAL: changeUserRole failed to set claims for ${targetUid} (newRole=${result.newRole}). ` +
+      `Firestore was updated but Auth claims were not. Manual reconciliation required.`;
+    console.error(errMsg);
+    throw new HttpsError(
+      'internal',
+      `Failed to sync user permissions (claimsSet=false). Target: ${targetUid}, Role: ${result.newRole}. Reconciliation required.`,
     );
   }
 

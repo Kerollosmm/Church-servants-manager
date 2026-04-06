@@ -243,21 +243,35 @@ class ServantDataCubit extends Cubit<ServantDataState> {
         docId,
         includeArchived: true,
       );
+      if (existing == null) {
+        throw const GenericServantFailure('الخادم غير موجود.');
+      }
+
+      // Capture assignments for potential compensation
+      final capturedTeamId = existing.assignedTeamId;
+      final capturedTeamIds = existing.assignedTeamIds;
+
       await _repository.deleteServant(docId);
-      if (existing?.uid?.trim().isNotEmpty == true) {
+
+      if (existing.uid?.trim().isNotEmpty == true) {
         try {
           await _adminUserProvisioningService.archiveUser(
-            uid: existing!.uid!.trim(),
+            uid: existing.uid!.trim(),
           );
         } catch (archiveError) {
           if (kDebugMode) {
             debugPrint(
               'ServantDataCubit: archiveUser failed after deleteServant '
-              'for uid=${existing!.uid}, orphaned auth user: $archiveError',
+              'for uid=${existing.uid}, orphaned auth user: $archiveError',
             );
           }
           try {
-            await _repository.restoreServant(docId);
+            // Restore with captured assignments
+            await _repository.restoreServant(
+              docId,
+              assignedTeamId: capturedTeamId,
+              assignedTeamIds: capturedTeamIds,
+            );
           } catch (rollbackError) {
             if (kDebugMode) {
               debugPrint(

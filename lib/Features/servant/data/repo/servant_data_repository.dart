@@ -306,8 +306,19 @@ class ServantDataRepository {
 
   Future<void> updateServant(ServantModel servant) async {
     try {
+      final oldServant = await getServantById(
+        servant.docID,
+        includeArchived: true,
+      );
       final data = _normalizeServantWriteData(servant);
       await _usersCollection.doc(servant.docID).update(data);
+
+      if (oldServant != null && oldServant.name != servant.name) {
+        await propagateServantNameToTeams(
+          servantUid: servant.docID,
+          newName: servant.name,
+        );
+      }
     } catch (e) {
       throw mapExceptionToServantFailure(e);
     }
@@ -340,15 +351,28 @@ class ServantDataRepository {
     }
   }
 
-  Future<void> restoreServant(String docId) async {
+  Future<void> restoreServant(
+    String docId, {
+    String? assignedTeamId,
+    List<String>? assignedTeamIds,
+  }) async {
     try {
-      await _usersCollection.doc(docId).set({
+      final updates = <String, dynamic>{
         'isArchived': false,
         'restorePendingPasswordReset': true,
         'restoredAt': FieldValue.serverTimestamp(),
         'restoredByUserId': 'system',
         'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      };
+
+      if (assignedTeamId != null) {
+        updates['assignedTeamId'] = assignedTeamId;
+      }
+      if (assignedTeamIds != null) {
+        updates['assignedTeamIds'] = assignedTeamIds;
+      }
+
+      await _usersCollection.doc(docId).set(updates, SetOptions(merge: true));
     } catch (e) {
       throw mapExceptionToServantFailure(e);
     }
@@ -385,10 +409,11 @@ class ServantDataRepository {
         await batch.commit();
       }
     } catch (e) {
-      debugPrint(
-        'ServantDataRepository: Failed to propagate servant name '
-        '($servantUid → "$newName") to teams: $e',
-      );
+      if (kDebugMode) {
+        debugPrint(
+          'ServantDataRepository: Failed to propagate servant name to teams: $e',
+        );
+      }
     }
   }
 

@@ -63,3 +63,6 @@ functions/dist/
 csms_knowledge_base.md
 
 
+
+.gemini/
+gha-creds-*.json

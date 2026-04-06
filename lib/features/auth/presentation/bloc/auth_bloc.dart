@@ -110,12 +110,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       if (_emitUnauthenticatedIfNoFirebaseUser(emit, firebaseUser)) {
         return;
       }
-      final verifiedUser = firebaseUser!;
-
-      if (!verifiedUser.isEmailVerified) {
-        emit(const AuthNeedsVerification());
-        return;
-      }
 
       final user = await _authService.getCurrentAppUser(
         forceRefresh: initialUser != null,
@@ -231,7 +225,21 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         return;
       }
       await _authService.updatePassword(event.newPassword);
-      await _authService.clearRestorePendingPasswordReset(user.uid);
+
+      // Finalize session first
+      try {
+        await _authService.signOut();
+      } catch (_) {
+        // Sign out failure should not block the success emission but we log it if possible
+      }
+
+      // Clear flag as non-fatal
+      try {
+        await _authService.clearRestorePendingPasswordReset(user.uid);
+      } catch (e) {
+        // Log error but don't fail the password reset success
+      }
+
       emit(const AuthPasswordResetSuccess());
     } catch (e) {
       emit(AuthError('فشل في تغيير كلمة المرور. حاول مرة أخرى.'));

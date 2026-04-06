@@ -1,5 +1,6 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
+import 'package:church_management_system/features/auth/domain/failures/auth_exceptions.dart';
 import 'package:church_management_system/features/auth/data/utils/auth_error_mapper.dart';
 import 'package:church_management_system/features/auth/data/services/firebase_auth_provider.dart';
 import 'package:church_management_system/features/auth/domain/repos/auth_repository.dart';
@@ -122,6 +123,12 @@ class AuthService implements AuthRepository {
   /// Clear the restorePendingPasswordReset flag on the user's Firestore doc
   @override
   Future<void> clearRestorePendingPasswordReset(String uid) async {
+    final currentUid = currentUser?.uid;
+    if (currentUid == null || currentUid != uid) {
+      throw GenericAuthException(
+        'تحذير أمني: لا تملك صلاحية تعديل هذا الحساب.',
+      );
+    }
     try {
       await _provider.clearRestorePendingPasswordReset(uid);
     } catch (e) {

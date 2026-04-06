@@ -115,23 +115,20 @@ class AttendanceSessionRepository {
 
     final docRef = _sessionDoc(normalizedTeamId, sessionId);
 
-    // Pre-transaction overlap check as fast-path guard.
-    // Full atomicity is ensured by the duplicate-ID check inside the transaction.
-    final existingSnapshot = await _sessionsCol(
-      normalizedTeamId,
-    ).where('isClosed', isEqualTo: false).get();
-    final now = DateTime.now();
-    for (final doc in existingSnapshot.docs) {
-      final existing = AttendanceSession.fromMap(doc.data(), doc.id);
-      if (!existing.isEffectivelyClosedAt(now) &&
-          _sessionsOverlap(session, existing)) {
-        throw const AttendanceSessionConflictFailure(
-          'تتعارض هذه الجلسة مع جلسة أخرى موجودة.',
-        );
-      }
-    }
-
     await _firestore.runTransaction((transaction) async {
+      // 1. Lock the team document and get active sessions index.
+      final teamDoc = await transaction.get(
+        _classesCollection.doc(normalizedTeamId),
+      );
+      if (!teamDoc.exists) {
+        throw const AttendanceValidationFailure('الفريق غير موجود.');
+      }
+
+      final openSessionIds = List<String>.from(
+        teamDoc.data()?['openSessionIds'] ?? [],
+      );
+
+      // 2. Validate session uniqueness and overlap inside transaction.
       final existingDoc = await transaction.get(docRef);
       if (existingDoc.exists) {
         throw const AttendanceSessionConflictFailure(
@@ -139,9 +136,43 @@ class AttendanceSessionRepository {
         );
       }
 
+      final now = DateTime.now();
+      final activeSessions = <AttendanceSession>[];
+      final clashingIds = <String>[];
+
+      for (final id in openSessionIds) {
+        final sDoc = await transaction.get(_sessionDoc(normalizedTeamId, id));
+        if (sDoc.exists && sDoc.data() != null) {
+          final existing = AttendanceSession.fromMap(sDoc.data()!, sDoc.id);
+          if (!existing.isEffectivelyClosedAt(now)) {
+            activeSessions.add(existing);
+            if (_sessionsOverlap(session, existing)) {
+              throw const AttendanceSessionConflictFailure(
+                'تتعارض هذه الجلسة مع جلسة أخرى موجودة.',
+              );
+            }
+          } else {
+            clashingIds.add(id);
+          }
+        } else {
+          clashingIds.add(id);
+        }
+      }
+
+      // 3. Perform atomic creation and index update.
       transaction.set(docRef, {
         ...session.toMap(),
         'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      final updatedOpenIds = openSessionIds
+          .where((id) => !clashingIds.contains(id))
+          .toList();
+      updatedOpenIds.add(sessionId);
+
+      transaction.update(teamDoc.reference, {
+        'openSessionIds': updatedOpenIds,
         'updatedAt': FieldValue.serverTimestamp(),
       });
     });
@@ -160,10 +191,20 @@ class AttendanceSessionRepository {
     required String teamId,
     required String sessionId,
   }) async {
-    await _sessionDoc(
-      teamId,
-      sessionId,
-    ).update({'isClosed': true, 'updatedAt': FieldValue.serverTimestamp()});
+    await _firestore.runTransaction((transaction) async {
+      final sessionRef = _sessionDoc(teamId, sessionId);
+      final teamRef = _classesCollection.doc(teamId);
+
+      transaction.update(sessionRef, {
+        'isClosed': true,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      transaction.update(teamRef, {
+        'openSessionIds': FieldValue.arrayRemove([sessionId]),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    });
   }
 
   /// Reopens a closed session for admin editing.
@@ -174,36 +215,69 @@ class AttendanceSessionRepository {
     required String reopenedByUserId,
     required String reopenedByName,
   }) async {
-    // Read the session being reopened.
-    final sessionDoc = await _sessionDoc(teamId, sessionId).get();
-    final sessionData = sessionDoc.data();
-    if (!sessionDoc.exists || sessionData == null) {
-      throw const AttendanceSessionNotFoundFailure();
-    }
-    final session = AttendanceSession.fromMap(sessionData, sessionDoc.id);
+    await _firestore.runTransaction((transaction) async {
+      final teamRef = _classesCollection.doc(teamId);
+      final sessionRef = _sessionDoc(teamId, sessionId);
 
-    // Check for overlapping open sessions.
-    final existingSnapshot = await _sessionsCol(
-      teamId,
-    ).where('isClosed', isEqualTo: false).get();
-    final now = DateTime.now();
-    for (final doc in existingSnapshot.docs) {
-      if (doc.id == sessionId) continue;
-      final existing = AttendanceSession.fromMap(doc.data(), doc.id);
-      if (!existing.isEffectivelyClosedAt(now) &&
-          _sessionsOverlap(session, existing)) {
-        throw const AttendanceSessionConflictFailure(
-          'لا يمكن إعادة فتح الجلسة لأنها تتعارض مع جلسة أخرى مفتوحة.',
-        );
+      final teamDoc = await transaction.get(teamRef);
+      final sessionDoc = await transaction.get(sessionRef);
+
+      if (!teamDoc.exists) {
+        throw const AttendanceValidationFailure('الفريق غير موجود.');
       }
-    }
+      if (!sessionDoc.exists || sessionDoc.data() == null) {
+        throw const AttendanceSessionNotFoundFailure();
+      }
 
-    await _sessionDoc(teamId, sessionId).update({
-      'isClosed': false,
-      'reopenedAt': FieldValue.serverTimestamp(),
-      'reopenedByUserId': reopenedByUserId,
-      'reopenedByName': reopenedByName,
-      'updatedAt': FieldValue.serverTimestamp(),
+      final session = AttendanceSession.fromMap(
+        sessionDoc.data()!,
+        sessionDoc.id,
+      );
+      final openSessionIds = List<String>.from(
+        teamDoc.data()?['openSessionIds'] ?? [],
+      );
+
+      final now = DateTime.now();
+      final clashingIds = <String>[];
+
+      for (final id in openSessionIds) {
+        if (id == sessionId) continue;
+        final sDoc = await transaction.get(_sessionDoc(teamId, id));
+        if (sDoc.exists && sDoc.data() != null) {
+          final existing = AttendanceSession.fromMap(sDoc.data()!, sDoc.id);
+          if (!existing.isEffectivelyClosedAt(now)) {
+            if (_sessionsOverlap(session, existing)) {
+              throw const AttendanceSessionConflictFailure(
+                'لا يمكن إعادة فتح الجلسة لأنها تتعارض مع جلسة أخرى مفتوحة.',
+              );
+            }
+          } else {
+            clashingIds.add(id);
+          }
+        } else {
+          clashingIds.add(id);
+        }
+      }
+
+      transaction.update(sessionRef, {
+        'isClosed': false,
+        'reopenedAt': FieldValue.serverTimestamp(),
+        'reopenedByUserId': reopenedByUserId,
+        'reopenedByName': reopenedByName,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      final updatedOpenIds = openSessionIds
+          .where((id) => !clashingIds.contains(id))
+          .toList();
+      if (!updatedOpenIds.contains(sessionId)) {
+        updatedOpenIds.add(sessionId);
+      }
+
+      transaction.update(teamRef, {
+        'openSessionIds': updatedOpenIds,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
     });
   }
 

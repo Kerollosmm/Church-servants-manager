@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/data/services/auth_user_profile_store.dart';
@@ -285,13 +284,26 @@ class FirebaseAuthProvider implements AuthProvider {
     if (user == null) {
       throw UserNotLoggedInAuthException();
     }
-    await user.updatePassword(newPassword);
+    try {
+      await user.updatePassword(newPassword);
+    } on FirebaseAuthException catch (e) {
+      switch (e.code) {
+        case 'requires-recent-login':
+          throw RequiresRecentLoginAuthException();
+        case 'weak-password':
+          throw WeakPasswordAuthException();
+        default:
+          throw GenericAuthException('Password update failed: ${e.message}');
+      }
+    } catch (e) {
+      throw GenericAuthException('Password update failed: $e');
+    }
   }
 
   Future<void> clearRestorePendingPasswordReset(String uid) async {
-    await FirebaseFirestore.instance.collection('Users').doc(uid).set({
+    await _userProfileStore.updateUserFields(uid, {
       'restorePendingPasswordReset': false,
-    }, SetOptions(merge: true));
+    });
   }
 
   /// Get user data from Firestore with improved cache/server fallback

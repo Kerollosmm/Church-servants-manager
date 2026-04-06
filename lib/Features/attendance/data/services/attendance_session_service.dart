@@ -45,13 +45,18 @@ class AttendanceSessionService {
 
     activeStudents.sort((a, b) => a.name.compareTo(b.name));
 
+    final trimmedTitle = title?.trim();
+    if (trimmedTitle == null || trimmedTitle.isEmpty) {
+      throw const AttendanceValidationFailure('عنوان الجلسة مطلوب.');
+    }
+
     return _sessionRepository.createSession(
       teamId: trimmedTeamId,
       teamNameSnapshot: teamNameSnapshot,
       startsAt: startsAt,
       durationMinutes: durationMinutes,
       createdBy: createdBy,
-      title: title,
+      title: trimmedTitle,
       studentIdsSnapshot: activeStudents
           .map((s) => s.docID)
           .toList(growable: false),

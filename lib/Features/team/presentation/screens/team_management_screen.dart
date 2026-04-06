@@ -63,9 +63,9 @@ class _TeamManagementScreenState extends State<TeamManagementScreen>
     }
   }
 
-  void _loadTeamsForCurrentTab() {
+  Future<void> _loadTeamsForCurrentTab() {
     final groupId = _groups[_tabController.index].name;
-    _teamCubit.loadTeamsByGroup(groupId, includeArchived: _showArchived);
+    return _teamCubit.loadTeamsByGroup(groupId, includeArchived: _showArchived);
   }
 
   String _groupLabel(Group group) {
@@ -258,7 +258,7 @@ class _TeamManagementScreenState extends State<TeamManagementScreen>
               }
 
               return RefreshIndicator(
-                onRefresh: () async => _loadTeamsForCurrentTab(),
+                onRefresh: _loadTeamsForCurrentTab,
                 child: ListView.separated(
                   padding: const EdgeInsets.all(AppSpacing.md),
                   itemCount: teams.length,

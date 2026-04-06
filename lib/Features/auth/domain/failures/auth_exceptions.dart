@@ -30,6 +30,8 @@ class GenericAuthException implements Exception {
   String toString() => message ?? 'An authentication error occurred';
 }
 
+class RequiresRecentLoginAuthException implements Exception {}
+
 class UserNotLoggedInAuthException implements Exception {}
 
 // Password Reset Exceptions

@@ -35,8 +35,9 @@ class StudentLinkedUserSyncService {
       'updatedAt': FieldValue.serverTimestamp(),
     };
 
-    if (updatedEmail != null) {
-      payload['email'] = updatedEmail;
+    final normalizedEmail = updatedEmail?.trim();
+    if (normalizedEmail != null && normalizedEmail.isNotEmpty) {
+      payload['email'] = normalizedEmail;
     }
 
     if (updatedStudent.role == UserRole.servant) {

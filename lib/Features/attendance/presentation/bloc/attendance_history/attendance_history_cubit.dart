@@ -20,7 +20,7 @@ class AttendanceHistoryCubit extends Cubit<AttendanceHistoryState> {
   List<AttendanceSession> _sessions = const <AttendanceSession>[];
   AttendanceSession? _activeSession;
 
-  void loadForTeam(String teamId) {
+  Future<void> loadForTeam(String teamId) async {
     final normalizedTeamId = teamId.trim();
     if (normalizedTeamId.isEmpty) {
       emit(const AttendanceHistoryError('يجب اختيار الفريق أولا.'));
@@ -32,8 +32,8 @@ class AttendanceHistoryCubit extends Cubit<AttendanceHistoryState> {
     _activeSession = null;
     emit(AttendanceHistoryLoading(teamId: normalizedTeamId));
 
-    _sessionsSubscription?.cancel();
-    _activeSessionSubscription?.cancel();
+    await _sessionsSubscription?.cancel();
+    await _activeSessionSubscription?.cancel();
 
     _sessionsSubscription = _repository
         .watchSessionsForTeam(normalizedTeamId)

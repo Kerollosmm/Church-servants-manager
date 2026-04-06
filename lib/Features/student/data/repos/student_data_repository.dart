@@ -193,7 +193,10 @@ class StudentDataRepository {
     }
   }
 
-  Future<void> restoreStudent(String docId) async {
+  Future<void> restoreStudent(
+    String docId, {
+    required String performedByUid,
+  }) async {
     try {
       final doc = await _studentsCollection.doc(docId).get();
       final data = doc.data();
@@ -207,7 +210,7 @@ class StudentDataRepository {
       batch.set(doc.reference, {
         'isArchived': false,
         'restoredAt': FieldValue.serverTimestamp(),
-        'restoredByUserId': 'system',
+        'restoredByUserId': performedByUid,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 

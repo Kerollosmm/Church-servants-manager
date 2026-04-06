@@ -64,6 +64,9 @@ class ServantModel with _$ServantModel {
 
     /// Assigned team/class ID within the servant's group.
     String? assignedTeamId,
+
+    /// Multiple assigned team IDs (if applicable).
+    List<String>? assignedTeamIds,
   }) = _ServantModel;
 
   /// Creates a ServantModel from JSON.

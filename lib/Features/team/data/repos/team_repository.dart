@@ -11,6 +11,9 @@ class TeamRepository {
 
   CollectionReference<Map<String, dynamic>> get _classesCollection =>
       _firestore.collection(FirestoreCollections.classes);
+
+  CollectionReference<Map<String, dynamic>> get _registryCollection =>
+      _firestore.collection('team_uniqueness_registry');
   CollectionReference<Map<String, dynamic>> get _studentsCollection =>
       _firestore.collection(FirestoreCollections.students);
   CollectionReference<Map<String, dynamic>> get _usersCollection =>
@@ -274,25 +277,28 @@ class TeamRepository {
 
   Future<String> createTeam(TeamModel team) async {
     try {
-      // NOTE: Firestore transactions cannot execute range queries (where).
-      // This pre-transaction check is a best-effort guard against duplicates.
-      // In the extremely rare case of concurrent creation, the deterministic
-      // ID or a registry document pattern would be needed for full atomicity.
-      final existingSnapshot = await _classesCollection
-          .where('groupId', isEqualTo: team.groupId)
-          .where('name', isEqualTo: team.name)
-          .get();
-
-      if (existingSnapshot.docs.isNotEmpty) {
-        throw StateError('يوجد فريق بنفس الاسم في هذه المجموعة بالفعل');
-      }
+      final registryId = '${team.groupId}_${team.name}';
+      final registryRef = _registryCollection.doc(registryId);
 
       final docRef = await _firestore.runTransaction((transaction) async {
+        final regDoc = await transaction.get(registryRef);
+        if (regDoc.exists) {
+          throw StateError('يوجد فريق بنفس الاسم في هذه المجموعة بالفعل');
+        }
+
         final newDocRef = _classesCollection.doc();
         transaction.set(newDocRef, {
           ...team.toMap(),
           'updatedAt': FieldValue.serverTimestamp(),
         });
+
+        transaction.set(registryRef, {
+          'teamId': newDocRef.id,
+          'groupId': team.groupId,
+          'teamName': team.name,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
         return newDocRef;
       });
       return docRef.id;
@@ -308,34 +314,38 @@ class TeamRepository {
     try {
       final teamRef = _classesCollection.doc(team.id);
 
-      // Pre-transaction check for duplicate name within the same group.
-      // NOTE: Firestore transactions cannot execute range queries (where).
-      // This check is best-effort; concurrent edits could theoretically create
-      // duplicates, but this is extremely unlikely in practice.
-      final existingDoc = await teamRef.get();
-      if (!existingDoc.exists || existingDoc.data() == null) {
-        throw const TeamNotFoundFailure();
-      }
-
-      final existing = TeamModel.fromMap(existingDoc.data()!, existingDoc.id);
-
-      if (existing.name != team.name || existing.groupId != team.groupId) {
-        final duplicateSnapshot = await _classesCollection
-            .where('groupId', isEqualTo: team.groupId)
-            .where('name', isEqualTo: team.name)
-            .get();
-
-        for (final doc in duplicateSnapshot.docs) {
-          if (doc.id != team.id) {
-            throw StateError('يوجد فريق بنفس الاسم في هذه المجموعة بالفعل');
-          }
-        }
-      }
-
       await _firestore.runTransaction((transaction) async {
         final currentDoc = await transaction.get(teamRef);
-        if (!currentDoc.exists) {
+        if (!currentDoc.exists || currentDoc.data() == null) {
           throw const TeamNotFoundFailure();
+        }
+
+        final existing = TeamModel.fromMap(currentDoc.data()!, currentDoc.id);
+
+        // If name or group changed, handle uniqueness registry
+        if (existing.name != team.name || existing.groupId != team.groupId) {
+          final newRegistryId = '${team.groupId}_${team.name}';
+          final oldRegistryId = '${existing.groupId}_${existing.name}';
+
+          final newRegDoc = await transaction.get(
+            _registryCollection.doc(newRegistryId),
+          );
+
+          if (newRegDoc.exists) {
+            final regTeamId = newRegDoc.data()?['teamId'];
+            if (regTeamId != team.id) {
+              throw StateError('يوجد فريق بنفس الاسم في هذه المجموعة بالفعل');
+            }
+          }
+
+          // Release old registry and claim new one
+          transaction.delete(_registryCollection.doc(oldRegistryId));
+          transaction.set(_registryCollection.doc(newRegistryId), {
+            'teamId': team.id,
+            'groupId': team.groupId,
+            'teamName': team.name,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
         }
 
         transaction.update(teamRef, {
@@ -345,11 +355,8 @@ class TeamRepository {
       });
 
       // Sync team name references after successful transaction
-      final updatedDoc = await teamRef.get();
-      if (updatedDoc.exists && updatedDoc.data() != null) {
-        final updated = TeamModel.fromMap(updatedDoc.data()!, updatedDoc.id);
-        await _syncTeamNameReferences(updated);
-      }
+      // We await this to ensure consistency for callers, including tests.
+      await _syncTeamNameReferences(team);
     } catch (e) {
       if (e is StateError) {
         throw TeamValidationFailure(e.message);

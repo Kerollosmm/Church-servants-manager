@@ -56,16 +56,24 @@ class AuthUserProfileStore {
       if (appUser.archivedByUserId != null &&
           appUser.archivedByUserId!.isNotEmpty) {
         payload['archivedByUserId'] = appUser.archivedByUserId;
+      } else {
+        payload['archivedByUserId'] = FieldValue.delete();
       }
       if (appUser.archiveReason != null && appUser.archiveReason!.isNotEmpty) {
         payload['archiveReason'] = appUser.archiveReason;
+      } else {
+        payload['archiveReason'] = FieldValue.delete();
       }
       if (appUser.restoredAt != null) {
         payload['restoredAt'] = appUser.restoredAt;
+      } else {
+        payload['restoredAt'] = FieldValue.delete();
       }
       if (appUser.restoredByUserId != null &&
           appUser.restoredByUserId!.isNotEmpty) {
         payload['restoredByUserId'] = appUser.restoredByUserId;
+      } else {
+        payload['restoredByUserId'] = FieldValue.delete();
       }
       if (appUser.restorePendingPasswordReset) {
         payload['restorePendingPasswordReset'] = true;
@@ -79,6 +87,8 @@ class AuthUserProfileStore {
       if (appUser.assignedTeamId != null &&
           appUser.assignedTeamId!.isNotEmpty) {
         payload['assignedTeamId'] = appUser.assignedTeamId;
+      } else {
+        payload['assignedTeamId'] = FieldValue.delete();
       }
 
       await _db
@@ -92,10 +102,10 @@ class AuthUserProfileStore {
 
   Future<void> updateUserFields(String uid, Map<String, dynamic> fields) async {
     try {
-      await _db.collection(FirestoreCollections.users).doc(uid).set({
+      await _db.collection(FirestoreCollections.users).doc(uid).update({
         ...fields,
         'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      });
     } catch (e) {
       throw GenericAuthException('Failed to update user data: $e');
     }
