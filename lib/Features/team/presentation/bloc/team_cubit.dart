@@ -158,13 +158,7 @@ class TeamCubit extends Cubit<TeamState> {
     bool includeArchived = false,
   }) async {
     await _runTeamLoad(
-      action: () async {
-        final allTeams = await _teamRepository.getAllTeams(
-          includeArchived: includeArchived,
-        );
-        final idSet = ids.toSet();
-        return allTeams.where((t) => idSet.contains(t.id)).toList();
-      },
+      action: () => _teamRepository.getTeamsByIds(ids, includeArchived: includeArchived),
       selectedTeamId: defaultTeamId,
       includeArchived: includeArchived,
       loadGroupId: null,

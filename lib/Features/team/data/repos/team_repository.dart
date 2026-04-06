@@ -109,49 +109,6 @@ class TeamRepository {
     }
   }
 
-  Future<void> _removeTeamAssignmentFromServant(
-    String servantId,
-    String teamId,
-  ) async {
-    final servantRef = _usersCollection.doc(servantId);
-    final servantDoc = await servantRef.get();
-    final data = servantDoc.data();
-    if (!servantDoc.exists || data == null) {
-      return;
-    }
-
-    final assignedIds = <String>[];
-    final rawIds = data['assignedTeamIds'];
-    if (rawIds is Iterable) {
-      for (final value in rawIds) {
-        final normalized = value?.toString().trim() ?? '';
-        if (normalized.isEmpty ||
-            normalized == teamId ||
-            assignedIds.contains(normalized)) {
-          continue;
-        }
-        assignedIds.add(normalized);
-      }
-    }
-
-    final legacyAssignedId = (data['assignedTeamId'] as String?)?.trim();
-    if (legacyAssignedId != null &&
-        legacyAssignedId.isNotEmpty &&
-        legacyAssignedId != teamId &&
-        !assignedIds.contains(legacyAssignedId)) {
-      assignedIds.add(legacyAssignedId);
-    }
-
-    await servantRef.set({
-      'assignedTeamIds': assignedIds.isEmpty
-          ? FieldValue.delete()
-          : assignedIds,
-      'assignedTeamId': assignedIds.isEmpty
-          ? FieldValue.delete()
-          : assignedIds.first,
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-  }
 
   Future<List<TeamModel>> getTeamsByGroup(
     String groupId, {
@@ -243,7 +200,21 @@ class TeamRepository {
     }
   }
 
+  Future<List<TeamModel>> getTeamsByIds(List<String> ids, {bool includeArchived = false}) async {
+    if (ids.isEmpty) return [];
+    try {
+      final chunks = _chunkList(ids, 30);
+      final futures = chunks.map((chunk) => _classesCollection.where(FieldPath.documentId, whereIn: chunk).get());
+      final results = await Future.wait(futures);
+      final docs = results.expand((snap) => snap.docs).toList();
+      return _teamsFromDocs(docs, includeArchived: includeArchived);
+    } catch (e) {
+      throw mapExceptionToTeamFailure(e);
+    }
+  }
+
   Stream<List<TeamModel>> watchAllTeams({bool includeArchived = false}) {
+
     return _classesCollection
         .orderBy('groupId')
         .orderBy('name')
@@ -368,32 +339,72 @@ class TeamRepository {
   Future<void> deleteTeam(String id) async {
     try {
       final teamRef = _classesCollection.doc(id);
-      final teamDoc = await teamRef.get();
-      final teamData = teamDoc.data();
-      if (!teamDoc.exists || teamData == null) {
-        throw const TeamNotFoundFailure();
-      }
+      
+      await _firestore.runTransaction((transaction) async {
+        final teamDoc = await transaction.get(teamRef);
+        final teamData = teamDoc.data();
+        if (!teamDoc.exists || teamData == null) {
+          throw const TeamNotFoundFailure();
+        }
 
-      final team = TeamModel.fromMap(teamData, teamDoc.id);
-      if (team.isArchived) {
-        return;
-      }
+        final team = TeamModel.fromMap(teamData, teamDoc.id);
+        if (team.isArchived) {
+          return;
+        }
 
-      final assignedServantId = (teamData['assignedServantId'] as String?)
-          ?.trim();
-      if (assignedServantId != null && assignedServantId.isNotEmpty) {
-        await _removeTeamAssignmentFromServant(assignedServantId, id);
-      }
+        final assignedServantId = (teamData['assignedServantId'] as String?)
+            ?.trim();
+        if (assignedServantId != null && assignedServantId.isNotEmpty) {
+          // We can't call another async method that does its own transaction/gets here easily,
+          // so we'll handle the servant update after the transaction or implement it here.
+          // Since we want atomicity, let's implement it here.
+          final servantRef = _usersCollection.doc(assignedServantId);
+          final servantDoc = await transaction.get(servantRef);
+          final servantData = servantDoc.data();
+          
+          if (servantDoc.exists && servantData != null) {
+            final assignedIds = <String>[];
+            final rawIds = servantData['assignedTeamIds'];
+            if (rawIds is Iterable) {
+              for (final value in rawIds) {
+                final normalized = value?.toString().trim() ?? '';
+                if (normalized.isEmpty ||
+                    normalized == id ||
+                    assignedIds.contains(normalized)) {
+                  continue;
+                }
+                assignedIds.add(normalized);
+              }
+            }
 
-      await teamRef.set({
-        'isArchived': true,
-        'archivedAt': FieldValue.serverTimestamp(),
-        'archiveReason': 'Archived from app',
-        'assignedServantId': FieldValue.delete(),
-        'assignedServantName': FieldValue.delete(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+            transaction.set(servantRef, {
+              'assignedTeamIds': assignedIds.isEmpty
+                  ? FieldValue.delete()
+                  : assignedIds,
+              'assignedTeamId': assignedIds.isEmpty
+                  ? FieldValue.delete()
+                  : assignedIds.first,
+              'updatedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+          }
+        }
+
+        // Cleanup registry
+        final registryId = '${team.groupId}_${team.name}';
+        transaction.delete(_registryCollection.doc(registryId));
+
+        // Archive team
+        transaction.set(teamRef, {
+          'isArchived': true,
+          'archivedAt': FieldValue.serverTimestamp(),
+          'archiveReason': 'Archived from app',
+          'assignedServantId': FieldValue.delete(),
+          'assignedServantName': FieldValue.delete(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      });
     } catch (e) {
+      if (e is TeamFailure) rethrow;
       throw mapExceptionToTeamFailure(e);
     }
   }
