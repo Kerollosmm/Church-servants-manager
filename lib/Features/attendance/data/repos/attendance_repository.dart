@@ -199,50 +199,6 @@ class AttendanceRepository {
     return sessions;
   }
 
-  Stream<Map<String, StudentModel>> _watchStudentsByIds(
-    List<String> studentIds,
-  ) {
-    final normalizedIds = <String>[];
-    for (final id in studentIds) {
-      final normalized = id.trim();
-      if (normalized.isEmpty || normalizedIds.contains(normalized)) continue;
-      normalizedIds.add(normalized);
-    }
-
-    if (normalizedIds.isEmpty) {
-      return Stream.value(const <String, StudentModel>{});
-    }
-
-    final chunks = _chunkList(normalizedIds, 10);
-    final streams = chunks
-        .map((chunk) {
-          return _studentsCollection
-              .where(FieldPath.documentId, whereIn: chunk)
-              .snapshots()
-              .map((snapshot) {
-                final byId = <String, StudentModel>{};
-                for (final student in _studentQueryService.mapStudentDocs(
-                  snapshot.docs,
-                )) {
-                  byId[student.docID] = student;
-                }
-                return byId;
-              });
-        })
-        .toList(growable: false);
-
-    if (streams.length == 1) {
-      return streams.first;
-    }
-
-    return Rx.combineLatestList(streams).map((results) {
-      final merged = <String, StudentModel>{};
-      for (final chunkMap in results) {
-        merged.addAll(chunkMap);
-      }
-      return merged;
-    });
-  }
 
   Stream<Map<String, AttendanceMark>> _watchMarksMap(
     String teamId,
@@ -395,11 +351,18 @@ class AttendanceRepository {
     String? note,
   }) async {
     try {
-      await assertUserCanManageAttendance(user: markedBy, teamId: teamId);
-      final session = await _getRequiredSession(
-        teamId: teamId,
-        sessionId: sessionId,
-      );
+      final results = await Future.wait([
+        canUserManageAttendance(user: markedBy, teamId: teamId),
+        getSessionById(teamId: teamId, sessionId: sessionId),
+      ]);
+      final canManage = results[0] as bool;
+      if (!canManage) {
+        throw const AttendancePermissionDeniedFailure();
+      }
+      final session = results[1] as AttendanceSession?;
+      if (session == null) {
+        throw const AttendanceSessionNotFoundFailure();
+      }
       _assertStudentInSession(session, studentId);
       _assertSessionWritable(session, _nowProvider());
 
@@ -490,20 +453,6 @@ class AttendanceRepository {
         },
       );
 
-      final existingSnapshot = await _sessionsCol(
-        normalizedTeamId,
-      ).where('isClosed', isEqualTo: false).get();
-      final existingSessions = _mapSessionsSnapshot(existingSnapshot);
-      for (final existing in existingSessions) {
-        final isActiveConflict =
-            !existing.isEffectivelyClosedAt(now) &&
-            _sessionsOverlap(candidate, existing);
-        if (isActiveConflict ||
-            _isDuplicateSessionCandidate(candidate, existing)) {
-          throw const AttendanceSessionConflictFailure();
-        }
-      }
-
       final docRef = _sessionDoc(normalizedTeamId, candidate.id);
       await _firestore.runTransaction((transaction) async {
         final existingDoc = await transaction.get(docRef);
@@ -512,6 +461,22 @@ class AttendanceRepository {
             'تم إنشاء جلسة حضور مطابقة بالفعل.',
           );
         }
+
+        final activeSessionsSnapshot = await _sessionsCol(normalizedTeamId)
+            .where('isClosed', isEqualTo: false)
+            .get();
+        final existingSessions = _mapSessionsSnapshot(activeSessionsSnapshot);
+
+        for (final existing in existingSessions) {
+          final isActiveConflict =
+              !existing.isEffectivelyClosedAt(now) &&
+              _sessionsOverlap(candidate, existing);
+          if (isActiveConflict ||
+              _isDuplicateSessionCandidate(candidate, existing)) {
+            throw const AttendanceSessionConflictFailure();
+          }
+        }
+
         transaction.set(docRef, {
           ...candidate.toMap(),
           'createdAt': FieldValue.serverTimestamp(),
@@ -662,40 +627,53 @@ class AttendanceRepository {
     required AuthUser markedBy,
   }) async {
     try {
-      await assertUserCanManageAttendance(user: markedBy, teamId: teamId);
-      final session = await _getRequiredSession(
-        teamId: teamId,
-        sessionId: sessionId,
-      );
+      final results = await Future.wait([
+        canUserManageAttendance(user: markedBy, teamId: teamId),
+        getSessionById(teamId: teamId, sessionId: sessionId),
+      ]);
+      final canManage = results[0] as bool;
+      if (!canManage) {
+        throw const AttendancePermissionDeniedFailure();
+      }
+      final session = results[1] as AttendanceSession?;
+      if (session == null) {
+        throw const AttendanceSessionNotFoundFailure();
+      }
       _assertSessionWritable(session, _nowProvider());
 
-      final existingMarks = await _marksCol(teamId, sessionId).get();
-      final alreadyMarkedIds = existingMarks.docs.map((doc) => doc.id).toSet();
-      final remainingIds = session.studentIdsSnapshot
-          .where((studentId) => !alreadyMarkedIds.contains(studentId))
-          .toList(growable: false);
-      if (remainingIds.isEmpty) return;
+      final liveNames = await _loadStudentNamesByIds(session.studentIdsSnapshot);
 
-      final liveNames = await _loadStudentNamesByIds(remainingIds);
+      // Fetch all existing marks first
+      final existingMarksSnapshot = await _marksCol(teamId, sessionId).get();
+      final existingMarkIds = existingMarksSnapshot.docs.map((doc) => doc.id).toSet();
 
-      await _firestore.runTransaction((transaction) async {
-        for (final studentId in remainingIds) {
-          final markRef = _markDoc(teamId, sessionId, studentId);
-          final studentName =
-              liveNames[studentId] ??
-              session.studentNameSnapshots[studentId] ??
-              'مخدوم';
+      final batch = _firestore.batch();
+      int batchCount = 0;
 
-          transaction.set(markRef, {
-            'studentNameSnapshot': studentName,
-            'status': AttendanceMarkStatus.present.name,
-            'markedByUserId': markedBy.uid,
-            'markedByName': markedBy.name,
-            'markedAt': FieldValue.serverTimestamp(),
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
-        }
-      });
+      for (final studentId in session.studentIdsSnapshot) {
+        if (existingMarkIds.contains(studentId)) continue;
+
+        final markRef = _markDoc(teamId, sessionId, studentId);
+        final studentName =
+            liveNames[studentId] ??
+            session.studentNameSnapshots[studentId] ??
+            'مخدوم';
+
+        batch.set(markRef, {
+          'studentNameSnapshot': studentName,
+          'status': AttendanceMarkStatus.present.name,
+          'markedByUserId': markedBy.uid,
+          'markedByName': markedBy.name,
+          'markedAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+        
+        batchCount++;
+      }
+
+      if (batchCount > 0) {
+        await batch.commit();
+      }
     } catch (error) {
       if (error is AttendanceFailure) rethrow;
       throw mapExceptionToAttendanceFailure(error);
@@ -726,18 +704,16 @@ class AttendanceRepository {
             );
           }
 
-          return Rx.combineLatest3(
-            _watchStudentsByIds(session.studentIdsSnapshot),
+          return Rx.combineLatest2(
             marksStream,
             _watchClock(),
             (
-              Map<String, StudentModel> studentsById,
               Map<String, AttendanceMark> marksById,
               DateTime now,
             ) {
               return _buildRosterSnapshot(
                 session: session,
-                studentsById: studentsById,
+                studentsById: const <String, StudentModel>{},
                 marksById: marksById,
                 now: now,
               );
