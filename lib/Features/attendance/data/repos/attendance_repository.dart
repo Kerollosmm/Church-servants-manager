@@ -367,40 +367,17 @@ class AttendanceRepository {
           : (session.studentNameSnapshots[studentId] ?? 'مخدوم');
       final normalizedNote = note?.trim();
 
-      final markDoc = await markRef.get();
-      final isFirstWrite = !markDoc.exists;
-
-      if (isFirstWrite) {
-        await markRef.set({
-          'studentNameSnapshot': effectiveStudentName,
-          'status': status.name,
-          'markedByUserId': markedBy.uid,
-          'markedByName': markedBy.name,
-          'markedAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-          'note': normalizedNote == null || normalizedNote.isEmpty
-              ? FieldValue.delete()
-              : normalizedNote,
-        }, SetOptions(merge: true));
-      } else {
-        await markRef.set({
-          'studentNameSnapshot': effectiveStudentName,
-          'status': status.name,
-          'markedByUserId': markedBy.uid,
-          'markedByName': markedBy.name,
-          'updatedAt': FieldValue.serverTimestamp(),
-          'note': normalizedNote == null || normalizedNote.isEmpty
-              ? FieldValue.delete()
-              : normalizedNote,
-        }, SetOptions(mergeFields: [
-          'studentNameSnapshot',
-          'status',
-          'markedByUserId',
-          'markedByName',
-          'updatedAt',
-          'note',
-        ]));
-      }
+      await markRef.set({
+        'studentNameSnapshot': effectiveStudentName,
+        'status': status.name,
+        'markedByUserId': markedBy.uid,
+        'markedByName': markedBy.name,
+        'markedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        'note': normalizedNote == null || normalizedNote.isEmpty
+            ? FieldValue.delete()
+            : normalizedNote,
+      }, SetOptions(merge: true));
     } catch (error) {
       if (error is AttendanceFailure) rethrow;
       throw mapExceptionToAttendanceFailure(error);
@@ -741,53 +718,52 @@ class AttendanceRepository {
     return _watchStudentSessions(
       studentId: studentId,
       teamId: teamId,
-    ).switchMap((sessions) {
+    ).asyncMap((sessions) async {
       if (sessions.isEmpty) {
-        return Stream.value(const <StudentAttendanceHistoryItem>[]);
+        return const <StudentAttendanceHistoryItem>[];
       }
 
-      return _watchClock().asyncMap((now) async {
-        final markFutures = sessions
-            .map((session) async {
-              final doc = await _markDoc(
-                session.teamId,
-                session.id,
-                studentId,
-              ).get();
-              return (session: session, mark: _mapMarkOrNull(doc));
-            })
-            .toList(growable: false);
+      final now = _nowProvider();
+      final markFutures = sessions
+          .map((session) async {
+            final doc = await _markDoc(
+              session.teamId,
+              session.id,
+              studentId,
+            ).get();
+            return (session: session, mark: _mapMarkOrNull(doc));
+          })
+          .toList(growable: false);
 
-        final entries = await Future.wait(markFutures);
-        final history = entries
-            .map((entry) {
-              final session = entry.session;
-              final mark = entry.mark;
-              return StudentAttendanceHistoryItem(
-                sessionId: session.id,
-                teamId: session.teamId,
-                teamNameSnapshot: session.teamNameSnapshot,
-                title: session.title,
-                dateKey: session.dateKey,
-                sessionStartsAt: session.startsAt,
-                sessionEndsAt: session.endsAt,
-                effectiveStatus: AttendanceRosterItem.resolveEffectiveStatus(
-                  manualStatus: mark?.status,
-                  session: session,
-                  now: now,
-                ),
-                isSessionClosed: session.isEffectivelyClosedAt(now),
-                markedAt: mark?.markedAt,
-                markedByName: mark?.markedByName,
-              );
-            })
-            .toList(growable: false);
-        history.sort(
-          (first, second) =>
-              second.sessionStartsAt.compareTo(first.sessionStartsAt),
-        );
-        return history;
-      });
+      final entries = await Future.wait(markFutures);
+      final history = entries
+          .map((entry) {
+            final session = entry.session;
+            final mark = entry.mark;
+            return StudentAttendanceHistoryItem(
+              sessionId: session.id,
+              teamId: session.teamId,
+              teamNameSnapshot: session.teamNameSnapshot,
+              title: session.title,
+              dateKey: session.dateKey,
+              sessionStartsAt: session.startsAt,
+              sessionEndsAt: session.endsAt,
+              effectiveStatus: AttendanceRosterItem.resolveEffectiveStatus(
+                manualStatus: mark?.status,
+                session: session,
+                now: now,
+              ),
+              isSessionClosed: session.isEffectivelyClosedAt(now),
+              markedAt: mark?.markedAt,
+              markedByName: mark?.markedByName,
+            );
+          })
+          .toList(growable: false);
+      history.sort(
+        (first, second) =>
+            second.sessionStartsAt.compareTo(first.sessionStartsAt),
+      );
+      return history;
     });
   }
 

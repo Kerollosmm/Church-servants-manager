@@ -135,7 +135,6 @@ service cloud.firestore {
           'updatedAt',
           'note',
         ]) &&
-        studentIsActive(studentId) &&
         request.resource.data.get('markedByUserId', '') == callerUid() &&
         request.resource.data.get('markedByName', '') is string &&
         request.resource.data.get('markedByName', '').size() > 0 &&
