@@ -199,7 +199,6 @@ class AttendanceRepository {
     return sessions;
   }
 
-
   Stream<Map<String, AttendanceMark>> _watchMarksMap(
     String teamId,
     String sessionId,
@@ -462,9 +461,9 @@ class AttendanceRepository {
           );
         }
 
-        final activeSessionsSnapshot = await _sessionsCol(normalizedTeamId)
-            .where('isClosed', isEqualTo: false)
-            .get();
+        final activeSessionsSnapshot = await _sessionsCol(
+          normalizedTeamId,
+        ).where('isClosed', isEqualTo: false).get();
         final existingSessions = _mapSessionsSnapshot(activeSessionsSnapshot);
 
         for (final existing in existingSessions) {
@@ -641,11 +640,15 @@ class AttendanceRepository {
       }
       _assertSessionWritable(session, _nowProvider());
 
-      final liveNames = await _loadStudentNamesByIds(session.studentIdsSnapshot);
+      final liveNames = await _loadStudentNamesByIds(
+        session.studentIdsSnapshot,
+      );
 
       // Fetch all existing marks first
       final existingMarksSnapshot = await _marksCol(teamId, sessionId).get();
-      final existingMarkIds = existingMarksSnapshot.docs.map((doc) => doc.id).toSet();
+      final existingMarkIds = existingMarksSnapshot.docs
+          .map((doc) => doc.id)
+          .toSet();
 
       final batch = _firestore.batch();
       int batchCount = 0;
@@ -667,7 +670,7 @@ class AttendanceRepository {
           'markedAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
-        
+
         batchCount++;
       }
 
@@ -696,30 +699,27 @@ class AttendanceRepository {
   }) {
     final marksStream = _watchMarksMap(teamId, sessionId);
 
-    return watchSessionById(teamId: teamId, sessionId: sessionId)
-        .switchMap((session) {
-          if (session == null) {
-            return Stream<AttendanceRosterSnapshot>.error(
-              const AttendanceSessionNotFoundFailure(),
-            );
-          }
+    return watchSessionById(teamId: teamId, sessionId: sessionId).switchMap((
+      session,
+    ) {
+      if (session == null) {
+        return Stream<AttendanceRosterSnapshot>.error(
+          const AttendanceSessionNotFoundFailure(),
+        );
+      }
 
-          return Rx.combineLatest2(
-            marksStream,
-            _watchClock(),
-            (
-              Map<String, AttendanceMark> marksById,
-              DateTime now,
-            ) {
-              return _buildRosterSnapshot(
-                session: session,
-                studentsById: const <String, StudentModel>{},
-                marksById: marksById,
-                now: now,
-              );
-            },
-          );
-        });
+      return Rx.combineLatest2(marksStream, _watchClock(), (
+        Map<String, AttendanceMark> marksById,
+        DateTime now,
+      ) {
+        return _buildRosterSnapshot(
+          session: session,
+          studentsById: const <String, StudentModel>{},
+          marksById: marksById,
+          now: now,
+        );
+      });
+    });
   }
 
   Stream<List<StudentAttendanceHistoryItem>> watchStudentAttendanceHistory({

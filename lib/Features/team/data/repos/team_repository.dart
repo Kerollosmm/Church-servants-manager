@@ -109,7 +109,6 @@ class TeamRepository {
     }
   }
 
-
   Future<List<TeamModel>> getTeamsByGroup(
     String groupId, {
     bool includeArchived = false,
@@ -200,11 +199,18 @@ class TeamRepository {
     }
   }
 
-  Future<List<TeamModel>> getTeamsByIds(List<String> ids, {bool includeArchived = false}) async {
+  Future<List<TeamModel>> getTeamsByIds(
+    List<String> ids, {
+    bool includeArchived = false,
+  }) async {
     if (ids.isEmpty) return [];
     try {
       final chunks = _chunkList(ids, 30);
-      final futures = chunks.map((chunk) => _classesCollection.where(FieldPath.documentId, whereIn: chunk).get());
+      final futures = chunks.map(
+        (chunk) => _classesCollection
+            .where(FieldPath.documentId, whereIn: chunk)
+            .get(),
+      );
       final results = await Future.wait(futures);
       final docs = results.expand((snap) => snap.docs).toList();
       return _teamsFromDocs(docs, includeArchived: includeArchived);
@@ -214,7 +220,6 @@ class TeamRepository {
   }
 
   Stream<List<TeamModel>> watchAllTeams({bool includeArchived = false}) {
-
     return _classesCollection
         .orderBy('groupId')
         .orderBy('name')
@@ -339,7 +344,7 @@ class TeamRepository {
   Future<void> deleteTeam(String id) async {
     try {
       final teamRef = _classesCollection.doc(id);
-      
+
       await _firestore.runTransaction((transaction) async {
         final teamDoc = await transaction.get(teamRef);
         final teamData = teamDoc.data();
@@ -361,7 +366,7 @@ class TeamRepository {
           final servantRef = _usersCollection.doc(assignedServantId);
           final servantDoc = await transaction.get(servantRef);
           final servantData = servantDoc.data();
-          
+
           if (servantDoc.exists && servantData != null) {
             final assignedIds = <String>[];
             final rawIds = servantData['assignedTeamIds'];

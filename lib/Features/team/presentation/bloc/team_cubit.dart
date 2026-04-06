@@ -158,7 +158,8 @@ class TeamCubit extends Cubit<TeamState> {
     bool includeArchived = false,
   }) async {
     await _runTeamLoad(
-      action: () => _teamRepository.getTeamsByIds(ids, includeArchived: includeArchived),
+      action: () =>
+          _teamRepository.getTeamsByIds(ids, includeArchived: includeArchived),
       selectedTeamId: defaultTeamId,
       includeArchived: includeArchived,
       loadGroupId: null,

@@ -327,65 +327,80 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                                   );
                                 }
 
-                                return ListView(
+                                final historySessions = sessions
+                                    .where(
+                                      (session) =>
+                                          activeSession == null ||
+                                          session.id != activeSession.id,
+                                    )
+                                    .toList(growable: false);
+
+                                return ListView.builder(
                                   padding: const EdgeInsets.all(AppSpacing.md),
-                                  children: [
-                                    if (activeSession != null)
-                                      _ActiveSessionCard(
-                                        teamName: _teamName(
-                                          teams,
-                                          _selectedTeamId,
+                                  itemCount:
+                                      (activeSession != null ? 1 : 0) +
+                                      historySessions.length,
+                                  itemBuilder: (context, index) {
+                                    if (activeSession != null && index == 0) {
+                                      return Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: AppSpacing.md,
                                         ),
-                                        session: activeSession,
-                                        canClose: actor.role == UserRole.admin,
-                                        onOpen: () {
+                                        child: _ActiveSessionCard(
+                                          teamName: _teamName(
+                                            teams,
+                                            _selectedTeamId,
+                                          ),
+                                          session: activeSession,
+                                          canClose:
+                                              actor.role == UserRole.admin,
+                                          onOpen: () {
+                                            Navigator.pushNamed(
+                                              context,
+                                              attendanceTaking,
+                                              arguments: AttendanceTakingArgs(
+                                                actor: actor,
+                                                teamId: activeSession.teamId,
+                                                sessionId: activeSession.id,
+                                              ),
+                                            );
+                                          },
+                                          onClose: actor.role == UserRole.admin
+                                              ? () => _closeActiveSession(
+                                                  actor,
+                                                  activeSession,
+                                                )
+                                              : null,
+                                        ),
+                                      );
+                                    }
+
+                                    final sessionIndex = activeSession != null
+                                        ? index - 1
+                                        : index;
+                                    final session =
+                                        historySessions[sessionIndex];
+
+                                    return Padding(
+                                      padding: const EdgeInsets.only(
+                                        bottom: AppSpacing.md,
+                                      ),
+                                      child: _SessionHistoryCard(
+                                        session: session,
+                                        onTap: () {
                                           Navigator.pushNamed(
                                             context,
                                             attendanceTaking,
                                             arguments: AttendanceTakingArgs(
                                               actor: actor,
-                                              teamId: activeSession.teamId,
-                                              sessionId: activeSession.id,
+                                              teamId: session.teamId,
+                                              sessionId: session.id,
                                             ),
                                           );
                                         },
-                                        onClose: actor.role == UserRole.admin
-                                            ? () => _closeActiveSession(
-                                                actor,
-                                                activeSession,
-                                              )
-                                            : null,
                                       ),
-                                    if (activeSession != null) AppSpacing.gapMd,
-                                    ...sessions
-                                        .where(
-                                          (session) =>
-                                              activeSession == null ||
-                                              session.id != activeSession.id,
-                                        )
-                                        .map(
-                                          (session) => Padding(
-                                            padding: const EdgeInsets.only(
-                                              bottom: AppSpacing.md,
-                                            ),
-                                            child: _SessionHistoryCard(
-                                              session: session,
-                                              onTap: () {
-                                                Navigator.pushNamed(
-                                                  context,
-                                                  attendanceTaking,
-                                                  arguments:
-                                                      AttendanceTakingArgs(
-                                                        actor: actor,
-                                                        teamId: session.teamId,
-                                                        sessionId: session.id,
-                                                      ),
-                                                );
-                                              },
-                                            ),
-                                          ),
-                                        ),
-                                  ],
+                                    );
+                                  },
                                 );
                               },
                             ),

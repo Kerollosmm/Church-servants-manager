@@ -40,21 +40,18 @@ class AttendanceHistoryCubit extends Cubit<AttendanceHistoryState> {
       (_) => DateTime.now(),
     ).startWith(DateTime.now());
 
-    _sessionsSubscription = Rx.combineLatest2(
-      sessions$,
-      clock$,
-      (List<AttendanceSession> sessions, DateTime now) {
-        _sessions = sessions;
-        try {
-          _activeSession = sessions.firstWhere(
-            (s) => s.isOpenAt(now),
-          );
-        } catch (_) {
-          _activeSession = null;
-        }
-        _emitLoaded();
-      },
-    ).listen((_) {}, onError: _onStreamError);
+    _sessionsSubscription = Rx.combineLatest2(sessions$, clock$, (
+      List<AttendanceSession> sessions,
+      DateTime now,
+    ) {
+      _sessions = sessions;
+      try {
+        _activeSession = sessions.firstWhere((s) => s.isOpenAt(now));
+      } catch (_) {
+        _activeSession = null;
+      }
+      _emitLoaded();
+    }).listen((_) {}, onError: _onStreamError);
   }
 
   void _emitLoaded() {

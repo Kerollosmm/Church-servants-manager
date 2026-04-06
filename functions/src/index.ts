@@ -32,6 +32,12 @@ async function requireAdmin(
     throw new HttpsError('unauthenticated', 'Authentication is required.');
   }
 
+  // Fast path: use custom claim (no Firestore read)
+  if (auth?.token?.role === 'admin' && auth?.token?.isArchived !== true) {
+    return uid;
+  }
+
+  // Slow path: verify from Firestore only when claim missing/stale
   const userDoc = await adminDb.collection(USERS_COLLECTION).doc(uid).get();
   const userData = userDoc.data();
   if (userData?.isArchived === true) {

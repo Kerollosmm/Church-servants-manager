@@ -73,5 +73,11 @@
       ]
     }
   ],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    {
+      "collectionGroup": "attendance_sessions",
+      "fieldPath": "studentNameSnapshots",
+      "indexes": []
+    }
+  ]
 }
