@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_mark.dart';
@@ -67,9 +68,10 @@ class AttendanceMarkRepository {
   }
 
   Future<bool> _canUserManageAttendance(AuthUser user, String teamId) async {
-    final assignedTeamIds = user.assignedTeamIds ?? [];
-    final userAssignedTeamId = user.assignedTeamId;
-    return userAssignedTeamId == teamId || assignedTeamIds.contains(teamId);
+    if (user.isArchived) return false;
+    if (user.role == UserRole.admin) return true;
+    if (user.role != UserRole.servant) return false;
+    return user.effectiveAssignedTeamIds.contains(teamId.trim());
   }
 
   /// Creates a new attendance mark for a student.
