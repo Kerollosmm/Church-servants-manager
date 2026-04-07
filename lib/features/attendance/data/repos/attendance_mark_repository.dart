@@ -42,6 +42,36 @@ class AttendanceMarkRepository {
     String studentId,
   ) => _marksCol(teamId, sessionId).doc(studentId);
 
+  Future<void> _assertCanWriteMark({
+    required String teamId,
+    required String sessionId,
+    required String studentId,
+    required AuthUser user,
+    required DateTime now,
+  }) async {
+    await assertCanWriteMark(
+      teamId: teamId,
+      sessionId: sessionId,
+      studentId: studentId,
+      user: user,
+      now: now,
+      getSession: () => _getSession(teamId, sessionId),
+      canManage: () => _canUserManageAttendance(user, teamId),
+    );
+  }
+
+  Future<AttendanceSession?> _getSession(String teamId, String sessionId) async {
+    final doc = await _sessionDoc(teamId, sessionId).get();
+    if (!doc.exists || doc.data() == null) return null;
+    return AttendanceSession.fromMap(doc.data()!, doc.id);
+  }
+
+  Future<bool> _canUserManageAttendance(AuthUser user, String teamId) async {
+    final assignedTeamIds = user.assignedTeamIds ?? [];
+    final userAssignedTeamId = user.assignedTeamId;
+    return userAssignedTeamId == teamId || assignedTeamIds.contains(teamId);
+  }
+
   /// Creates a new attendance mark for a student.
   Future<void> createMark({
     required String teamId,
@@ -52,6 +82,13 @@ class AttendanceMarkRepository {
     required AttendanceMarkStatus status,
     String? note,
   }) async {
+    await _assertCanWriteMark(
+      teamId: teamId,
+      sessionId: sessionId,
+      studentId: studentId,
+      user: markedBy,
+      now: DateTime.now(),
+    );
     final normalizedStudentId = studentId.trim();
     final markRef = _markDoc(teamId, sessionId, normalizedStudentId);
     final effectiveStudentName = studentNameSnapshot.trim().isNotEmpty
@@ -83,6 +120,13 @@ class AttendanceMarkRepository {
     required AuthUser markedBy,
     String? note,
   }) async {
+    await _assertCanWriteMark(
+      teamId: teamId,
+      sessionId: sessionId,
+      studentId: studentId,
+      user: markedBy,
+      now: DateTime.now(),
+    );
     final normalizedStudentId = studentId.trim();
     final markRef = _markDoc(teamId, sessionId, normalizedStudentId);
     final normalizedNote = note?.trim();
@@ -103,7 +147,15 @@ class AttendanceMarkRepository {
     required String teamId,
     required String sessionId,
     required String studentId,
+    required AuthUser requestedBy,
   }) async {
+    await _assertCanWriteMark(
+      teamId: teamId,
+      sessionId: sessionId,
+      studentId: studentId,
+      user: requestedBy,
+      now: DateTime.now(),
+    );
     final normalizedStudentId = studentId.trim();
     await _markDoc(teamId, sessionId, normalizedStudentId).delete();
   }
