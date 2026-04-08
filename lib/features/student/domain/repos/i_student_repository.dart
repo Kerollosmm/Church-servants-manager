@@ -1,0 +1,79 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:church_management_system/core/constants/enums.dart';
+import 'package:church_management_system/features/student/data/models/student_model.dart';
+
+/// Domain interface for student repository.
+/// Enables dependency inversion: presentation and domain layers
+/// depend on this abstraction, not concrete Firebase implementations.
+abstract class IStudentRepository {
+  Future<StudentModel?> getStudentById(String docId, {bool includeArchived});
+
+  Future<StudentModel?> getStudentByUid(String uid, {bool includeArchived});
+
+  Future<List<StudentModel>> getAllStudents({
+    int limit,
+    DocumentSnapshot? lastDocument,
+    bool includeArchived,
+  });
+
+  Future<List<StudentModel>> getStudentsByClass(
+    String classId, {
+    bool includeArchived,
+  });
+
+  Future<List<StudentModel>> getStudentsByGrade(
+    int grade, {
+    bool includeArchived,
+  });
+
+  Future<List<StudentModel>> getStudentsByGroup(
+    String groupName, {
+    bool includeArchived,
+  });
+
+  Future<({List<StudentModel> students, bool isFromCache})>
+  getStudentsByGroupWithFallback(String groupName, {bool includeArchived});
+
+  Future<List<StudentModel>> searchStudents(String query, {int limit});
+
+  Future<String> createStudent(StudentModel student);
+
+  Future<void> updateStudent(StudentModel student);
+
+  Future<void> upsertStudent(StudentModel student);
+
+  Future<void> archiveStudent(String docId, {required String performedByUid});
+
+  Future<void> restoreStudent(String docId, {required String performedByUid});
+
+  Future<List<String>> getStudentIdsByClasses(List<String> classIds);
+
+  Stream<List<StudentModel>> watchAllStudents({bool includeArchived});
+
+  Stream<List<StudentModel>> watchStudentsByClass(
+    String classId, {
+    bool includeArchived,
+  });
+
+  Stream<List<StudentModel>> watchStudentsByClasses(
+    List<String> classIds, {
+    bool includeArchived,
+  });
+
+  Stream<List<StudentModel>> watchStudentsByGroup(
+    String groupName, {
+    bool includeArchived,
+  });
+
+  Future<void> syncLinkedUserRoleFromStudent({
+    required StudentModel updatedStudent,
+    required UserRole previousRole,
+    String? updatedEmail,
+  });
+
+  Future<void> updateStudentAndSyncLinkedUserRole({
+    required StudentModel updatedStudent,
+    required UserRole previousRole,
+    String? updatedEmail,
+  });
+}
