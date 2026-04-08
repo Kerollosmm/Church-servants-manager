@@ -98,8 +98,8 @@ service cloud.firestore {
       return sessionExists &&
         session.get('teamIsActive', false) == true &&
         session.get('isClosed', false) == false &&
-        request.time >= session.get('startsAt', request.time) &&
-        request.time < session.get('endsAt', request.time + duration.value(1, 's'));
+        request.time >= session.get('startsAt', request.time) - duration.value(5, 'm') &&
+        request.time < session.get('endsAt', request.time + duration.value(6, 'm'));
     }
 
     function validAttendanceSessionPayload(teamId) {
@@ -200,7 +200,8 @@ service cloud.firestore {
           allow read: if isSignedIn() && (
             isAdmin() ||
             servantCanManageTeam(classId) ||
-            studentId == callerUid()
+            studentId == callerUid() ||
+            get(/databases/$(database)/documents/Students/$(studentId)).data.get('uid', '') == callerUid()
           );
           allow create, update: if (isAdmin() || servantCanManageTeam(classId)) &&
             sessionAcceptsMarks(classId, sessionId) &&
@@ -212,11 +213,12 @@ service cloud.firestore {
     }
 
     // Collection Group rules for attendance sessions
+    // Students access sessions via parent-class path (which works).
+    // Collection group is for admins and servants only.
     match /{path=**}/attendance_sessions/{sessionId} {
       allow read: if isSignedIn() && (
         isAdmin() ||
-        servantCanManageTeam(resource.data.teamId) ||
-        (resource.data.studentIdsSnapshot is list && callerUid() in resource.data.studentIdsSnapshot)
+        servantCanManageTeam(resource.data.teamId)
       );
     }
 
