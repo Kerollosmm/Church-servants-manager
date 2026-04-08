@@ -15,14 +15,14 @@ void main() {
     repository = MockAttendanceRepository();
   });
 
-  test('loadForStudent emits stats from streamed history', () async {
+  test('loadForStudent emits stats from history', () async {
     when(
-      () => repository.watchStudentAttendanceHistory(
+      () => repository.getStudentAttendanceHistory(
         studentId: 'student-1',
         teamId: 'team-1',
       ),
     ).thenAnswer(
-      (_) => Stream.value([
+      (_) async => [
         StudentAttendanceHistoryItem(
           sessionId: 'session-1',
           teamId: 'team-1',
@@ -56,7 +56,7 @@ void main() {
           effectiveStatus: AttendanceEffectiveStatus.absent,
           isSessionClosed: true,
         ),
-      ]),
+      ],
     );
 
     final cubit = StudentAttendanceCubit(repository: repository);
