@@ -12,7 +12,7 @@ void main() {
       id: 'session-1',
       teamId: 'team-1',
       dateKey: '2026-03-09',
-      startsAt: DateTime(2026, 3, 9, 18, 0),
+      startsAt: DateTime(2026, 3, 9, 18),
       endsAt: endsAt,
       durationMinutes: 30,
       createdByUserId: 'admin-1',

@@ -80,7 +80,6 @@ class _AssignServantDialogState extends State<AssignServantDialog> {
 
           final items = <DropdownMenuItem<String?>>[
             const DropdownMenuItem<String?>(
-              value: null,
               child: Text('-- بدون تعيين --'),
             ),
             ...uniqueServants.map(

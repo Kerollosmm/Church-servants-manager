@@ -26,7 +26,6 @@ void main() {
         email: 'fallback@example.com',
         name: 'Fallback',
         role: UserRole.student,
-        isEmailVerified: false,
       ),
     );
   });
@@ -59,7 +58,6 @@ void main() {
       email: 'new@example.com',
       password: 'secret123',
       name: 'New User',
-      role: UserRole.student,
     );
 
     expect(result.uid, 'u1');

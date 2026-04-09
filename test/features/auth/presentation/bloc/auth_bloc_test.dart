@@ -96,8 +96,8 @@ void main() {
   });
 
   test('emits authenticated when check status finds verified user', () async {
-    final currentUser = testUser(isEmailVerified: true);
-    final fullUser = testUser(isEmailVerified: true);
+    final currentUser = testUser();
+    final fullUser = testUser();
 
     when(
       () => authService.authStateChanges,

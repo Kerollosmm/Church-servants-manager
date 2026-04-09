@@ -1,8 +1,8 @@
 import 'package:church_management_system/core/constants/enums.dart';
-import 'package:church_management_system/core/utils/validators.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
-import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
+import 'package:church_management_system/core/utils/validators.dart';
 import 'package:church_management_system/core/widgets/dialogs/error_dialog.dart';
+import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_management_system/features/auth/presentation/widgets/auth_form_card.dart';
 import 'package:church_management_system/features/auth/presentation/widgets/auth_header.dart';

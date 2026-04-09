@@ -41,7 +41,7 @@ class AppEmptyState extends StatelessWidget {
             ),
             AppSpacing.gapMd,
             FilledButton.icon(
-              onPressed: () => onRefresh(),
+              onPressed: onRefresh,
               icon: const Icon(Icons.refresh),
               label: Text(refreshLabel),
             ),

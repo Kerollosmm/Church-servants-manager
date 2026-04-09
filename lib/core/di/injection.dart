@@ -1,15 +1,15 @@
 import 'package:church_management_system/core/routing/app_router.dart';
-import 'package:church_management_system/features/auth/domain/auth_freshness_policy.dart';
-import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
-import 'package:church_management_system/features/attendance/data/repos/attendance_session_repository.dart';
-import 'package:church_management_system/features/attendance/data/repos/attendance_mark_repository.dart';
-import 'package:church_management_system/features/attendance/data/services/attendance_session_service.dart';
 import 'package:church_management_system/features/admin/data/admin_team_membership_service.dart';
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
+import 'package:church_management_system/features/attendance/data/repos/attendance_mark_repository.dart';
+import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
+import 'package:church_management_system/features/attendance/data/repos/attendance_session_repository.dart';
+import 'package:church_management_system/features/attendance/data/services/attendance_session_service.dart';
 import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
-import 'package:church_management_system/features/auth/data/services/auth_user_profile_store.dart';
 import 'package:church_management_system/features/auth/data/services/auth_service.dart';
+import 'package:church_management_system/features/auth/data/services/auth_user_profile_store.dart';
 import 'package:church_management_system/features/auth/data/services/firebase_auth_provider.dart';
+import 'package:church_management_system/features/auth/domain/auth_freshness_policy.dart';
 import 'package:church_management_system/features/servant/data/repo/servant_data_repository.dart';
 import 'package:church_management_system/features/student/data/repos/student_data_repository.dart';
 import 'package:church_management_system/features/student/data/services/student_linked_user_sync_service.dart';
@@ -36,7 +36,7 @@ void configureDependencies() {
   });
 
   // ---- Auth Freshness ----
-  getIt.registerLazySingleton<AuthFreshnessPolicy>(() => AuthFreshnessPolicy());
+  getIt.registerLazySingleton<AuthFreshnessPolicy>(AuthFreshnessPolicy.new);
 
   // ---- Services ----
   getIt.registerLazySingleton<AuthUserProfileStore>(
@@ -113,5 +113,5 @@ void configureDependencies() {
   );
 
   // ---- Routing ----
-  getIt.registerLazySingleton<AppRouter>(() => AppRouter());
+  getIt.registerLazySingleton<AppRouter>(AppRouter.new);
 }

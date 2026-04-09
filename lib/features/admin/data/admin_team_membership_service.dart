@@ -1,9 +1,9 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/team/data/models/team_model.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AdminTeamMembershipService {
   AdminTeamMembershipService({FirebaseFirestore? firestore})
@@ -42,7 +42,6 @@ class AdminTeamMembershipService {
 
     final currentIds = await _getCurrentTeamMemberIds(team.id);
     final selectedIds = selectedStudents.map((s) => s.docID).toSet();
-    final affectedClassIds = <String>{team.id};
 
     final toAdd = selectedStudents
         .where((s) => !currentIds.contains(s.docID))
@@ -55,43 +54,9 @@ class AdminTeamMembershipService {
       toAdd: toAdd,
       toRemove: toRemoveStudents,
       selectedIds: selectedIds.toList(growable: false),
-      affectedClassIds: affectedClassIds,
     );
 
     await _commitOpsInChunks(ops);
-    await _recomputeStudentIdsForClasses(affectedClassIds);
-  }
-
-  Future<void> _recomputeStudentIdsForClasses(Set<String> classIds) async {
-    final normalizedClassIds = classIds
-        .map((id) => id.trim())
-        .where((id) => id.isNotEmpty)
-        .toSet();
-
-    if (normalizedClassIds.isEmpty) return;
-
-    final pendingIds = normalizedClassIds.toList(growable: false);
-    for (var i = 0; i < pendingIds.length; i += 200) {
-      final batch = _firestore.batch();
-      final end = (i + 200 > pendingIds.length) ? pendingIds.length : i + 200;
-      final slice = pendingIds.sublist(i, end);
-
-      for (final classId in slice) {
-        final membersSnap = await _students
-            .where('classId', isEqualTo: classId)
-            .get();
-        final memberIds = membersSnap.docs
-            .where((studentDoc) => studentDoc.data()['isArchived'] != true)
-            .map((studentDoc) => studentDoc.id)
-            .toList(growable: false);
-        batch.set(_classes.doc(classId), {
-          'student_ids': memberIds,
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-      }
-
-      await batch.commit();
-    }
   }
 
   Future<Set<String>> _getCurrentTeamMemberIds(String teamId) async {
@@ -127,7 +92,6 @@ class AdminTeamMembershipService {
     required List<StudentModel> toAdd,
     required List<StudentModel> toRemove,
     required List<String> selectedIds,
-    required Set<String> affectedClassIds,
   }) {
     final ops = <void Function(WriteBatch)>[];
 
@@ -138,7 +102,10 @@ class AdminTeamMembershipService {
       if (previousClassId != null &&
           previousClassId.isNotEmpty &&
           previousClassId != team.id) {
-        affectedClassIds.add(previousClassId);
+        addOp((b) => b.set(_teamRef(previousClassId), {
+           'student_ids': FieldValue.arrayRemove([student.docID]),
+           'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true)));
       }
 
       addOp(
@@ -163,11 +130,6 @@ class AdminTeamMembershipService {
     }
 
     for (final student in toRemove) {
-      final previousClassId = student.classId?.trim();
-      if (previousClassId != null && previousClassId.isNotEmpty) {
-        affectedClassIds.add(previousClassId);
-      }
-
       addOp(
         (b) => b.set(_studentRef(student.docID), {
           'classId': FieldValue.delete(),

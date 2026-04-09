@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
@@ -6,6 +5,7 @@ import 'package:church_management_system/features/attendance/data/models/attenda
 import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
 import 'package:church_management_system/features/attendance/domain/failures/attendance_failures.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
 /// Repository responsible for attendance mark CRUD operations.
@@ -93,6 +93,7 @@ class AttendanceMarkRepository {
     );
     final normalizedStudentId = studentId.trim();
     final markRef = _markDoc(teamId, sessionId, normalizedStudentId);
+    final sessionRef = _sessionDoc(teamId, sessionId);
     final effectiveStudentName = studentNameSnapshot.trim().isNotEmpty
         ? studentNameSnapshot.trim()
         : 'مخدوم';
@@ -110,7 +111,19 @@ class AttendanceMarkRepository {
       data['note'] = normalizedNote;
     }
 
-    await markRef.set(data);
+    await _firestore.runTransaction((transaction) async {
+      final markDoc = await transaction.get(markRef);
+      if (!markDoc.exists) {
+        transaction.set(markRef, data);
+        if (status == AttendanceMarkStatus.present) {
+          transaction.update(sessionRef, {'presentCount': FieldValue.increment(1)});
+        } else if (status == AttendanceMarkStatus.late) {
+          transaction.update(sessionRef, {'lateCount': FieldValue.increment(1)});
+        } else if (status == AttendanceMarkStatus.absent) {
+          transaction.update(sessionRef, {'absentCount': FieldValue.increment(1)});
+        }
+      }
+    });
   }
 
   /// Updates an existing attendance mark.
@@ -131,16 +144,35 @@ class AttendanceMarkRepository {
     );
     final normalizedStudentId = studentId.trim();
     final markRef = _markDoc(teamId, sessionId, normalizedStudentId);
+    final sessionRef = _sessionDoc(teamId, sessionId);
     final normalizedNote = note?.trim();
 
-    await markRef.update({
-      'status': status.name,
-      'markedByUserId': markedBy.uid,
-      'markedByName': markedBy.name,
-      'updatedAt': FieldValue.serverTimestamp(),
-      'note': normalizedNote == null || normalizedNote.isEmpty
-          ? FieldValue.delete()
-          : normalizedNote,
+    await _firestore.runTransaction((transaction) async {
+      final markDoc = await transaction.get(markRef);
+      if (!markDoc.exists) return;
+
+      final oldStatusStr = markDoc.data()?['status'] as String?;
+      final oldStatus = AttendanceMarkStatus.values.firstWhere(
+        (e) => e.name == oldStatusStr,
+        orElse: () => AttendanceMarkStatus.present,
+      );
+
+      if (oldStatus != status) {
+        transaction.update(sessionRef, {
+          '${oldStatus.name}Count': FieldValue.increment(-1),
+          '${status.name}Count': FieldValue.increment(1),
+        });
+      }
+
+      transaction.update(markRef, {
+        'status': status.name,
+        'markedByUserId': markedBy.uid,
+        'markedByName': markedBy.name,
+        'updatedAt': FieldValue.serverTimestamp(),
+        'note': normalizedNote == null || normalizedNote.isEmpty
+            ? FieldValue.delete()
+            : normalizedNote,
+      });
     });
   }
 
@@ -159,7 +191,24 @@ class AttendanceMarkRepository {
       now: DateTime.now(),
     );
     final normalizedStudentId = studentId.trim();
-    await _markDoc(teamId, sessionId, normalizedStudentId).delete();
+    final markRef = _markDoc(teamId, sessionId, normalizedStudentId);
+    final sessionRef = _sessionDoc(teamId, sessionId);
+
+    await _firestore.runTransaction((transaction) async {
+      final markDoc = await transaction.get(markRef);
+      if (!markDoc.exists) return;
+
+      final oldStatusStr = markDoc.data()?['status'] as String?;
+      final oldStatus = AttendanceMarkStatus.values.firstWhere(
+        (e) => e.name == oldStatusStr,
+        orElse: () => AttendanceMarkStatus.present,
+      );
+
+      transaction.update(sessionRef, {
+        '${oldStatus.name}Count': FieldValue.increment(-1),
+      });
+      transaction.delete(markRef);
+    });
   }
 
   /// Gets all marks for a session.

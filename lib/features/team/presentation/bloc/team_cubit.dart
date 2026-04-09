@@ -1,9 +1,9 @@
-import 'package:church_management_system/features/team/data/models/team_model.dart';
-import 'package:church_management_system/features/team/data/repos/team_repository.dart';
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/servant/data/models/servant_models.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
+import 'package:church_management_system/features/team/data/models/team_model.dart';
+import 'package:church_management_system/features/team/data/repos/team_repository.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -145,7 +145,6 @@ class TeamCubit extends Cubit<TeamState> {
       action: () =>
           _teamRepository.getAllTeams(includeArchived: includeArchived),
       includeArchived: includeArchived,
-      loadGroupId: null,
       errorContext: 'Failed to load all teams',
       errorMessage: 'تعذر تحميل الفرق. تحقق من الاتصال وحاول مرة أخرى.',
     );
@@ -162,7 +161,6 @@ class TeamCubit extends Cubit<TeamState> {
           _teamRepository.getTeamsByIds(ids, includeArchived: includeArchived),
       selectedTeamId: defaultTeamId,
       includeArchived: includeArchived,
-      loadGroupId: null,
       errorContext: 'Failed to load teams by IDs',
       errorMessage: 'تعذر تحميل الفرق. تحقق من الاتصال وحاول مرة أخرى.',
     );

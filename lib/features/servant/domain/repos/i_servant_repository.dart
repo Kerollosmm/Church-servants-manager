@@ -1,7 +1,7 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:church_management_system/features/servant/data/models/servant_models.dart';
 import 'package:church_management_system/features/servant/data/repo/servant_data_repository.dart'
     show ServantsPage;
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Domain interface for servant repository.
 /// Enables dependency inversion: presentation and domain layers
@@ -47,10 +47,11 @@ abstract class IServantRepository {
 
   Future<void> updateServantFields(String docId, Map<String, dynamic> fields);
 
-  Future<void> deleteServant(String docId);
+  Future<void> deleteServant(String docId, {required String performedByUid});
 
   Future<void> restoreServant(
     String docId, {
+    required String performedByUid,
     String? assignedTeamId,
     List<String>? assignedTeamIds,
   });

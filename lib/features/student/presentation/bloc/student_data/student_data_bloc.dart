@@ -1,17 +1,17 @@
 import 'dart:async';
 
 import 'package:church_management_system/core/constants/enums.dart';
+import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
+import 'package:church_management_system/features/auth/domain/failures/auth_exceptions.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
-import 'package:church_management_system/features/student/data/repos/student_data_repository.dart';
+import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
 import 'package:church_management_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
 import 'package:church_management_system/features/student/domain/usecases/get_students_stream_usecase.dart';
-import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import 'package:church_management_system/features/auth/domain/failures/auth_exceptions.dart';
 part 'student_data_event.dart';
 part 'student_data_state.dart';
 
@@ -20,7 +20,7 @@ part 'student_data_state.dart';
 /// Delegates stream selection to [GetStudentsStreamUseCase]
 /// and authorization to [CanMutateStudentUseCase].
 class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
-  final StudentDataRepository _studentRepository;
+  final IStudentRepository _studentRepository;
   final GetStudentsStreamUseCase _getStudentsStream;
   final CanMutateStudentUseCase _canMutateStudent;
   final AdminUserProvisioningService _adminUserProvisioningService;
@@ -35,7 +35,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
   bool _includeArchived = false;
 
   StudentDataBloc({
-    required StudentDataRepository studentRepository,
+    required IStudentRepository studentRepository,
     required GetStudentsStreamUseCase getStudentsStream,
     required CanMutateStudentUseCase canMutateStudent,
     required AdminUserProvisioningService adminUserProvisioningService,
@@ -468,12 +468,15 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
               performedByUid: event.actor.uid,
             );
           } catch (rollbackError) {
-            // CRITICAL: Both primary action (auth archive) and rollback (firestore restore) failed
+            // CRITICAL: Both primary action and rollback failed
             if (kDebugMode) {
               debugPrint(
-                'CRITICAL [StudentDataBloc]: FAILED to archive Auth user AND FAILED to rollback Firestore archive. '
-                'UID: ${existing.uid}, StudentDocId: ${event.docId}. '
-                'Primary Error: $authError, Rollback Error: $rollbackError',
+                'CRITICAL [StudentDataBloc]: FAILED to archive Auth user '
+                'AND FAILED to rollback Firestore archive. '
+                'UID: ${existing.uid}, '
+                'StudentDocId: ${event.docId}. '
+                'Primary Error: $authError, '
+                'Rollback Error: $rollbackError',
               );
             }
             throw GenericAuthException(
@@ -531,12 +534,15 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
               performedByUid: event.actor.uid,
             );
           } catch (rollbackError) {
-            // CRITICAL: Both primary action (auth restore) and rollback (firestore archive) failed
+            // CRITICAL: Both primary action and rollback failed
             if (kDebugMode) {
               debugPrint(
-                'CRITICAL [StudentDataBloc]: FAILED to restore Auth user AND FAILED to rollback Firestore restore. '
-                'UID: ${existing.uid}, StudentDocId: ${event.docId}. '
-                'Primary Error: $authError, Rollback Error: $rollbackError',
+                'CRITICAL [StudentDataBloc]: FAILED to restore Auth user '
+                'AND FAILED to rollback Firestore restore. '
+                'UID: ${existing.uid}, '
+                'StudentDocId: ${event.docId}. '
+                'Primary Error: $authError, '
+                'Rollback Error: $rollbackError',
               );
             }
             throw GenericAuthException(

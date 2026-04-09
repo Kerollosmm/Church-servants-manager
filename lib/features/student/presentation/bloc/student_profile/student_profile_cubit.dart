@@ -22,7 +22,7 @@ class StudentProfileCubit extends Cubit<StudentProfileState> {
         return;
       }
 
-      var profile = await _studentRepository.getStudentByUid(actor.uid);
+      final profile = await _studentRepository.getStudentByUid(actor.uid);
 
       if (profile == null) {
         emit(

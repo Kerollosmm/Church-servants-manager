@@ -1,12 +1,17 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
+import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/student/data/services/student_linked_user_sync_service.dart';
 import 'package:church_management_system/features/student/data/services/student_query_service.dart';
 import 'package:church_management_system/features/student/domain/failures/student_failures.dart';
-import '../models/student_model.dart';
+import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class StudentDataRepository {
+/// Repository for student data operations.
+///
+/// Delegates to [StudentQueryService] for queries and
+/// [StudentLinkedUserSyncService] for auth user sync.
+class StudentDataRepository implements IStudentRepository {
   final FirebaseFirestore _firestore;
   final StudentQueryService _queryService;
   final StudentLinkedUserSyncService _linkedUserSyncService;
@@ -27,6 +32,7 @@ class StudentDataRepository {
   CollectionReference<Map<String, dynamic>> get _usersCollection =>
       _firestore.collection(FirestoreCollections.users);
 
+  @override
   Future<void> syncLinkedUserRoleFromStudent({
     required StudentModel updatedStudent,
     required UserRole previousRole,
@@ -39,6 +45,7 @@ class StudentDataRepository {
     );
   }
 
+  @override
   Future<void> updateStudentAndSyncLinkedUserRole({
     required StudentModel updatedStudent,
     required UserRole previousRole,
@@ -51,6 +58,7 @@ class StudentDataRepository {
     );
   }
 
+  @override
   Future<StudentModel?> getStudentById(
     String docId, {
     bool includeArchived = false,
@@ -61,6 +69,7 @@ class StudentDataRepository {
     );
   }
 
+  @override
   Future<StudentModel?> getStudentByUid(
     String uid, {
     bool includeArchived = false,
@@ -68,6 +77,7 @@ class StudentDataRepository {
     return _queryService.getStudentByUid(uid, includeArchived: includeArchived);
   }
 
+  @override
   Future<List<StudentModel>> getAllStudents({
     int limit = 10,
     DocumentSnapshot? lastDocument,
@@ -80,6 +90,7 @@ class StudentDataRepository {
     );
   }
 
+  @override
   Future<List<StudentModel>> getStudentsByClass(
     String classId, {
     bool includeArchived = false,
@@ -90,10 +101,18 @@ class StudentDataRepository {
     );
   }
 
-  Future<List<StudentModel>> getStudentsByGrade(int grade) async {
-    return _queryService.getStudentsByGrade(grade);
+  @override
+  Future<List<StudentModel>> getStudentsByGrade(
+    int grade, {
+    bool includeArchived = false,
+  }) async {
+    return _queryService.getStudentsByGrade(
+      grade,
+      includeArchived: includeArchived,
+    );
   }
 
+  @override
   Future<List<StudentModel>> getStudentsByGroup(
     String groupName, {
     bool includeArchived = false,
@@ -104,6 +123,7 @@ class StudentDataRepository {
     );
   }
 
+  @override
   Future<({List<StudentModel> students, bool isFromCache})>
   getStudentsByGroupWithFallback(
     String groupName, {
@@ -115,6 +135,7 @@ class StudentDataRepository {
     );
   }
 
+  @override
   Future<List<StudentModel>> searchStudents(
     String query, {
     int limit = 20,
@@ -124,12 +145,13 @@ class StudentDataRepository {
         .where('isArchived', isEqualTo: false)
         .orderBy('name')
         .startAt([query])
-        .endAt([query + '\uf8ff'])
+        .endAt(['$query\uf8ff'])
         .limit(limit)
         .get();
     return _queryService.mapStudentDocs(snapshot.docs);
   }
 
+  @override
   Future<String> createStudent(StudentModel student) async {
     try {
       final docRef = student.docID.isNotEmpty
@@ -143,6 +165,7 @@ class StudentDataRepository {
     }
   }
 
+  @override
   Future<void> updateStudent(StudentModel student) async {
     try {
       final docRef = _studentsCollection.doc(student.docID);
@@ -152,6 +175,7 @@ class StudentDataRepository {
     }
   }
 
+  @override
   Future<void> upsertStudent(StudentModel student) async {
     try {
       final docRef = _studentsCollection.doc(student.docID);
@@ -161,6 +185,7 @@ class StudentDataRepository {
     }
   }
 
+  @override
   Future<void> archiveStudent(
     String docId, {
     required String performedByUid,
@@ -199,6 +224,7 @@ class StudentDataRepository {
     }
   }
 
+  @override
   Future<void> restoreStudent(
     String docId, {
     required String performedByUid,
@@ -237,16 +263,19 @@ class StudentDataRepository {
   }
 
   /// Helper to get student IDs for given class IDs (batch query)
+  @override
   Future<List<String>> getStudentIdsByClasses(List<String> classIds) async {
     return _queryService.getStudentIdsByClasses(classIds);
   }
 
   // Stream-based queries (real-time)
 
+  @override
   Stream<List<StudentModel>> watchAllStudents({bool includeArchived = false}) {
     return _queryService.watchAllStudents(includeArchived: includeArchived);
   }
 
+  @override
   Stream<List<StudentModel>> watchStudentsByClass(
     String classId, {
     bool includeArchived = false,
@@ -257,6 +286,7 @@ class StudentDataRepository {
     );
   }
 
+  @override
   Stream<List<StudentModel>> watchStudentsByClasses(
     List<String> classIds, {
     bool includeArchived = false,
@@ -267,6 +297,7 @@ class StudentDataRepository {
     );
   }
 
+  @override
   Stream<List<StudentModel>> watchStudentsByGroup(
     String groupName, {
     bool includeArchived = false,

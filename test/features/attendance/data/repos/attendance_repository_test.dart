@@ -101,7 +101,7 @@ void main() {
   setUp(() async {
     firestore = FakeFirebaseFirestore();
     clockController = StreamController<DateTime>.broadcast();
-    currentTime = DateTime(2026, 3, 9, 18, 0);
+    currentTime = DateTime(2026, 3, 9, 18);
     await firestore.collection('Classes').doc('team-1').set({
       'name': 'Team A',
       'groupId': 'year1',
@@ -277,7 +277,6 @@ void main() {
   test('watchSessionRoster derives absent automatically after close', () async {
     await seedStudent(student(id: 'student-1', name: 'Mina'));
     final session = buildSession(
-      isClosed: false,
       startsAt: currentTime,
       endsAt: currentTime.add(const Duration(minutes: 30)),
     );

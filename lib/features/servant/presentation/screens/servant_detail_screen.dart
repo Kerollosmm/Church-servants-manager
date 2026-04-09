@@ -8,13 +8,15 @@ import 'package:church_management_system/core/widgets/common/app_detail_section_
 import 'package:church_management_system/core/widgets/common/app_info_banner.dart';
 import 'package:church_management_system/core/widgets/common/app_key_value_row.dart';
 import 'package:church_management_system/core/widgets/common/app_profile_header_card.dart';
-import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
 import 'package:church_management_system/core/widgets/dialogs/generic_dialog.dart';
+import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
 import 'package:church_management_system/features/servant/presentation/bloc/servant_data/servant_data_cubit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+/// Detail screen for a servant showing info and archive/restore actions.
 class ServantDetailScreen extends StatelessWidget {
+  /// Screen arguments containing servant data and actor.
   final ServantDetailArgs args;
 
   const ServantDetailScreen({super.key, required this.args});
@@ -89,11 +91,11 @@ class ServantDetailScreen extends StatelessWidget {
                     if (!completer.isCompleted) completer.complete();
                   }
                 });
-                await cubit.deleteServant(
-                  actor: args.actor,
-                  docId: servant.docID,
-                );
                 try {
+                  await cubit.deleteServant(
+                    actor: args.actor,
+                    docId: servant.docID,
+                  );
                   await completer.future.timeout(
                     const Duration(seconds: 10),
                     onTimeout: () {
@@ -106,7 +108,7 @@ class ServantDetailScreen extends StatelessWidget {
                 } catch (_) {
                   // Error already shown via snackbar or timeout handler
                 } finally {
-                  sub.cancel();
+                  await sub.cancel();
                 }
               },
             ),
@@ -149,11 +151,11 @@ class ServantDetailScreen extends StatelessWidget {
                     if (!completer.isCompleted) completer.complete();
                   }
                 });
-                await cubit.restoreServant(
-                  actor: args.actor,
-                  docId: servant.docID,
-                );
                 try {
+                  await cubit.restoreServant(
+                    actor: args.actor,
+                    docId: servant.docID,
+                  );
                   await completer.future.timeout(
                     const Duration(seconds: 10),
                     onTimeout: () {
@@ -166,7 +168,7 @@ class ServantDetailScreen extends StatelessWidget {
                 } catch (_) {
                   // Error already shown via snackbar or timeout handler
                 } finally {
-                  sub.cancel();
+                  await sub.cancel();
                 }
               },
             ),

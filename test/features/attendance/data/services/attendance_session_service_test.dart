@@ -93,7 +93,7 @@ void main() {
 
   group('createSessionWithRosterSnapshot', () {
     test('creates session with active students', () async {
-      final startsAt = DateTime(2026, 3, 9, 18, 0);
+      final startsAt = DateTime(2026, 3, 9, 18);
       final endsAt = startsAt.add(const Duration(minutes: 30));
 
       when(
@@ -147,7 +147,7 @@ void main() {
         () => service.createSessionWithRosterSnapshot(
           teamId: 'team-1',
           teamNameSnapshot: 'Team A',
-          startsAt: DateTime(2026, 3, 9, 18, 0),
+          startsAt: DateTime(2026, 3, 9, 18),
           durationMinutes: 30,
           createdBy: admin,
           title: 'Wednesday',
@@ -172,13 +172,13 @@ void main() {
     test('filters archived students from roster', () async {
       when(() => studentQueryService.getStudentsByClass('team-1')).thenAnswer(
         (_) async => [
-          student(id: 'student-1', name: 'Mina', isArchived: false),
+          student(id: 'student-1', name: 'Mina'),
           student(id: 'student-2', name: 'Andrew', isArchived: true),
         ],
       );
 
       final session = buildSession(
-        startsAt: DateTime(2026, 3, 9, 18, 0),
+        startsAt: DateTime(2026, 3, 9, 18),
         endsAt: DateTime(2026, 3, 9, 18, 30),
         studentIds: ['student-1'],
       );
@@ -187,7 +187,7 @@ void main() {
         () => sessionRepository.createSession(
           teamId: 'team-1',
           teamNameSnapshot: 'Team A',
-          startsAt: DateTime(2026, 3, 9, 18, 0),
+          startsAt: DateTime(2026, 3, 9, 18),
           durationMinutes: 30,
           createdBy: admin,
           title: 'Wednesday',
@@ -199,7 +199,7 @@ void main() {
       await service.createSessionWithRosterSnapshot(
         teamId: 'team-1',
         teamNameSnapshot: 'Team A',
-        startsAt: DateTime(2026, 3, 9, 18, 0),
+        startsAt: DateTime(2026, 3, 9, 18),
         durationMinutes: 30,
         createdBy: admin,
         title: 'Wednesday',
@@ -209,7 +209,7 @@ void main() {
         () => sessionRepository.createSession(
           teamId: 'team-1',
           teamNameSnapshot: 'Team A',
-          startsAt: DateTime(2026, 3, 9, 18, 0),
+          startsAt: DateTime(2026, 3, 9, 18),
           durationMinutes: 30,
           createdBy: admin,
           title: 'Wednesday',
@@ -229,7 +229,7 @@ void main() {
       );
 
       final session = buildSession(
-        startsAt: DateTime(2026, 3, 9, 18, 0),
+        startsAt: DateTime(2026, 3, 9, 18),
         endsAt: DateTime(2026, 3, 9, 18, 30),
         studentIds: ['s1', 's2', 's3'],
       );
@@ -238,7 +238,7 @@ void main() {
         () => sessionRepository.createSession(
           teamId: 'team-1',
           teamNameSnapshot: 'Team A',
-          startsAt: DateTime(2026, 3, 9, 18, 0),
+          startsAt: DateTime(2026, 3, 9, 18),
           durationMinutes: 30,
           createdBy: admin,
           title: 'Wednesday',
@@ -250,7 +250,7 @@ void main() {
       await service.createSessionWithRosterSnapshot(
         teamId: 'team-1',
         teamNameSnapshot: 'Team A',
-        startsAt: DateTime(2026, 3, 9, 18, 0),
+        startsAt: DateTime(2026, 3, 9, 18),
         durationMinutes: 30,
         createdBy: admin,
         title: 'Wednesday',
@@ -260,7 +260,7 @@ void main() {
         () => sessionRepository.createSession(
           teamId: 'team-1',
           teamNameSnapshot: 'Team A',
-          startsAt: DateTime(2026, 3, 9, 18, 0),
+          startsAt: DateTime(2026, 3, 9, 18),
           durationMinutes: 30,
           createdBy: admin,
           title: 'Wednesday',

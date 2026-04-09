@@ -7,10 +7,10 @@ import 'package:church_management_system/core/widgets/common/app_state_message.d
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
+import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_management_system/features/team/data/models/team_model.dart';
 import 'package:church_management_system/features/team/data/repos/team_repository.dart';
 import 'package:church_management_system/features/team/presentation/bloc/team_cubit.dart';
-import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_management_system/features/team/presentation/widgets/assign_servant_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -254,6 +254,7 @@ class _TeamManagementScreenState extends State<TeamManagementScreen>
                   message: _showArchived
                       ? 'عند أرشفة فريق سيظهر هنا.'
                       : 'اضغط + لإنشاء فريق لهذه السنة.',
+                  onRetry: _loadTeamsForCurrentTab,
                 );
               }
 

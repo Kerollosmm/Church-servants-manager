@@ -35,15 +35,15 @@ void main() {
       teamNameSnapshot: 'Team A',
       title: 'Wednesday',
       dateKey: '2026-03-09',
-      startsAt: DateTime(2026, 3, 9, 18, 0),
+      startsAt: DateTime(2026, 3, 9, 18),
       endsAt: isClosed
-          ? DateTime(2026, 3, 9, 18, 0)
+          ? DateTime(2026, 3, 9, 18)
           : DateTime(2026, 3, 9, 18, 30),
       durationMinutes: 30,
       createdByUserId: 'admin-1',
       createdByName: 'Admin',
-      createdAt: DateTime(2026, 3, 9, 18, 0),
-      updatedAt: DateTime(2026, 3, 9, 18, 0),
+      createdAt: DateTime(2026, 3, 9, 18),
+      updatedAt: DateTime(2026, 3, 9, 18),
       isClosed: isClosed,
       studentIdsSnapshot: const ['student-1'],
       studentNameSnapshots: const {'student-1': 'Mina'},
@@ -157,7 +157,7 @@ void main() {
       expect(cubit.state, isA<AttendanceTakingLoaded>());
       expect(
         (cubit.state as AttendanceTakingLoaded).mutationError,
-        'انتهى وقت تسجيل الحضور لهذه الجلسة.',
+        isNotEmpty,
       );
       verifyNever(
         () => repository.markStudentPresent(

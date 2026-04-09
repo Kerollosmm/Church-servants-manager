@@ -1,12 +1,16 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/core/constants/enums.dart';
+import 'package:church_management_system/core/constants/firestore_collections.dart';
+import 'package:church_management_system/features/servant/data/models/servant_models.dart';
 import 'package:church_management_system/features/servant/domain/failures/servant_failures.dart';
+import 'package:church_management_system/features/servant/domain/repos/i_servant_repository.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:church_management_system/core/utils/list_extensions.dart';
+
 import 'package:flutter/foundation.dart';
-import '../models/servant_models.dart';
 
 typedef _ServantDoc = QueryDocumentSnapshot<Map<String, dynamic>>;
 
+/// A paginated result of servant data from [ServantDataRepository].
 class ServantsPage {
   final List<ServantModel> servants;
   final DocumentSnapshot<Map<String, dynamic>>? lastDocument;
@@ -21,7 +25,7 @@ class ServantsPage {
 
 /// Repository for managing servant data.
 /// Servants are stored in the Users collection with role == 'servant'.
-class ServantDataRepository {
+class ServantDataRepository implements IServantRepository {
   final FirebaseFirestore _firestore;
 
   ServantDataRepository({FirebaseFirestore? firestore})
@@ -79,6 +83,7 @@ class ServantDataRepository {
     return data;
   }
 
+  @override
   Future<ServantModel?> getServantById(
     String docId, {
     bool includeArchived = false,
@@ -97,6 +102,7 @@ class ServantDataRepository {
     }
   }
 
+  @override
   Future<ServantModel?> getServantByUid(
     String uid, {
     bool includeArchived = false,
@@ -122,6 +128,7 @@ class ServantDataRepository {
     }
   }
 
+  @override
   Future<({List<ServantModel> servants, bool isFromCache})>
   getServantsByGroupWithFallback(
     String groupId, {
@@ -154,6 +161,7 @@ class ServantDataRepository {
     }
   }
 
+  @override
   Future<List<ServantModel>> getAllServants({
     int limit = 20,
     DocumentSnapshot? lastDocument,
@@ -188,6 +196,7 @@ class ServantDataRepository {
     }
   }
 
+  @override
   Future<ServantsPage> getServantsPage({
     int limit = 50,
     DocumentSnapshot<Map<String, dynamic>>? lastDocument,
@@ -217,6 +226,7 @@ class ServantDataRepository {
     }
   }
 
+  @override
   Future<List<ServantModel>> getServantsByTeam(
     String teamName, {
     bool includeArchived = false,
@@ -244,6 +254,7 @@ class ServantDataRepository {
     }
   }
 
+  @override
   Future<List<ServantModel>> searchServants(
     String query, {
     int limit = 20,
@@ -266,12 +277,14 @@ class ServantDataRepository {
     }
   }
 
+  @override
   Stream<List<ServantModel>> getServantsStream({bool includeArchived = false}) {
     return _sortedServantsQuery().snapshots().map((snapshot) {
       return _servantsFromDocs(snapshot.docs, includeArchived);
     });
   }
 
+  @override
   Future<String> createServant(ServantModel servant) async {
     try {
       final normalizedUid = servant.uid?.trim();
@@ -292,6 +305,7 @@ class ServantDataRepository {
     }
   }
 
+  @override
   Future<void> upsertServant(ServantModel servant) async {
     try {
       final data = _normalizeServantWriteData(servant);
@@ -304,6 +318,7 @@ class ServantDataRepository {
     }
   }
 
+  @override
   Future<void> updateServant(ServantModel servant) async {
     try {
       final oldServant = await getServantById(
@@ -324,6 +339,7 @@ class ServantDataRepository {
     }
   }
 
+  @override
   Future<void> updateServantFields(
     String docId,
     Map<String, dynamic> fields,
@@ -335,12 +351,18 @@ class ServantDataRepository {
     }
   }
 
-  Future<void> deleteServant(String docId) async {
+  @override
+  Future<void> deleteServant(
+    String docId, {
+    required String performedByUid,
+  }) async {
     try {
       await _usersCollection.doc(docId).set({
         'isArchived': true,
         'archivedAt': FieldValue.serverTimestamp(),
-        'archivedByUserId': 'system',
+        'archivedByUserId': performedByUid.trim().isEmpty
+            ? 'system'
+            : performedByUid,
         'restorePendingPasswordReset': false,
         'assignedTeamId': FieldValue.delete(),
         'assignedTeamIds': FieldValue.delete(),
@@ -351,8 +373,10 @@ class ServantDataRepository {
     }
   }
 
+  @override
   Future<void> restoreServant(
     String docId, {
+    required String performedByUid,
     String? assignedTeamId,
     List<String>? assignedTeamIds,
   }) async {
@@ -361,7 +385,9 @@ class ServantDataRepository {
         'isArchived': false,
         'restorePendingPasswordReset': true,
         'restoredAt': FieldValue.serverTimestamp(),
-        'restoredByUserId': 'system',
+        'restoredByUserId': performedByUid.trim().isEmpty
+            ? 'system'
+            : performedByUid,
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
@@ -385,6 +411,7 @@ class ServantDataRepository {
   /// Called after servant name is successfully updated. Best-effort: catches
   /// and logs failures via debugPrint rather than throwing.
   /// Chunks updates into batches of 500 to respect Firestore limits.
+  @override
   Future<void> propagateServantNameToTeams({
     required String servantUid,
     required String newName,
@@ -397,7 +424,7 @@ class ServantDataRepository {
 
       if (teamsSnapshot.docs.isEmpty) return;
 
-      final chunks = _chunkList(teamsSnapshot.docs, 500);
+      final chunks = teamsSnapshot.docs.chunk(500);
       for (final chunk in chunks) {
         final batch = _firestore.batch();
         for (final teamDoc in chunk) {
@@ -411,18 +438,11 @@ class ServantDataRepository {
     } catch (e) {
       if (kDebugMode) {
         debugPrint(
-          'ServantDataRepository: Failed to propagate servant name to teams: $e',
+          'ServantDataRepository: Failed to propagate servant name '
+          'to teams: $e',
         );
       }
     }
   }
 
-  List<List<T>> _chunkList<T>(List<T> values, int size) {
-    final chunks = <List<T>>[];
-    for (var index = 0; index < values.length; index += size) {
-      final end = index + size > values.length ? values.length : index + size;
-      chunks.add(values.sublist(index, end));
-    }
-    return chunks;
-  }
 }

@@ -3,8 +3,8 @@ import 'package:church_management_system/features/admin/data/admin_team_membersh
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/team/data/models/team_model.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   late FakeFirebaseFirestore mockFirestore;
@@ -62,7 +62,7 @@ void main() {
 
   group('setStudentsForTeam', () {
     test('assigns students to an empty team', () async {
-      final s1 = student(id: 's1', classId: null, teamName: '', uid: 'u1');
+      final s1 = student(id: 's1', teamName: '');
 
       // Pre-seed the fake firestore with the student
       await mockFirestore.collection('Students').doc('s1').set(s1.toMap());

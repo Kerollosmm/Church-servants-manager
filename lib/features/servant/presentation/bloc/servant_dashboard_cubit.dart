@@ -23,7 +23,7 @@ class ServantDashboardCubit extends Cubit<ServantDashboardState> {
 
   Future<void> loadAssignedTeamNames(List<String> assignedTeamIds) async {
     if (assignedTeamIds.isEmpty) {
-      emit(const ServantDashboardState(teamNames: <String>[]));
+      emit(const ServantDashboardState());
       return;
     }
 
@@ -31,7 +31,7 @@ class ServantDashboardCubit extends Cubit<ServantDashboardState> {
 
     try {
       final teams = await Future.wait(
-        assignedTeamIds.map((teamId) => _teamRepository.getTeamById(teamId)),
+        assignedTeamIds.map(_teamRepository.getTeamById),
       );
       final names = <String>[];
       for (var i = 0; i < teams.length; i++) {

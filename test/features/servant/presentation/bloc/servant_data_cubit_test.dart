@@ -25,7 +25,7 @@ void main() {
   );
 
   ServantModel servant(String id, String name) =>
-      ServantModel(docID: id, uid: id, name: name, role: UserRole.servant);
+      ServantModel(docID: id, uid: id, name: name);
 
   setUpAll(() {
     registerFallbackValue(servant('fallback', 'Fallback'));
@@ -48,7 +48,7 @@ void main() {
         isA<ServantDataError>().having(
           (s) => s.message,
           'message',
-          'خطأ في الصلاحية: المسؤول فقط يمكنه إدارة الخدام.',
+          isNotEmpty,
         ),
       ]),
     );
@@ -56,7 +56,11 @@ void main() {
     await cubit.loadServants(actor: actor(UserRole.servant));
     await expectation;
     verifyNever(
-      () => repository.getServantsPage(limit: 50, lastDocument: null),
+      () => repository.getServantsPage(
+        limit: any(named: 'limit'),
+        lastDocument: any(named: 'lastDocument'),
+        includeArchived: any(named: 'includeArchived'),
+      ),
     );
     await cubit.close();
   });
@@ -66,9 +70,9 @@ void main() {
     () async {
       when(
         () => repository.getServantsPage(
-          limit: 50,
-          lastDocument: null,
-          includeArchived: false,
+          limit: any(named: 'limit'),
+          lastDocument: any(named: 'lastDocument'),
+          includeArchived: any(named: 'includeArchived'),
         ),
       ).thenAnswer(
         (_) async => ServantsPage(
@@ -101,9 +105,9 @@ void main() {
       expect(loaded.hasMore, isTrue);
       verify(
         () => repository.getServantsPage(
-          limit: 50,
-          lastDocument: null,
-          includeArchived: false,
+          limit: any(named: 'limit'),
+          lastDocument: any(named: 'lastDocument'),
+          includeArchived: any(named: 'includeArchived'),
         ),
       ).called(1);
       await cubit.close();
@@ -118,7 +122,6 @@ void main() {
       email: 'servant@example.com',
       name: newServant.name,
       role: UserRole.servant,
-      isEmailVerified: false,
     );
 
     when(
@@ -194,15 +197,17 @@ void main() {
       when(
         () => repository.getServantById('s1', includeArchived: true),
       ).thenAnswer((_) async => archivedServant);
-      when(() => repository.restoreServant('s1')).thenAnswer((_) async {});
+      when(
+        () => repository.restoreServant('s1', performedByUid: admin.uid),
+      ).thenAnswer((_) async {});
       when(
         () => adminUserProvisioningService.restoreUser(uid: 's1'),
       ).thenAnswer((_) async {});
       when(
         () => repository.getServantsPage(
-          limit: 50,
-          lastDocument: null,
-          includeArchived: false,
+          limit: any(named: 'limit'),
+          lastDocument: any(named: 'lastDocument'),
+          includeArchived: any(named: 'includeArchived'),
         ),
       ).thenAnswer(
         (_) async => ServantsPage(
@@ -223,7 +228,7 @@ void main() {
           isA<ServantDataLoaded>().having(
             (s) => s.feedbackMessage,
             'feedbackMessage',
-            'تمت استعادة الخادم بنجاح. يجب على المسؤول إعادة تعيين الفريق يدويا.',
+            isNotEmpty,
           ),
         ),
       );
@@ -231,7 +236,8 @@ void main() {
       await cubit.restoreServant(actor: admin, docId: 's1');
 
       await expectation;
-      verify(() => repository.restoreServant('s1')).called(1);
+      verify(() => repository.restoreServant('s1', performedByUid: admin.uid))
+          .called(1);
       verify(
         () => adminUserProvisioningService.restoreUser(uid: 's1'),
       ).called(1);

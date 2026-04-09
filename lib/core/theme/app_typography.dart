@@ -1,5 +1,5 @@
+import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
-import 'app_colors.dart';
 
 class AppTypography {
   static TextTheme getMainTextTheme(TextTheme base) {

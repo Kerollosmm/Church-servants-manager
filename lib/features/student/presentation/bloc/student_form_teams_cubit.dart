@@ -96,7 +96,6 @@ class StudentFormTeamsCubit extends Cubit<StudentFormTeamsState> {
 
       emit(
         StudentFormTeamsState(
-          isLoading: false,
           teams: visibleTeams,
           selectedTeamId: resolvedTeamId,
         ),
@@ -110,8 +109,6 @@ class StudentFormTeamsCubit extends Cubit<StudentFormTeamsState> {
       }
       emit(
         const StudentFormTeamsState(
-          isLoading: false,
-          teams: <TeamModel>[],
           errorMessage: 'تعذر تحميل الفرق. حاول مرة أخرى.',
         ),
       );

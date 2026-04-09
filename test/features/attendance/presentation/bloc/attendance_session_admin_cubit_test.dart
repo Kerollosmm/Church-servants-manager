@@ -26,13 +26,13 @@ void main() {
     teamNameSnapshot: 'Team A',
     title: 'Wednesday',
     dateKey: '2026-03-09',
-    startsAt: DateTime(2026, 3, 9, 18, 0),
+    startsAt: DateTime(2026, 3, 9, 18),
     endsAt: DateTime(2026, 3, 9, 18, 30),
     durationMinutes: 30,
     createdByUserId: admin.uid,
     createdByName: admin.name,
-    createdAt: DateTime(2026, 3, 9, 18, 0),
-    updatedAt: DateTime(2026, 3, 9, 18, 0),
+    createdAt: DateTime(2026, 3, 9, 18),
+    updatedAt: DateTime(2026, 3, 9, 18),
   );
 
   setUp(() {
@@ -44,7 +44,7 @@ void main() {
       () => repository.createSession(
         teamId: 'team-1',
         teamNameSnapshot: 'Team A',
-        startsAt: DateTime(2026, 3, 9, 18, 0),
+        startsAt: DateTime(2026, 3, 9, 18),
         durationMinutes: 30,
         createdBy: admin,
         title: 'Wednesday',
@@ -68,7 +68,7 @@ void main() {
       actor: admin,
       teamId: 'team-1',
       teamNameSnapshot: 'Team A',
-      startsAt: DateTime(2026, 3, 9, 18, 0),
+      startsAt: DateTime(2026, 3, 9, 18),
       durationMinutes: 30,
       title: 'Wednesday',
     );
@@ -84,7 +84,7 @@ void main() {
       actor: admin,
       teamId: 'team-1',
       teamNameSnapshot: 'Team A',
-      startsAt: DateTime(2026, 3, 9, 18, 0),
+      startsAt: DateTime(2026, 3, 9, 18),
       durationMinutes: 0,
       title: 'Wednesday',
     );
@@ -94,7 +94,7 @@ void main() {
       () => repository.createSession(
         teamId: 'team-1',
         teamNameSnapshot: 'Team A',
-        startsAt: DateTime(2026, 3, 9, 18, 0),
+        startsAt: DateTime(2026, 3, 9, 18),
         durationMinutes: 0,
         createdBy: admin,
         title: 'Wednesday',

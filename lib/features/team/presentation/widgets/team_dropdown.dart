@@ -84,7 +84,6 @@ class TeamDropdown extends StatelessWidget {
     if (showAllOption) {
       items.add(
         DropdownMenuItem<String?>(
-          value: null,
           child: SizedBox(
             height: 48,
             child: Align(

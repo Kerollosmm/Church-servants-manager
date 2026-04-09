@@ -1,13 +1,12 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
-import 'package:church_management_system/features/auth/data/services/auth_user_profile_store.dart';
-import 'package:church_management_system/features/auth/domain/failures/auth_failures.dart';
-import 'package:church_management_system/features/auth/domain/failures/auth_exceptions.dart';
 import 'package:church_management_system/features/auth/data/services/auth_provider.dart';
-import 'package:flutter/foundation.dart';
-
+import 'package:church_management_system/features/auth/data/services/auth_user_profile_store.dart';
+import 'package:church_management_system/features/auth/domain/failures/auth_exceptions.dart';
+import 'package:church_management_system/features/auth/domain/failures/auth_failures.dart';
 import 'package:firebase_auth/firebase_auth.dart'
     show FirebaseAuth, FirebaseAuthException, User;
+import 'package:flutter/foundation.dart';
 
 class FirebaseAuthProvider implements AuthProvider {
   final FirebaseAuth _auth;
@@ -149,7 +148,6 @@ class FirebaseAuthProvider implements AuthProvider {
           name: name,
           email: email,
           role: role,
-          isEmailVerified: false,
         );
 
         await _userProfileStore.saveUser(appUser);

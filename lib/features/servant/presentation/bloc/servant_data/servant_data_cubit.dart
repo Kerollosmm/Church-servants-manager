@@ -1,26 +1,30 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
 import 'package:church_management_system/features/servant/data/models/servant_models.dart';
-import 'package:church_management_system/features/servant/data/repo/servant_data_repository.dart';
 import 'package:church_management_system/features/servant/domain/failures/servant_failures.dart';
+import 'package:church_management_system/features/servant/domain/repos/i_servant_repository.dart';
+import 'package:church_management_system/features/servant/presentation/bloc/servant_data/servant_data_state.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import 'servant_data_state.dart';
-
 export 'servant_data_state.dart';
 
+/// Cubit managing servant list state with pagination, search,
+/// and CRUD operations.
+///
+/// Handles two-phase commit (servant doc + auth user) with
+/// rollback on failure.
 class ServantDataCubit extends Cubit<ServantDataState> {
   ServantDataCubit({
-    required ServantDataRepository repository,
+    required IServantRepository repository,
     required AdminUserProvisioningService adminUserProvisioningService,
   }) : _repository = repository,
        _adminUserProvisioningService = adminUserProvisioningService,
        super(const ServantDataInitial());
 
-  final ServantDataRepository _repository;
+  final IServantRepository _repository;
   final AdminUserProvisioningService _adminUserProvisioningService;
 
   String? _lastQuery;
@@ -29,6 +33,7 @@ class ServantDataCubit extends Cubit<ServantDataState> {
   List<ServantModel> _allServants = [];
   bool _hasMore = true;
   bool _isLoadingMore = false;
+  bool _isLoadingFirstPage = false;
   DocumentSnapshot<Map<String, dynamic>>? _lastDocument;
 
   ServantDataLoaded? get _loadedState =>
@@ -106,6 +111,9 @@ class ServantDataCubit extends Cubit<ServantDataState> {
       return;
     }
 
+    if (_isLoadingFirstPage) return;
+    _isLoadingFirstPage = true;
+
     _emitLoading();
     try {
       _setPaginationDefaults(limit: limit);
@@ -113,6 +121,8 @@ class ServantDataCubit extends Cubit<ServantDataState> {
       _emitLoaded();
     } catch (e) {
       _emitMutationFailure(e);
+    } finally {
+      _isLoadingFirstPage = false;
     }
   }
 
@@ -140,8 +150,6 @@ class ServantDataCubit extends Cubit<ServantDataState> {
         ServantDataLoaded(
           servants: _sortByName(filteredServants),
           currentQuery: query,
-          hasMore: false,
-          isLoadingMore: false,
           includeArchived: _includeArchived,
         ),
       );
@@ -251,7 +259,7 @@ class ServantDataCubit extends Cubit<ServantDataState> {
       final capturedTeamId = existing.assignedTeamId;
       final capturedTeamIds = existing.assignedTeamIds;
 
-      await _repository.deleteServant(docId);
+      await _repository.deleteServant(docId, performedByUid: actor.uid);
 
       if (existing.uid?.trim().isNotEmpty == true) {
         try {
@@ -269,6 +277,7 @@ class ServantDataCubit extends Cubit<ServantDataState> {
             // Restore with captured assignments
             await _repository.restoreServant(
               docId,
+              performedByUid: actor.uid,
               assignedTeamId: capturedTeamId,
               assignedTeamIds: capturedTeamIds,
             );
@@ -323,7 +332,7 @@ class ServantDataCubit extends Cubit<ServantDataState> {
         );
         return;
       }
-      await _repository.restoreServant(docId);
+      await _repository.restoreServant(docId, performedByUid: actor.uid);
       final normalizedUid = existing.uid?.trim();
       if (normalizedUid != null && normalizedUid.isNotEmpty) {
         try {
@@ -336,7 +345,7 @@ class ServantDataCubit extends Cubit<ServantDataState> {
             );
           }
           try {
-            await _repository.deleteServant(docId);
+            await _repository.deleteServant(docId, performedByUid: actor.uid);
           } catch (rollbackError) {
             if (kDebugMode) {
               debugPrint(

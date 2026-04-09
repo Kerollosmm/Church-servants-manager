@@ -76,7 +76,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                     onPressed: _busy
                         ? null
                         : () =>
-                              _run(() => _seeder.seedTeams(), 'Teams seeded.'),
+                              _run(_seeder.seedTeams, 'Teams seeded.'),
                     icon: const Icon(Icons.school_outlined),
                     label: const Text('Seed Teams (3 per Group)'),
                   ),
@@ -149,7 +149,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                           onPressed: _busy
                               ? null
                               : () => _run(
-                                  () => _seeder.clearStudents(),
+                                  _seeder.clearStudents,
                                   'All students cleared.',
                                 ),
                           icon: const Icon(Icons.delete_outline),
@@ -162,7 +162,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                           onPressed: _busy
                               ? null
                               : () => _run(
-                                  () => _seeder.clearTeams(),
+                                  _seeder.clearTeams,
                                   'All teams cleared.',
                                 ),
                           icon: const Icon(Icons.delete_outline),

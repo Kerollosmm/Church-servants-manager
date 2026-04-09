@@ -22,6 +22,11 @@ import 'package:church_management_system/features/team/presentation/widgets/team
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+/// Screen displaying attendance session history for a team.
+///
+/// Shows team dropdown, active session card, and history cards.
+/// Uses [AttendanceHistoryCubit], [AttendanceSessionAdminCubit],
+/// and [TeamCubit].
 class AttendanceHistoryScreen extends StatefulWidget {
   const AttendanceHistoryScreen({super.key});
 
@@ -133,7 +138,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
   Future<void> _openCreateScreen() async {
     await Navigator.pushNamed(context, attendanceSessionCreate);
     if (_selectedTeamId != null) {
-      _historyCubit.loadForTeam(_selectedTeamId!);
+      await _historyCubit.loadForTeam(_selectedTeamId!);
     }
   }
 
@@ -237,7 +242,6 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                           errorMessage: teamState is TeamError
                               ? teamState.message
                               : null,
-                          showAllOption: false,
                           restrictToTeamIds:
                               actor.role == UserRole.servant &&
                                   actor.effectiveAssignedTeamIds.isNotEmpty
@@ -256,7 +260,6 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                           horizontal: AppSpacing.md,
                         ),
                         child: AppInfoBanner(
-                          icon: Icons.info_outline,
                           message:
                               'الخدام يسجلون حاضر أو متأخر فقط، والغياب يتم اشتقاقه تلقائيا بعد إغلاق الجلسة.',
                         ),
@@ -319,11 +322,10 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                                     title: 'لا توجد جلسات حضور',
                                     subtitle:
                                         'أنشئ جلسة جديدة لبدء تسجيل الحضور لهذا الفريق.',
-                                    onRefresh: () async {
-                                      _historyCubit.loadForTeam(
-                                        _selectedTeamId!,
-                                      );
-                                    },
+                                    onRefresh: () =>
+                                        _historyCubit.loadForTeam(
+                                          _selectedTeamId!,
+                                        ),
                                   );
                                 }
 

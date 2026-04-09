@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
@@ -13,10 +13,18 @@ import 'package:church_management_system/features/attendance/domain/failures/att
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/student/data/services/student_query_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:church_management_system/core/utils/list_extensions.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:rxdart/rxdart.dart';
 
+/// Repository for attendance data and operations.
+///
+/// Handles session CRUD, mark management, roster tracking,
+/// and attendance statistics. Uses [StudentQueryService] for
+/// student lookups and delegates to Firestore.
 class AttendanceRepository {
   AttendanceRepository({
     FirebaseFirestore? firestore,
@@ -36,9 +44,6 @@ class AttendanceRepository {
 
   CollectionReference<Map<String, dynamic>> get _classesCollection =>
       _firestore.collection(FirestoreCollections.classes);
-
-  CollectionReference<Map<String, dynamic>> get _studentsCollection =>
-      _firestore.collection(FirestoreCollections.students);
 
   DocumentReference<Map<String, dynamic>> _teamDoc(String teamId) =>
       _classesCollection.doc(teamId);
@@ -75,31 +80,27 @@ class AttendanceRepository {
   }
 
   Stream<DateTime> _watchSessionBoundary(AttendanceSession session) {
+    final clockStream = _clockStream;
+    if (clockStream != null) {
+      return clockStream
+          .where((tick) => !tick.isBefore(session.endsAt))
+          .startWith(_nowProvider());
+    }
+
     final controller = StreamController<DateTime>();
     controller.add(_nowProvider());
     final now = _nowProvider();
     if (session.endsAt.isAfter(now)) {
-    Future.delayed(session.endsAt.difference(now)).then((_) {
-      if (!controller.isClosed) {
-        controller.add(_nowProvider());
-        controller.close();
-      }
-    });
+      Future.delayed(session.endsAt.difference(now)).then((_) {
+        if (!controller.isClosed) {
+          controller.add(_nowProvider());
+          controller.close();
+        }
+      });
     } else {
-    controller.close();
+      controller.close();
     }
     return controller.stream;
-  }
-
-  List<List<T>> _chunkList<T>(List<T> input, int chunkSize) {
-    final chunks = <List<T>>[];
-    for (var index = 0; index < input.length; index += chunkSize) {
-      final end = index + chunkSize > input.length
-          ? input.length
-          : index + chunkSize;
-      chunks.add(input.sublist(index, end));
-    }
-    return chunks;
   }
 
   String _normalizeTitle(String? title) {
@@ -296,16 +297,6 @@ class AttendanceRepository {
         .where('studentIdsSnapshot', arrayContains: studentId);
   }
 
-  Stream<List<AttendanceSession>> _watchStudentSessions({
-    required String studentId,
-    String? teamId,
-  }) {
-    return _studentSessionsQuery(
-      studentId: studentId,
-      teamId: teamId,
-    ).snapshots().map(_mapSessionsSnapshot);
-  }
-
   Future<List<AttendanceSession>> _loadStudentSessions({
     required String studentId,
     String? teamId,
@@ -367,17 +358,30 @@ class AttendanceRepository {
           : (session.studentNameSnapshots[studentId] ?? 'مخدوم');
       final normalizedNote = note?.trim();
 
-      await markRef.set({
-        'studentNameSnapshot': effectiveStudentName,
-        'status': status.name,
-        'markedByUserId': markedBy.uid,
-        'markedByName': markedBy.name,
-        'markedAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-        'note': normalizedNote == null || normalizedNote.isEmpty
-            ? FieldValue.delete()
-            : normalizedNote,
-      }, SetOptions(merge: true));
+      await _firestore.runTransaction((transaction) async {
+        final existingDoc = await transaction.get(markRef);
+        final existingMarkedAt = existingDoc.data()?['markedAt'];
+
+        final data = <String, dynamic>{
+          'status': status.name,
+          'markedByUserId': markedBy.uid,
+          'markedByName': markedBy.name,
+          'updatedAt': FieldValue.serverTimestamp(),
+          'note': normalizedNote == null || normalizedNote.isEmpty
+              ? FieldValue.delete()
+              : normalizedNote,
+        };
+
+        // Only set studentNameSnapshot and markedAt on initial creation.
+        if (existingMarkedAt == null) {
+          data['studentNameSnapshot'] = effectiveStudentName;
+          data['markedAt'] = FieldValue.serverTimestamp();
+        } else {
+          data['markedAt'] = existingMarkedAt;
+        }
+
+        transaction.set(markRef, data, SetOptions(merge: true));
+      });
     } catch (error) {
       if (error is AttendanceFailure) rethrow;
       throw mapExceptionToAttendanceFailure(error);
@@ -647,7 +651,7 @@ class AttendanceRepository {
           .where((id) => !existingMarkIds.contains(id))
           .toList(growable: false);
 
-      for (final chunk in _chunkList(unmarkedStudents, 400)) {
+      for (final chunk in unmarkedStudents.chunk(400)) {
         final batch = _firestore.batch();
         for (final studentId in chunk) {
           final markRef = _markDoc(teamId, sessionId, studentId);
@@ -664,6 +668,9 @@ class AttendanceRepository {
             'updatedAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
         }
+        batch.set(_sessionDoc(teamId, sessionId), {
+          'presentCount': FieldValue.increment(chunk.length),
+        }, SetOptions(merge: true));
         await batch.commit();
       }
     } catch (error) {
@@ -711,80 +718,36 @@ class AttendanceRepository {
     });
   }
 
-  Stream<List<StudentAttendanceHistoryItem>> watchStudentAttendanceHistory({
+  Future<List<StudentAttendanceHistoryItem>> getStudentAttendanceHistory({
     required String studentId,
     String? teamId,
-  }) {
-    return _watchStudentSessions(
+  }) async {
+    final sessions = await _loadStudentSessions(
       studentId: studentId,
       teamId: teamId,
-    ).asyncMap((sessions) async {
-      if (sessions.isEmpty) {
-        return const <StudentAttendanceHistoryItem>[];
-      }
+    );
 
-      final now = _nowProvider();
-      final markFutures = sessions
-          .map((session) async {
-            final doc = await _markDoc(
-              session.teamId,
-              session.id,
-              studentId,
-            ).get();
-            return (session: session, mark: _mapMarkOrNull(doc));
-          })
-          .toList(growable: false);
+    if (sessions.isEmpty) {
+      return const <StudentAttendanceHistoryItem>[];
+    }
 
-      final entries = await Future.wait(markFutures);
-      final history = entries
-          .map((entry) {
-            final session = entry.session;
-            final mark = entry.mark;
-            return StudentAttendanceHistoryItem(
-              sessionId: session.id,
-              teamId: session.teamId,
-              teamNameSnapshot: session.teamNameSnapshot,
-              title: session.title,
-              dateKey: session.dateKey,
-              sessionStartsAt: session.startsAt,
-              sessionEndsAt: session.endsAt,
-              effectiveStatus: AttendanceRosterItem.resolveEffectiveStatus(
-                manualStatus: mark?.status,
-                session: session,
-                now: now,
-              ),
-              isSessionClosed: session.isEffectivelyClosedAt(now),
-              markedAt: mark?.markedAt,
-              markedByName: mark?.markedByName,
-            );
-          })
-          .toList(growable: false);
-      history.sort(
-        (first, second) =>
-            second.sessionStartsAt.compareTo(first.sessionStartsAt),
-      );
-      return history;
-    });
-  }
+    final now = _nowProvider();
+    final markFutures = sessions
+        .map((session) async {
+          final doc = await _markDoc(
+            session.teamId,
+            session.id,
+            studentId,
+          ).get();
+          return (session: session, mark: _mapMarkOrNull(doc));
+        })
+        .toList(growable: false);
 
-  Future<StudentAttendanceStats> getStudentAttendanceStats({
-    required String studentId,
-    String? teamId,
-    DateTimeRange? range,
-  }) async {
-    try {
-      final sessions = await _loadStudentSessions(
-        studentId: studentId,
-        teamId: teamId,
-        range: range,
-      );
-      final now = _nowProvider();
-
-      final history = await Future.wait(
-        sessions.map((session) async {
-          final mark = _mapMarkOrNull(
-            await _markDoc(session.teamId, session.id, studentId).get(),
-          );
+    final entries = await Future.wait(markFutures);
+    final history = entries
+        .map((entry) {
+          final session = entry.session;
+          final mark = entry.mark;
           return StudentAttendanceHistoryItem(
             sessionId: session.id,
             teamId: session.teamId,
@@ -802,7 +765,68 @@ class AttendanceRepository {
             markedAt: mark?.markedAt,
             markedByName: mark?.markedByName,
           );
-        }),
+        })
+        .toList(growable: false);
+    history.sort(
+      (first, second) =>
+          second.sessionStartsAt.compareTo(first.sessionStartsAt),
+    );
+    return history;
+  }
+
+  Future<StudentAttendanceStats> getStudentAttendanceStats({
+    required String studentId,
+    String? teamId,
+    DateTimeRange? range,
+  }) async {
+    try {
+      final sessions = await _loadStudentSessions(
+        studentId: studentId,
+        teamId: teamId,
+        range: range,
+      );
+      final now = _nowProvider();
+
+      // Read all mark documents in parallel with cache-first strategy.
+      // Each .get() checks local Firestore cache first, avoiding unnecessary network calls.
+      final markDocFutures = sessions.map(
+        (session) async {
+          try {
+            return await _markDoc(session.teamId, session.id, studentId)
+                .get(const GetOptions(source: Source.cache));
+          } catch (_) {
+            return null;
+          }
+        },
+      );
+      final markDocs = await Future.wait(markDocFutures);
+
+      final history = List<StudentAttendanceHistoryItem>.generate(
+        sessions.length,
+        (i) {
+          final session = sessions[i];
+          final markDoc = markDocs[i];
+          final mark = markDoc != null && markDoc.exists && markDoc.data() != null
+              ? AttendanceMark.fromMap(markDoc.data()!, markDoc.id)
+              : null;
+          return StudentAttendanceHistoryItem(
+            sessionId: session.id,
+            teamId: session.teamId,
+            teamNameSnapshot: session.teamNameSnapshot,
+            title: session.title,
+            dateKey: session.dateKey,
+            sessionStartsAt: session.startsAt,
+            sessionEndsAt: session.endsAt,
+            effectiveStatus: AttendanceRosterItem.resolveEffectiveStatus(
+              manualStatus: mark?.status,
+              session: session,
+              now: now,
+            ),
+            isSessionClosed: session.isEffectivelyClosedAt(now),
+            markedAt: mark?.markedAt,
+            markedByName: mark?.markedByName,
+          );
+        },
       );
 
       return StudentAttendanceStats.fromHistory(
@@ -824,8 +848,14 @@ class AttendanceRepository {
       Query<Map<String, dynamic>> query = _sessionsCol(teamId);
       if (range != null) {
         query = query
-            .where('startsAt', isGreaterThanOrEqualTo: Timestamp.fromDate(range.start))
-            .where('startsAt', isLessThanOrEqualTo: Timestamp.fromDate(range.end));
+            .where(
+              'startsAt',
+              isGreaterThanOrEqualTo: Timestamp.fromDate(range.start),
+            )
+            .where(
+              'startsAt',
+              isLessThanOrEqualTo: Timestamp.fromDate(range.end),
+            );
       }
       final snapshot = await query.get();
       final sessions = _mapSessionsSnapshot(snapshot);
@@ -842,41 +872,16 @@ class AttendanceRepository {
       var absentCount = 0;
       final uniqueStudentIds = <String>{};
 
-      final markFutures = eligibleSessions
-          .map((s) => _marksCol(teamId, s.id).get())
-          .toList(growable: false);
-      final markSnapshots = await Future.wait(markFutures);
-
-      for (var i = 0; i < eligibleSessions.length; i++) {
-        final session = eligibleSessions[i];
-        final marksSnapshot = markSnapshots[i];
-
+      for (final session in eligibleSessions) {
         totalSessions += 1;
         totalRosterEntries += session.studentIdsSnapshot.length;
         uniqueStudentIds.addAll(session.studentIdsSnapshot);
-
-        var sessionMarkedCount = 0;
-        for (final doc in marksSnapshot.docs) {
-          try {
-            final mark = AttendanceMark.fromMap(doc.data(), doc.id);
-            sessionMarkedCount += 1;
-            if (mark.status == AttendanceMarkStatus.present) {
-              presentCount += 1;
-            } else {
-              lateCount += 1;
-            }
-          } catch (error) {
-            if (kDebugMode) {
-              debugPrint(
-                'AttendanceRepository: skipped malformed attendance mark '
-                '${doc.reference.path} (${error.runtimeType})',
-              );
-            }
-          }
-        }
-
-        final sessionAbsentCount =
-            session.studentIdsSnapshot.length - sessionMarkedCount;
+        
+        presentCount += session.presentCount;
+        lateCount += session.lateCount;
+        
+        final sessionMarkedCount = session.presentCount + session.lateCount;
+        final sessionAbsentCount = session.studentIdsSnapshot.length - sessionMarkedCount;
         absentCount += sessionAbsentCount < 0 ? 0 : sessionAbsentCount;
       }
 

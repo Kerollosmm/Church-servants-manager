@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/routes.dart';
-import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/core/routing/route_args.dart';
 import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
@@ -10,6 +9,7 @@ import 'package:church_management_system/core/widgets/app_empty_state.dart';
 import 'package:church_management_system/core/widgets/cards/person_list_card.dart';
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
 import 'package:church_management_system/core/widgets/search/live_search_panel.dart';
+import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_management_system/features/servant/data/models/servant_models.dart';
 import 'package:church_management_system/features/servant/presentation/bloc/servant_data/servant_data_cubit.dart';
@@ -172,7 +172,7 @@ class _ServantListScreenState extends State<ServantListScreen> {
                       arguments: ServantEditArgs(actor: actor),
                     );
                     if (result == true && mounted) {
-                      _refresh(actor);
+                      await _refresh(actor);
                     }
                   },
                   icon: const Icon(Icons.person_add),

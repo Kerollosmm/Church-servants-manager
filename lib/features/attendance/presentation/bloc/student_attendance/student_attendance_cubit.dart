@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:church_management_system/features/attendance/data/models/attendance_stats.dart';
 import 'package:church_management_system/features/attendance/data/models/student_attendance_history_item.dart';
-import 'package:church_management_system/features/attendance/domain/failures/attendance_failures.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
+import 'package:church_management_system/features/attendance/domain/failures/attendance_failures.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/student_attendance/student_attendance_state.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -14,12 +14,13 @@ class StudentAttendanceCubit extends Cubit<StudentAttendanceState> {
       super(const StudentAttendanceInitial());
 
   final AttendanceRepository _repository;
-
-  StreamSubscription<List<StudentAttendanceHistoryItem>>? _subscription;
   String? _studentId;
   String? _teamId;
 
-  void loadForStudent({required String studentId, String? teamId}) {
+  Future<void> loadForStudent({
+    required String studentId,
+    String? teamId,
+  }) async {
     _studentId = studentId.trim();
     _teamId = teamId?.trim();
     if (_studentId == null || _studentId!.isEmpty) {
@@ -28,25 +29,27 @@ class StudentAttendanceCubit extends Cubit<StudentAttendanceState> {
     }
 
     emit(const StudentAttendanceLoading());
-    _subscription?.cancel();
-    _subscription = _repository
-        .watchStudentAttendanceHistory(studentId: _studentId!, teamId: _teamId)
-        .listen(
-          _onHistoryUpdated,
-          onError: (Object error, StackTrace stackTrace) {
-            if (kDebugMode) {
-              debugPrint(
-                'StudentAttendanceCubit: stream failed (${error.runtimeType})',
-              );
-              debugPrintStack(stackTrace: stackTrace);
-            }
-            final failure = mapExceptionToAttendanceFailure(error);
-            emit(StudentAttendanceError(failure.message));
-          },
+
+    try {
+      final history = await _repository.getStudentAttendanceHistory(
+        studentId: _studentId!,
+        teamId: _teamId,
+      );
+      _onHistoryLoaded(history);
+    } catch (error, stackTrace) {
+      if (kDebugMode) {
+        debugPrint(
+          'StudentAttendanceCubit: failed to load history '
+          '(${error.runtimeType})',
         );
+        debugPrintStack(stackTrace: stackTrace);
+      }
+      final failure = mapExceptionToAttendanceFailure(error);
+      emit(StudentAttendanceError(failure.message));
+    }
   }
 
-  void _onHistoryUpdated(List<StudentAttendanceHistoryItem> history) {
+  void _onHistoryLoaded(List<StudentAttendanceHistoryItem> history) {
     final studentId = _studentId;
     if (studentId == null || studentId.isEmpty) return;
 
@@ -56,11 +59,5 @@ class StudentAttendanceCubit extends Cubit<StudentAttendanceState> {
       history: history,
     );
     emit(StudentAttendanceLoaded(history: history, stats: stats));
-  }
-
-  @override
-  Future<void> close() async {
-    await _subscription?.cancel();
-    return super.close();
   }
 }

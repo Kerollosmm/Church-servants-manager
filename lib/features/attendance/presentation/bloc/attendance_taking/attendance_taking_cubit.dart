@@ -2,13 +2,17 @@ import 'dart:async';
 
 import 'package:church_management_system/features/attendance/data/models/attendance_roster_item.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_roster_snapshot.dart';
-import 'package:church_management_system/features/attendance/domain/failures/attendance_failures.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
+import 'package:church_management_system/features/attendance/domain/failures/attendance_failures.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_state.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+/// Cubit for managing attendance-taking UI state during a session.
+///
+/// Listens to roster snapshot stream and delegates mutations
+/// to [AttendanceRepository].
 class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
   AttendanceTakingCubit({
     required AttendanceRepository repository,

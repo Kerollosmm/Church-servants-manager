@@ -1,9 +1,16 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/features/team/data/models/team_model.dart';
 import 'package:church_management_system/features/team/domain/failures/team_failures.dart';
+import 'package:church_management_system/features/team/domain/repos/i_team_repository.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:church_management_system/core/utils/list_extensions.dart';
 
-class TeamRepository {
+
+/// Repository for team (class) data operations.
+///
+/// Handles team CRUD, member assignment, and name
+/// denormalization across students and users.
+class TeamRepository implements ITeamRepository {
   final FirebaseFirestore _firestore;
 
   TeamRepository({FirebaseFirestore? firestore})
@@ -49,15 +56,6 @@ class TeamRepository {
     return teams;
   }
 
-  List<List<T>> _chunkList<T>(List<T> values, int size) {
-    final chunks = <List<T>>[];
-    for (var index = 0; index < values.length; index += size) {
-      final end = index + size > values.length ? values.length : index + size;
-      chunks.add(values.sublist(index, end));
-    }
-    return chunks;
-  }
-
   Future<void> _syncTeamNameReferences(TeamModel team) async {
     final studentsSnapshot = await _studentsCollection
         .where('classId', isEqualTo: team.id)
@@ -85,7 +83,7 @@ class TeamRepository {
       });
     }
 
-    for (final chunk in _chunkList(userIds, 10)) {
+    for (final chunk in userIds.chunk(30)) {
       final usersSnapshot = await _usersCollection
           .where(FieldPath.documentId, whereIn: chunk)
           .get();
@@ -100,7 +98,7 @@ class TeamRepository {
       }
     }
 
-    for (final chunk in _chunkList(operations, 400)) {
+    for (final chunk in operations.chunk(400)) {
       final batch = _firestore.batch();
       for (final operation in chunk) {
         operation(batch);
@@ -109,6 +107,7 @@ class TeamRepository {
     }
   }
 
+  @override
   Future<List<TeamModel>> getTeamsByGroup(
     String groupId, {
     bool includeArchived = false,
@@ -144,6 +143,7 @@ class TeamRepository {
     }
   }
 
+  @override
   Stream<List<TeamModel>> watchTeamsByGroup(
     String groupId, {
     bool includeArchived = false,
@@ -160,10 +160,14 @@ class TeamRepository {
         });
   }
 
+  @override
   Future<List<TeamModel>> getAllTeams({bool includeArchived = false}) async {
     try {
+      final baseQuery = includeArchived
+          ? _classesCollection
+          : _classesCollection.where('isArchived', isEqualTo: false);
       try {
-        final cacheSnapshot = await _classesCollection.get(
+        final cacheSnapshot = await baseQuery.get(
           const GetOptions(source: Source.cache),
         );
         if (cacheSnapshot.docs.isNotEmpty) {
@@ -180,7 +184,7 @@ class TeamRepository {
         }
       } catch (_) {}
 
-      final snapshot = await _classesCollection.get(
+      final snapshot = await baseQuery.get(
         const GetOptions(source: Source.server),
       );
 
@@ -199,13 +203,14 @@ class TeamRepository {
     }
   }
 
+  @override
   Future<List<TeamModel>> getTeamsByIds(
     List<String> ids, {
     bool includeArchived = false,
   }) async {
     if (ids.isEmpty) return [];
     try {
-      final chunks = _chunkList(ids, 30);
+      final chunks = ids.chunk(30);
       final futures = chunks.map(
         (chunk) => _classesCollection
             .where(FieldPath.documentId, whereIn: chunk)
@@ -219,8 +224,12 @@ class TeamRepository {
     }
   }
 
+  @override
   Stream<List<TeamModel>> watchAllTeams({bool includeArchived = false}) {
-    return _classesCollection
+    final query = includeArchived
+        ? _classesCollection
+        : _classesCollection.where('isArchived', isEqualTo: false);
+    return query
         .orderBy('groupId')
         .orderBy('name')
         .snapshots()
@@ -232,6 +241,7 @@ class TeamRepository {
         });
   }
 
+  @override
   Future<TeamModel?> getTeamById(
     String id, {
     bool includeArchived = false,
@@ -251,6 +261,7 @@ class TeamRepository {
     }
   }
 
+  @override
   Future<String> createTeam(TeamModel team) async {
     try {
       final registryId = '${team.groupId}_${team.name}';
@@ -286,22 +297,33 @@ class TeamRepository {
     }
   }
 
+  @override
   Future<void> updateTeam(TeamModel team) async {
     try {
       final teamRef = _classesCollection.doc(team.id);
 
+      final currentDoc = await teamRef.get();
+      if (!currentDoc.exists || currentDoc.data() == null) {
+        throw const TeamNotFoundFailure();
+      }
+      final existing = TeamModel.fromMap(currentDoc.data()!, currentDoc.id);
+      final nameOrGroupChanged =
+          team.name != existing.name || team.groupId != existing.groupId;
+
       await _firestore.runTransaction((transaction) async {
-        final currentDoc = await transaction.get(teamRef);
-        if (!currentDoc.exists || currentDoc.data() == null) {
+        final freshDoc = await transaction.get(teamRef);
+        if (!freshDoc.exists || freshDoc.data() == null) {
           throw const TeamNotFoundFailure();
         }
 
-        final existing = TeamModel.fromMap(currentDoc.data()!, currentDoc.id);
+        final freshExisting = TeamModel.fromMap(freshDoc.data()!, freshDoc.id);
 
         // If name or group changed, handle uniqueness registry
-        if (existing.name != team.name || existing.groupId != team.groupId) {
+        if (freshExisting.name != team.name ||
+            freshExisting.groupId != team.groupId) {
           final newRegistryId = '${team.groupId}_${team.name}';
-          final oldRegistryId = '${existing.groupId}_${existing.name}';
+          final oldRegistryId =
+              '${freshExisting.groupId}_${freshExisting.name}';
 
           final newRegDoc = await transaction.get(
             _registryCollection.doc(newRegistryId),
@@ -330,9 +352,10 @@ class TeamRepository {
         });
       });
 
-      // Sync team name references after successful transaction
-      // We await this to ensure consistency for callers, including tests.
-      await _syncTeamNameReferences(team);
+      // Sync team name references only when name or group changed
+      if (nameOrGroupChanged) {
+        await _syncTeamNameReferences(team);
+      }
     } catch (e) {
       if (e is StateError) {
         throw TeamValidationFailure(e.message);
@@ -341,6 +364,7 @@ class TeamRepository {
     }
   }
 
+  @override
   Future<void> deleteTeam(String id) async {
     try {
       final teamRef = _classesCollection.doc(id);
@@ -414,6 +438,7 @@ class TeamRepository {
     }
   }
 
+  @override
   Future<void> restoreTeam(String id) async {
     try {
       final teamRef = _classesCollection.doc(id);

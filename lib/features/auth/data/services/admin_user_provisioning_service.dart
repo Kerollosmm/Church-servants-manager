@@ -1,10 +1,10 @@
 import 'package:church_management_system/core/constants/enums.dart';
-import 'package:church_management_system/features/auth/data/services/admin_auth_client.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
+import 'package:church_management_system/features/auth/data/services/admin_auth_client.dart';
 import 'package:church_management_system/features/auth/data/services/auth_service.dart';
 import 'package:church_management_system/features/auth/data/services/auth_user_profile_store.dart';
-import 'package:church_management_system/features/auth/domain/failures/auth_failures.dart';
 import 'package:church_management_system/features/auth/domain/failures/auth_exceptions.dart';
+import 'package:church_management_system/features/auth/domain/failures/auth_failures.dart';
 
 abstract class AdminUserProvisioningService {
   Future<AuthUser> createUser({
@@ -62,7 +62,6 @@ class ClientAdminUserProvisioningService
         name: name,
         email: email,
         role: role,
-        isEmailVerified: false,
       );
 
       await _userProfileStore.saveUser(appUser);

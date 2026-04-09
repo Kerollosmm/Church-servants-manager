@@ -1,7 +1,7 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/utils/json_converters.dart';
-import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:firebase_auth/firebase_auth.dart' show User;
+import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'auth_user.freezed.dart';
 part 'auth_user.g.dart';
@@ -37,7 +37,6 @@ class AuthUser with _$AuthUser {
     email: user.email ?? '',
     role: UserRole.student,
     isEmailVerified: user.emailVerified,
-    groupId: null,
   );
 
   factory AuthUser.fromJson(Map<String, dynamic> json) =>

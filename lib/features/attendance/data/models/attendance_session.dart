@@ -28,6 +28,9 @@ class AttendanceSession with _$AttendanceSession {
     @Default(false) bool isClosed,
     @Default(<String>[]) List<String> studentIdsSnapshot,
     @Default(<String, String>{}) Map<String, String> studentNameSnapshots,
+    @Default(0) int presentCount,
+    @Default(0) int lateCount,
+    @Default(0) int absentCount,
   }) = _AttendanceSession;
 
   factory AttendanceSession.fromJson(Map<String, dynamic> json) =>
@@ -112,6 +115,9 @@ class AttendanceSession with _$AttendanceSession {
       'isClosed': readBool('isClosed'),
       'studentIdsSnapshot': readStringList('studentIdsSnapshot'),
       'studentNameSnapshots': readStringMap('studentNameSnapshots'),
+      'presentCount': readInt('presentCount'),
+      'lateCount': readInt('lateCount'),
+      'absentCount': readInt('absentCount'),
     });
   }
 

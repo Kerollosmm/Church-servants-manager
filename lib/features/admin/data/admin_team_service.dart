@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/features/admin/data/admin_team_membership_service.dart';
@@ -6,6 +5,7 @@ import 'package:church_management_system/features/auth/data/models/auth_user.dar
 import 'package:church_management_system/features/servant/data/models/servant_models.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/team/data/models/team_model.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Admin-only operations that touch multiple collections.
 ///

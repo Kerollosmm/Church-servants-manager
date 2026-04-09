@@ -226,18 +226,18 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       }
       await _authService.updatePassword(event.newPassword);
 
-      // Finalize session first
-      try {
-        await _authService.signOut();
-      } catch (_) {
-        // Sign out failure should not block the success emission but we log it if possible
-      }
-
-      // Clear flag as non-fatal
+      // Clear flag as non-fatal while still authenticated
       try {
         await _authService.clearRestorePendingPasswordReset(user.uid);
       } catch (e) {
         // Log error but don't fail the password reset success
+      }
+
+      // Finalize session
+      try {
+        await _authService.signOut();
+      } catch (_) {
+        // Sign out failure should not block the success emission
       }
 
       emit(const AuthPasswordResetSuccess());

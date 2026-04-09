@@ -7,7 +7,6 @@ class AppColorScheme {
   static ColorScheme light() {
     return ColorScheme.fromSeed(
       seedColor: AppColors.primary,
-      brightness: Brightness.light,
       surface: AppColors.surface,
       primary: AppColors.primary,
       onPrimary: AppColors.white,

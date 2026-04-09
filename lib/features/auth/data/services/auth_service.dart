@@ -1,8 +1,8 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
-import 'package:church_management_system/features/auth/domain/failures/auth_exceptions.dart';
-import 'package:church_management_system/features/auth/data/utils/auth_error_mapper.dart';
 import 'package:church_management_system/features/auth/data/services/firebase_auth_provider.dart';
+import 'package:church_management_system/features/auth/data/utils/auth_error_mapper.dart';
+import 'package:church_management_system/features/auth/domain/failures/auth_exceptions.dart';
 import 'package:church_management_system/features/auth/domain/repos/auth_repository.dart';
 
 class AuthService implements AuthRepository {

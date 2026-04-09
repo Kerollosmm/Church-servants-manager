@@ -1,8 +1,8 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/student/domain/failures/student_failures.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class StudentLinkedUserSyncService {
   StudentLinkedUserSyncService({FirebaseFirestore? firestore})

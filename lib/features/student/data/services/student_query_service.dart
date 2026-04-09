@@ -1,7 +1,9 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/student/domain/failures/student_failures.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:church_management_system/core/utils/list_extensions.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:rxdart/rxdart.dart';
 
@@ -57,15 +59,6 @@ class StudentQueryService {
         .where('isArchived', isEqualTo: false);
   }
 
-  List<List<T>> _chunkList<T>(List<T> list, int chunkSize) {
-    final chunks = <List<T>>[];
-    for (var i = 0; i < list.length; i += chunkSize) {
-      final end = (i + chunkSize < list.length) ? i + chunkSize : list.length;
-      chunks.add(list.sublist(i, end));
-    }
-    return chunks;
-  }
-
   Future<List<StudentModel>> _tryGetStudentsByClassFromCache(
     String classId,
   ) async {
@@ -75,8 +68,15 @@ class StudentQueryService {
       ).get(const GetOptions(source: Source.cache));
       if (cacheSnapshot.docs.isNotEmpty) {
         return mapStudentDocs(cacheSnapshot.docs);
+      }} catch (e) {
+
+      if (kDebugMode) {
+
+        debugPrint('Cache read failed: $e');
+
       }
-    } catch (_) {}
+
+    }
     return const <StudentModel>[];
   }
 
@@ -95,7 +95,7 @@ class StudentQueryService {
     List<String> studentIds,
   ) async {
     if (studentIds.isEmpty) return const <StudentModel>[];
-    final chunks = _chunkList(studentIds, 10);
+    final chunks = studentIds.chunk(10);
     final futures = chunks.map(
       (chunk) =>
           _studentsCollection.where(FieldPath.documentId, whereIn: chunk).get(),
@@ -168,8 +168,15 @@ class StudentQueryService {
           mapStudentDocs(cacheSnapshot.docs),
           includeArchived,
         );
+      }} catch (e) {
+
+      if (kDebugMode) {
+
+        debugPrint('Cache read failed: $e');
+
       }
-    } catch (_) {}
+
+    }
 
     try {
       final serverSnapshot = await query.get(
@@ -191,8 +198,15 @@ class StudentQueryService {
       final cacheSnapshot = await query.get(const GetOptions(source: Source.cache));
       if (cacheSnapshot.docs.isNotEmpty) {
         return mapStudentDocs(cacheSnapshot.docs);
+      }} catch (e) {
+
+      if (kDebugMode) {
+
+        debugPrint('Cache read failed: $e');
+
       }
-    } catch (_) {}
+
+    }
     return const <StudentModel>[];
   }
 
@@ -245,11 +259,52 @@ class StudentQueryService {
     }
   }
 
-  Future<List<StudentModel>> getStudentsByGrade(int grade) async {
+  Future<List<StudentModel>> getStudentsByGrade(
+    int grade, {
+    bool includeArchived = false,
+  }) async {
     try {
-      final snapshot = await _studentsCollection
-          .where('grade', isEqualTo: grade)
-          .get();
+      Query<Map<String, dynamic>> query = _studentsCollection
+          .where('grade', isEqualTo: grade);
+      if (!includeArchived) {
+        query = query.where('isArchived', isEqualTo: false);
+      }
+
+      if (!includeArchived) {
+        try {
+          final cacheSnapshot = await query.get(
+            const GetOptions(source: Source.cache),
+          );
+          if (cacheSnapshot.docs.isNotEmpty) {
+            return mapStudentDocs(cacheSnapshot.docs);
+          }} catch (e) {
+
+          if (kDebugMode) {
+
+            debugPrint('Cache read failed: $e');
+
+          }
+
+        }
+      } else {
+        try {
+          final cacheSnapshot = await _studentsCollection
+              .where('grade', isEqualTo: grade)
+              .get(const GetOptions(source: Source.cache));
+          if (cacheSnapshot.docs.isNotEmpty) {
+            return mapStudentDocs(cacheSnapshot.docs);
+          }} catch (e) {
+
+          if (kDebugMode) {
+
+            debugPrint('Cache read failed: $e');
+
+          }
+
+        }
+      }
+
+      final snapshot = await query.get(const GetOptions(source: Source.server));
       return mapStudentDocs(snapshot.docs);
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
@@ -261,12 +316,53 @@ class StudentQueryService {
     bool includeArchived = false,
   }) async {
     try {
+      final cacheQuery = _studentsCollection
+          .where('group', isEqualTo: groupName);
+      final fullCacheQuery = cacheQuery;
+      final filteredCacheQuery = includeArchived
+          ? fullCacheQuery
+          : cacheQuery.where('isArchived', isEqualTo: false);
+
+      if (!includeArchived) {
+        try {
+          final cacheSnapshot = await filteredCacheQuery.get(
+            const GetOptions(source: Source.cache),
+          );
+          if (cacheSnapshot.docs.isNotEmpty) {
+            return mapStudentDocs(cacheSnapshot.docs);
+          }} catch (e) {
+
+          if (kDebugMode) {
+
+            debugPrint('Cache read failed: $e');
+
+          }
+
+        }
+      } else {
+        try {
+          final cacheSnapshot = await fullCacheQuery.get(
+            const GetOptions(source: Source.cache),
+          );
+          if (cacheSnapshot.docs.isNotEmpty) {
+            return mapStudentDocs(cacheSnapshot.docs);
+          }} catch (e) {
+
+          if (kDebugMode) {
+
+            debugPrint('Cache read failed: $e');
+
+          }
+
+        }
+      }
+
       Query<Map<String, dynamic>> query = _studentsCollection
           .where('group', isEqualTo: groupName);
       if (!includeArchived) {
         query = query.where('isArchived', isEqualTo: false);
       }
-      final snapshot = await query.get();
+      final snapshot = await query.get(const GetOptions(source: Source.server));
       return mapStudentDocs(snapshot.docs);
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
@@ -290,8 +386,15 @@ class StudentQueryService {
           ),
           isFromCache: true,
         );
+      }} catch (e) {
+
+      if (kDebugMode) {
+
+        debugPrint('Cache read failed: $e');
+
       }
-    } catch (_) {}
+
+    }
 
     try {
       final serverSnapshot = await _studentsByGroupQuery(
@@ -313,7 +416,7 @@ class StudentQueryService {
     if (classIds.isEmpty) return [];
 
     final studentIds = <String>[];
-    final chunks = _chunkList(classIds, 10);
+    final chunks = classIds.chunk(10);
     final futures = chunks.map(
       (chunk) => _firestore
           .collection(FirestoreCollections.classes)
@@ -373,7 +476,7 @@ class StudentQueryService {
       return Stream.value(const <StudentModel>[]);
     }
 
-    final chunks = _chunkList(normalizedIds.toList(growable: false), 10);
+    final chunks = normalizedIds.toList(growable: false).chunk(10);
     final streams = chunks
         .map(
           (chunk) => _studentsCollection

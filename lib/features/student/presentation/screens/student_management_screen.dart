@@ -1,6 +1,5 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/routes.dart';
-import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/core/routing/route_args.dart';
 import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
@@ -9,6 +8,7 @@ import 'package:church_management_system/core/widgets/cards/person_list_card.dar
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
 import 'package:church_management_system/core/widgets/search/live_search_panel.dart';
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
+import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';

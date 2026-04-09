@@ -23,7 +23,7 @@ void main() {
       status: AttendanceMarkStatus.late,
       markedByUserId: 'servant-1',
       markedByName: 'Servant',
-      markedAt: DateTime(2026, 3, 9, 18, 0),
+      markedAt: DateTime(2026, 3, 9, 18),
       updatedAt: DateTime(2026, 3, 9, 18, 5),
     );
 

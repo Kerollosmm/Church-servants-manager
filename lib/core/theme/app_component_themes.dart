@@ -27,7 +27,7 @@ class AppComponentThemes {
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: AppRadius.lgRadius,
-        side: const BorderSide(color: AppColors.outline, width: 1),
+        side: const BorderSide(color: AppColors.outline),
       ),
     );
   }

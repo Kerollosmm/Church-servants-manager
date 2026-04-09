@@ -77,7 +77,7 @@ abstract class IAttendanceRepository {
     required String sessionId,
   });
 
-  Stream<List<StudentAttendanceHistoryItem>> watchStudentAttendanceHistory({
+  Future<List<StudentAttendanceHistoryItem>> getStudentAttendanceHistory({
     required String studentId,
     String? teamId,
   });

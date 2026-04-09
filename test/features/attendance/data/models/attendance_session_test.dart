@@ -18,7 +18,7 @@ void main() {
   });
 
   test('fromMap parses timestamps and derives endsAt fallback', () {
-    final startsAt = DateTime(2026, 3, 9, 18, 0);
+    final startsAt = DateTime(2026, 3, 9, 18);
     final session = AttendanceSession.fromMap({
       'teamId': 'team-1',
       'startsAt': Timestamp.fromDate(startsAt),
@@ -35,7 +35,7 @@ void main() {
       id: 's1',
       teamId: 'team-1',
       dateKey: '2026-03-09',
-      startsAt: DateTime(2026, 3, 9, 18, 0),
+      startsAt: DateTime(2026, 3, 9, 18),
       endsAt: DateTime(2026, 3, 9, 18, 30),
       durationMinutes: 30,
       createdByUserId: 'admin-1',

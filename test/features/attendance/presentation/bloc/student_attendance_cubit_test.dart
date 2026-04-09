@@ -29,7 +29,7 @@ void main() {
           teamNameSnapshot: 'Team A',
           title: 'Session 1',
           dateKey: '2026-03-09',
-          sessionStartsAt: DateTime(2026, 3, 9, 18, 0),
+          sessionStartsAt: DateTime(2026, 3, 9, 18),
           sessionEndsAt: DateTime(2026, 3, 9, 18, 30),
           effectiveStatus: AttendanceEffectiveStatus.present,
           isSessionClosed: true,
@@ -40,7 +40,7 @@ void main() {
           teamNameSnapshot: 'Team A',
           title: 'Session 2',
           dateKey: '2026-03-10',
-          sessionStartsAt: DateTime(2026, 3, 10, 18, 0),
+          sessionStartsAt: DateTime(2026, 3, 10, 18),
           sessionEndsAt: DateTime(2026, 3, 10, 18, 30),
           effectiveStatus: AttendanceEffectiveStatus.late,
           isSessionClosed: true,
@@ -51,7 +51,7 @@ void main() {
           teamNameSnapshot: 'Team A',
           title: 'Session 3',
           dateKey: '2026-03-11',
-          sessionStartsAt: DateTime(2026, 3, 11, 18, 0),
+          sessionStartsAt: DateTime(2026, 3, 11, 18),
           sessionEndsAt: DateTime(2026, 3, 11, 18, 30),
           effectiveStatus: AttendanceEffectiveStatus.absent,
           isSessionClosed: true,
@@ -71,7 +71,7 @@ void main() {
       ]),
     );
 
-    cubit.loadForStudent(studentId: 'student-1', teamId: 'team-1');
+    await cubit.loadForStudent(studentId: 'student-1', teamId: 'team-1');
     await expectation;
     await cubit.close();
   });

@@ -100,6 +100,7 @@ class TeamMembersCubit extends Cubit<TeamMembersState> {
 
   final StudentDataRepository _studentRepository;
   final AdminTeamService _adminTeamService;
+  bool _saveInProgress = false;
 
   TeamMembersState _clearMutationFeedback(TeamMembersState value) {
     return value.copyWith(
@@ -169,7 +170,8 @@ class TeamMembersCubit extends Cubit<TeamMembersState> {
     required AuthUser actor,
     required TeamModel team,
   }) async {
-    if (state.isSaving) return;
+    if (_saveInProgress) return;
+    _saveInProgress = true;
 
     emit(
       _clearMutationFeedback(
@@ -204,6 +206,8 @@ class TeamMembersCubit extends Cubit<TeamMembersState> {
           feedbackMessage: 'تعذر تحديث أعضاء الفريق. حاول مرة أخرى.',
         ),
       );
+    } finally {
+      _saveInProgress = false;
     }
   }
 }

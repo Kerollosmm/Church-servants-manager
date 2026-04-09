@@ -12,8 +12,7 @@ part of 'student_model.dart';
 T _$identity<T>(T value) => value;
 
 final _privateConstructorUsedError = UnsupportedError(
-  'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
-);
+    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
 
 StudentModel _$StudentModelFromJson(Map<String, dynamic> json) {
   return _StudentModel.fromJson(json);
@@ -66,36 +65,34 @@ mixin _$StudentModel {
 /// @nodoc
 abstract class $StudentModelCopyWith<$Res> {
   factory $StudentModelCopyWith(
-    StudentModel value,
-    $Res Function(StudentModel) then,
-  ) = _$StudentModelCopyWithImpl<$Res, StudentModel>;
+          StudentModel value, $Res Function(StudentModel) then) =
+      _$StudentModelCopyWithImpl<$Res, StudentModel>;
   @useResult
-  $Res call({
-    String uid,
-    String docID,
-    String name,
-    String? imageUrl,
-    UserRole role,
-    String mobile,
-    Group group,
-    @JsonKey(name: 'team_name') String teamName,
-    @JsonKey(name: 'mother_number') String motherPhone,
-    @JsonKey(name: 'father_number') String fatherPhone,
-    int grade,
-    @JsonKey(name: 'education_stage') EducationStage educationStage,
-    @JsonKey(name: 'school_college') String? school,
-    String? address,
-    @_TimestampConverter() DateTime? birthdate,
-    @JsonKey(name: 'father_of_confession') String fatherOfConfession,
-    String? notes,
-    bool isArchived,
-    @_TimestampConverter() DateTime? archivedAt,
-    String? archivedByUserId,
-    String? archiveReason,
-    @_TimestampConverter() DateTime? restoredAt,
-    String? restoredByUserId,
-    String? classId,
-  });
+  $Res call(
+      {String uid,
+      String docID,
+      String name,
+      String? imageUrl,
+      UserRole role,
+      String mobile,
+      Group group,
+      @JsonKey(name: 'team_name') String teamName,
+      @JsonKey(name: 'mother_number') String motherPhone,
+      @JsonKey(name: 'father_number') String fatherPhone,
+      int grade,
+      @JsonKey(name: 'education_stage') EducationStage educationStage,
+      @JsonKey(name: 'school_college') String? school,
+      String? address,
+      @_TimestampConverter() DateTime? birthdate,
+      @JsonKey(name: 'father_of_confession') String fatherOfConfession,
+      String? notes,
+      bool isArchived,
+      @_TimestampConverter() DateTime? archivedAt,
+      String? archivedByUserId,
+      String? archiveReason,
+      @_TimestampConverter() DateTime? restoredAt,
+      String? restoredByUserId,
+      String? classId});
 }
 
 /// @nodoc
@@ -136,107 +133,104 @@ class _$StudentModelCopyWithImpl<$Res, $Val extends StudentModel>
     Object? restoredByUserId = freezed,
     Object? classId = freezed,
   }) {
-    return _then(
-      _value.copyWith(
-            uid: null == uid
-                ? _value.uid
-                : uid // ignore: cast_nullable_to_non_nullable
-                      as String,
-            docID: null == docID
-                ? _value.docID
-                : docID // ignore: cast_nullable_to_non_nullable
-                      as String,
-            name: null == name
-                ? _value.name
-                : name // ignore: cast_nullable_to_non_nullable
-                      as String,
-            imageUrl: freezed == imageUrl
-                ? _value.imageUrl
-                : imageUrl // ignore: cast_nullable_to_non_nullable
-                      as String?,
-            role: null == role
-                ? _value.role
-                : role // ignore: cast_nullable_to_non_nullable
-                      as UserRole,
-            mobile: null == mobile
-                ? _value.mobile
-                : mobile // ignore: cast_nullable_to_non_nullable
-                      as String,
-            group: null == group
-                ? _value.group
-                : group // ignore: cast_nullable_to_non_nullable
-                      as Group,
-            teamName: null == teamName
-                ? _value.teamName
-                : teamName // ignore: cast_nullable_to_non_nullable
-                      as String,
-            motherPhone: null == motherPhone
-                ? _value.motherPhone
-                : motherPhone // ignore: cast_nullable_to_non_nullable
-                      as String,
-            fatherPhone: null == fatherPhone
-                ? _value.fatherPhone
-                : fatherPhone // ignore: cast_nullable_to_non_nullable
-                      as String,
-            grade: null == grade
-                ? _value.grade
-                : grade // ignore: cast_nullable_to_non_nullable
-                      as int,
-            educationStage: null == educationStage
-                ? _value.educationStage
-                : educationStage // ignore: cast_nullable_to_non_nullable
-                      as EducationStage,
-            school: freezed == school
-                ? _value.school
-                : school // ignore: cast_nullable_to_non_nullable
-                      as String?,
-            address: freezed == address
-                ? _value.address
-                : address // ignore: cast_nullable_to_non_nullable
-                      as String?,
-            birthdate: freezed == birthdate
-                ? _value.birthdate
-                : birthdate // ignore: cast_nullable_to_non_nullable
-                      as DateTime?,
-            fatherOfConfession: null == fatherOfConfession
-                ? _value.fatherOfConfession
-                : fatherOfConfession // ignore: cast_nullable_to_non_nullable
-                      as String,
-            notes: freezed == notes
-                ? _value.notes
-                : notes // ignore: cast_nullable_to_non_nullable
-                      as String?,
-            isArchived: null == isArchived
-                ? _value.isArchived
-                : isArchived // ignore: cast_nullable_to_non_nullable
-                      as bool,
-            archivedAt: freezed == archivedAt
-                ? _value.archivedAt
-                : archivedAt // ignore: cast_nullable_to_non_nullable
-                      as DateTime?,
-            archivedByUserId: freezed == archivedByUserId
-                ? _value.archivedByUserId
-                : archivedByUserId // ignore: cast_nullable_to_non_nullable
-                      as String?,
-            archiveReason: freezed == archiveReason
-                ? _value.archiveReason
-                : archiveReason // ignore: cast_nullable_to_non_nullable
-                      as String?,
-            restoredAt: freezed == restoredAt
-                ? _value.restoredAt
-                : restoredAt // ignore: cast_nullable_to_non_nullable
-                      as DateTime?,
-            restoredByUserId: freezed == restoredByUserId
-                ? _value.restoredByUserId
-                : restoredByUserId // ignore: cast_nullable_to_non_nullable
-                      as String?,
-            classId: freezed == classId
-                ? _value.classId
-                : classId // ignore: cast_nullable_to_non_nullable
-                      as String?,
-          )
-          as $Val,
-    );
+    return _then(_value.copyWith(
+      uid: null == uid
+          ? _value.uid
+          : uid // ignore: cast_nullable_to_non_nullable
+              as String,
+      docID: null == docID
+          ? _value.docID
+          : docID // ignore: cast_nullable_to_non_nullable
+              as String,
+      name: null == name
+          ? _value.name
+          : name // ignore: cast_nullable_to_non_nullable
+              as String,
+      imageUrl: freezed == imageUrl
+          ? _value.imageUrl
+          : imageUrl // ignore: cast_nullable_to_non_nullable
+              as String?,
+      role: null == role
+          ? _value.role
+          : role // ignore: cast_nullable_to_non_nullable
+              as UserRole,
+      mobile: null == mobile
+          ? _value.mobile
+          : mobile // ignore: cast_nullable_to_non_nullable
+              as String,
+      group: null == group
+          ? _value.group
+          : group // ignore: cast_nullable_to_non_nullable
+              as Group,
+      teamName: null == teamName
+          ? _value.teamName
+          : teamName // ignore: cast_nullable_to_non_nullable
+              as String,
+      motherPhone: null == motherPhone
+          ? _value.motherPhone
+          : motherPhone // ignore: cast_nullable_to_non_nullable
+              as String,
+      fatherPhone: null == fatherPhone
+          ? _value.fatherPhone
+          : fatherPhone // ignore: cast_nullable_to_non_nullable
+              as String,
+      grade: null == grade
+          ? _value.grade
+          : grade // ignore: cast_nullable_to_non_nullable
+              as int,
+      educationStage: null == educationStage
+          ? _value.educationStage
+          : educationStage // ignore: cast_nullable_to_non_nullable
+              as EducationStage,
+      school: freezed == school
+          ? _value.school
+          : school // ignore: cast_nullable_to_non_nullable
+              as String?,
+      address: freezed == address
+          ? _value.address
+          : address // ignore: cast_nullable_to_non_nullable
+              as String?,
+      birthdate: freezed == birthdate
+          ? _value.birthdate
+          : birthdate // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      fatherOfConfession: null == fatherOfConfession
+          ? _value.fatherOfConfession
+          : fatherOfConfession // ignore: cast_nullable_to_non_nullable
+              as String,
+      notes: freezed == notes
+          ? _value.notes
+          : notes // ignore: cast_nullable_to_non_nullable
+              as String?,
+      isArchived: null == isArchived
+          ? _value.isArchived
+          : isArchived // ignore: cast_nullable_to_non_nullable
+              as bool,
+      archivedAt: freezed == archivedAt
+          ? _value.archivedAt
+          : archivedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      archivedByUserId: freezed == archivedByUserId
+          ? _value.archivedByUserId
+          : archivedByUserId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      archiveReason: freezed == archiveReason
+          ? _value.archiveReason
+          : archiveReason // ignore: cast_nullable_to_non_nullable
+              as String?,
+      restoredAt: freezed == restoredAt
+          ? _value.restoredAt
+          : restoredAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      restoredByUserId: freezed == restoredByUserId
+          ? _value.restoredByUserId
+          : restoredByUserId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      classId: freezed == classId
+          ? _value.classId
+          : classId // ignore: cast_nullable_to_non_nullable
+              as String?,
+    ) as $Val);
   }
 }
 
@@ -244,37 +238,35 @@ class _$StudentModelCopyWithImpl<$Res, $Val extends StudentModel>
 abstract class _$$StudentModelImplCopyWith<$Res>
     implements $StudentModelCopyWith<$Res> {
   factory _$$StudentModelImplCopyWith(
-    _$StudentModelImpl value,
-    $Res Function(_$StudentModelImpl) then,
-  ) = __$$StudentModelImplCopyWithImpl<$Res>;
+          _$StudentModelImpl value, $Res Function(_$StudentModelImpl) then) =
+      __$$StudentModelImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call({
-    String uid,
-    String docID,
-    String name,
-    String? imageUrl,
-    UserRole role,
-    String mobile,
-    Group group,
-    @JsonKey(name: 'team_name') String teamName,
-    @JsonKey(name: 'mother_number') String motherPhone,
-    @JsonKey(name: 'father_number') String fatherPhone,
-    int grade,
-    @JsonKey(name: 'education_stage') EducationStage educationStage,
-    @JsonKey(name: 'school_college') String? school,
-    String? address,
-    @_TimestampConverter() DateTime? birthdate,
-    @JsonKey(name: 'father_of_confession') String fatherOfConfession,
-    String? notes,
-    bool isArchived,
-    @_TimestampConverter() DateTime? archivedAt,
-    String? archivedByUserId,
-    String? archiveReason,
-    @_TimestampConverter() DateTime? restoredAt,
-    String? restoredByUserId,
-    String? classId,
-  });
+  $Res call(
+      {String uid,
+      String docID,
+      String name,
+      String? imageUrl,
+      UserRole role,
+      String mobile,
+      Group group,
+      @JsonKey(name: 'team_name') String teamName,
+      @JsonKey(name: 'mother_number') String motherPhone,
+      @JsonKey(name: 'father_number') String fatherPhone,
+      int grade,
+      @JsonKey(name: 'education_stage') EducationStage educationStage,
+      @JsonKey(name: 'school_college') String? school,
+      String? address,
+      @_TimestampConverter() DateTime? birthdate,
+      @JsonKey(name: 'father_of_confession') String fatherOfConfession,
+      String? notes,
+      bool isArchived,
+      @_TimestampConverter() DateTime? archivedAt,
+      String? archivedByUserId,
+      String? archiveReason,
+      @_TimestampConverter() DateTime? restoredAt,
+      String? restoredByUserId,
+      String? classId});
 }
 
 /// @nodoc
@@ -282,9 +274,8 @@ class __$$StudentModelImplCopyWithImpl<$Res>
     extends _$StudentModelCopyWithImpl<$Res, _$StudentModelImpl>
     implements _$$StudentModelImplCopyWith<$Res> {
   __$$StudentModelImplCopyWithImpl(
-    _$StudentModelImpl _value,
-    $Res Function(_$StudentModelImpl) _then,
-  ) : super(_value, _then);
+      _$StudentModelImpl _value, $Res Function(_$StudentModelImpl) _then)
+      : super(_value, _then);
 
   @pragma('vm:prefer-inline')
   @override
@@ -314,138 +305,136 @@ class __$$StudentModelImplCopyWithImpl<$Res>
     Object? restoredByUserId = freezed,
     Object? classId = freezed,
   }) {
-    return _then(
-      _$StudentModelImpl(
-        uid: null == uid
-            ? _value.uid
-            : uid // ignore: cast_nullable_to_non_nullable
-                  as String,
-        docID: null == docID
-            ? _value.docID
-            : docID // ignore: cast_nullable_to_non_nullable
-                  as String,
-        name: null == name
-            ? _value.name
-            : name // ignore: cast_nullable_to_non_nullable
-                  as String,
-        imageUrl: freezed == imageUrl
-            ? _value.imageUrl
-            : imageUrl // ignore: cast_nullable_to_non_nullable
-                  as String?,
-        role: null == role
-            ? _value.role
-            : role // ignore: cast_nullable_to_non_nullable
-                  as UserRole,
-        mobile: null == mobile
-            ? _value.mobile
-            : mobile // ignore: cast_nullable_to_non_nullable
-                  as String,
-        group: null == group
-            ? _value.group
-            : group // ignore: cast_nullable_to_non_nullable
-                  as Group,
-        teamName: null == teamName
-            ? _value.teamName
-            : teamName // ignore: cast_nullable_to_non_nullable
-                  as String,
-        motherPhone: null == motherPhone
-            ? _value.motherPhone
-            : motherPhone // ignore: cast_nullable_to_non_nullable
-                  as String,
-        fatherPhone: null == fatherPhone
-            ? _value.fatherPhone
-            : fatherPhone // ignore: cast_nullable_to_non_nullable
-                  as String,
-        grade: null == grade
-            ? _value.grade
-            : grade // ignore: cast_nullable_to_non_nullable
-                  as int,
-        educationStage: null == educationStage
-            ? _value.educationStage
-            : educationStage // ignore: cast_nullable_to_non_nullable
-                  as EducationStage,
-        school: freezed == school
-            ? _value.school
-            : school // ignore: cast_nullable_to_non_nullable
-                  as String?,
-        address: freezed == address
-            ? _value.address
-            : address // ignore: cast_nullable_to_non_nullable
-                  as String?,
-        birthdate: freezed == birthdate
-            ? _value.birthdate
-            : birthdate // ignore: cast_nullable_to_non_nullable
-                  as DateTime?,
-        fatherOfConfession: null == fatherOfConfession
-            ? _value.fatherOfConfession
-            : fatherOfConfession // ignore: cast_nullable_to_non_nullable
-                  as String,
-        notes: freezed == notes
-            ? _value.notes
-            : notes // ignore: cast_nullable_to_non_nullable
-                  as String?,
-        isArchived: null == isArchived
-            ? _value.isArchived
-            : isArchived // ignore: cast_nullable_to_non_nullable
-                  as bool,
-        archivedAt: freezed == archivedAt
-            ? _value.archivedAt
-            : archivedAt // ignore: cast_nullable_to_non_nullable
-                  as DateTime?,
-        archivedByUserId: freezed == archivedByUserId
-            ? _value.archivedByUserId
-            : archivedByUserId // ignore: cast_nullable_to_non_nullable
-                  as String?,
-        archiveReason: freezed == archiveReason
-            ? _value.archiveReason
-            : archiveReason // ignore: cast_nullable_to_non_nullable
-                  as String?,
-        restoredAt: freezed == restoredAt
-            ? _value.restoredAt
-            : restoredAt // ignore: cast_nullable_to_non_nullable
-                  as DateTime?,
-        restoredByUserId: freezed == restoredByUserId
-            ? _value.restoredByUserId
-            : restoredByUserId // ignore: cast_nullable_to_non_nullable
-                  as String?,
-        classId: freezed == classId
-            ? _value.classId
-            : classId // ignore: cast_nullable_to_non_nullable
-                  as String?,
-      ),
-    );
+    return _then(_$StudentModelImpl(
+      uid: null == uid
+          ? _value.uid
+          : uid // ignore: cast_nullable_to_non_nullable
+              as String,
+      docID: null == docID
+          ? _value.docID
+          : docID // ignore: cast_nullable_to_non_nullable
+              as String,
+      name: null == name
+          ? _value.name
+          : name // ignore: cast_nullable_to_non_nullable
+              as String,
+      imageUrl: freezed == imageUrl
+          ? _value.imageUrl
+          : imageUrl // ignore: cast_nullable_to_non_nullable
+              as String?,
+      role: null == role
+          ? _value.role
+          : role // ignore: cast_nullable_to_non_nullable
+              as UserRole,
+      mobile: null == mobile
+          ? _value.mobile
+          : mobile // ignore: cast_nullable_to_non_nullable
+              as String,
+      group: null == group
+          ? _value.group
+          : group // ignore: cast_nullable_to_non_nullable
+              as Group,
+      teamName: null == teamName
+          ? _value.teamName
+          : teamName // ignore: cast_nullable_to_non_nullable
+              as String,
+      motherPhone: null == motherPhone
+          ? _value.motherPhone
+          : motherPhone // ignore: cast_nullable_to_non_nullable
+              as String,
+      fatherPhone: null == fatherPhone
+          ? _value.fatherPhone
+          : fatherPhone // ignore: cast_nullable_to_non_nullable
+              as String,
+      grade: null == grade
+          ? _value.grade
+          : grade // ignore: cast_nullable_to_non_nullable
+              as int,
+      educationStage: null == educationStage
+          ? _value.educationStage
+          : educationStage // ignore: cast_nullable_to_non_nullable
+              as EducationStage,
+      school: freezed == school
+          ? _value.school
+          : school // ignore: cast_nullable_to_non_nullable
+              as String?,
+      address: freezed == address
+          ? _value.address
+          : address // ignore: cast_nullable_to_non_nullable
+              as String?,
+      birthdate: freezed == birthdate
+          ? _value.birthdate
+          : birthdate // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      fatherOfConfession: null == fatherOfConfession
+          ? _value.fatherOfConfession
+          : fatherOfConfession // ignore: cast_nullable_to_non_nullable
+              as String,
+      notes: freezed == notes
+          ? _value.notes
+          : notes // ignore: cast_nullable_to_non_nullable
+              as String?,
+      isArchived: null == isArchived
+          ? _value.isArchived
+          : isArchived // ignore: cast_nullable_to_non_nullable
+              as bool,
+      archivedAt: freezed == archivedAt
+          ? _value.archivedAt
+          : archivedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      archivedByUserId: freezed == archivedByUserId
+          ? _value.archivedByUserId
+          : archivedByUserId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      archiveReason: freezed == archiveReason
+          ? _value.archiveReason
+          : archiveReason // ignore: cast_nullable_to_non_nullable
+              as String?,
+      restoredAt: freezed == restoredAt
+          ? _value.restoredAt
+          : restoredAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      restoredByUserId: freezed == restoredByUserId
+          ? _value.restoredByUserId
+          : restoredByUserId // ignore: cast_nullable_to_non_nullable
+              as String?,
+      classId: freezed == classId
+          ? _value.classId
+          : classId // ignore: cast_nullable_to_non_nullable
+              as String?,
+    ));
   }
 }
 
 /// @nodoc
 @JsonSerializable()
 class _$StudentModelImpl extends _StudentModel {
-  const _$StudentModelImpl({
-    required this.uid,
-    required this.docID,
-    required this.name,
-    required this.imageUrl,
-    required this.role,
-    required this.mobile,
-    required this.group,
-    @JsonKey(name: 'team_name') required this.teamName,
-    @JsonKey(name: 'mother_number') required this.motherPhone,
-    @JsonKey(name: 'father_number') required this.fatherPhone,
-    required this.grade,
-    @JsonKey(name: 'education_stage') required this.educationStage,
-    @JsonKey(name: 'school_college') required this.school,
-    required this.address,
-    @_TimestampConverter() required this.birthdate,
-    @JsonKey(name: 'father_of_confession') required this.fatherOfConfession,
-    required this.notes,
-    this.isArchived = false,
-    @_TimestampConverter() this.archivedAt,
-    this.archivedByUserId,
-    this.archiveReason,
-    @_TimestampConverter() this.restoredAt,
-    this.restoredByUserId,
-    this.classId,
-  }) : super._();
+  const _$StudentModelImpl(
+      {required this.uid,
+      required this.docID,
+      required this.name,
+      required this.imageUrl,
+      required this.role,
+      required this.mobile,
+      required this.group,
+      @JsonKey(name: 'team_name') required this.teamName,
+      @JsonKey(name: 'mother_number') required this.motherPhone,
+      @JsonKey(name: 'father_number') required this.fatherPhone,
+      required this.grade,
+      @JsonKey(name: 'education_stage') required this.educationStage,
+      @JsonKey(name: 'school_college') required this.school,
+      required this.address,
+      @_TimestampConverter() required this.birthdate,
+      @JsonKey(name: 'father_of_confession') required this.fatherOfConfession,
+      required this.notes,
+      this.isArchived = false,
+      @_TimestampConverter() this.archivedAt,
+      this.archivedByUserId,
+      this.archiveReason,
+      @_TimestampConverter() this.restoredAt,
+      this.restoredByUserId,
+      this.classId})
+      : super._();
 
   factory _$StudentModelImpl.fromJson(Map<String, dynamic> json) =>
       _$$StudentModelImplFromJson(json);
@@ -563,32 +552,32 @@ class _$StudentModelImpl extends _StudentModel {
   @JsonKey(ignore: true)
   @override
   int get hashCode => Object.hashAll([
-    runtimeType,
-    uid,
-    docID,
-    name,
-    imageUrl,
-    role,
-    mobile,
-    group,
-    teamName,
-    motherPhone,
-    fatherPhone,
-    grade,
-    educationStage,
-    school,
-    address,
-    birthdate,
-    fatherOfConfession,
-    notes,
-    isArchived,
-    archivedAt,
-    archivedByUserId,
-    archiveReason,
-    restoredAt,
-    restoredByUserId,
-    classId,
-  ]);
+        runtimeType,
+        uid,
+        docID,
+        name,
+        imageUrl,
+        role,
+        mobile,
+        group,
+        teamName,
+        motherPhone,
+        fatherPhone,
+        grade,
+        educationStage,
+        school,
+        address,
+        birthdate,
+        fatherOfConfession,
+        notes,
+        isArchived,
+        archivedAt,
+        archivedByUserId,
+        archiveReason,
+        restoredAt,
+        restoredByUserId,
+        classId
+      ]);
 
   @JsonKey(ignore: true)
   @override
@@ -598,39 +587,40 @@ class _$StudentModelImpl extends _StudentModel {
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$StudentModelImplToJson(this);
+    return _$$StudentModelImplToJson(
+      this,
+    );
   }
 }
 
 abstract class _StudentModel extends StudentModel {
-  const factory _StudentModel({
-    required final String uid,
-    required final String docID,
-    required final String name,
-    required final String? imageUrl,
-    required final UserRole role,
-    required final String mobile,
-    required final Group group,
-    @JsonKey(name: 'team_name') required final String teamName,
-    @JsonKey(name: 'mother_number') required final String motherPhone,
-    @JsonKey(name: 'father_number') required final String fatherPhone,
-    required final int grade,
-    @JsonKey(name: 'education_stage')
-    required final EducationStage educationStage,
-    @JsonKey(name: 'school_college') required final String? school,
-    required final String? address,
-    @_TimestampConverter() required final DateTime? birthdate,
-    @JsonKey(name: 'father_of_confession')
-    required final String fatherOfConfession,
-    required final String? notes,
-    final bool isArchived,
-    @_TimestampConverter() final DateTime? archivedAt,
-    final String? archivedByUserId,
-    final String? archiveReason,
-    @_TimestampConverter() final DateTime? restoredAt,
-    final String? restoredByUserId,
-    final String? classId,
-  }) = _$StudentModelImpl;
+  const factory _StudentModel(
+      {required final String uid,
+      required final String docID,
+      required final String name,
+      required final String? imageUrl,
+      required final UserRole role,
+      required final String mobile,
+      required final Group group,
+      @JsonKey(name: 'team_name') required final String teamName,
+      @JsonKey(name: 'mother_number') required final String motherPhone,
+      @JsonKey(name: 'father_number') required final String fatherPhone,
+      required final int grade,
+      @JsonKey(name: 'education_stage')
+      required final EducationStage educationStage,
+      @JsonKey(name: 'school_college') required final String? school,
+      required final String? address,
+      @_TimestampConverter() required final DateTime? birthdate,
+      @JsonKey(name: 'father_of_confession')
+      required final String fatherOfConfession,
+      required final String? notes,
+      final bool isArchived,
+      @_TimestampConverter() final DateTime? archivedAt,
+      final String? archivedByUserId,
+      final String? archiveReason,
+      @_TimestampConverter() final DateTime? restoredAt,
+      final String? restoredByUserId,
+      final String? classId}) = _$StudentModelImpl;
   const _StudentModel._() : super._();
 
   factory _StudentModel.fromJson(Map<String, dynamic> json) =
@@ -692,6 +682,7 @@ abstract class _StudentModel extends StudentModel {
   @override
   String? get restoredByUserId;
   @override
+
   /// Class ID for efficient querying - enables single query instead of N+1.
   String? get classId;
   @override
