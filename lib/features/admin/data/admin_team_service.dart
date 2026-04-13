@@ -98,24 +98,6 @@ class AdminTeamService {
     return ids;
   }
 
-  Future<void> _removeTeamFromServant(
-    Transaction transaction,
-    DocumentReference<Map<String, dynamic>> servantRef,
-    String teamId,
-  ) async {
-    final servantSnap = await transaction.get(servantRef);
-    if (servantSnap.exists) {
-      final teamIds = _extractAssignedTeamIds(
-        servantSnap.data() ?? <String, dynamic>{},
-      )..removeWhere((id) => id == teamId);
-      transaction.set(
-        servantRef,
-        _servantAssignmentPatch(teamIds),
-        SetOptions(merge: true),
-      );
-    }
-  }
-
   Map<String, dynamic> _servantAssignmentPatch(List<String> teamIds) {
     if (teamIds.isEmpty) {
       return {
@@ -149,6 +131,7 @@ class AdminTeamService {
     final newServantRef = _userRef(servant.docID);
 
     await _firestore.runTransaction((transaction) async {
+      // 1. Perform all reads
       final teamSnap = await transaction.get(teamRef);
       if (!teamSnap.exists) {
         throw StateError('Team not found');
@@ -165,6 +148,13 @@ class AdminTeamService {
       if (!newServantSnap.exists || newServantData == null) {
         throw StateError('Servant not found');
       }
+      
+      DocumentSnapshot<Map<String, dynamic>>? oldServantSnap;
+      if (oldServantRef != null && oldServantId != servant.docID) {
+        oldServantSnap = await transaction.get(oldServantRef);
+      }
+
+      // 2. Perform validations
       _validateServantForTeam(
         team: team,
         servantDocId: servant.docID,
@@ -176,6 +166,7 @@ class AdminTeamService {
         newServantTeamIds.add(team.id);
       }
 
+      // 3. Perform all writes
       transaction.update(teamRef, {
         'assignedServantId': servant.docID,
         'assignedServantName':
@@ -183,8 +174,15 @@ class AdminTeamService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      if (oldServantRef != null && oldServantId != servant.docID) {
-        await _removeTeamFromServant(transaction, oldServantRef, team.id);
+      if (oldServantSnap != null && oldServantSnap.exists) {
+        final teamIds = _extractAssignedTeamIds(
+          oldServantSnap.data() ?? <String, dynamic>{},
+        )..removeWhere((id) => id == team.id);
+        transaction.set(
+          oldServantSnap.reference,
+          _servantAssignmentPatch(teamIds),
+          SetOptions(merge: true),
+        );
       }
 
       transaction.set(newServantRef, {
@@ -204,6 +202,7 @@ class AdminTeamService {
     final teamRef = _teamRef(team.id);
 
     await _firestore.runTransaction((transaction) async {
+      // 1. Perform all reads
       final teamSnap = await transaction.get(teamRef);
       if (!teamSnap.exists) {
         throw StateError('Team not found');
@@ -215,14 +214,27 @@ class AdminTeamService {
           ? null
           : _userRef(oldServantId);
 
+      DocumentSnapshot<Map<String, dynamic>>? oldServantSnap;
+      if (oldServantRef != null) {
+        oldServantSnap = await transaction.get(oldServantRef);
+      }
+
+      // 2. Perform all writes
       transaction.update(teamRef, {
         'assignedServantId': FieldValue.delete(),
         'assignedServantName': FieldValue.delete(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      if (oldServantRef != null) {
-        await _removeTeamFromServant(transaction, oldServantRef, team.id);
+      if (oldServantSnap != null && oldServantSnap.exists) {
+        final teamIds = _extractAssignedTeamIds(
+          oldServantSnap.data() ?? <String, dynamic>{},
+        )..removeWhere((id) => id == team.id);
+        transaction.set(
+          oldServantSnap.reference,
+          _servantAssignmentPatch(teamIds),
+          SetOptions(merge: true),
+        );
       }
     });
   }
