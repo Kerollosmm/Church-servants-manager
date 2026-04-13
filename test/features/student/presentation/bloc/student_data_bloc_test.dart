@@ -76,9 +76,7 @@ void main() {
     'load emits loading then empty loaded when actor has no stream access',
     () async {
       final admin = actor(UserRole.admin);
-      when(
-        () => getStudentsStream(actor: admin),
-      ).thenReturn(null);
+      when(() => getStudentsStream(actor: admin)).thenReturn(null);
 
       final bloc = StudentDataBloc(
         studentRepository: repository,
@@ -186,7 +184,7 @@ void main() {
       bloc.add(
         StudentsSearchRequested(
           actor: admin,
-          query: 'Student',
+          query: '',
           teamId: 'team2',
         ),
       );
@@ -215,11 +213,7 @@ void main() {
     final expectation = expectLater(
       bloc.stream,
       emitsInOrder([
-        isA<StudentDataError>().having(
-          (s) => s.message,
-          'message',
-          isNotEmpty,
-        ),
+        isA<StudentDataError>().having((s) => s.message, 'message', isNotEmpty),
       ]),
     );
 
@@ -245,11 +239,7 @@ void main() {
     final expectation = expectLater(
       bloc.stream,
       emitsInOrder([
-        isA<StudentDataError>().having(
-          (s) => s.message,
-          'message',
-          isNotEmpty,
-        ),
+        isA<StudentDataError>().having((s) => s.message, 'message', isNotEmpty),
       ]),
     );
 
@@ -279,11 +269,7 @@ void main() {
     final expectation = expectLater(
       bloc.stream,
       emitsInOrder([
-        isA<StudentDataError>().having(
-          (s) => s.message,
-          'message',
-          isNotEmpty,
-        ),
+        isA<StudentDataError>().having((s) => s.message, 'message', isNotEmpty),
       ]),
     );
 
@@ -318,11 +304,7 @@ void main() {
     final expectation = expectLater(
       bloc.stream,
       emitsInOrder([
-        isA<StudentDataError>().having(
-          (s) => s.message,
-          'message',
-          isNotEmpty,
-        ),
+        isA<StudentDataError>().having((s) => s.message, 'message', isNotEmpty),
       ]),
     );
 
@@ -379,11 +361,7 @@ void main() {
     final expectation = expectLater(
       bloc.stream,
       emitsInOrder([
-        isA<StudentDataError>().having(
-          (s) => s.message,
-          'message',
-          isNotEmpty,
-        ),
+        isA<StudentDataError>().having((s) => s.message, 'message', isNotEmpty),
       ]),
     );
 
@@ -435,11 +413,7 @@ void main() {
                 'mutationStatus',
                 StudentMutationStatus.success,
               )
-              .having(
-                (s) => s.successMessage,
-                'successMessage',
-                isNotEmpty,
-              ),
+              .having((s) => s.successMessage, 'successMessage', isNotEmpty),
         ),
       );
 
