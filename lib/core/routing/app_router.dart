@@ -95,16 +95,14 @@ class AppRouter {
         );
       case studentList:
         return _buildPageRoute(
-          builder: (context) =>
-              _withStudentDataBloc(context, const StudentManagementScreen()),
+          builder: (context) => const StudentManagementScreen(),
           settings: settings,
         );
       case studentDetail:
         return _buildArgsValidatedRoute<StudentDetailArgs>(
           settings: settings,
           builder: (args) => Builder(
-            builder: (context) =>
-                _withStudentDataBloc(context, StudentDetailScreen(args: args)),
+            builder: (context) => StudentDetailScreen(args: args),
           ),
           invalidMessage: 'Invalid student data',
         );
@@ -112,8 +110,7 @@ class AppRouter {
         return _buildArgsValidatedRoute<StudentEditArgs>(
           settings: settings,
           builder: (args) => Builder(
-            builder: (context) =>
-                _withStudentDataBloc(context, StudentEditScreen(args: args)),
+            builder: (context) => StudentEditScreen(args: args),
           ),
           invalidMessage: 'Invalid student data',
         );

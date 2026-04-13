@@ -63,6 +63,15 @@ class ChurchApp extends StatelessWidget {
             ),
           ),
           BlocProvider(
+            create: (context) => StudentDataBloc(
+              studentRepository: context.read<StudentDataRepository>(),
+              getStudentsStream: context.read<GetStudentsStreamUseCase>(),
+              canMutateStudent: context.read<CanMutateStudentUseCase>(),
+              adminUserProvisioningService:
+                  context.read<AdminUserProvisioningService>(),
+            ),
+          ),
+          BlocProvider(
             create: (context) => ServantDataCubit(
               repository: context.read<ServantDataRepository>(),
               adminUserProvisioningService: context
