@@ -372,4 +372,59 @@ void main() {
       isFalse,
     );
   });
+
+  group('closeSession', () {
+    test('auto-marks absent students not in marks subcollection', () async {
+      await seedStudent(student(id: 'student-1', name: 'Mina'));
+      await seedStudent(
+        student(id: 'student-2', name: 'Andrew').copyWith(classId: 'team-1'),
+      );
+      final session = await repository.createSession(
+        teamId: 'team-1',
+        teamNameSnapshot: 'Team A',
+        startsAt: currentTime,
+        durationMinutes: 30,
+        createdBy: admin,
+        title: 'Wednesday',
+      );
+
+      // Mark only student-1.
+      await repository.markStudentPresent(
+        teamId: 'team-1',
+        sessionId: session.id,
+        studentId: 'student-1',
+        studentNameSnapshot: 'Mina',
+        markedBy: servant,
+      );
+
+      // Close session — should auto-mark student-2.
+      await repository.closeSession(
+        teamId: 'team-1',
+        sessionId: session.id,
+        closedBy: admin,
+      );
+
+      // Verify session is closed.
+      final sessionDoc = await firestore
+          .collection('Classes')
+          .doc('team-1')
+          .collection('attendance_sessions')
+          .doc(session.id)
+          .get();
+      expect(sessionDoc.data()!['isClosed'], isTrue);
+
+      // Verify both students have marks.
+      final marks = await firestore
+          .collection('Classes')
+          .doc('team-1')
+          .collection('attendance_sessions')
+          .doc(session.id)
+          .collection('marks')
+          .get();
+      expect(marks.docs.length, 2);
+      final markedIds = marks.docs.map((d) => d.id).toSet();
+      expect(markedIds.contains('student-1'), isTrue);
+      expect(markedIds.contains('student-2'), isTrue);
+    });
+  });
 }
