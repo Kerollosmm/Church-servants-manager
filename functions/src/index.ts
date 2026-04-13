@@ -156,16 +156,16 @@ export const archiveManagedUser = onCall<ManagedUserLifecycleRequest>(async (req
   const payload = parseManagedUserRequest(request.data);
 
   try {
-    // Read target user to check role
-    const targetDoc = await adminDb.collection(USERS_COLLECTION).doc(payload.uid).get();
-    if (!targetDoc.exists) {
-      throw new HttpsError('not-found', 'The user account could not be found.');
-    }
-    const targetData = targetDoc.data()!;
-    const role = targetData['role'] as string;
+    let role: string;
 
     await adminDb.runTransaction(async (tx) => {
       const userRef = adminDb.collection(USERS_COLLECTION).doc(payload.uid);
+      const targetDoc = await tx.get(userRef);
+      if (!targetDoc.exists) {
+        throw new HttpsError('not-found', 'The user account could not be found.');
+      }
+      const targetData = targetDoc.data()!;
+      role = targetData['role'] as string;
 
       if (role === 'servant') {
         const teamsSnapshot = await tx.get(
@@ -204,18 +204,42 @@ export const archiveManagedUser = onCall<ManagedUserLifecycleRequest>(async (req
     });
 
     // 2. Auth updates AFTER Firestore succeeds
-    await adminAuth.updateUser(payload.uid, { disabled: true });
-    await adminAuth.revokeRefreshTokens(payload.uid);
+    try {
+      await adminAuth.updateUser(payload.uid, { disabled: true });
+      await adminAuth.revokeRefreshTokens(payload.uid);
+    } catch (authError) {
+      // Rollback Firestore change
+      try {
+        await adminDb.collection(USERS_COLLECTION).doc(payload.uid).update({
+          isArchived: false,
+        });
+      } catch (rollbackError) {
+        console.error("Failed to rollback Firestore after Auth error", rollbackError);
+      }
+
+      await adminDb.collection(ROLLBACK_LOGS_COLLECTION).add({
+        originalAction: 'archiveManagedUser',
+        actorUid,
+        targetUid: payload.uid,
+        originalError: authError instanceof Error ? authError.message : String(authError),
+        rollbackSteps: [{ step: 'authUpdate', status: 'failed' }],
+        timestamp: new Date(),
+      });
+      throw new HttpsError('internal', 'User archived in database, but Auth suspension failed. Database rollback attempted.');
+    }
 
     await writeAuditLog({
       action: 'archiveManagedUser',
       actorUid,
       targetUid: payload.uid,
-      details: { role },
+      details: { role: role! },
     });
 
     return { uid: payload.uid };
   } catch (error) {
+    if (error instanceof HttpsError) {
+      throw error;
+    }
     const message = error instanceof Error ? error.message : String(error);
     if (message.includes('no user record')) {
       throw new HttpsError('not-found', 'The user account could not be found.');
