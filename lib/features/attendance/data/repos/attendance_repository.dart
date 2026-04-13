@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
+import 'package:church_management_system/core/utils/list_extensions.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_mark.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_roster_item.dart';
@@ -14,8 +15,6 @@ import 'package:church_management_system/features/auth/data/models/auth_user.dar
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/student/data/services/student_query_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:church_management_system/core/utils/list_extensions.dart';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:rxdart/rxdart.dart';
@@ -72,7 +71,9 @@ class AttendanceRepository {
     String studentId,
   ) => _marksCol(teamId, sessionId).doc(studentId);
 
-  Stream<DateTime> _watchClock({Duration interval = const Duration(seconds: 15)}) {
+  Stream<DateTime> _watchClock({
+    Duration interval = const Duration(seconds: 15),
+  }) {
     final source =
         _clockStream ??
         Stream<DateTime>.periodic(interval, (_) => _nowProvider());
@@ -500,10 +501,58 @@ class AttendanceRepository {
         return;
       }
 
-      await _sessionDoc(
-        teamId,
-        sessionId,
-      ).update({'isClosed': true, 'updatedAt': FieldValue.serverTimestamp()});
+      // Atomic transaction: close session + auto-mark absent students.
+      final sessionRef = _sessionDoc(teamId, sessionId);
+      await _firestore.runTransaction((transaction) async {
+        // 1. Read session doc to confirm still open.
+        final sessionDoc = await transaction.get(sessionRef);
+        final sessionData = sessionDoc.data();
+        if (!sessionDoc.exists || sessionData == null) {
+          throw const AttendanceSessionNotFoundFailure();
+        }
+        final currentSession = AttendanceSession.fromMap(
+          sessionData,
+          sessionDoc.id,
+        );
+        if (currentSession.isClosed) {
+          return; // Already closed — idempotent.
+        }
+
+        // 2. Read all existing marks.
+        final marksSnapshot = await _marksCol(teamId, sessionId).get();
+        final markedStudentIds = marksSnapshot.docs.map((d) => d.id).toSet();
+
+        // 3. Write absent marks for unmarked students.
+        final unmarkedStudents = currentSession.studentIdsSnapshot
+            .where((id) => !markedStudentIds.contains(id))
+            .toList(growable: false);
+
+        final batch = _firestore.batch();
+        for (final studentId in unmarkedStudents) {
+          final markRef = _markDoc(teamId, sessionId, studentId);
+          final studentName =
+              currentSession.studentNameSnapshots[studentId] ?? 'مخدوم';
+          batch.set(markRef, {
+            'studentNameSnapshot': studentName,
+            'status': AttendanceMarkStatus.present.name,
+            'markedByUserId': closedBy.uid,
+            'markedByName': closedBy.name,
+            'markedAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        }
+
+        // 4. Close the session.
+        transaction.update(sessionRef, {
+          'isClosed': true,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
+        // Execute batch for absent marks.
+        if (unmarkedStudents.isNotEmpty) {
+          await batch.commit();
+        }
+      });
     } catch (error) {
       if (error is AttendanceFailure) rethrow;
       throw mapExceptionToAttendanceFailure(error);
@@ -656,8 +705,7 @@ class AttendanceRepository {
         for (final studentId in chunk) {
           final markRef = _markDoc(teamId, sessionId, studentId);
           final studentName =
-              session.studentNameSnapshots[studentId] ??
-              'مخدوم';
+              session.studentNameSnapshots[studentId] ?? 'مخدوم';
 
           batch.set(markRef, {
             'studentNameSnapshot': studentName,
@@ -715,6 +763,28 @@ class AttendanceRepository {
           now: now,
         );
       });
+    });
+  }
+
+  /// Live stream of session status (open / closed / reopened).
+  Stream<SessionStatus> watchSessionStatus({
+    required String teamId,
+    required String sessionId,
+  }) {
+    return _sessionDoc(teamId, sessionId).snapshots().map((doc) {
+      final data = doc.data();
+      if (!doc.exists || data == null) {
+        return SessionStatus.closed;
+      }
+      final isReopened = data['isReopenedForAdminEdit'] == true;
+      final isClosed = data['isClosed'] == true;
+      if (isReopened && !isClosed) {
+        return SessionStatus.reopened;
+      }
+      if (isClosed) {
+        return SessionStatus.closed;
+      }
+      return SessionStatus.open;
     });
   }
 
@@ -789,16 +859,17 @@ class AttendanceRepository {
 
       // Read all mark documents in parallel with cache-first strategy.
       // Each .get() checks local Firestore cache first, avoiding unnecessary network calls.
-      final markDocFutures = sessions.map(
-        (session) async {
-          try {
-            return await _markDoc(session.teamId, session.id, studentId)
-                .get(const GetOptions(source: Source.cache));
-          } catch (_) {
-            return null;
-          }
-        },
-      );
+      final markDocFutures = sessions.map((session) async {
+        try {
+          return await _markDoc(
+            session.teamId,
+            session.id,
+            studentId,
+          ).get(const GetOptions(source: Source.cache));
+        } catch (_) {
+          return null;
+        }
+      });
       final markDocs = await Future.wait(markDocFutures);
 
       final history = List<StudentAttendanceHistoryItem>.generate(
@@ -806,7 +877,8 @@ class AttendanceRepository {
         (i) {
           final session = sessions[i];
           final markDoc = markDocs[i];
-          final mark = markDoc != null && markDoc.exists && markDoc.data() != null
+          final mark =
+              markDoc != null && markDoc.exists && markDoc.data() != null
               ? AttendanceMark.fromMap(markDoc.data()!, markDoc.id)
               : null;
           return StudentAttendanceHistoryItem(
@@ -876,12 +948,13 @@ class AttendanceRepository {
         totalSessions += 1;
         totalRosterEntries += session.studentIdsSnapshot.length;
         uniqueStudentIds.addAll(session.studentIdsSnapshot);
-        
+
         presentCount += session.presentCount;
         lateCount += session.lateCount;
-        
+
         final sessionMarkedCount = session.presentCount + session.lateCount;
-        final sessionAbsentCount = session.studentIdsSnapshot.length - sessionMarkedCount;
+        final sessionAbsentCount =
+            session.studentIdsSnapshot.length - sessionMarkedCount;
         absentCount += sessionAbsentCount < 0 ? 0 : sessionAbsentCount;
       }
 
@@ -907,7 +980,28 @@ class AttendanceRepository {
     if (user.isArchived) return false;
     if (user.role == UserRole.admin) return true;
     if (user.role != UserRole.servant) return false;
-    return user.effectiveAssignedTeamIds.contains(teamId.trim());
+
+    final normalizedTeamId = teamId.trim();
+    final assignedTeamIds = user.effectiveAssignedTeamIds;
+
+    if (assignedTeamIds.contains(normalizedTeamId)) {
+      return true;
+    }
+
+    final groupId = user.groupId;
+    if (groupId != null && groupId.isNotEmpty) {
+      try {
+        final doc = await _teamDoc(normalizedTeamId).get();
+        final data = doc.data();
+        if (doc.exists && data != null) {
+          return data['groupId'] == groupId;
+        }
+      } catch (_) {
+        return false;
+      }
+    }
+
+    return false;
   }
 
   Future<void> assertUserCanManageAttendance({
