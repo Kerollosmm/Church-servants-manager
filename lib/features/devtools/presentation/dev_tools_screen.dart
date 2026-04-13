@@ -1,4 +1,4 @@
-import 'package:church_management_system/core/utils/data_seeder.dart';
+import 'package:church_management_system/features/admin/utils/data_seeder.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -75,8 +75,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                   FilledButton.icon(
                     onPressed: _busy
                         ? null
-                        : () =>
-                              _run(_seeder.seedTeams, 'Teams seeded.'),
+                        : () => _run(_seeder.seedTeams, 'Teams seeded.'),
                     icon: const Icon(Icons.school_outlined),
                     label: const Text('Seed Teams (3 per Group)'),
                   ),

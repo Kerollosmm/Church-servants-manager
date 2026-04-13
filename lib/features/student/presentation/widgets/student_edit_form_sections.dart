@@ -138,9 +138,7 @@ class StudentBasicsSection extends StatelessWidget {
           AppSpacing.gapMd,
         ],
         AppDropdownField<String>(
-          fieldKey: ValueKey(
-            'team-field-${group.name}-${teamsState.selectedTeamId ?? 'none'}-${teamsState.teams.length}',
-          ),
+          fieldKey: const Key('student_team_field'),
           initialValue: teamsState.selectedTeamId,
           labelText: 'الفريق',
           prefixIcon: Icons.group_outlined,
