@@ -83,10 +83,9 @@ service cloud.firestore {
     }
 
     // Servant scope check: ONLY uses assignedTeamIds (NO groupId fallback)
-    function servantCanReadStudent(studentId) {
+    function servantCanReadStudent(studentData) {
       let user = callerUser();
-      let studentDoc = getStudentData(studentId);
-      let studentClassId = studentDoc != null ? studentDoc.classId : null;
+      let studentClassId = studentData != null ? studentData.classId : null;
       let assignedTeamIds = user.assignedTeamIds != null ? user.assignedTeamIds : [];
       let assignedTeamId = user.assignedTeamId;
 
@@ -96,7 +95,7 @@ service cloud.firestore {
         : assignedTeamIds;
 
       return isServant() &&
-        studentDoc != null &&
+        studentData != null &&
         studentClassId != null &&
         effectiveTeams.size() > 0 &&
         studentClassId in effectiveTeams;
@@ -409,7 +408,7 @@ service cloud.firestore {
       // Students can read their own profile (via uid match)
       allow read: if isSignedIn() && (
         isAdmin() ||
-        servantCanReadStudent(studentId) ||
+        servantCanReadStudent(resource.data) ||
         (isStudent() && resource.data.uid == callerUid())
       );
 
