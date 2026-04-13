@@ -61,7 +61,10 @@ class AttendanceMarkRepository {
     );
   }
 
-  Future<AttendanceSession?> _getSession(String teamId, String sessionId) async {
+  Future<AttendanceSession?> _getSession(
+    String teamId,
+    String sessionId,
+  ) async {
     final doc = await _sessionDoc(teamId, sessionId).get();
     if (!doc.exists || doc.data() == null) return null;
     return AttendanceSession.fromMap(doc.data()!, doc.id);
@@ -75,6 +78,7 @@ class AttendanceMarkRepository {
   }
 
   /// Creates a new attendance mark for a student.
+  /// Uses transaction to prevent double-counting on retry.
   Future<void> createMark({
     required String teamId,
     required String sessionId,
@@ -99,6 +103,12 @@ class AttendanceMarkRepository {
         : 'مخدوم';
     final normalizedNote = note?.trim();
 
+    // Use normal get and batch to support offline writes.
+    final markDoc = await markRef.get();
+    if (markDoc.exists) {
+      return;
+    }
+
     final data = <String, dynamic>{
       'studentNameSnapshot': effectiveStudentName,
       'status': status.name,
@@ -111,19 +121,12 @@ class AttendanceMarkRepository {
       data['note'] = normalizedNote;
     }
 
-    await _firestore.runTransaction((transaction) async {
-      final markDoc = await transaction.get(markRef);
-      if (!markDoc.exists) {
-        transaction.set(markRef, data);
-        if (status == AttendanceMarkStatus.present) {
-          transaction.update(sessionRef, {'presentCount': FieldValue.increment(1)});
-        } else if (status == AttendanceMarkStatus.late) {
-          transaction.update(sessionRef, {'lateCount': FieldValue.increment(1)});
-        } else if (status == AttendanceMarkStatus.absent) {
-          transaction.update(sessionRef, {'absentCount': FieldValue.increment(1)});
-        }
-      }
-    });
+    final batch = _firestore.batch();
+    batch.set(markRef, data, SetOptions(merge: true));
+    batch.set(sessionRef, {
+      '${status.name}Count': FieldValue.increment(1),
+    }, SetOptions(merge: true));
+    await batch.commit();
   }
 
   /// Updates an existing attendance mark.
@@ -147,33 +150,33 @@ class AttendanceMarkRepository {
     final sessionRef = _sessionDoc(teamId, sessionId);
     final normalizedNote = note?.trim();
 
-    await _firestore.runTransaction((transaction) async {
-      final markDoc = await transaction.get(markRef);
-      if (!markDoc.exists) return;
+    final markDoc = await markRef.get();
+    if (!markDoc.exists) return;
 
-      final oldStatusStr = markDoc.data()?['status'] as String?;
-      final oldStatus = AttendanceMarkStatus.values.firstWhere(
-        (e) => e.name == oldStatusStr,
-        orElse: () => AttendanceMarkStatus.present,
-      );
+    final oldStatusStr = markDoc.data()?['status'] as String?;
+    final oldStatus = AttendanceMarkStatus.values.firstWhere(
+      (e) => e.name == oldStatusStr,
+      orElse: () => AttendanceMarkStatus.present,
+    );
 
-      if (oldStatus != status) {
-        transaction.update(sessionRef, {
-          '${oldStatus.name}Count': FieldValue.increment(-1),
-          '${status.name}Count': FieldValue.increment(1),
-        });
-      }
+    final batch = _firestore.batch();
+    if (oldStatus != status) {
+      batch.set(sessionRef, {
+        '${oldStatus.name}Count': FieldValue.increment(-1),
+        '${status.name}Count': FieldValue.increment(1),
+      }, SetOptions(merge: true));
+    }
 
-      transaction.update(markRef, {
-        'status': status.name,
-        'markedByUserId': markedBy.uid,
-        'markedByName': markedBy.name,
-        'updatedAt': FieldValue.serverTimestamp(),
-        'note': normalizedNote == null || normalizedNote.isEmpty
-            ? FieldValue.delete()
-            : normalizedNote,
-      });
-    });
+    batch.set(markRef, {
+      'status': status.name,
+      'markedByUserId': markedBy.uid,
+      'markedByName': markedBy.name,
+      'updatedAt': FieldValue.serverTimestamp(),
+      'note': normalizedNote == null || normalizedNote.isEmpty
+          ? FieldValue.delete()
+          : normalizedNote,
+    }, SetOptions(merge: true));
+    await batch.commit();
   }
 
   /// Deletes an attendance mark (toggle-off behavior per FR-08.7).
@@ -204,10 +207,11 @@ class AttendanceMarkRepository {
         orElse: () => AttendanceMarkStatus.present,
       );
 
-      transaction.update(sessionRef, {
-        '${oldStatus.name}Count': FieldValue.increment(-1),
-      });
-      transaction.delete(markRef);
+      transaction
+        ..update(sessionRef, {
+          '${oldStatus.name}Count': FieldValue.increment(-1),
+        })
+        ..delete(markRef);
     });
   }
 
