@@ -322,6 +322,30 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
       query: query,
     );
 
+    if (query.isNotEmpty) {
+      await _cancelStudentsSubscription();
+      emit(
+        StudentDataLoading(
+          previousStudents: _resolveVisibleStudents(previousQuery),
+          isRefresh: _allStudents.isNotEmpty,
+          includeArchived: event.includeArchived,
+        ),
+      );
+      try {
+        final students = await _studentRepository.searchStudents(
+          query,
+          limit: 20,
+        );
+        final filtered = nextTeamId != null && nextTeamId.isNotEmpty
+            ? students.where((s) => s.classId == nextTeamId).toList()
+            : students;
+        _emitLoadedState(emit, students: filtered, query: query);
+      } catch (e) {
+        _emitError(emit, 'تعذر البحث عن المخدومين', e);
+      }
+      return;
+    }
+
     if (previousTeamId != nextTeamId ||
         previousIncludeArchived != event.includeArchived) {
       emit(
@@ -331,11 +355,33 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
           includeArchived: event.includeArchived,
         ),
       );
-      await _subscribeToStudents(
-        actor: event.actor,
-        teamId: nextTeamId,
-        includeArchived: event.includeArchived,
-      );
+      if (event.actor.role == UserRole.admin &&
+          (nextTeamId == null || nextTeamId.isEmpty)) {
+        await _cancelStudentsSubscription();
+        try {
+          final students = await _studentRepository.getAllStudents(
+            limit: 50,
+            includeArchived: event.includeArchived,
+          );
+          _allStudents = students
+              .where((student) => student.role == UserRole.student)
+              .toList(growable: false);
+          _studentsByDocId = {for (final s in _allStudents) s.docID: s};
+          _emitLoadedState(
+            emit,
+            students: _resolveVisibleStudents(query),
+            query: query,
+          );
+        } catch (e) {
+          _emitError(emit, 'تعذر تحميل بيانات المخدومين', e);
+        }
+      } else {
+        await _subscribeToStudents(
+          actor: event.actor,
+          teamId: nextTeamId,
+          includeArchived: event.includeArchived,
+        );
+      }
       return;
     }
 
