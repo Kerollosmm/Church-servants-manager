@@ -11,6 +11,7 @@ import 'package:church_management_system/features/auth/data/services/auth_user_p
 import 'package:church_management_system/features/auth/data/services/firebase_auth_provider.dart';
 import 'package:church_management_system/features/auth/domain/auth_freshness_policy.dart';
 import 'package:church_management_system/features/servant/data/repo/servant_data_repository.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:church_management_system/features/student/data/repos/student_data_repository.dart';
 import 'package:church_management_system/features/student/data/services/student_linked_user_sync_service.dart';
 import 'package:church_management_system/features/student/data/services/student_query_service.dart';
@@ -36,7 +37,9 @@ void configureDependencies() {
   });
 
   // ---- Auth Freshness ----
-  getIt.registerLazySingleton<AuthFreshnessPolicy>(AuthFreshnessPolicy.new);
+  // Note: AuthFreshnessPolicy.initialize() must be called after login
+  // and on app cold start to restore persisted state.
+  getIt.registerFactory<AuthFreshnessPolicy>(AuthFreshnessPolicy.new);
 
   // ---- Services ----
   getIt.registerLazySingleton<AuthUserProfileStore>(
@@ -113,5 +116,8 @@ void configureDependencies() {
   );
 
   // ---- Routing ----
+  getIt.registerLazySingleton<AppRouter>(AppRouter.new);
+}
+ ---- Routing ----
   getIt.registerLazySingleton<AppRouter>(AppRouter.new);
 }
