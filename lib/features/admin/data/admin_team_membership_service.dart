@@ -71,16 +71,28 @@ class AdminTeamMembershipService {
     if (ids.isEmpty) return const <StudentModel>[];
 
     final result = <StudentModel>[];
+    final slices = <List<String>>[];
+
     for (var i = 0; i < ids.length; i += 10) {
       final end = (i + 10 > ids.length) ? ids.length : i + 10;
-      final slice = ids.sublist(i, end);
-      final snap = await _students
-          .where(FieldPath.documentId, whereIn: slice)
-          .get();
-      for (final doc in snap.docs) {
-        final student = StudentModel.fromMap(doc.data(), doc.id);
-        if (student.isArchived) continue;
-        result.add(student);
+      slices.add(ids.sublist(i, end));
+    }
+
+    const concurrencyLimit = 5;
+    for (var i = 0; i < slices.length; i += concurrencyLimit) {
+      final end = (i + concurrencyLimit > slices.length)
+          ? slices.length
+          : i + concurrencyLimit;
+      final currentSlices = slices.sublist(i, end);
+      
+      final snaps = await Future.wait(currentSlices.map((s) => _students.where(FieldPath.documentId, whereIn: s).get()));
+      
+      for (final snap in snaps) {
+        for (final doc in snap.docs) {
+          final student = StudentModel.fromMap(doc.data(), doc.id);
+          if (student.isArchived) continue;
+          result.add(student);
+        }
       }
     }
 
@@ -102,10 +114,12 @@ class AdminTeamMembershipService {
       if (previousClassId != null &&
           previousClassId.isNotEmpty &&
           previousClassId != team.id) {
-        addOp((b) => b.set(_teamRef(previousClassId), {
-           'student_ids': FieldValue.arrayRemove([student.docID]),
-           'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true)));
+        addOp(
+          (b) => b.set(_teamRef(previousClassId), {
+            'student_ids': FieldValue.arrayRemove([student.docID]),
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true)),
+        );
       }
 
       addOp(
