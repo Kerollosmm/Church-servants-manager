@@ -1,3 +1,5 @@
+import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
+import 'package:church_management_system/features/attendance/data/models/attendance_mark.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_roster_item.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_roster_snapshot.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
@@ -65,6 +67,12 @@ abstract class IAttendanceRepository {
     required String teamId,
     required String sessionId,
     required AuthUser markedBy,
+  });
+
+  /// Watches session status as a live stream for real-time open/closed state.
+  Stream<SessionStatus> watchSessionStatus({
+    required String teamId,
+    required String sessionId,
   });
 
   Stream<List<AttendanceRosterItem>> watchSessionRoster({

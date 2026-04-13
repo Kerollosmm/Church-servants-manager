@@ -8,6 +8,7 @@ import 'package:church_management_system/features/auth/data/models/auth_user.dar
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_management_system/features/servant/presentation/bloc/servant_dashboard_cubit.dart';
 import 'package:church_management_system/features/team/data/repos/team_repository.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -74,7 +75,7 @@ class ServantDashboardScreen extends StatelessWidget {
                           color: AppColors.white,
                           borderRadius: AppRadius.mdRadius,
                         ),
-                        child: Icon(
+                        child: const Icon(
                           Icons.church_outlined,
                           size: 30,
                           color: AppColors.primary,
@@ -145,21 +146,51 @@ class ServantDashboardScreen extends StatelessWidget {
   }
 }
 
-class _UserStatsCard extends StatelessWidget {
+class _UserStatsCard extends StatefulWidget {
   const _UserStatsCard({required this.user});
 
   final AuthUser user;
 
   @override
+  State<_UserStatsCard> createState() => _UserStatsCardState();
+}
+
+class _UserStatsCardState extends State<_UserStatsCard> {
+  late ServantDashboardCubit _cubit;
+
+  @override
+  void initState() {
+    super.initState();
+    _cubit = ServantDashboardCubit(
+      teamRepository: context.read<TeamRepository>(),
+    )..loadAssignedTeamNames(widget.user.effectiveAssignedTeamIds);
+  }
+
+  @override
+  void didUpdateWidget(covariant _UserStatsCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.user.effectiveAssignedTeamIds.join() !=
+        widget.user.effectiveAssignedTeamIds.join()) {
+      _cubit.loadAssignedTeamNames(widget.user.effectiveAssignedTeamIds);
+    }
+  }
+
+  @override
+  void dispose() {
+    _cubit.close();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final roleLabel = user.role == UserRole.servant ? 'خادم' : user.role.name;
+    final roleLabel = widget.user.role == UserRole.servant
+        ? 'خادم'
+        : widget.user.role.name;
 
     return Card(
       shape: RoundedRectangleBorder(borderRadius: AppRadius.lgRadius),
-      child: BlocProvider(
-        create: (context) => ServantDashboardCubit(
-          teamRepository: context.read<TeamRepository>(),
-        )..loadAssignedTeamNames(user.effectiveAssignedTeamIds),
+      child: BlocProvider.value(
+        value: _cubit,
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.lg),
           child: Column(
@@ -173,11 +204,17 @@ class _UserStatsCard extends StatelessWidget {
                 ),
               ),
               AppSpacing.gapMd,
-              AppKeyValueRow(label: 'البريد الإلكتروني', value: user.email),
+              AppKeyValueRow(
+                label: 'البريد الإلكتروني',
+                value: widget.user.email,
+              ),
               AppKeyValueRow(label: 'الدور', value: roleLabel),
-              if (user.role == UserRole.servant) ...[
-                AppKeyValueRow(label: 'المجموعة', value: user.groupId ?? '--'),
-                _AssignedTeamsRow(user: user),
+              if (widget.user.role == UserRole.servant) ...[
+                AppKeyValueRow(
+                  label: 'المجموعة',
+                  value: widget.user.groupId ?? '--',
+                ),
+                _AssignedTeamsRow(user: widget.user),
               ],
             ],
           ),
