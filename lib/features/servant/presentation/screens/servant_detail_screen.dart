@@ -33,148 +33,85 @@ class ServantDetailScreen extends StatelessWidget {
     final canArchive = canEdit && !servant.isArchived;
     final canRestore = canEdit && servant.isArchived;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('تفاصيل الخادم'), // Servant Details
-        actions: [
-          if (canEdit && !servant.isArchived)
-            IconButton(
-              icon: const Icon(Icons.edit_outlined),
-              tooltip: 'تعديل', // Edit
-              onPressed: () {
-                Navigator.pushNamed(
-                  context,
-                  servantEdit,
-                  arguments: ServantEditArgs(
-                    actor: args.actor,
-                    servant: servant,
-                  ),
-                );
-              },
-            ),
-          if (canArchive)
-            IconButton(
-              icon: const Icon(Icons.archive_outlined),
-              tooltip: 'أرشفة',
-              onPressed: () async {
-                final shouldArchive = await showGenericDialog<bool>(
-                  context: context,
-                  title: 'أرشفة الخادم؟',
-                  content:
-                      'سيتم إيقاف حساب ${servant.name} وإزالته من القوائم النشطة حتى تتم استعادته.',
-                  optionBuilder: () => {'إلغاء': false, 'أرشفة': true},
-                );
-                if (shouldArchive != true || !context.mounted) return;
+    return BlocListener<ServantDataCubit, ServantDataState>(
+      listener: (context, state) {
+        if (state is ServantDataLoaded) {
+          if (state.mutationStatus == ServantMutationStatus.success) {
+            Navigator.pop(context, true);
+          } else if (state.mutationStatus == ServantMutationStatus.failure) {
+            AppSnackbars.showError(
+              context,
+              state.feedbackMessage ?? 'حدث خطأ.',
+            );
+          }
+        } else if (state is ServantDataError) {
+          AppSnackbars.showError(context, state.message);
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('تفاصيل الخادم'), // Servant Details
+          actions: [
+            if (canEdit && !servant.isArchived)
+              IconButton(
+                icon: const Icon(Icons.edit_outlined),
+                tooltip: 'تعديل', // Edit
+                onPressed: () {
+                  Navigator.pushNamed(
+                    context,
+                    servantEdit,
+                    arguments: ServantEditArgs(
+                      actor: args.actor,
+                      servant: servant,
+                    ),
+                  );
+                },
+              ),
+            if (canArchive)
+              IconButton(
+                icon: const Icon(Icons.archive_outlined),
+                tooltip: 'أرشفة',
+                onPressed: () async {
+                  final shouldArchive = await showGenericDialog<bool>(
+                    context: context,
+                    title: 'أرشفة الخادم؟',
+                    content:
+                        'سيتم إيقاف حساب ${servant.name} وإزالته من القوائم النشطة حتى تتم استعادته.',
+                    optionBuilder: () => {'إلغاء': false, 'أرشفة': true},
+                  );
+                  if (shouldArchive != true || !context.mounted) return;
 
-                final cubit = context.read<ServantDataCubit>();
-                final completer = Completer<void>();
-                late final StreamSubscription<ServantDataState> sub;
-                sub = cubit.stream.listen((state) {
-                  if (state is ServantDataLoaded) {
-                    if (state.mutationStatus == ServantMutationStatus.success) {
-                      if (context.mounted) Navigator.pop(context, true);
-                      if (!completer.isCompleted) completer.complete();
-                    } else if (state.mutationStatus ==
-                        ServantMutationStatus.failure) {
-                      if (context.mounted) {
-                        AppSnackbars.showError(
-                          context,
-                          state.feedbackMessage ?? 'فشل في أرشفة الخادم.',
-                        );
-                      }
-                      if (!completer.isCompleted) completer.complete();
-                    }
-                  } else if (state is ServantDataError) {
-                    if (context.mounted) {
-                      AppSnackbars.showError(context, state.message);
-                    }
-                    if (!completer.isCompleted) completer.complete();
-                  }
-                });
-                try {
+                  final cubit = context.read<ServantDataCubit>();
                   await cubit.deleteServant(
                     actor: args.actor,
                     docId: servant.docID,
                   );
-                  await completer.future.timeout(
-                    const Duration(seconds: 10),
-                    onTimeout: () {
-                      if (context.mounted) {
-                        AppSnackbars.showError(context, 'انتهت مهلة العملية.');
-                      }
-                      throw TimeoutException('Archive timed out');
-                    },
+                },
+              ),
+            if (canRestore)
+              IconButton(
+                icon: const Icon(Icons.unarchive_outlined),
+                tooltip: 'استعادة',
+                onPressed: () async {
+                  final shouldRestore = await showGenericDialog<bool>(
+                    context: context,
+                    title: 'استعادة الخادم؟',
+                    content:
+                        'سيتم استعادة ${servant.name} وإرسال بريد إعادة تعيين كلمة المرور للحساب المرتبط. يلزم تعيين الفريق يدويا بعد الاستعادة.',
+                    optionBuilder: () => {'إلغاء': false, 'استعادة': true},
                   );
-                } catch (_) {
-                  // Error already shown via snackbar or timeout handler
-                } finally {
-                  await sub.cancel();
-                }
-              },
-            ),
-          if (canRestore)
-            IconButton(
-              icon: const Icon(Icons.unarchive_outlined),
-              tooltip: 'استعادة',
-              onPressed: () async {
-                final shouldRestore = await showGenericDialog<bool>(
-                  context: context,
-                  title: 'استعادة الخادم؟',
-                  content:
-                      'سيتم استعادة ${servant.name} وإرسال بريد إعادة تعيين كلمة المرور للحساب المرتبط. يلزم تعيين الفريق يدويا بعد الاستعادة.',
-                  optionBuilder: () => {'إلغاء': false, 'استعادة': true},
-                );
-                if (shouldRestore != true || !context.mounted) return;
+                  if (shouldRestore != true || !context.mounted) return;
 
-                final cubit = context.read<ServantDataCubit>();
-                final completer = Completer<void>();
-                late final StreamSubscription<ServantDataState> sub;
-                sub = cubit.stream.listen((state) {
-                  if (state is ServantDataLoaded) {
-                    if (state.mutationStatus == ServantMutationStatus.success) {
-                      if (context.mounted) Navigator.pop(context, true);
-                      if (!completer.isCompleted) completer.complete();
-                    } else if (state.mutationStatus ==
-                        ServantMutationStatus.failure) {
-                      if (context.mounted) {
-                        AppSnackbars.showError(
-                          context,
-                          state.feedbackMessage ?? 'فشل في استعادة الخادم.',
-                        );
-                      }
-                      if (!completer.isCompleted) completer.complete();
-                    }
-                  } else if (state is ServantDataError) {
-                    if (context.mounted) {
-                      AppSnackbars.showError(context, state.message);
-                    }
-                    if (!completer.isCompleted) completer.complete();
-                  }
-                });
-                try {
+                  final cubit = context.read<ServantDataCubit>();
                   await cubit.restoreServant(
                     actor: args.actor,
                     docId: servant.docID,
                   );
-                  await completer.future.timeout(
-                    const Duration(seconds: 10),
-                    onTimeout: () {
-                      if (context.mounted) {
-                        AppSnackbars.showError(context, 'انتهت مهلة العملية.');
-                      }
-                      throw TimeoutException('Restore timed out');
-                    },
-                  );
-                } catch (_) {
-                  // Error already shown via snackbar or timeout handler
-                } finally {
-                  await sub.cancel();
-                }
-              },
-            ),
-        ],
-      ),
-      body: ListView(
+                },
+              ),
+          ],
+        ),
+        body: ListView(
         padding: const EdgeInsets.all(AppSpacing.md),
         children: [
           _HeaderCard(
