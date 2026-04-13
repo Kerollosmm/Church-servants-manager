@@ -30,14 +30,18 @@ class ServantDashboardCubit extends Cubit<ServantDashboardState> {
     emit(const ServantDashboardState(isLoading: true));
 
     try {
-      final teams = await Future.wait(
-        assignedTeamIds.map(_teamRepository.getTeamById),
-      );
+      final teams = await _teamRepository.getTeamsByIds(assignedTeamIds);
       final names = <String>[];
-      for (var i = 0; i < teams.length; i++) {
-        final name = teams[i]?.name.trim();
-        if (name != null && name.isNotEmpty) {
-          names.add(name);
+      for (var id in assignedTeamIds) {
+        String? foundName;
+        for (final t in teams) {
+          if (t.id == id) {
+            foundName = t.name.trim();
+            break;
+          }
+        }
+        if (foundName != null && foundName.isNotEmpty) {
+          names.add(foundName);
         } else {
           names.add('Unknown team');
         }
