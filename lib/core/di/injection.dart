@@ -26,7 +26,9 @@ final getIt = GetIt.instance;
 void configureDependencies() {
   // ---- External ----
   getIt
-    ..registerLazySingleton<FirebaseFirestore>(() => FirebaseFirestore.instance)
+    ..registerLazySingleton<FirebaseFirestore>(
+      () => FirebaseFirestore.instance,
+    )
 
     // ---- Auth Freshness ----
     // Note: AuthFreshnessPolicy.initialize() must be called after login
