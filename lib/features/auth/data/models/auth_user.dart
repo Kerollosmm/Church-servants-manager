@@ -31,13 +31,21 @@ class AuthUser with _$AuthUser {
   }) = _AuthUser;
 
   /// Create AuthUser from Firebase User (basic info only)
-  factory AuthUser.fromFirebase(User user) => AuthUser(
-    uid: user.uid,
-    name: user.displayName ?? user.email?.split('@').first ?? 'User',
-    email: user.email ?? '',
-    role: UserRole.student,
-    isEmailVerified: user.emailVerified,
-  );
+  factory AuthUser.fromFirebase(User user) {
+    final email = user.email;
+    if (email == null || email.isEmpty) {
+      throw const GenericAuthFailure(
+        'Firebase user has no email — cannot construct AuthUser',
+      );
+    }
+    return AuthUser(
+      uid: user.uid,
+      email: email,
+      name: user.displayName ?? email.split('@').first,
+      role: UserRole.student,
+      isEmailVerified: user.emailVerified,
+    );
+  }
 
   factory AuthUser.fromJson(Map<String, dynamic> json) =>
       _$AuthUserFromJson(json);
