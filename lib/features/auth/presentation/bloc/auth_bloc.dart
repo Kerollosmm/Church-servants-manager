@@ -98,7 +98,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       final initialUser =
           _authService.currentUser ??
           await _authService.authStateChanges.first.timeout(
-            const Duration(seconds: 2),
+            const Duration(seconds: 5),
             onTimeout: () => null,
           );
 
