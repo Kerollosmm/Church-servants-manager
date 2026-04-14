@@ -131,7 +131,7 @@ service cloud.firestore {
       return session != null &&
         classIsActive(teamId) &&
         session.isClosed != true &&
-        request.time >= session.startsAt &&
+        request.time >= session.startsAt - duration.value(5, 'm') &&
         request.time < session.endsAt;
     }
 
