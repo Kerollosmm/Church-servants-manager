@@ -25,6 +25,12 @@ class AttendanceSessionClosedFailure extends AttendanceFailure {
   ]);
 }
 
+class AttendanceSessionAlreadyOpenFailure extends AttendanceFailure {
+  const AttendanceSessionAlreadyOpenFailure([
+    super.message = 'توجد جلسة حضور مفتوحة بالفعل لهذه المجموعة.',
+  ]);
+}
+
 class AttendanceSessionConflictFailure extends AttendanceFailure {
   const AttendanceSessionConflictFailure([
     super.message = 'توجد جلسة حضور متعارضة أو مفتوحة بالفعل لهذه المجموعة.',

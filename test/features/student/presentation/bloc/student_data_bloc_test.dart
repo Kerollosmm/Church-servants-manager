@@ -182,11 +182,7 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       bloc.add(
-        StudentsSearchRequested(
-          actor: admin,
-          query: '',
-          teamId: 'team2',
-        ),
+        StudentsSearchRequested(actor: admin, query: '', teamId: 'team2'),
       );
       await Future<void>.delayed(Duration.zero);
       team2Controller.add([student(id: 's2')]);

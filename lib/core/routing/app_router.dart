@@ -7,7 +7,6 @@ import 'package:church_management_system/features/attendance/presentation/screen
 import 'package:church_management_system/features/attendance/presentation/screens/attendance_session_create_screen.dart';
 import 'package:church_management_system/features/attendance/presentation/screens/attendance_taking_screen.dart';
 import 'package:church_management_system/features/attendance/presentation/screens/student_attendance_screen.dart';
-import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
 import 'package:church_management_system/features/auth/presentation/screens/forced_password_reset_screen.dart';
 import 'package:church_management_system/features/auth/presentation/screens/forgot_password_screen.dart';
 import 'package:church_management_system/features/auth/presentation/screens/login_screen.dart';
@@ -16,17 +15,12 @@ import 'package:church_management_system/features/devtools/presentation/dev_tool
 import 'package:church_management_system/features/servant/presentation/screens/add_edit_servant_screen.dart';
 import 'package:church_management_system/features/servant/presentation/screens/servant_detail_screen.dart';
 import 'package:church_management_system/features/servant/presentation/screens/servant_list_screen.dart';
-import 'package:church_management_system/features/student/data/repos/student_data_repository.dart';
-import 'package:church_management_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
-import 'package:church_management_system/features/student/domain/usecases/get_students_stream_usecase.dart';
-import 'package:church_management_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
 import 'package:church_management_system/features/student/presentation/screens/student_detail_screen.dart';
 import 'package:church_management_system/features/student/presentation/screens/student_edit_screen.dart';
 import 'package:church_management_system/features/student/presentation/screens/student_management_screen.dart';
 import 'package:church_management_system/features/team/presentation/screens/team_management_screen.dart';
 import 'package:church_management_system/features/team/presentation/screens/team_members_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 class AppRouter {
   Route<dynamic> _buildPageRoute({
@@ -56,19 +50,6 @@ class AppRouter {
       return _buildPageRoute(settings: settings, builder: (_) => builder(args));
     }
     return _buildMessageRoute(settings: settings, message: invalidMessage);
-  }
-
-  Widget _withStudentDataBloc(BuildContext context, Widget child) {
-    return BlocProvider(
-      create: (_) => StudentDataBloc(
-        studentRepository: context.read<StudentDataRepository>(),
-        getStudentsStream: context.read<GetStudentsStreamUseCase>(),
-        canMutateStudent: context.read<CanMutateStudentUseCase>(),
-        adminUserProvisioningService: context
-            .read<AdminUserProvisioningService>(),
-      ),
-      child: child,
-    );
   }
 
   Route<dynamic> onGenerateRoute(RouteSettings settings) {
@@ -101,17 +82,15 @@ class AppRouter {
       case studentDetail:
         return _buildArgsValidatedRoute<StudentDetailArgs>(
           settings: settings,
-          builder: (args) => Builder(
-            builder: (context) => StudentDetailScreen(args: args),
-          ),
+          builder: (args) =>
+              Builder(builder: (context) => StudentDetailScreen(args: args)),
           invalidMessage: 'Invalid student data',
         );
       case studentEdit:
         return _buildArgsValidatedRoute<StudentEditArgs>(
           settings: settings,
-          builder: (args) => Builder(
-            builder: (context) => StudentEditScreen(args: args),
-          ),
+          builder: (args) =>
+              Builder(builder: (context) => StudentEditScreen(args: args)),
           invalidMessage: 'Invalid student data',
         );
       // Servant Routes

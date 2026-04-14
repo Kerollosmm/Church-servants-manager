@@ -27,7 +27,7 @@ class PersonListCard extends StatelessWidget {
             backgroundColor: AppColors.primary.withValues(alpha: 0.12),
             child: Text(
               name.isNotEmpty ? name[0].toUpperCase() : '?',
-              style: TextStyle(
+              style: const TextStyle(
                 color: AppColors.primary,
                 fontWeight: FontWeight.w700,
               ),
@@ -43,7 +43,7 @@ class PersonListCard extends StatelessWidget {
               color: AppColors.textSecondary,
             ),
           ),
-          trailing: Icon(Icons.chevron_right, color: AppColors.outline),
+          trailing: const Icon(Icons.chevron_right, color: AppColors.outline),
         ),
       ),
     );

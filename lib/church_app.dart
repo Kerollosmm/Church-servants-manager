@@ -11,6 +11,7 @@ import 'package:church_management_system/features/servant/presentation/bloc/serv
 import 'package:church_management_system/features/student/data/repos/student_data_repository.dart';
 import 'package:church_management_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
 import 'package:church_management_system/features/student/domain/usecases/get_students_stream_usecase.dart';
+import 'package:church_management_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
 import 'package:church_management_system/features/student/presentation/bloc/student_profile/student_profile_cubit.dart';
 import 'package:church_management_system/features/team/data/repos/team_repository.dart';
 import 'package:church_management_system/role_user_route.dart';
@@ -67,8 +68,8 @@ class ChurchApp extends StatelessWidget {
               studentRepository: context.read<StudentDataRepository>(),
               getStudentsStream: context.read<GetStudentsStreamUseCase>(),
               canMutateStudent: context.read<CanMutateStudentUseCase>(),
-              adminUserProvisioningService:
-                  context.read<AdminUserProvisioningService>(),
+              adminUserProvisioningService: context
+                  .read<AdminUserProvisioningService>(),
             ),
           ),
           BlocProvider(

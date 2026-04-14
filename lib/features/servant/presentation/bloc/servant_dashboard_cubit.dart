@@ -32,7 +32,7 @@ class ServantDashboardCubit extends Cubit<ServantDashboardState> {
     try {
       final teams = await _teamRepository.getTeamsByIds(assignedTeamIds);
       final names = <String>[];
-      for (var id in assignedTeamIds) {
+      for (final id in assignedTeamIds) {
         String? foundName;
         for (final t in teams) {
           if (t.id == id) {

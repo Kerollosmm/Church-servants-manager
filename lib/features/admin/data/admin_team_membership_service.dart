@@ -84,9 +84,13 @@ class AdminTeamMembershipService {
           ? slices.length
           : i + concurrencyLimit;
       final currentSlices = slices.sublist(i, end);
-      
-      final snaps = await Future.wait(currentSlices.map((s) => _students.where(FieldPath.documentId, whereIn: s).get()));
-      
+
+      final snaps = await Future.wait(
+        currentSlices.map(
+          (s) => _students.where(FieldPath.documentId, whereIn: s).get(),
+        ),
+      );
+
       for (final snap in snaps) {
         for (final doc in snap.docs) {
           final student = StudentModel.fromMap(doc.data(), doc.id);

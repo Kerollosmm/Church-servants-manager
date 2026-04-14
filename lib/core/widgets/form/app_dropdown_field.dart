@@ -26,7 +26,7 @@ class AppDropdownField<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     return DropdownButtonFormField<T>(
       key: fieldKey,
-      value: initialValue,
+      initialValue: initialValue,
       isExpanded: isExpanded,
       decoration: InputDecoration(
         labelText: labelText,

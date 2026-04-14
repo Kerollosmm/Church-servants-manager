@@ -45,11 +45,7 @@ void main() {
     final expectation = expectLater(
       cubit.stream,
       emitsInOrder([
-        isA<ServantDataError>().having(
-          (s) => s.message,
-          'message',
-          isNotEmpty,
-        ),
+        isA<ServantDataError>().having((s) => s.message, 'message', isNotEmpty),
       ]),
     );
 
@@ -236,8 +232,9 @@ void main() {
       await cubit.restoreServant(actor: admin, docId: 's1');
 
       await expectation;
-      verify(() => repository.restoreServant('s1', performedByUid: admin.uid))
-          .called(1);
+      verify(
+        () => repository.restoreServant('s1', performedByUid: admin.uid),
+      ).called(1);
       verify(
         () => adminUserProvisioningService.restoreUser(uid: 's1'),
       ).called(1);

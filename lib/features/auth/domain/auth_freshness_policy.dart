@@ -27,7 +27,6 @@ class AuthFreshnessPolicy {
        _secureStorage =
            secureStorage ??
            const FlutterSecureStorage(
-             aOptions: AndroidOptions(),
              iOptions: IOSOptions(
                accessibility: KeychainAccessibility.first_unlock,
              ),

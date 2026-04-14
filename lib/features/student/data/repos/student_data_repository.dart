@@ -142,13 +142,16 @@ class StudentDataRepository implements IStudentRepository {
   }) async {
     if (query.isEmpty) return getAllStudents(limit: limit);
     final snapshot = await _studentsCollection
-        .where('isArchived', isEqualTo: false)
         .orderBy('name')
         .startAt([query])
         .endAt(['$query\uf8ff'])
-        .limit(limit)
+        .limit(limit * 2)
         .get();
-    return _queryService.mapStudentDocs(snapshot.docs);
+    return _queryService
+        .mapStudentDocs(snapshot.docs)
+        .where((s) => !s.isArchived)
+        .take(limit)
+        .toList();
   }
 
   @override

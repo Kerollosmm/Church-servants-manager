@@ -20,9 +20,21 @@ class TeamMembersScreen extends StatefulWidget {
 
 class _TeamMembersScreenState extends State<TeamMembersScreen> {
   final _searchController = TextEditingController();
+  late TeamMembersCubit _cubit;
+
+  @override
+  void initState() {
+    super.initState();
+    final team = widget.args.team;
+    _cubit = TeamMembersCubit(
+      studentRepository: context.read<StudentDataRepository>(),
+      adminTeamService: context.read<AdminTeamService>(),
+    )..load(groupId: team.groupId, teamId: team.id);
+  }
 
   @override
   void dispose() {
+    _cubit.close();
     _searchController.dispose();
     super.dispose();
   }
@@ -41,11 +53,8 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
   Widget build(BuildContext context) {
     final team = widget.args.team;
 
-    return BlocProvider(
-      create: (context) => TeamMembersCubit(
-        studentRepository: context.read<StudentDataRepository>(),
-        adminTeamService: context.read<AdminTeamService>(),
-      )..load(groupId: team.groupId, teamId: team.id),
+    return BlocProvider.value(
+      value: _cubit,
       child: BlocListener<TeamMembersCubit, TeamMembersState>(
         listener: (context, state) {
           if (state.feedbackMessage != null &&

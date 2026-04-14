@@ -1,26 +1,44 @@
-import 'package:church_management_system/core/constants/enums.dart';
+import 'package:church_management_system/core/security/permission_matrix.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 
 /// Central place for admin authorization checks in the app.
-/// Keep it pure (no Firebase, no UI) so it’s reusable & testable.
+///
+/// All admin permissions are derived from the canonical [PermissionMatrix]
+/// to ensure consistency between app-level checks and Firestore security rules.
 class AdminPolicy {
   const AdminPolicy();
 
-  bool isAdmin(AuthUser user) => user.role == UserRole.admin;
+  /// Checks if the user has admin role.
+  bool isAdmin(AuthUser user) =>
+      PermissionMatrix.canAccessAdminArea(user, isSessionFresh: true);
 
   /// Admins have full access to all data and features.
-  bool canAccessAllData(AuthUser user) => isAdmin(user);
+  bool canAccessAllData(AuthUser user) =>
+      PermissionMatrix.canAccessAdminArea(user, isSessionFresh: true);
 
   /// Privileged access requires both admin role and a fresh session.
   bool canAccessAdminArea({
     required AuthUser user,
     required bool isSessionFresh,
   }) {
-    return isSessionFresh && isAdmin(user);
+    return PermissionMatrix.canAccessAdminArea(
+      user,
+      isSessionFresh: isSessionFresh,
+    );
   }
 
-  bool canManageTeams(AuthUser user) => isAdmin(user);
-  bool canManageServants(AuthUser user) => isAdmin(user);
-  bool canManageStudents(AuthUser user) => isAdmin(user);
-  bool canOpenDevTools(AuthUser user) => isAdmin(user);
+  /// Can the admin manage teams?
+  bool canManageTeams(AuthUser user) => PermissionMatrix.canManageTeams(user);
+
+  /// Can the admin manage servants?
+  bool canManageServants(AuthUser user) =>
+      PermissionMatrix.canManageServants(user);
+
+  /// Can the admin manage students?
+  bool canManageStudents(AuthUser user) =>
+      PermissionMatrix.canManageStudents(user);
+
+  /// Can the admin access dev tools?
+  bool canOpenDevTools(AuthUser user) =>
+      PermissionMatrix.canAccessDevTools(user);
 }

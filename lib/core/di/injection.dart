@@ -11,7 +11,6 @@ import 'package:church_management_system/features/auth/data/services/auth_user_p
 import 'package:church_management_system/features/auth/data/services/firebase_auth_provider.dart';
 import 'package:church_management_system/features/auth/domain/auth_freshness_policy.dart';
 import 'package:church_management_system/features/servant/data/repo/servant_data_repository.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:church_management_system/features/student/data/repos/student_data_repository.dart';
 import 'package:church_management_system/features/student/data/services/student_linked_user_sync_service.dart';
 import 'package:church_management_system/features/student/data/services/student_query_service.dart';
@@ -26,98 +25,96 @@ final getIt = GetIt.instance;
 /// Call once before [runApp].
 void configureDependencies() {
   // ---- External ----
-  getIt.registerLazySingleton<FirebaseFirestore>(() {
-    final firestore = FirebaseFirestore.instance;
-    // Explicitly configure offline persistence with bounded cache (100MB).
-    firestore.settings = const Settings(
-      persistenceEnabled: true,
-      cacheSizeBytes: 100 * 1024 * 1024,
-    );
-    return firestore;
-  });
+  getIt
+    ..registerLazySingleton<FirebaseFirestore>(() {
+      final firestore = FirebaseFirestore.instance
+        ..settings = const Settings(
+          persistenceEnabled: true,
+          cacheSizeBytes: 100 * 1024 * 1024,
+        );
+      return firestore;
+    })
 
-  // ---- Auth Freshness ----
-  // Note: AuthFreshnessPolicy.initialize() must be called after login
-  // and on app cold start to restore persisted state.
-  getIt.registerFactory<AuthFreshnessPolicy>(AuthFreshnessPolicy.new);
+    // ---- Auth Freshness ----
+    // Note: AuthFreshnessPolicy.initialize() must be called after login
+    // and on app cold start to restore persisted state.
+    ..registerFactory<AuthFreshnessPolicy>(AuthFreshnessPolicy.new)
 
-  // ---- Services ----
-  getIt.registerLazySingleton<AuthUserProfileStore>(
-    () => AuthUserProfileStore(firestore: getIt()),
-  );
-  getIt.registerLazySingleton<FirebaseAuthProvider>(
-    () => FirebaseAuthProvider(userProfileStore: getIt<AuthUserProfileStore>()),
-  );
-  getIt.registerLazySingleton<AuthService>(
-    () => AuthService(provider: getIt<FirebaseAuthProvider>()),
-  );
-  getIt.registerLazySingleton<AdminUserProvisioningService>(
-    () => ClientAdminUserProvisioningService(
-      userProfileStore: getIt<AuthUserProfileStore>(),
-      authService: getIt<AuthService>(),
-    ),
-  );
+    // ---- Services ----
+    ..registerLazySingleton<AuthUserProfileStore>(
+      () => AuthUserProfileStore(firestore: getIt()),
+    )
+    ..registerLazySingleton<FirebaseAuthProvider>(
+      () =>
+          FirebaseAuthProvider(userProfileStore: getIt<AuthUserProfileStore>()),
+    )
+    ..registerLazySingleton<AuthService>(
+      () => AuthService(provider: getIt<FirebaseAuthProvider>()),
+    )
+    ..registerLazySingleton<AdminUserProvisioningService>(
+      () => ClientAdminUserProvisioningService(
+        userProfileStore: getIt<AuthUserProfileStore>(),
+        authService: getIt<AuthService>(),
+      ),
+    )
 
-  // ---- Repositories ----
-  getIt.registerLazySingleton<StudentDataRepository>(
-    () => StudentDataRepository(
-      firestore: getIt(),
-      queryService: getIt<StudentQueryService>(),
-      linkedUserSyncService: getIt<StudentLinkedUserSyncService>(),
-    ),
-  );
-  getIt.registerLazySingleton<ServantDataRepository>(
-    () => ServantDataRepository(firestore: getIt()),
-  );
-  getIt.registerLazySingleton<StudentQueryService>(
-    () => StudentQueryService(firestore: getIt()),
-  );
-  // ---- Attendance ----
-  getIt.registerLazySingleton<AttendanceRepository>(
-    () => AttendanceRepository(
-      firestore: getIt(),
-      studentQueryService: getIt<StudentQueryService>(),
-    ),
-  );
-  getIt.registerLazySingleton<AttendanceSessionRepository>(
-    () => AttendanceSessionRepository(firestore: getIt()),
-  );
-  getIt.registerLazySingleton<AttendanceMarkRepository>(
-    () => AttendanceMarkRepository(firestore: getIt()),
-  );
-  getIt.registerLazySingleton<AttendanceSessionService>(
-    () => AttendanceSessionService(
-      sessionRepository: getIt<AttendanceSessionRepository>(),
-      studentQueryService: getIt<StudentQueryService>(),
-    ),
-  );
-  getIt.registerLazySingleton<StudentLinkedUserSyncService>(
-    () => StudentLinkedUserSyncService(firestore: getIt()),
-  );
-  getIt.registerLazySingleton<TeamRepository>(
-    () => TeamRepository(firestore: getIt()),
-  );
-  getIt.registerLazySingleton<AdminTeamMembershipService>(
-    () => AdminTeamMembershipService(firestore: getIt()),
-  );
-  getIt.registerLazySingleton<AdminTeamService>(
-    () => AdminTeamService(
-      firestore: getIt(),
-      membershipService: getIt<AdminTeamMembershipService>(),
-    ),
-  );
+    // ---- Repositories ----
+    ..registerLazySingleton<StudentDataRepository>(
+      () => StudentDataRepository(
+        firestore: getIt(),
+        queryService: getIt<StudentQueryService>(),
+        linkedUserSyncService: getIt<StudentLinkedUserSyncService>(),
+      ),
+    )
+    ..registerLazySingleton<ServantDataRepository>(
+      () => ServantDataRepository(firestore: getIt()),
+    )
+    ..registerLazySingleton<StudentQueryService>(
+      () => StudentQueryService(firestore: getIt()),
+    )
+    // ---- Attendance ----
+    ..registerLazySingleton<AttendanceRepository>(
+      () => AttendanceRepository(
+        firestore: getIt(),
+        studentQueryService: getIt<StudentQueryService>(),
+      ),
+    )
+    ..registerLazySingleton<AttendanceSessionRepository>(
+      () => AttendanceSessionRepository(firestore: getIt()),
+    )
+    ..registerLazySingleton<AttendanceMarkRepository>(
+      () => AttendanceMarkRepository(firestore: getIt()),
+    )
+    ..registerLazySingleton<AttendanceSessionService>(
+      () => AttendanceSessionService(
+        sessionRepository: getIt<AttendanceSessionRepository>(),
+        studentQueryService: getIt<StudentQueryService>(),
+      ),
+    )
+    ..registerLazySingleton<StudentLinkedUserSyncService>(
+      () => StudentLinkedUserSyncService(firestore: getIt()),
+    )
+    ..registerLazySingleton<TeamRepository>(
+      () => TeamRepository(firestore: getIt()),
+    )
+    ..registerLazySingleton<AdminTeamMembershipService>(
+      () => AdminTeamMembershipService(firestore: getIt()),
+    )
+    ..registerLazySingleton<AdminTeamService>(
+      () => AdminTeamService(
+        firestore: getIt(),
+        membershipService: getIt<AdminTeamMembershipService>(),
+      ),
+    )
 
-  // ---- UseCases ----
-  getIt.registerLazySingleton<GetStudentsStreamUseCase>(
-    () => GetStudentsStreamUseCase(getIt<StudentDataRepository>()),
-  );
-  getIt.registerLazySingleton<CanMutateStudentUseCase>(
-    () => const CanMutateStudentUseCase(),
-  );
+    // ---- UseCases ----
+    ..registerLazySingleton<GetStudentsStreamUseCase>(
+      () => GetStudentsStreamUseCase(getIt<StudentDataRepository>()),
+    )
+    ..registerLazySingleton<CanMutateStudentUseCase>(
+      () => const CanMutateStudentUseCase(),
+    )
 
-  // ---- Routing ----
-  getIt.registerLazySingleton<AppRouter>(AppRouter.new);
-}
- ---- Routing ----
-  getIt.registerLazySingleton<AppRouter>(AppRouter.new);
+    // ---- Routing ----
+    ..registerLazySingleton<AppRouter>(AppRouter.new);
 }

@@ -1,9 +1,8 @@
 import 'package:church_management_system/core/constants/firestore_collections.dart';
+import 'package:church_management_system/core/utils/list_extensions.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/student/domain/failures/student_failures.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:church_management_system/core/utils/list_extensions.dart';
-
 import 'package:flutter/foundation.dart';
 import 'package:rxdart/rxdart.dart';
 
@@ -68,14 +67,11 @@ class StudentQueryService {
       ).get(const GetOptions(source: Source.cache));
       if (cacheSnapshot.docs.isNotEmpty) {
         return mapStudentDocs(cacheSnapshot.docs);
-      }} catch (e) {
-
-      if (kDebugMode) {
-
-        debugPrint('Cache read failed: $e');
-
       }
-
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Cache read failed: $e');
+      }
     }
     return const <StudentModel>[];
   }
@@ -168,14 +164,11 @@ class StudentQueryService {
           mapStudentDocs(cacheSnapshot.docs),
           includeArchived,
         );
-      }} catch (e) {
-
-      if (kDebugMode) {
-
-        debugPrint('Cache read failed: $e');
-
       }
-
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Cache read failed: $e');
+      }
     }
 
     try {
@@ -195,17 +188,16 @@ class StudentQueryService {
     Query<Map<String, dynamic>> query,
   ) async {
     try {
-      final cacheSnapshot = await query.get(const GetOptions(source: Source.cache));
+      final cacheSnapshot = await query.get(
+        const GetOptions(source: Source.cache),
+      );
       if (cacheSnapshot.docs.isNotEmpty) {
         return mapStudentDocs(cacheSnapshot.docs);
-      }} catch (e) {
-
-      if (kDebugMode) {
-
-        debugPrint('Cache read failed: $e');
-
       }
-
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Cache read failed: $e');
+      }
     }
     return const <StudentModel>[];
   }
@@ -226,9 +218,7 @@ class StudentQueryService {
           .where('classId', isEqualTo: classId)
           .where('isArchived', isEqualTo: false);
       if (!includeArchived) {
-        final cacheStudents = await _tryGetStudentsByQueryFromCache(
-          cacheQuery,
-        );
+        final cacheStudents = await _tryGetStudentsByQueryFromCache(cacheQuery);
         if (cacheStudents.isNotEmpty) {
           return cacheStudents;
         }
@@ -242,9 +232,7 @@ class StudentQueryService {
       final serverQuery = _studentsCollection
           .where('classId', isEqualTo: classId)
           .where('isArchived', isEqualTo: false);
-      final serverStudents = await _getStudentsByQueryFromServer(
-        serverQuery,
-      );
+      final serverStudents = await _getStudentsByQueryFromServer(serverQuery);
       if (serverStudents.isNotEmpty) {
         return serverStudents;
       }
@@ -264,8 +252,10 @@ class StudentQueryService {
     bool includeArchived = false,
   }) async {
     try {
-      Query<Map<String, dynamic>> query = _studentsCollection
-          .where('grade', isEqualTo: grade);
+      Query<Map<String, dynamic>> query = _studentsCollection.where(
+        'grade',
+        isEqualTo: grade,
+      );
       if (!includeArchived) {
         query = query.where('isArchived', isEqualTo: false);
       }
@@ -277,14 +267,11 @@ class StudentQueryService {
           );
           if (cacheSnapshot.docs.isNotEmpty) {
             return mapStudentDocs(cacheSnapshot.docs);
-          }} catch (e) {
-
-          if (kDebugMode) {
-
-            debugPrint('Cache read failed: $e');
-
           }
-
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint('Cache read failed: $e');
+          }
         }
       } else {
         try {
@@ -293,14 +280,11 @@ class StudentQueryService {
               .get(const GetOptions(source: Source.cache));
           if (cacheSnapshot.docs.isNotEmpty) {
             return mapStudentDocs(cacheSnapshot.docs);
-          }} catch (e) {
-
-          if (kDebugMode) {
-
-            debugPrint('Cache read failed: $e');
-
           }
-
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint('Cache read failed: $e');
+          }
         }
       }
 
@@ -316,8 +300,10 @@ class StudentQueryService {
     bool includeArchived = false,
   }) async {
     try {
-      final cacheQuery = _studentsCollection
-          .where('group', isEqualTo: groupName);
+      final cacheQuery = _studentsCollection.where(
+        'group',
+        isEqualTo: groupName,
+      );
       final fullCacheQuery = cacheQuery;
       final filteredCacheQuery = includeArchived
           ? fullCacheQuery
@@ -330,14 +316,11 @@ class StudentQueryService {
           );
           if (cacheSnapshot.docs.isNotEmpty) {
             return mapStudentDocs(cacheSnapshot.docs);
-          }} catch (e) {
-
-          if (kDebugMode) {
-
-            debugPrint('Cache read failed: $e');
-
           }
-
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint('Cache read failed: $e');
+          }
         }
       } else {
         try {
@@ -346,19 +329,18 @@ class StudentQueryService {
           );
           if (cacheSnapshot.docs.isNotEmpty) {
             return mapStudentDocs(cacheSnapshot.docs);
-          }} catch (e) {
-
-          if (kDebugMode) {
-
-            debugPrint('Cache read failed: $e');
-
           }
-
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint('Cache read failed: $e');
+          }
         }
       }
 
-      Query<Map<String, dynamic>> query = _studentsCollection
-          .where('group', isEqualTo: groupName);
+      Query<Map<String, dynamic>> query = _studentsCollection.where(
+        'group',
+        isEqualTo: groupName,
+      );
       if (!includeArchived) {
         query = query.where('isArchived', isEqualTo: false);
       }
@@ -386,14 +368,11 @@ class StudentQueryService {
           ),
           isFromCache: true,
         );
-      }} catch (e) {
-
-      if (kDebugMode) {
-
-        debugPrint('Cache read failed: $e');
-
       }
-
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Cache read failed: $e');
+      }
     }
 
     try {
@@ -437,27 +416,25 @@ class StudentQueryService {
   }
 
   Stream<List<StudentModel>> watchAllStudents({bool includeArchived = false}) {
-    Query<Map<String, dynamic>> query = _studentsCollection.orderBy('name');
+    Query<Map<String, dynamic>> query = _studentsCollection;
     if (!includeArchived) {
       query = query.where('isArchived', isEqualTo: false);
     }
-    return query.snapshots().map(
-      (snapshot) => mapStudentDocs(snapshot.docs),
-    );
+    return query.snapshots().map((snapshot) => mapStudentDocs(snapshot.docs));
   }
 
   Stream<List<StudentModel>> watchStudentsByClass(
     String classId, {
     bool includeArchived = false,
   }) {
-    Query<Map<String, dynamic>> query =
-        _studentsCollection.where('classId', isEqualTo: classId);
+    Query<Map<String, dynamic>> query = _studentsCollection.where(
+      'classId',
+      isEqualTo: classId,
+    );
     if (!includeArchived) {
       query = query.where('isArchived', isEqualTo: false);
     }
-    return query.snapshots().map(
-      (snapshot) => mapStudentDocs(snapshot.docs),
-    );
+    return query.snapshots().map((snapshot) => mapStudentDocs(snapshot.docs));
   }
 
   Stream<List<StudentModel>> watchStudentsByClasses(
@@ -510,13 +487,13 @@ class StudentQueryService {
     String groupName, {
     bool includeArchived = false,
   }) {
-    Query<Map<String, dynamic>> query =
-        _studentsCollection.where('group', isEqualTo: groupName);
+    Query<Map<String, dynamic>> query = _studentsCollection.where(
+      'group',
+      isEqualTo: groupName,
+    );
     if (!includeArchived) {
       query = query.where('isArchived', isEqualTo: false);
     }
-    return query.snapshots().map(
-      (snapshot) => mapStudentDocs(snapshot.docs),
-    );
+    return query.snapshots().map((snapshot) => mapStudentDocs(snapshot.docs));
   }
 }

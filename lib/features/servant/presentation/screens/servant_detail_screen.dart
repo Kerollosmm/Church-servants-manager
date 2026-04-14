@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/routes.dart';
 import 'package:church_management_system/core/routing/route_args.dart';
@@ -112,68 +110,69 @@ class ServantDetailScreen extends StatelessWidget {
           ],
         ),
         body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        children: [
-          _HeaderCard(
-            servantName: servant.name,
-            teamName: servant.teamName ?? '--',
-          ),
-          AppSpacing.gapMd,
-          _InfoSection(
-            title: 'البيانات الأساسية', // Basic Info
-            children: [
-              _InfoRow(label: 'الاسم', value: servant.name), // Name
-              _InfoRow(
-                label: 'المجموعة',
-                value: _optional(servant.teamName),
-              ), // Team
-              _InfoRow(label: 'الدور', value: servant.role.name), // Role
-            ],
-          ),
-          AppSpacing.gapMd,
-          _InfoSection(
-            title: 'بيانات التواصل', // Contact
-            children: [
-              _InfoRow(
-                label: 'رقم الهاتف',
-                value: _optional(servant.phone),
-              ), // Phone
-              _InfoRow(
-                label: 'البريد الإلكتروني',
-                value: _optional(servant.email),
-              ), // Email
-            ],
-          ),
-          AppSpacing.gapMd,
-          _InfoSection(
-            title: 'بيانات أخرى', // Other
-            children: [
-              _InfoRow(
-                label: 'تاريخ الميلاد',
-                value: _formatDate(servant.birthdate),
-              ), // Birthdate
-              _InfoRow(
-                label: 'أب الاعتراف',
-                value: _optional(servant.fatherOfConfession),
-              ), // Father of Confession
-              _InfoRow(
-                label: 'ملاحظات',
-                value: _optional(servant.notes),
-              ), // Notes
-            ],
-          ),
-          AppSpacing.gapMd,
-          AppInfoBanner(
-            icon: servant.isArchived
-                ? Icons.archive_outlined
-                : Icons.cloud_done,
-            message: servant.isArchived
-                ? 'هذا الخادم مؤرشف حاليا ويحتاج إلى إعادة تعيين فريق بعد الاستعادة.'
-                : canEdit
-                ? 'صلاحية المسؤول: تعديل'
-                : 'عرض فقط',
-          ),
-        ],
+          padding: const EdgeInsets.all(AppSpacing.md),
+          children: [
+            _HeaderCard(
+              servantName: servant.name,
+              teamName: servant.teamName ?? '--',
+            ),
+            AppSpacing.gapMd,
+            _InfoSection(
+              title: 'البيانات الأساسية', // Basic Info
+              children: [
+                _InfoRow(label: 'الاسم', value: servant.name), // Name
+                _InfoRow(
+                  label: 'المجموعة',
+                  value: _optional(servant.teamName),
+                ), // Team
+                _InfoRow(label: 'الدور', value: servant.role.name), // Role
+              ],
+            ),
+            AppSpacing.gapMd,
+            _InfoSection(
+              title: 'بيانات التواصل', // Contact
+              children: [
+                _InfoRow(
+                  label: 'رقم الهاتف',
+                  value: _optional(servant.phone),
+                ), // Phone
+                _InfoRow(
+                  label: 'البريد الإلكتروني',
+                  value: _optional(servant.email),
+                ), // Email
+              ],
+            ),
+            AppSpacing.gapMd,
+            _InfoSection(
+              title: 'بيانات أخرى', // Other
+              children: [
+                _InfoRow(
+                  label: 'تاريخ الميلاد',
+                  value: _formatDate(servant.birthdate),
+                ), // Birthdate
+                _InfoRow(
+                  label: 'أب الاعتراف',
+                  value: _optional(servant.fatherOfConfession),
+                ), // Father of Confession
+                _InfoRow(
+                  label: 'ملاحظات',
+                  value: _optional(servant.notes),
+                ), // Notes
+              ],
+            ),
+            AppSpacing.gapMd,
+            AppInfoBanner(
+              icon: servant.isArchived
+                  ? Icons.archive_outlined
+                  : Icons.cloud_done,
+              message: servant.isArchived
+                  ? 'هذا الخادم مؤرشف حاليا ويحتاج إلى إعادة تعيين فريق بعد الاستعادة.'
+                  : canEdit
+                  ? 'صلاحية المسؤول: تعديل'
+                  : 'عرض فقط',
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -24,27 +24,6 @@ class AttendanceTakingScreen extends StatefulWidget {
 }
 
 class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
-  late final AttendanceTakingCubit _takingCubit;
-  late final AttendanceSessionAdminCubit _sessionAdminCubit;
-
-  @override
-  void initState() {
-    super.initState();
-    _takingCubit = AttendanceTakingCubit(
-      repository: context.read<AttendanceRepository>(),
-    )..initialize(teamId: widget.args.teamId, sessionId: widget.args.sessionId);
-    _sessionAdminCubit = AttendanceSessionAdminCubit(
-      repository: context.read<AttendanceRepository>(),
-    );
-  }
-
-  @override
-  void dispose() {
-    _takingCubit.close();
-    _sessionAdminCubit.close();
-    super.dispose();
-  }
-
   Color _statusColor(AttendanceEffectiveStatus status) {
     switch (status) {
       case AttendanceEffectiveStatus.present:
@@ -71,8 +50,11 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
     }
   }
 
-  Future<void> _closeSession(AttendanceTakingLoaded state) {
-    return _sessionAdminCubit.closeSession(
+  Future<void> _closeSession(
+    AttendanceTakingLoaded state,
+    BuildContext context,
+  ) {
+    return context.read<AttendanceSessionAdminCubit>().closeSession(
       actor: widget.args.actor,
       teamId: state.session.teamId,
       sessionId: state.session.id,
@@ -83,9 +65,19 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
-        BlocProvider<AttendanceTakingCubit>.value(value: _takingCubit),
-        BlocProvider<AttendanceSessionAdminCubit>.value(
-          value: _sessionAdminCubit,
+        BlocProvider<AttendanceTakingCubit>(
+          create: (context) =>
+              AttendanceTakingCubit(
+                repository: context.read<AttendanceRepository>(),
+              )..initialize(
+                teamId: widget.args.teamId,
+                sessionId: widget.args.sessionId,
+              ),
+        ),
+        BlocProvider<AttendanceSessionAdminCubit>(
+          create: (context) => AttendanceSessionAdminCubit(
+            repository: context.read<AttendanceRepository>(),
+          ),
         ),
       ],
       child: MultiBlocListener(
@@ -93,18 +85,18 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
           BlocListener<AttendanceTakingCubit, AttendanceTakingState>(
             listenWhen: (previous, current) {
               final prevMessage = previous is AttendanceTakingLoaded
-                  ? previous.mutationError
+                  ? previous.errorMessage
                   : null;
               final currentMessage = current is AttendanceTakingLoaded
-                  ? current.mutationError
+                  ? current.errorMessage
                   : null;
               return prevMessage != currentMessage ||
                   current is AttendanceTakingError;
             },
             listener: (context, state) {
               if (state is AttendanceTakingLoaded &&
-                  state.mutationError != null) {
-                AppSnackbars.showError(context, state.mutationError!);
+                  state.errorMessage != null) {
+                AppSnackbars.showError(context, state.errorMessage!);
               }
               if (state is AttendanceTakingError) {
                 AppSnackbars.showError(context, state.message);
@@ -144,25 +136,31 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
               appBar: AppBar(
                 title: Text(title),
                 actions: [
-                  if (loadedState != null && loadedState.session.isOpenAt(now))
+                  if (loadedState != null && loadedState.isSessionOpen)
                     IconButton(
                       tooltip: 'تحديد الباقي حاضر',
                       icon: const Icon(Icons.done_all_outlined),
-                      onPressed: loadedState.isMutating
+                      onPressed:
+                          loadedState.mutationStatus ==
+                              MutationStatus.inProgress
                           ? null
-                          : () => _takingCubit.markAllRemainingPresent(
-                              actor: widget.args.actor,
-                            ),
+                          : () => context
+                                .read<AttendanceTakingCubit>()
+                                .markAllRemainingPresent(
+                                  actor: widget.args.actor,
+                                ),
                     ),
                   if (widget.args.actor.role == UserRole.admin &&
                       loadedState != null &&
-                      loadedState.session.isOpenAt(now))
+                      loadedState.isSessionOpen)
                     IconButton(
                       tooltip: 'إغلاق الجلسة',
                       icon: const Icon(Icons.lock_outline),
-                      onPressed: loadedState.isMutating
+                      onPressed:
+                          loadedState.mutationStatus ==
+                              MutationStatus.inProgress
                           ? null
-                          : () => _closeSession(loadedState),
+                          : () => _closeSession(loadedState, context),
                     ),
                 ],
               ),
@@ -214,7 +212,7 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
                                   ),
                                   itemBuilder: (context, index) {
                                     final item = loaded.roster[index];
-                                    final isOpen = loaded.session.isOpenAt(now);
+                                    final isOpen = loaded.isSessionOpen;
                                     return Card(
                                       child: Padding(
                                         padding: const EdgeInsets.all(
@@ -273,9 +271,14 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
                                                 OutlinedButton.icon(
                                                   onPressed:
                                                       !isOpen ||
-                                                          loaded.isMutating
+                                                          loaded.mutationStatus ==
+                                                              MutationStatus
+                                                                  .inProgress
                                                       ? null
-                                                      : () => _takingCubit
+                                                      : () => context
+                                                            .read<
+                                                              AttendanceTakingCubit
+                                                            >()
                                                             .markPresent(
                                                               actor: widget
                                                                   .args
@@ -290,9 +293,14 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
                                                 OutlinedButton.icon(
                                                   onPressed:
                                                       !isOpen ||
-                                                          loaded.isMutating
+                                                          loaded.mutationStatus ==
+                                                              MutationStatus
+                                                                  .inProgress
                                                       ? null
-                                                      : () => _takingCubit
+                                                      : () => context
+                                                            .read<
+                                                              AttendanceTakingCubit
+                                                            >()
                                                             .markLate(
                                                               actor: widget
                                                                   .args
@@ -308,9 +316,14 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
                                                   TextButton.icon(
                                                     onPressed:
                                                         !isOpen ||
-                                                            loaded.isMutating
+                                                            loaded.mutationStatus ==
+                                                                MutationStatus
+                                                                    .inProgress
                                                         ? null
-                                                        : () => _takingCubit
+                                                        : () => context
+                                                              .read<
+                                                                AttendanceTakingCubit
+                                                              >()
                                                               .clearMark(
                                                                 actor: widget
                                                                     .args

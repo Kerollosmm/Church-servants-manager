@@ -73,11 +73,7 @@ void main() {
       cubit.stream,
       emitsInOrder([
         isA<TeamLoading>(),
-        isA<TeamError>().having(
-          (s) => s.message,
-          'message',
-          isNotEmpty,
-        ),
+        isA<TeamError>().having((s) => s.message, 'message', isNotEmpty),
       ]),
     );
 
@@ -108,20 +104,14 @@ void main() {
               'mutationStatus',
               TeamMutationStatus.success,
             )
-            .having(
-              (s) => s.feedbackMessage,
-              'feedbackMessage',
-              isNotEmpty,
-            ),
+            .having((s) => s.feedbackMessage, 'feedbackMessage', isNotEmpty),
       ]),
     );
 
     await cubit.createTeam(team);
     await expectation;
     verify(() => repository.createTeam(team)).called(1);
-    verify(
-      () => repository.getTeamsByGroup('year1'),
-    ).called(1);
+    verify(() => repository.getTeamsByGroup('year1')).called(1);
     await cubit.close();
   });
 
@@ -155,20 +145,14 @@ void main() {
                 'mutationStatus',
                 TeamMutationStatus.success,
               )
-              .having(
-                (s) => s.feedbackMessage,
-                'feedbackMessage',
-                isNotEmpty,
-              ),
+              .having((s) => s.feedbackMessage, 'feedbackMessage', isNotEmpty),
         ]),
       );
 
       await cubit.updateTeam(team);
       await expectation;
       verify(() => repository.updateTeam(team)).called(1);
-      verify(
-        () => repository.getTeamsByGroup('year1'),
-      ).called(2);
+      verify(() => repository.getTeamsByGroup('year1')).called(2);
       await cubit.close();
     },
   );
@@ -191,11 +175,7 @@ void main() {
       cubit.stream,
       emitsInOrder([
         isA<TeamLoading>(),
-        isA<TeamError>().having(
-          (s) => s.message,
-          'message',
-          isNotEmpty,
-        ),
+        isA<TeamError>().having((s) => s.message, 'message', isNotEmpty),
       ]),
     );
 

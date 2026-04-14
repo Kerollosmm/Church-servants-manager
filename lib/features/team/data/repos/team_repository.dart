@@ -1,10 +1,9 @@
 import 'package:church_management_system/core/constants/firestore_collections.dart';
+import 'package:church_management_system/core/utils/list_extensions.dart';
 import 'package:church_management_system/features/team/data/models/team_model.dart';
 import 'package:church_management_system/features/team/domain/failures/team_failures.dart';
 import 'package:church_management_system/features/team/domain/repos/i_team_repository.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:church_management_system/core/utils/list_extensions.dart';
-
 
 /// Repository for team (class) data operations.
 ///
@@ -229,16 +228,9 @@ class TeamRepository implements ITeamRepository {
     final query = includeArchived
         ? _classesCollection
         : _classesCollection.where('isArchived', isEqualTo: false);
-    return query
-        .orderBy('groupId')
-        .orderBy('name')
-        .snapshots()
-        .map((snapshot) {
-          return _teamsFromDocs(
-            snapshot.docs,
-            includeArchived: includeArchived,
-          );
-        });
+    return query.orderBy('groupId').orderBy('name').snapshots().map((snapshot) {
+      return _teamsFromDocs(snapshot.docs, includeArchived: includeArchived);
+    });
   }
 
   @override

@@ -27,8 +27,6 @@ class AttendanceSessionCreateScreen extends StatefulWidget {
 
 class _AttendanceSessionCreateScreenState
     extends State<AttendanceSessionCreateScreen> {
-  late final AttendanceSessionAdminCubit _cubit;
-  late final TeamCubit _teamCubit;
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _durationController = TextEditingController(
     text: '30',
@@ -37,60 +35,17 @@ class _AttendanceSessionCreateScreenState
   DateTime _startsAt = DateTime.now();
 
   @override
-  void initState() {
-    super.initState();
-    _cubit = AttendanceSessionAdminCubit(
-      repository: context.read<AttendanceRepository>(),
-    );
-    _teamCubit = TeamCubit(
-      teamRepository: context.read<TeamRepository>(),
-      adminTeamService: context.read<AdminTeamService>(),
-    );
-    final actor = _currentActorOrNull();
-    if (actor != null) {
-      _loadTeamsForActor(actor);
-    }
-  }
-
-  @override
   void dispose() {
-    _cubit.close();
-    _teamCubit.close();
     _titleController.dispose();
     _durationController.dispose();
     super.dispose();
   }
 
-  AuthUser? _currentActorOrNull() {
+  AuthUser _currentActor() {
     final state = context.read<AuthBloc>().state;
     if (state is AuthAuthenticated) return state.user;
     if (state is AuthDegraded) return state.user;
-    return null;
-  }
-
-  void _loadTeamsForActor(AuthUser actor) {
-    if (actor.role == UserRole.admin) {
-      _teamCubit.loadAllTeams();
-      return;
-    }
-
-    final teamIds = actor.effectiveAssignedTeamIds;
-    if (teamIds.length == 1) {
-      _selectedTeamId ??= teamIds.first;
-    }
-
-    final groupId = actor.groupId;
-    if (groupId != null && groupId.isNotEmpty) {
-      _teamCubit.loadTeamsByGroup(
-        groupId,
-        defaultTeamId: teamIds.length == 1 ? teamIds.first : null,
-      );
-    } else if (teamIds.isNotEmpty) {
-      _teamCubit.loadTeamsByIds(
-        teamIds,
-        defaultTeamId: teamIds.length == 1 ? teamIds.first : null,
-      );
-    }
+    throw StateError('Unreachable');
   }
 
   Future<void> _pickDate() async {
@@ -137,7 +92,11 @@ class _AttendanceSessionCreateScreenState
     });
   }
 
-  Future<void> _submit(AuthUser actor, List<TeamModel> teams) async {
+  Future<void> _submit(
+    BuildContext context,
+    AuthUser actor,
+    List<TeamModel> teams,
+  ) async {
     final teamId = _selectedTeamId;
     if (teamId == null || teamId.isEmpty) {
       AppSnackbars.showError(context, 'اختر الفريق قبل إنشاء الجلسة.');
@@ -151,7 +110,7 @@ class _AttendanceSessionCreateScreenState
 
     final selectedTeam = teams.firstWhere((team) => team.id == teamId);
 
-    await _cubit.createSession(
+    await context.read<AttendanceSessionAdminCubit>().createSession(
       actor: actor,
       teamId: teamId,
       teamNameSnapshot: selectedTeam.name,
@@ -165,9 +124,8 @@ class _AttendanceSessionCreateScreenState
   Widget build(BuildContext context) {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, authState) {
-        final actor = _currentActorOrNull();
-        if (actor == null ||
-            (actor.role != UserRole.admin && actor.role != UserRole.servant)) {
+        final actor = _currentActor();
+        if (actor.role != UserRole.admin && actor.role != UserRole.servant) {
           return Scaffold(
             appBar: AppBar(
               leading: IconButton(
@@ -183,8 +141,40 @@ class _AttendanceSessionCreateScreenState
 
         return MultiBlocProvider(
           providers: [
-            BlocProvider<TeamCubit>.value(value: _teamCubit),
-            BlocProvider<AttendanceSessionAdminCubit>.value(value: _cubit),
+            BlocProvider<TeamCubit>(
+              create: (context) {
+                final teamCubit = TeamCubit(
+                  teamRepository: context.read<TeamRepository>(),
+                  adminTeamService: context.read<AdminTeamService>(),
+                );
+
+                if (actor.role == UserRole.admin) {
+                  teamCubit.loadAllTeams();
+                } else {
+                  final teamIds = actor.effectiveAssignedTeamIds;
+                  final groupId = actor.groupId;
+
+                  if (groupId != null && groupId.isNotEmpty) {
+                    teamCubit.loadTeamsByGroup(
+                      groupId,
+                      defaultTeamId: teamIds.length == 1 ? teamIds.first : null,
+                    );
+                  } else if (teamIds.isNotEmpty) {
+                    teamCubit.loadTeamsByIds(
+                      teamIds,
+                      defaultTeamId: teamIds.length == 1 ? teamIds.first : null,
+                    );
+                  }
+                }
+
+                return teamCubit;
+              },
+            ),
+            BlocProvider<AttendanceSessionAdminCubit>(
+              create: (context) => AttendanceSessionAdminCubit(
+                repository: context.read<AttendanceRepository>(),
+              ),
+            ),
           ],
           child:
               BlocListener<
@@ -198,24 +188,16 @@ class _AttendanceSessionCreateScreenState
                   }
                   if (state is AttendanceSessionAdminSuccess) {
                     AppSnackbars.showSuccess(context, state.message);
-                    final currentActor = _currentActorOrNull();
-                    if (currentActor != null) {
-                      Navigator.pushReplacementNamed(
-                        context,
-                        attendanceTaking,
-                        arguments: AttendanceTakingArgs(
-                          actor: currentActor,
-                          teamId: state.session.teamId,
-                          sessionId: state.session.id,
-                        ),
-                      );
-                    } else {
-                      AppSnackbars.showError(
-                        context,
-                        'تم إنشاء الجلسة لكن لم يتم التحقق من المستخدم.',
-                      );
-                      Navigator.pushReplacementNamed(context, login);
-                    }
+                    final currentActor = _currentActor();
+                    Navigator.pushReplacementNamed(
+                      context,
+                      attendanceTaking,
+                      arguments: AttendanceTakingArgs(
+                        actor: currentActor,
+                        teamId: state.session.teamId,
+                        sessionId: state.session.id,
+                      ),
+                    );
                   }
                 },
                 child: Scaffold(
@@ -326,7 +308,7 @@ class _AttendanceSessionCreateScreenState
                               return FilledButton.icon(
                                 onPressed: isLoading || !hasResolvedTeam
                                     ? null
-                                    : () => _submit(actor, teams),
+                                    : () => _submit(context, actor, teams),
                                 icon: isLoading
                                     ? const SizedBox(
                                         width: 18,

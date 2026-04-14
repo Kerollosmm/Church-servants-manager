@@ -27,13 +27,26 @@ class AssignServantDialog extends StatefulWidget {
 class _AssignServantDialogState extends State<AssignServantDialog> {
   String? _selectedId;
   var _selectionInitialized = false;
+  late AssignServantOptionsCubit _cubit;
+
+  @override
+  void initState() {
+    super.initState();
+    _cubit = AssignServantOptionsCubit(
+      servantRepository: context.read<ServantDataRepository>(),
+    )..load(widget.team.groupId);
+  }
+
+  @override
+  void dispose() {
+    _cubit.close();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => AssignServantOptionsCubit(
-        servantRepository: context.read<ServantDataRepository>(),
-      )..load(widget.team.groupId),
+    return BlocProvider.value(
+      value: _cubit,
       child: BlocBuilder<AssignServantOptionsCubit, AssignServantOptionsState>(
         builder: (context, state) {
           if (state.errorMessage != null) {
@@ -48,9 +61,7 @@ class _AssignServantDialogState extends State<AssignServantDialog> {
                 FilledButton(
                   onPressed: () {
                     _selectionInitialized = false;
-                    context.read<AssignServantOptionsCubit>().load(
-                      widget.team.groupId,
-                    );
+                    _cubit.load(widget.team.groupId);
                   },
                   child: const Text('إعادة المحاولة'),
                 ),
@@ -79,9 +90,7 @@ class _AssignServantDialogState extends State<AssignServantDialog> {
           }
 
           final items = <DropdownMenuItem<String?>>[
-            const DropdownMenuItem<String?>(
-              child: Text('-- بدون تعيين --'),
-            ),
+            const DropdownMenuItem<String?>(child: Text('-- بدون تعيين --')),
             ...uniqueServants.map(
               (servant) => DropdownMenuItem<String?>(
                 value: servant.docID,

@@ -23,7 +23,41 @@ class TeamManagementScreen extends StatefulWidget {
   State<TeamManagementScreen> createState() => _TeamManagementScreenState();
 }
 
-class _TeamManagementScreenState extends State<TeamManagementScreen>
+class _TeamManagementScreenState extends State<TeamManagementScreen> {
+  late TeamCubit _cubit;
+
+  @override
+  void initState() {
+    super.initState();
+    _cubit = TeamCubit(
+      teamRepository: context.read<TeamRepository>(),
+      adminTeamService: context.read<AdminTeamService>(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _cubit.close();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider<TeamCubit>.value(
+      value: _cubit,
+      child: const _TeamManagementView(),
+    );
+  }
+}
+
+class _TeamManagementView extends StatefulWidget {
+  const _TeamManagementView();
+
+  @override
+  State<_TeamManagementView> createState() => _TeamManagementViewState();
+}
+
+class _TeamManagementViewState extends State<_TeamManagementView>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
   late final TeamCubit _teamCubit;
@@ -39,21 +73,19 @@ class _TeamManagementScreenState extends State<TeamManagementScreen>
   @override
   void initState() {
     super.initState();
-    _teamCubit = TeamCubit(
-      teamRepository: context.read<TeamRepository>(),
-      adminTeamService: context.read<AdminTeamService>(),
-    );
+    _teamCubit = context.read<TeamCubit>();
     _tabController = TabController(length: _groups.length, vsync: this);
     _tabController.addListener(_onTabChanged);
     // Load teams for the first tab
-    _loadTeamsForCurrentTab();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadTeamsForCurrentTab();
+    });
   }
 
   @override
   void dispose() {
     _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
-    _teamCubit.close();
     super.dispose();
   }
 
@@ -182,116 +214,109 @@ class _TeamManagementScreenState extends State<TeamManagementScreen>
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider<TeamCubit>.value(
-      value: _teamCubit,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(_showArchived ? 'إدارة الفرق المؤرشفة' : 'إدارة الفرق'),
-          backgroundColor: AppColors.primary,
-          foregroundColor: AppColors.white,
-          actions: [
-            IconButton(
-              tooltip: _showArchived ? 'إخفاء المؤرشف' : 'عرض المؤرشف',
-              icon: Icon(
-                _showArchived
-                    ? Icons.unarchive_outlined
-                    : Icons.archive_outlined,
-              ),
-              onPressed: () {
-                setState(() => _showArchived = !_showArchived);
-                _loadTeamsForCurrentTab();
-              },
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(_showArchived ? 'إدارة الفرق المؤرشفة' : 'إدارة الفرق'),
+        backgroundColor: AppColors.primary,
+        foregroundColor: AppColors.white,
+        actions: [
+          IconButton(
+            tooltip: _showArchived ? 'إخفاء المؤرشف' : 'عرض المؤرشف',
+            icon: Icon(
+              _showArchived ? Icons.unarchive_outlined : Icons.archive_outlined,
             ),
-          ],
-          bottom: TabBar(
-            controller: _tabController,
-            labelColor: AppColors.white,
-            unselectedLabelColor: AppColors.white.withValues(alpha: 0.7),
-            indicatorColor: AppColors.white,
-            tabs: _groups.map((g) => Tab(text: _groupLabel(g))).toList(),
+            onPressed: () {
+              setState(() => _showArchived = !_showArchived);
+              _loadTeamsForCurrentTab();
+            },
           ),
+        ],
+        bottom: TabBar(
+          controller: _tabController,
+          labelColor: AppColors.white,
+          unselectedLabelColor: AppColors.white.withValues(alpha: 0.7),
+          indicatorColor: AppColors.white,
+          tabs: _groups.map((g) => Tab(text: _groupLabel(g))).toList(),
         ),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: _showAddTeamDialog,
-          icon: const Icon(Icons.add),
-          label: const Text('إضافة فريق'),
-        ),
-        body: BlocConsumer<TeamCubit, TeamState>(
-          listener: (context, state) {
-            if (state is TeamError) {
-              AppSnackbars.showError(context, state.message);
-            }
-            if (state is TeamLoaded &&
-                state.feedbackMessage != null &&
-                state.mutationStatus == TeamMutationStatus.success) {
-              AppSnackbars.showSuccess(
-                context,
-                state.feedbackMessage!,
-                backgroundColor: AppColors.secondary,
-              );
-            }
-            if (state is TeamLoaded &&
-                state.feedbackMessage != null &&
-                state.mutationStatus == TeamMutationStatus.failure) {
-              AppSnackbars.showError(context, state.feedbackMessage!);
-            }
-          },
-          builder: (context, state) {
-            if (state is TeamLoading || state is TeamInitial) {
-              return const Center(child: CircularProgressIndicator());
-            }
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showAddTeamDialog,
+        icon: const Icon(Icons.add),
+        label: const Text('إضافة فريق'),
+      ),
+      body: BlocConsumer<TeamCubit, TeamState>(
+        listener: (context, state) {
+          if (state is TeamError) {
+            AppSnackbars.showError(context, state.message);
+          }
+          if (state is TeamLoaded &&
+              state.feedbackMessage != null &&
+              state.mutationStatus == TeamMutationStatus.success) {
+            AppSnackbars.showSuccess(
+              context,
+              state.feedbackMessage!,
+              backgroundColor: AppColors.secondary,
+            );
+          }
+          if (state is TeamLoaded &&
+              state.feedbackMessage != null &&
+              state.mutationStatus == TeamMutationStatus.failure) {
+            AppSnackbars.showError(context, state.feedbackMessage!);
+          }
+        },
+        builder: (context, state) {
+          if (state is TeamLoading || state is TeamInitial) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-            if (state is TeamLoaded) {
-              final teams = state.teams;
-              if (teams.isEmpty) {
-                return AppStateMessage(
-                  icon: _showArchived
-                      ? Icons.archive_outlined
-                      : Icons.group_work_outlined,
-                  title: _showArchived
-                      ? 'لا توجد فرق مؤرشفة'
-                      : 'لا توجد فرق بعد',
-                  message: _showArchived
-                      ? 'عند أرشفة فريق سيظهر هنا.'
-                      : 'اضغط + لإنشاء فريق لهذه السنة.',
-                  onRetry: _loadTeamsForCurrentTab,
-                );
-              }
-
-              return RefreshIndicator(
-                onRefresh: _loadTeamsForCurrentTab,
-                child: ListView.separated(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  itemCount: teams.length,
-                  separatorBuilder: (_, _) => AppSpacing.gapSm,
-                  itemBuilder: (context, index) {
-                    final team = teams[index];
-                    return _TeamCard(
-                      team: team,
-                      onEdit: () => _showEditTeamDialog(team),
-                      onDelete: () => _confirmDeleteTeam(team),
-                      onRestore: () => _restoreTeam(team),
-                      onAssignServant: () => _showAssignServantDialog(team),
-                      onManageMembers: () => _openManageMembers(team),
-                    );
-                  },
-                ),
-              );
-            }
-
-            if (state is TeamError) {
+          if (state is TeamLoaded) {
+            final teams = state.teams;
+            if (teams.isEmpty) {
               return AppStateMessage(
-                icon: Icons.error_outline,
-                iconColor: AppColors.error,
-                title: 'تعذر تحميل الفرق',
-                message: state.message,
+                icon: _showArchived
+                    ? Icons.archive_outlined
+                    : Icons.group_work_outlined,
+                title: _showArchived ? 'لا توجد فرق مؤرشفة' : 'لا توجد فرق بعد',
+                message: _showArchived
+                    ? 'عند أرشفة فريق سيظهر هنا.'
+                    : 'اضغط + لإنشاء فريق لهذه السنة.',
                 onRetry: _loadTeamsForCurrentTab,
               );
             }
 
-            return const SizedBox.shrink();
-          },
-        ),
+            return RefreshIndicator(
+              onRefresh: _loadTeamsForCurrentTab,
+              child: ListView.separated(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                itemCount: teams.length,
+                separatorBuilder: (_, _) => AppSpacing.gapSm,
+                itemBuilder: (context, index) {
+                  final team = teams[index];
+                  return _TeamCard(
+                    team: team,
+                    onEdit: () => _showEditTeamDialog(team),
+                    onDelete: () => _confirmDeleteTeam(team),
+                    onRestore: () => _restoreTeam(team),
+                    onAssignServant: () => _showAssignServantDialog(team),
+                    onManageMembers: () => _openManageMembers(team),
+                  );
+                },
+              ),
+            );
+          }
+
+          if (state is TeamError) {
+            return AppStateMessage(
+              icon: Icons.error_outline,
+              iconColor: AppColors.error,
+              title: 'تعذر تحميل الفرق',
+              message: state.message,
+              onRetry: _loadTeamsForCurrentTab,
+            );
+          }
+
+          return const SizedBox.shrink();
+        },
       ),
     );
   }
@@ -389,7 +414,7 @@ class _TeamCard extends StatelessWidget {
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-          child: Icon(Icons.group, color: AppColors.primary),
+          child: const Icon(Icons.group, color: AppColors.primary),
         ),
         title: Text(
           team.name,

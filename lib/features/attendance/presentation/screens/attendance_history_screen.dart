@@ -36,71 +36,31 @@ class AttendanceHistoryScreen extends StatefulWidget {
 }
 
 class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
-  late final AttendanceHistoryCubit _historyCubit;
-  late final AttendanceSessionAdminCubit _sessionAdminCubit;
-  late final TeamCubit _teamCubit;
   String? _selectedTeamId;
 
   @override
   void initState() {
     super.initState();
-    _historyCubit = AttendanceHistoryCubit(
-      repository: context.read<AttendanceRepository>(),
-    );
-    _sessionAdminCubit = AttendanceSessionAdminCubit(
-      repository: context.read<AttendanceRepository>(),
-    );
-    _teamCubit = TeamCubit(
-      teamRepository: context.read<TeamRepository>(),
-      adminTeamService: context.read<AdminTeamService>(),
-    );
-    final actor = _currentActorOrNull();
-    if (actor != null) {
-      _selectedTeamId =
-          actor.role == UserRole.servant &&
-              actor.effectiveAssignedTeamIds.length == 1
-          ? actor.effectiveAssignedTeamIds.first
-          : null;
-      _loadTeamsForActor(actor);
-      if (_selectedTeamId != null) {
-        _historyCubit.loadForTeam(_selectedTeamId!);
-      }
-    }
+    final actor = _currentActor();
+    _selectedTeamId =
+        actor.role == UserRole.servant &&
+            actor.effectiveAssignedTeamIds.length == 1
+        ? actor.effectiveAssignedTeamIds.first
+        : null;
   }
 
-  @override
-  void dispose() {
-    _historyCubit.close();
-    _sessionAdminCubit.close();
-    _teamCubit.close();
-    super.dispose();
-  }
-
-  AuthUser? _currentActorOrNull() {
+  AuthUser _currentActor() {
     final state = context.read<AuthBloc>().state;
     if (state is AuthAuthenticated) return state.user;
     if (state is AuthDegraded) return state.user;
-    return null;
+    throw StateError('Unreachable');
   }
 
-  void _loadTeamsForActor(AuthUser actor) {
-    if (actor.role == UserRole.admin) {
-      _teamCubit.loadAllTeams();
-      return;
-    }
-
-    final groupId = actor.groupId;
-    if (groupId != null && groupId.isNotEmpty) {
-      _teamCubit.loadTeamsByGroup(
-        groupId,
-        defaultTeamId: actor.effectiveAssignedTeamIds.length == 1
-            ? actor.effectiveAssignedTeamIds.first
-            : null,
-      );
-    }
-  }
-
-  void _ensureInitialTeamSelection(AuthUser actor, List<TeamModel> teams) {
+  void _ensureInitialTeamSelection(
+    AuthUser actor,
+    List<TeamModel> teams,
+    BuildContext context,
+  ) {
     if (_selectedTeamId != null || teams.isEmpty) return;
     final allowedTeamIds = actor.role == UserRole.servant
         ? actor.effectiveAssignedTeamIds.toSet()
@@ -124,7 +84,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       setState(() => _selectedTeamId = candidate!.id);
-      _historyCubit.loadForTeam(candidate!.id);
+      context.read<AttendanceHistoryCubit>().loadForTeam(candidate!.id);
     });
   }
 
@@ -135,15 +95,22 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
     return 'الفريق';
   }
 
-  Future<void> _openCreateScreen() async {
+  Future<void> _openCreateScreen(BuildContext context) async {
     await Navigator.pushNamed(context, attendanceSessionCreate);
+    if (!context.mounted) return;
     if (_selectedTeamId != null) {
-      await _historyCubit.loadForTeam(_selectedTeamId!);
+      await context.read<AttendanceHistoryCubit>().loadForTeam(
+        _selectedTeamId!,
+      );
     }
   }
 
-  Future<void> _closeActiveSession(AuthUser actor, AttendanceSession session) {
-    return _sessionAdminCubit.closeSession(
+  Future<void> _closeActiveSession(
+    AuthUser actor,
+    AttendanceSession session,
+    BuildContext context,
+  ) {
+    return context.read<AttendanceSessionAdminCubit>().closeSession(
       actor: actor,
       teamId: session.teamId,
       sessionId: session.id,
@@ -168,10 +135,44 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
 
         return MultiBlocProvider(
           providers: [
-            BlocProvider<TeamCubit>.value(value: _teamCubit),
-            BlocProvider<AttendanceHistoryCubit>.value(value: _historyCubit),
-            BlocProvider<AttendanceSessionAdminCubit>.value(
-              value: _sessionAdminCubit,
+            BlocProvider<TeamCubit>(
+              create: (context) {
+                final teamCubit = TeamCubit(
+                  teamRepository: context.read<TeamRepository>(),
+                  adminTeamService: context.read<AdminTeamService>(),
+                );
+
+                if (actor.role == UserRole.admin) {
+                  teamCubit.loadAllTeams();
+                } else {
+                  final groupId = actor.groupId;
+                  if (groupId != null && groupId.isNotEmpty) {
+                    teamCubit.loadTeamsByGroup(
+                      groupId,
+                      defaultTeamId: actor.effectiveAssignedTeamIds.length == 1
+                          ? actor.effectiveAssignedTeamIds.first
+                          : null,
+                    );
+                  }
+                }
+                return teamCubit;
+              },
+            ),
+            BlocProvider<AttendanceHistoryCubit>(
+              create: (context) {
+                final cubit = AttendanceHistoryCubit(
+                  repository: context.read<AttendanceRepository>(),
+                );
+                if (_selectedTeamId != null) {
+                  cubit.loadForTeam(_selectedTeamId!);
+                }
+                return cubit;
+              },
+            ),
+            BlocProvider<AttendanceSessionAdminCubit>(
+              create: (context) => AttendanceSessionAdminCubit(
+                repository: context.read<AttendanceRepository>(),
+              ),
             ),
           ],
           child: MultiBlocListener(
@@ -191,225 +192,235 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                       state.message,
                       backgroundColor: AppColors.secondary,
                     );
-                    _historyCubit.loadForTeam(state.session.teamId);
+                    context.read<AttendanceHistoryCubit>().loadForTeam(
+                      state.session.teamId,
+                    );
                   }
                 },
               ),
             ],
-            child: Scaffold(
-              appBar: AppBar(
-                title: const Text('الحضور'),
-                actions: [
-                  IconButton(
-                    icon: const Icon(Icons.refresh),
-                    tooltip: 'تحديث',
-                    onPressed: _selectedTeamId == null
-                        ? null
-                        : () => _historyCubit.loadForTeam(_selectedTeamId!),
-                  ),
-                ],
-              ),
-              floatingActionButton:
-                  actor.role == UserRole.admin || actor.role == UserRole.servant
-                  ? FloatingActionButton.extended(
-                      onPressed: _openCreateScreen,
-                      icon: const Icon(Icons.add_task_outlined),
-                      label: const Text('جلسة جديدة'),
-                    )
-                  : null,
-              body: BlocBuilder<TeamCubit, TeamState>(
-                builder: (context, teamState) {
-                  final teams = teamState is TeamLoaded
-                      ? teamState.teams
-                      : const <TeamModel>[];
-                  _ensureInitialTeamSelection(actor, teams);
+            child: Builder(
+              builder: (innerContext) => Scaffold(
+                appBar: AppBar(
+                  title: const Text('الحضور'),
+                  actions: [
+                    IconButton(
+                      icon: const Icon(Icons.refresh),
+                      tooltip: 'تحديث',
+                      onPressed: _selectedTeamId == null
+                          ? null
+                          : () => innerContext
+                                .read<AttendanceHistoryCubit>()
+                                .loadForTeam(_selectedTeamId!),
+                    ),
+                  ],
+                ),
+                floatingActionButton:
+                    actor.role == UserRole.admin ||
+                        actor.role == UserRole.servant
+                    ? FloatingActionButton.extended(
+                        onPressed: () => _openCreateScreen(innerContext),
+                        icon: const Icon(Icons.add_task_outlined),
+                        label: const Text('جلسة جديدة'),
+                      )
+                    : null,
+                body: BlocBuilder<TeamCubit, TeamState>(
+                  builder: (context, teamState) {
+                    final teams = teamState is TeamLoaded
+                        ? teamState.teams
+                        : const <TeamModel>[];
+                    _ensureInitialTeamSelection(actor, teams, context);
 
-                  return Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(
-                          AppSpacing.md,
-                          AppSpacing.md,
-                          AppSpacing.md,
-                          AppSpacing.sm,
+                    return Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                            AppSpacing.md,
+                            AppSpacing.md,
+                            AppSpacing.md,
+                            AppSpacing.sm,
+                          ),
+                          child: TeamDropdown(
+                            teams: teams,
+                            selectedTeamId: _selectedTeamId,
+                            isLoading: teamState is TeamLoading,
+                            errorMessage: teamState is TeamError
+                                ? teamState.message
+                                : null,
+                            restrictToTeamIds:
+                                actor.role == UserRole.servant &&
+                                    actor.effectiveAssignedTeamIds.isNotEmpty
+                                ? actor.effectiveAssignedTeamIds
+                                : null,
+                            label: 'الفريق',
+                            onChanged: (teamId) {
+                              if (teamId == null || teamId.isEmpty) return;
+                              setState(() => _selectedTeamId = teamId);
+                              context
+                                  .read<AttendanceHistoryCubit>()
+                                  .loadForTeam(teamId);
+                            },
+                          ),
                         ),
-                        child: TeamDropdown(
-                          teams: teams,
-                          selectedTeamId: _selectedTeamId,
-                          isLoading:
-                              teamState is TeamLoading ||
-                              teamState is TeamInitial,
-                          errorMessage: teamState is TeamError
-                              ? teamState.message
-                              : null,
-                          restrictToTeamIds:
-                              actor.role == UserRole.servant &&
-                                  actor.effectiveAssignedTeamIds.isNotEmpty
-                              ? actor.effectiveAssignedTeamIds
-                              : null,
-                          label: 'الفريق',
-                          onChanged: (teamId) {
-                            if (teamId == null || teamId.isEmpty) return;
-                            setState(() => _selectedTeamId = teamId);
-                            _historyCubit.loadForTeam(teamId);
-                          },
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.md,
+                          ),
+                          child: AppInfoBanner(
+                            message:
+                                'الخدام يسجلون حاضر أو متأخر فقط، والغياب يتم اشتقاقه تلقائيا بعد إغلاق الجلسة.',
+                          ),
                         ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.md,
-                        ),
-                        child: AppInfoBanner(
-                          message:
-                              'الخدام يسجلون حاضر أو متأخر فقط، والغياب يتم اشتقاقه تلقائيا بعد إغلاق الجلسة.',
-                        ),
-                      ),
-                      Expanded(
-                        child:
-                            BlocBuilder<
-                              AttendanceHistoryCubit,
-                              AttendanceHistoryState
-                            >(
-                              builder: (context, state) {
-                                if (_selectedTeamId == null) {
-                                  return const Center(
-                                    child: Text(
-                                      'اختر فريقا لعرض جلسات الحضور.',
-                                    ),
-                                  );
-                                }
-
-                                if (state is AttendanceHistoryLoading) {
-                                  return const Center(
-                                    child: CircularProgressIndicator(),
-                                  );
-                                }
-
-                                if (state is AttendanceHistoryError) {
-                                  return Center(
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(
-                                        AppSpacing.lg,
+                        Expanded(
+                          child:
+                              BlocBuilder<
+                                AttendanceHistoryCubit,
+                                AttendanceHistoryState
+                              >(
+                                builder: (context, state) {
+                                  if (_selectedTeamId == null) {
+                                    return const Center(
+                                      child: Text(
+                                        'اختر فريقا لعرض جلسات الحضور.',
                                       ),
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          const Icon(
-                                            Icons.error_outline,
-                                            size: 48,
-                                            color: AppColors.error,
-                                          ),
-                                          AppSpacing.gapMd,
-                                          Text(
-                                            state.message,
-                                            textAlign: TextAlign.center,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  );
-                                }
+                                    );
+                                  }
 
-                                if (state is! AttendanceHistoryLoaded) {
-                                  return const SizedBox.shrink();
-                                }
+                                  if (state is AttendanceHistoryLoading) {
+                                    return const Center(
+                                      child: CircularProgressIndicator(),
+                                    );
+                                  }
 
-                                final activeSession = state.activeSession;
-                                final sessions = state.sessions;
-
-                                if (sessions.isEmpty) {
-                                  return AppEmptyState(
-                                    title: 'لا توجد جلسات حضور',
-                                    subtitle:
-                                        'أنشئ جلسة جديدة لبدء تسجيل الحضور لهذا الفريق.',
-                                    onRefresh: () =>
-                                        _historyCubit.loadForTeam(
-                                          _selectedTeamId!,
+                                  if (state is AttendanceHistoryError) {
+                                    return Center(
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(
+                                          AppSpacing.lg,
                                         ),
-                                  );
-                                }
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(
+                                              Icons.error_outline,
+                                              size: 48,
+                                              color: AppColors.error,
+                                            ),
+                                            AppSpacing.gapMd,
+                                            Text(
+                                              state.message,
+                                              textAlign: TextAlign.center,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  }
 
-                                final historySessions = sessions
-                                    .where(
-                                      (session) =>
-                                          activeSession == null ||
-                                          session.id != activeSession.id,
-                                    )
-                                    .toList(growable: false);
+                                  if (state is! AttendanceHistoryLoaded) {
+                                    return const SizedBox.shrink();
+                                  }
 
-                                return ListView.builder(
-                                  padding: const EdgeInsets.all(AppSpacing.md),
-                                  itemCount:
-                                      (activeSession != null ? 1 : 0) +
-                                      historySessions.length,
-                                  itemBuilder: (context, index) {
-                                    if (activeSession != null && index == 0) {
+                                  final activeSession = state.activeSession;
+                                  final sessions = state.sessions;
+
+                                  if (sessions.isEmpty) {
+                                    return AppEmptyState(
+                                      title: 'لا توجد جلسات حضور',
+                                      subtitle:
+                                          'أنشئ جلسة جديدة لبدء تسجيل الحضور لهذا الفريق.',
+                                      onRefresh: () => context
+                                          .read<AttendanceHistoryCubit>()
+                                          .loadForTeam(_selectedTeamId!),
+                                    );
+                                  }
+
+                                  final historySessions = sessions
+                                      .where(
+                                        (session) =>
+                                            activeSession == null ||
+                                            session.id != activeSession.id,
+                                      )
+                                      .toList(growable: false);
+
+                                  return ListView.builder(
+                                    padding: const EdgeInsets.all(
+                                      AppSpacing.md,
+                                    ),
+                                    itemCount:
+                                        (activeSession != null ? 1 : 0) +
+                                        historySessions.length,
+                                    itemBuilder: (context, index) {
+                                      if (activeSession != null && index == 0) {
+                                        return Padding(
+                                          padding: const EdgeInsets.only(
+                                            bottom: AppSpacing.md,
+                                          ),
+                                          child: _ActiveSessionCard(
+                                            teamName: _teamName(
+                                              teams,
+                                              _selectedTeamId,
+                                            ),
+                                            session: activeSession,
+                                            canClose:
+                                                actor.role == UserRole.admin,
+                                            onOpen: () {
+                                              Navigator.pushNamed(
+                                                context,
+                                                attendanceTaking,
+                                                arguments: AttendanceTakingArgs(
+                                                  actor: actor,
+                                                  teamId: activeSession.teamId,
+                                                  sessionId: activeSession.id,
+                                                ),
+                                              );
+                                            },
+                                            onClose:
+                                                actor.role == UserRole.admin
+                                                ? () => _closeActiveSession(
+                                                    actor,
+                                                    activeSession,
+                                                    context,
+                                                  )
+                                                : null,
+                                          ),
+                                        );
+                                      }
+
+                                      final sessionIndex = activeSession != null
+                                          ? index - 1
+                                          : index;
+                                      final session =
+                                          historySessions[sessionIndex];
+
                                       return Padding(
                                         padding: const EdgeInsets.only(
                                           bottom: AppSpacing.md,
                                         ),
-                                        child: _ActiveSessionCard(
-                                          teamName: _teamName(
-                                            teams,
-                                            _selectedTeamId,
-                                          ),
-                                          session: activeSession,
-                                          canClose:
-                                              actor.role == UserRole.admin,
-                                          onOpen: () {
+                                        child: _SessionHistoryCard(
+                                          session: session,
+                                          onTap: () {
                                             Navigator.pushNamed(
                                               context,
                                               attendanceTaking,
                                               arguments: AttendanceTakingArgs(
                                                 actor: actor,
-                                                teamId: activeSession.teamId,
-                                                sessionId: activeSession.id,
+                                                teamId: session.teamId,
+                                                sessionId: session.id,
                                               ),
                                             );
                                           },
-                                          onClose: actor.role == UserRole.admin
-                                              ? () => _closeActiveSession(
-                                                  actor,
-                                                  activeSession,
-                                                )
-                                              : null,
                                         ),
                                       );
-                                    }
-
-                                    final sessionIndex = activeSession != null
-                                        ? index - 1
-                                        : index;
-                                    final session =
-                                        historySessions[sessionIndex];
-
-                                    return Padding(
-                                      padding: const EdgeInsets.only(
-                                        bottom: AppSpacing.md,
-                                      ),
-                                      child: _SessionHistoryCard(
-                                        session: session,
-                                        onTap: () {
-                                          Navigator.pushNamed(
-                                            context,
-                                            attendanceTaking,
-                                            arguments: AttendanceTakingArgs(
-                                              actor: actor,
-                                              teamId: session.teamId,
-                                              sessionId: session.id,
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                    );
-                                  },
-                                );
-                              },
-                            ),
-                      ),
-                    ],
-                  );
-                },
+                                    },
+                                  );
+                                },
+                              ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
               ),
             ),
           ),

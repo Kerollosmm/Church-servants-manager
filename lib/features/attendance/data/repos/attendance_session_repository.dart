@@ -140,8 +140,16 @@ class AttendanceSessionRepository {
       final activeSessions = <AttendanceSession>[];
       final clashingIds = <String>[];
 
-      for (final id in openSessionIds) {
-        final sDoc = await transaction.get(_sessionDoc(normalizedTeamId, id));
+      // Fetch all open sessions in parallel within the transaction
+      final sDocs = await Future.wait(
+        openSessionIds.map(
+          (id) => transaction.get(_sessionDoc(normalizedTeamId, id)),
+        ),
+      );
+
+      for (var i = 0; i < openSessionIds.length; i++) {
+        final id = openSessionIds[i];
+        final sDoc = sDocs[i];
         if (sDoc.exists && sDoc.data() != null) {
           final existing = AttendanceSession.fromMap(sDoc.data()!, sDoc.id);
           if (!existing.isEffectivelyClosedAt(now)) {
@@ -241,9 +249,15 @@ class AttendanceSessionRepository {
       final now = DateTime.now();
       final clashingIds = <String>[];
 
-      for (final id in openSessionIds) {
-        if (id == sessionId) continue;
-        final sDoc = await transaction.get(_sessionDoc(teamId, id));
+      // Fetch all open sessions in parallel (excluding the target session)
+      final idsToCheck = openSessionIds.where((id) => id != sessionId).toList();
+      final sDocs = await Future.wait(
+        idsToCheck.map((id) => transaction.get(_sessionDoc(teamId, id))),
+      );
+
+      for (var i = 0; i < idsToCheck.length; i++) {
+        final id = idsToCheck[i];
+        final sDoc = sDocs[i];
         if (sDoc.exists && sDoc.data() != null) {
           final existing = AttendanceSession.fromMap(sDoc.data()!, sDoc.id);
           if (!existing.isEffectivelyClosedAt(now)) {

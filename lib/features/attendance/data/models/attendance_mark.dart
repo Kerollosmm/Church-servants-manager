@@ -14,18 +14,42 @@ class AttendanceMark with _$AttendanceMark {
   const AttendanceMark._();
 
   const factory AttendanceMark({
+    /// The student document ID (used as the Firestore mark document ID).
     required String studentId,
+
+    /// The student's display name captured at mark time.
     required String studentNameSnapshot,
+
+    /// Optional UID of the student's auth account (null if student has no account).
+    String? studentUid,
+
+    /// The attendance status of the student.
     @AttendanceMarkStatusJsonConverter() required AttendanceMarkStatus status,
+
+    /// UID of the servant/admin who created this mark.
     required String markedByUserId,
+
+    /// Name of the servant/admin who created this mark.
     required String markedByName,
+
+    /// Device-side timestamp when the mark was first created.
     @_RequiredTimestampConverter() required DateTime markedAt,
+
+    /// Device-side timestamp of the last update to this mark.
     @_RequiredTimestampConverter() required DateTime updatedAt,
+
+    /// Server-side timestamp set by Firestore on write (nullable).
+    @FirestoreTimestampConverter() DateTime? serverUpdatedAt,
+
+    /// Optional note added by the servant when marking.
     String? note,
   }) = _AttendanceMark;
 
   factory AttendanceMark.fromJson(Map<String, dynamic> json) =>
       _$AttendanceMarkFromJson(json);
+
+  /// Whether this mark represents the student being present (present or late).
+  bool get isPresent => status == AttendanceMarkStatus.present;
 
   factory AttendanceMark.fromMap(
     Map<String, dynamic> data,
@@ -49,10 +73,12 @@ class AttendanceMark with _$AttendanceMark {
       'studentId': studentDocId,
       'studentNameSnapshot': readString('studentNameSnapshot') ?? '',
       'status': readString('status') ?? AttendanceMarkStatus.present.name,
+      'studentUid': readString('studentUid'),
       'markedByUserId': readString('markedByUserId') ?? '',
       'markedByName': readString('markedByName') ?? '',
       'markedAt': markedAt,
       'updatedAt': converter.fromJson(data['updatedAt']) ?? markedAt,
+      'serverUpdatedAt': converter.fromJson(data['serverUpdatedAt']),
       'note': readString('note'),
     });
   }
@@ -60,6 +86,8 @@ class AttendanceMark with _$AttendanceMark {
   Map<String, dynamic> toMap() {
     final map = toJson();
     map.remove('studentId');
+    // Remove serverUpdatedAt from client writes — Firestore sets it.
+    map.remove('serverUpdatedAt');
     return map;
   }
 }

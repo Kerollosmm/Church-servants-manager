@@ -148,7 +148,7 @@ class AdminTeamService {
       if (!newServantSnap.exists || newServantData == null) {
         throw StateError('Servant not found');
       }
-      
+
       DocumentSnapshot<Map<String, dynamic>>? oldServantSnap;
       if (oldServantRef != null && oldServantId != servant.docID) {
         oldServantSnap = await transaction.get(oldServantRef);

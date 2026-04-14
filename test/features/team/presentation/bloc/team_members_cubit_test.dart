@@ -161,10 +161,7 @@ void main() {
 
     expect(cubit.state.isSaving, isFalse);
     expect(cubit.state.mutationStatus, TeamMembersMutationStatus.failure);
-    expect(
-      cubit.state.feedbackMessage,
-      isNotEmpty,
-    );
+    expect(cubit.state.feedbackMessage, isNotEmpty);
     await cubit.close();
   });
 }
