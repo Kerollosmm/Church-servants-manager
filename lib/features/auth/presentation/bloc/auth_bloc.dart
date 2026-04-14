@@ -95,6 +95,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(const AuthLoading());
     try {
+      // Give the auth stream 5 seconds before falling back to cached user
       final initialUser =
           _authService.currentUser ??
           await _authService.authStateChanges.first.timeout(
