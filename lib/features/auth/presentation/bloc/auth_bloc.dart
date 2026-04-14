@@ -159,10 +159,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthEventSignOut event,
     Emitter<AuthState> emit,
   ) async {
-    await _runAuthAction(emit, () async {
+    emit(const AuthSigningOut()); // explicit transition
+    try {
       await _authService.signOut();
       emit(const AuthUnauthenticated());
-    }, emitLoading: true);
+    } on AuthFailure catch (e) {
+      emit(AuthError(e.message));
+    } catch (_) {
+      emit(const AuthError('Sign out failed. Please try again.'));
+    }
   }
 
   Future<void> _onSendVerification(
@@ -204,6 +209,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     _AuthEventSessionChanged event,
     Emitter<AuthState> emit,
   ) async {
+    // Don't process session changes while actively signing out
+    if (state is AuthSigningOut) return;
     await _emitResolvedState(emit, event.user);
   }
 

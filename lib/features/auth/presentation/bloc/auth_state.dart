@@ -59,3 +59,7 @@ class AuthPasswordResetSent extends AuthState {
 class AuthPasswordResetSuccess extends AuthState {
   const AuthPasswordResetSuccess();
 }
+
+class AuthSigningOut extends AuthState {
+  const AuthSigningOut();
+}
