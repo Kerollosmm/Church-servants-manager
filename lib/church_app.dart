@@ -2,13 +2,13 @@ import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/routing/app_router.dart';
 import 'package:church_management_system/core/theme/app_theme.dart';
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
-import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
+import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
 import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
 import 'package:church_management_system/features/auth/data/services/auth_service.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:church_management_system/features/servant/data/repo/servant_data_repository.dart';
+import 'package:church_management_system/features/servant/domain/repos/i_servant_repository.dart';
 import 'package:church_management_system/features/servant/presentation/bloc/servant_data/servant_data_cubit.dart';
-import 'package:church_management_system/features/student/data/repos/student_data_repository.dart';
+import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
 import 'package:church_management_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
 import 'package:church_management_system/features/student/domain/usecases/get_students_stream_usecase.dart';
 import 'package:church_management_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
@@ -28,11 +28,11 @@ class ChurchApp extends StatelessWidget {
         RepositoryProvider<TeamRepository>.value(
           value: getIt<TeamRepository>(),
         ),
-        RepositoryProvider<StudentDataRepository>.value(
-          value: getIt<StudentDataRepository>(),
+        RepositoryProvider<IStudentRepository>.value(
+          value: getIt<IStudentRepository>(),
         ),
-        RepositoryProvider<ServantDataRepository>.value(
-          value: getIt<ServantDataRepository>(),
+        RepositoryProvider<IServantRepository>.value(
+          value: getIt<IServantRepository>(),
         ),
         RepositoryProvider<AdminTeamService>.value(
           value: getIt<AdminTeamService>(),
@@ -47,8 +47,8 @@ class ChurchApp extends StatelessWidget {
         RepositoryProvider<CanMutateStudentUseCase>.value(
           value: getIt<CanMutateStudentUseCase>(),
         ),
-        RepositoryProvider<AttendanceRepository>.value(
-          value: getIt<AttendanceRepository>(),
+        RepositoryProvider<IAttendanceRepository>.value(
+          value: getIt<IAttendanceRepository>(),
         ),
       ],
       child: MultiBlocProvider(
@@ -60,12 +60,12 @@ class ChurchApp extends StatelessWidget {
           ),
           BlocProvider(
             create: (context) => StudentProfileCubit(
-              studentRepository: context.read<StudentDataRepository>(),
+              studentRepository: context.read<IStudentRepository>(),
             ),
           ),
           BlocProvider(
             create: (context) => StudentDataBloc(
-              studentRepository: context.read<StudentDataRepository>(),
+              studentRepository: context.read<IStudentRepository>(),
               getStudentsStream: context.read<GetStudentsStreamUseCase>(),
               canMutateStudent: context.read<CanMutateStudentUseCase>(),
               adminUserProvisioningService: context
@@ -74,7 +74,7 @@ class ChurchApp extends StatelessWidget {
           ),
           BlocProvider(
             create: (context) => ServantDataCubit(
-              repository: context.read<ServantDataRepository>(),
+              repository: context.read<IServantRepository>(),
               adminUserProvisioningService: context
                   .read<AdminUserProvisioningService>(),
             ),
