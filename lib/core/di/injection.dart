@@ -26,14 +26,7 @@ final getIt = GetIt.instance;
 void configureDependencies() {
   // ---- External ----
   getIt
-    ..registerLazySingleton<FirebaseFirestore>(() {
-      final firestore = FirebaseFirestore.instance
-        ..settings = const Settings(
-          persistenceEnabled: true,
-          cacheSizeBytes: 100 * 1024 * 1024,
-        );
-      return firestore;
-    })
+    ..registerLazySingleton<FirebaseFirestore>(() => FirebaseFirestore.instance)
 
     // ---- Auth Freshness ----
     // Note: AuthFreshnessPolicy.initialize() must be called after login
