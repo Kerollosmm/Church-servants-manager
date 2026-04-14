@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/data/services/auth_service.dart';
@@ -89,7 +90,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       }
     } on AuthFailure catch (e) {
       emit(AuthError(e.message));
-    } catch (_) {
+    } catch (e, stackTrace) {
+      // Log with stack trace for debugging; show generic message to user
+      developer.log(
+        'AuthBloc: Unexpected error',
+        error: e,
+        stackTrace: stackTrace,
+        name: 'AuthBloc',
+      );
       emit(const AuthError('Something went wrong. Please try again.'));
     }
   }
