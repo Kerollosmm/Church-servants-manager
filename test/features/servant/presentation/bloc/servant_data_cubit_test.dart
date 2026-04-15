@@ -1,20 +1,20 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
-import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
 import 'package:church_management_system/features/servant/data/models/servant_models.dart';
 import 'package:church_management_system/features/servant/data/repo/servant_data_repository.dart';
+import 'package:church_management_system/features/servant/domain/usecases/provision_servant_with_auth_usecase.dart';
 import 'package:church_management_system/features/servant/presentation/bloc/servant_data/servant_data_cubit.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockServantDataRepository extends Mock implements ServantDataRepository {}
 
-class MockAdminUserProvisioningService extends Mock
-    implements AdminUserProvisioningService {}
+class MockProvisionServantWithAuthUseCase extends Mock
+    implements ProvisionServantWithAuthUseCase {}
 
 void main() {
   late MockServantDataRepository repository;
-  late MockAdminUserProvisioningService adminUserProvisioningService;
+  late MockProvisionServantWithAuthUseCase provisionUseCase;
 
   AuthUser actor(UserRole role) => AuthUser(
     uid: 'u1',
@@ -33,13 +33,13 @@ void main() {
 
   setUp(() {
     repository = MockServantDataRepository();
-    adminUserProvisioningService = MockAdminUserProvisioningService();
+    provisionUseCase = MockProvisionServantWithAuthUseCase();
   });
 
   test('denies non-admin load with permission error', () async {
     final cubit = ServantDataCubit(
       repository: repository,
-      adminUserProvisioningService: adminUserProvisioningService,
+      provisionUseCase: provisionUseCase,
     );
 
     final expectation = expectLater(
@@ -80,7 +80,7 @@ void main() {
 
       final cubit = ServantDataCubit(
         repository: repository,
-        adminUserProvisioningService: adminUserProvisioningService,
+        provisionUseCase: provisionUseCase,
       );
 
       final expectation = expectLater(
@@ -110,40 +110,35 @@ void main() {
     },
   );
 
-  test('create rolls back linked auth user when servant write fails', () async {
+  test('create calls provisionUseCase and reloads data', () async {
     final admin = actor(UserRole.admin);
     final newServant = servant('draft-id', 'Andrew');
-    final linkedAuthUser = AuthUser(
-      uid: 'auth-uid',
-      email: 'servant@example.com',
-      name: newServant.name,
-      role: UserRole.servant,
-    );
 
     when(
-      () => adminUserProvisioningService.createUser(
-        email: 'servant@example.com',
-        password: 'secret123',
-        name: newServant.name,
-        role: UserRole.servant,
-      ),
-    ).thenAnswer((_) async => linkedAuthUser);
-    when(
-      () => repository.createServant(
-        newServant.copyWith(uid: 'auth-uid', docID: 'auth-uid'),
-      ),
-    ).thenThrow(Exception('write failed'));
-    when(
-      () => adminUserProvisioningService.rollbackCreatedUser(
-        uid: 'auth-uid',
+      () => provisionUseCase.call(
+        servant: newServant,
         email: 'servant@example.com',
         password: 'secret123',
       ),
-    ).thenAnswer((_) async {});
+    ).thenAnswer((_) async => 'auth-uid');
+
+    when(
+      () => repository.getServantsPage(
+        limit: any(named: 'limit'),
+        lastDocument: any(named: 'lastDocument'),
+        includeArchived: any(named: 'includeArchived'),
+      ),
+    ).thenAnswer(
+      (_) async => ServantsPage(
+        servants: [servant('auth-uid', 'Andrew')],
+        lastDocument: null,
+        hasMore: false,
+      ),
+    );
 
     final cubit = ServantDataCubit(
       repository: repository,
-      adminUserProvisioningService: adminUserProvisioningService,
+      provisionUseCase: provisionUseCase,
     );
 
     final expectation = expectLater(
@@ -154,10 +149,16 @@ void main() {
           'mutationStatus',
           ServantMutationStatus.inProgress,
         ),
-        isA<ServantDataError>().having(
-          (s) => s.message,
-          'message',
-          'Exception: write failed',
+        isA<ServantDataLoading>(),
+        isA<ServantDataLoaded>().having(
+          (s) => s.mutationStatus,
+          'mutationStatus',
+          ServantMutationStatus.idle,
+        ),
+        isA<ServantDataLoaded>().having(
+          (s) => s.mutationStatus,
+          'mutationStatus',
+          ServantMutationStatus.success,
         ),
       ]),
     );
@@ -170,10 +171,9 @@ void main() {
     );
 
     await expectation;
-    verify(() => repository.createServant(any())).called(1);
     verify(
-      () => adminUserProvisioningService.rollbackCreatedUser(
-        uid: 'auth-uid',
+      () => provisionUseCase.call(
+        servant: newServant,
         email: 'servant@example.com',
         password: 'secret123',
       ),
@@ -182,7 +182,7 @@ void main() {
   });
 
   test(
-    'restoreServant restores archived servant and emits success state',
+    'restoreServant restores archived servant via usecase and emits success state',
     () async {
       final admin = actor(UserRole.admin);
       final archivedServant = servant(
@@ -193,12 +193,15 @@ void main() {
       when(
         () => repository.getServantById('s1', includeArchived: true),
       ).thenAnswer((_) async => archivedServant);
+
       when(
-        () => repository.restoreServant('s1', performedByUid: admin.uid),
+        () => provisionUseCase.restore(
+          docId: 's1',
+          performedByUid: admin.uid,
+          linkedUid: archivedServant.uid,
+        ),
       ).thenAnswer((_) async {});
-      when(
-        () => adminUserProvisioningService.restoreUser(uid: 's1'),
-      ).thenAnswer((_) async {});
+
       when(
         () => repository.getServantsPage(
           limit: any(named: 'limit'),
@@ -215,7 +218,7 @@ void main() {
 
       final cubit = ServantDataCubit(
         repository: repository,
-        adminUserProvisioningService: adminUserProvisioningService,
+        provisionUseCase: provisionUseCase,
       );
 
       final expectation = expectLater(
@@ -233,10 +236,11 @@ void main() {
 
       await expectation;
       verify(
-        () => repository.restoreServant('s1', performedByUid: admin.uid),
-      ).called(1);
-      verify(
-        () => adminUserProvisioningService.restoreUser(uid: 's1'),
+        () => provisionUseCase.restore(
+          docId: 's1',
+          performedByUid: admin.uid,
+          linkedUid: archivedServant.uid,
+        ),
       ).called(1);
       await cubit.close();
     },

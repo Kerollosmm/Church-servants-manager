@@ -7,10 +7,12 @@ import 'package:church_management_system/features/auth/data/services/admin_user_
 import 'package:church_management_system/features/auth/data/services/auth_service.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_management_system/features/servant/domain/repos/i_servant_repository.dart';
+import 'package:church_management_system/features/servant/domain/usecases/provision_servant_with_auth_usecase.dart';
 import 'package:church_management_system/features/servant/presentation/bloc/servant_data/servant_data_cubit.dart';
 import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
 import 'package:church_management_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
 import 'package:church_management_system/features/student/domain/usecases/get_students_stream_usecase.dart';
+import 'package:church_management_system/features/student/domain/usecases/provision_student_with_auth_usecase.dart';
 import 'package:church_management_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
 import 'package:church_management_system/features/student/presentation/bloc/student_profile/student_profile_cubit.dart';
 import 'package:church_management_system/features/team/data/repos/team_repository.dart';
@@ -68,15 +70,13 @@ class ChurchApp extends StatelessWidget {
               studentRepository: context.read<IStudentRepository>(),
               getStudentsStream: context.read<GetStudentsStreamUseCase>(),
               canMutateStudent: context.read<CanMutateStudentUseCase>(),
-              adminUserProvisioningService: context
-                  .read<AdminUserProvisioningService>(),
+              provisionUseCase: getIt<ProvisionStudentWithAuthUseCase>(),
             ),
           ),
           BlocProvider(
             create: (context) => ServantDataCubit(
               repository: context.read<IServantRepository>(),
-              adminUserProvisioningService: context
-                  .read<AdminUserProvisioningService>(),
+              provisionUseCase: getIt<ProvisionServantWithAuthUseCase>(),
             ),
           ),
         ],

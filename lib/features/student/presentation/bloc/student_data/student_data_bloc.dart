@@ -2,12 +2,11 @@ import 'dart:async';
 
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
-import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
-import 'package:church_management_system/features/auth/domain/failures/auth_exceptions.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
 import 'package:church_management_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
 import 'package:church_management_system/features/student/domain/usecases/get_students_stream_usecase.dart';
+import 'package:church_management_system/features/student/domain/usecases/provision_student_with_auth_usecase.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -23,7 +22,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
   final IStudentRepository _studentRepository;
   final GetStudentsStreamUseCase _getStudentsStream;
   final CanMutateStudentUseCase _canMutateStudent;
-  final AdminUserProvisioningService _adminUserProvisioningService;
+  final ProvisionStudentWithAuthUseCase _provisionUseCase;
 
   StreamSubscription<List<StudentModel>>? _studentsSubscription;
   Completer<void>? _pendingRefreshCompleter;
@@ -38,11 +37,11 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     required IStudentRepository studentRepository,
     required GetStudentsStreamUseCase getStudentsStream,
     required CanMutateStudentUseCase canMutateStudent,
-    required AdminUserProvisioningService adminUserProvisioningService,
+    required ProvisionStudentWithAuthUseCase provisionUseCase,
   }) : _studentRepository = studentRepository,
        _getStudentsStream = getStudentsStream,
        _canMutateStudent = canMutateStudent,
-       _adminUserProvisioningService = adminUserProvisioningService,
+       _provisionUseCase = provisionUseCase,
        super(const StudentDataInitial()) {
     on<StudentsLoadRequested>(_onLoadStudents);
     on<StudentsSearchRequested>(_onSearchStudents);
@@ -181,41 +180,6 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
       mutationStatus: StudentMutationStatus.success,
       mutationOperation: mutationOperation,
       successMessage: message,
-    );
-  }
-
-  bool _canCreateAuthAccount(StudentCreated event) {
-    return event.email != null &&
-        event.email!.isNotEmpty &&
-        event.password != null &&
-        event.password!.isNotEmpty;
-  }
-
-  Future<AuthUser?> _createLinkedAuthUser(StudentCreated event) async {
-    if (!_canCreateAuthAccount(event)) {
-      return null;
-    }
-
-    return _adminUserProvisioningService.createUser(
-      email: event.email!,
-      password: event.password!,
-      name: event.student.name,
-      role: event.student.role,
-    );
-  }
-
-  Future<void> _rollbackLinkedAuthUser(
-    StudentCreated event,
-    AuthUser authUser,
-  ) async {
-    if (!_canCreateAuthAccount(event)) {
-      return;
-    }
-
-    await _adminUserProvisioningService.rollbackCreatedUser(
-      uid: authUser.uid,
-      email: event.email!,
-      password: event.password!,
     );
   }
 
@@ -393,36 +357,20 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     StudentCreated event,
     Emitter<StudentDataState> emit,
   ) async {
-    AuthUser? createdAuthUser;
     try {
       if (!_canMutateStudent(event.actor, event.student)) {
         _emitNotAllowed(emit);
         return;
       }
 
-      createdAuthUser = await _createLinkedAuthUser(event);
-      final studentToCreate = createdAuthUser == null
-          ? event.student
-          : event.student.copyWith(
-              uid: createdAuthUser.uid,
-              docID: createdAuthUser.uid,
-            );
+      await _provisionUseCase(
+        student: event.student,
+        email: event.email,
+        password: event.password,
+      );
 
-      await _studentRepository.createStudent(studentToCreate);
       _emitSuccessWithData(emit, 'تم إنشاء المخدوم بنجاح');
     } catch (e) {
-      if (createdAuthUser != null) {
-        try {
-          await _rollbackLinkedAuthUser(event, createdAuthUser);
-        } catch (rollbackError) {
-          _emitError(
-            emit,
-            'تعذر إنشاء المخدوم، كما فشلت إعادة التراجع عن الحساب المرتبط',
-            rollbackError,
-          );
-          return;
-        }
-      }
       _emitError(emit, 'تعذر إنشاء المخدوم', e);
     }
   }
@@ -494,44 +442,13 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
         _emitNotAllowed(emit);
         return;
       }
-      // 1. Archive student doc first (local)
-      await _studentRepository.archiveStudent(
-        event.docId,
+
+      await _provisionUseCase.archive(
+        docId: event.docId,
         performedByUid: event.actor.uid,
+        linkedUid: existing.uid,
       );
 
-      // 2. Archive Auth user (remote)
-      if (existing.uid.trim().isNotEmpty) {
-        try {
-          await _adminUserProvisioningService.archiveUser(
-            uid: existing.uid.trim(),
-          );
-        } catch (authError) {
-          // If Auth archive fails, attempt to rollback Firestore archive
-          try {
-            await _studentRepository.restoreStudent(
-              event.docId,
-              performedByUid: event.actor.uid,
-            );
-          } catch (rollbackError) {
-            // CRITICAL: Both primary action and rollback failed
-            if (kDebugMode) {
-              debugPrint(
-                'CRITICAL [StudentDataBloc]: FAILED to archive Auth user '
-                'AND FAILED to rollback Firestore archive. '
-                'UID: ${existing.uid}, '
-                'StudentDocId: ${event.docId}. '
-                'Primary Error: $authError, '
-                'Rollback Error: $rollbackError',
-              );
-            }
-            throw GenericAuthException(
-              'خطأ فادح: النظام في حالة غير مستقرة. تعذر أرشفة الحساب وتعذر التراجع عن العملية (UID: ${existing.uid}).',
-            );
-          }
-          rethrow; // Rethrow the original authError if rollback succeeded
-        }
-      }
       _emitSuccessWithData(
         emit,
         'تمت أرشفة المخدوم بنجاح',
@@ -560,44 +477,12 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
         return;
       }
 
-      // 1. Restore student doc first (local)
-      await _studentRepository.restoreStudent(
-        event.docId,
+      await _provisionUseCase.restore(
+        docId: event.docId,
         performedByUid: event.actor.uid,
+        linkedUid: existing.uid,
       );
 
-      // 2. Restore Auth user (remote)
-      if (existing.uid.trim().isNotEmpty) {
-        try {
-          await _adminUserProvisioningService.restoreUser(
-            uid: existing.uid.trim(),
-          );
-        } catch (authError) {
-          // If Auth restore fails, attempt to rollback Firestore restore
-          try {
-            await _studentRepository.archiveStudent(
-              event.docId,
-              performedByUid: event.actor.uid,
-            );
-          } catch (rollbackError) {
-            // CRITICAL: Both primary action and rollback failed
-            if (kDebugMode) {
-              debugPrint(
-                'CRITICAL [StudentDataBloc]: FAILED to restore Auth user '
-                'AND FAILED to rollback Firestore restore. '
-                'UID: ${existing.uid}, '
-                'StudentDocId: ${event.docId}. '
-                'Primary Error: $authError, '
-                'Rollback Error: $rollbackError',
-              );
-            }
-            throw GenericAuthException(
-              'خطأ فادح: النظام في حالة غير مستقرة. تعذر استعادة الحساب وتعذر التراجع عن العملية (UID: ${existing.uid}).',
-            );
-          }
-          rethrow; // Rethrow the original authError if rollback succeeded
-        }
-      }
       _emitSuccessWithData(
         emit,
         'تمت استعادة المخدوم بنجاح',
