@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/data/services/auth_service.dart';
@@ -89,7 +90,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       }
     } on AuthFailure catch (e) {
       emit(AuthError(e.message));
-    } catch (_) {
+    } catch (e, stackTrace) {
+      developer.log(
+        'AuthBloc: Unexpected error',
+        error: e,
+        stackTrace: stackTrace,
+        name: 'AuthBloc',
+      );
       emit(const AuthError('Something went wrong. Please try again.'));
     }
   }
@@ -100,10 +107,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(const AuthLoading());
     try {
+      // Give the auth stream 5 seconds before falling back to cached user
       final initialUser =
           _authService.currentUser ??
           await _authService.authStateChanges.first.timeout(
-            const Duration(seconds: 2),
+            const Duration(seconds: 5),
             onTimeout: () => null,
           );
 
@@ -163,10 +171,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthEventSignOut event,
     Emitter<AuthState> emit,
   ) async {
-    await _runAuthAction(emit, () async {
+    emit(const AuthSigningOut());           // explicit transition
+    try {
       await _authService.signOut();
       emit(const AuthUnauthenticated());
-    }, emitLoading: true);
+    } on AuthFailure catch (e) {
+      emit(AuthError(e.message));
+    } catch (_) {
+      emit(const AuthError('Sign out failed. Please try again.'));
+    }
   }
 
   Future<void> _onSendVerification(
@@ -208,6 +221,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     _AuthEventSessionChanged event,
     Emitter<AuthState> emit,
   ) async {
+    // Don't process session changes while actively signing out
+    if (state is AuthSigningOut) return;
     await _emitResolvedState(emit, event.user);
   }
 
