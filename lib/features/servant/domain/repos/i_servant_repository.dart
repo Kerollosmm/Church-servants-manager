@@ -1,7 +1,7 @@
 import 'package:church_management_system/features/servant/data/models/servant_models.dart';
 import 'package:church_management_system/features/servant/data/repo/servant_data_repository.dart'
     show ServantsPage;
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:church_management_system/core/utils/pagination_cursor.dart';
 
 /// Domain interface for servant repository.
 /// Enables dependency inversion: presentation and domain layers
@@ -16,13 +16,13 @@ abstract class IServantRepository {
 
   Future<List<ServantModel>> getAllServants({
     int limit,
-    DocumentSnapshot? lastDocument,
+    PaginationCursor? cursor,
     bool includeArchived,
   });
 
   Future<ServantsPage> getServantsPage({
     int limit,
-    DocumentSnapshot<Map<String, dynamic>>? lastDocument,
+    PaginationCursor? cursor,
     bool includeArchived,
   });
 

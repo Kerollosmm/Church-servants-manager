@@ -5,7 +5,7 @@ import 'package:church_management_system/features/servant/domain/failures/servan
 import 'package:church_management_system/features/servant/domain/repos/i_servant_repository.dart';
 import 'package:church_management_system/features/servant/domain/usecases/provision_servant_with_auth_usecase.dart';
 import 'package:church_management_system/features/servant/presentation/bloc/servant_data/servant_data_state.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:church_management_system/core/utils/pagination_cursor.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 export 'servant_data_state.dart';
@@ -33,7 +33,7 @@ class ServantDataCubit extends Cubit<ServantDataState> {
   bool _hasMore = true;
   bool _isLoadingMore = false;
   bool _isLoadingFirstPage = false;
-  DocumentSnapshot<Map<String, dynamic>>? _lastDocument;
+  PaginationCursor? _lastDocument;
 
   ServantDataLoaded? get _loadedState =>
       state is ServantDataLoaded ? state as ServantDataLoaded : null;
@@ -314,7 +314,7 @@ class ServantDataCubit extends Cubit<ServantDataState> {
     try {
       final page = await _repository.getServantsPage(
         limit: _lastLimit,
-        lastDocument: _lastDocument,
+        cursor: _lastDocument,
         includeArchived: _includeArchived,
       );
 

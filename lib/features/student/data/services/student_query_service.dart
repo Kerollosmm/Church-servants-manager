@@ -9,8 +9,8 @@ import 'package:rxdart/rxdart.dart';
 typedef StudentQueryDoc = QueryDocumentSnapshot<Map<String, dynamic>>;
 
 class StudentQueryService {
-  StudentQueryService({FirebaseFirestore? firestore})
-    : _firestore = firestore ?? FirebaseFirestore.instance;
+  StudentQueryService({required FirebaseFirestore firestore})
+    : _firestore = firestore;
 
   final FirebaseFirestore _firestore;
 

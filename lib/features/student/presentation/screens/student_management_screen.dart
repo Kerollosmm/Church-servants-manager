@@ -18,6 +18,7 @@ import 'package:church_management_system/features/team/presentation/bloc/team_cu
 import 'package:church_management_system/features/team/presentation/widgets/team_dropdown.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:church_management_system/core/di/injection.dart';
 
 class StudentManagementScreen extends StatefulWidget {
   const StudentManagementScreen({super.key});
@@ -39,8 +40,8 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
     super.initState();
     _studentDataBloc = context.read<StudentDataBloc>();
     _teamCubit = TeamCubit(
-      teamRepository: context.read<TeamRepository>(),
-      adminTeamService: context.read<AdminTeamService>(),
+      teamRepository: getIt<TeamRepository>(),
+      adminTeamService: getIt<AdminTeamService>(),
     );
     final actor = _currentActorOrNull();
     if (actor != null) {

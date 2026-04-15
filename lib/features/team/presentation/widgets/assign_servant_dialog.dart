@@ -9,6 +9,7 @@ import 'package:church_management_system/features/team/presentation/bloc/assign_
 import 'package:church_management_system/features/team/presentation/bloc/team_cubit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:church_management_system/core/di/injection.dart';
 
 class AssignServantDialog extends StatefulWidget {
   final AuthUser actor;
@@ -33,7 +34,7 @@ class _AssignServantDialogState extends State<AssignServantDialog> {
   void initState() {
     super.initState();
     _cubit = AssignServantOptionsCubit(
-      servantRepository: context.read<ServantDataRepository>(),
+      servantRepository: getIt<ServantDataRepository>(),
     )..load(widget.team.groupId);
   }
 

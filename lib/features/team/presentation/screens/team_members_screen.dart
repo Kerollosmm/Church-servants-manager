@@ -8,6 +8,7 @@ import 'package:church_management_system/features/student/data/repos/student_dat
 import 'package:church_management_system/features/team/presentation/bloc/team_members_cubit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:church_management_system/core/di/injection.dart';
 
 class TeamMembersScreen extends StatefulWidget {
   final TeamMembersArgs args;
@@ -27,8 +28,8 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
     super.initState();
     final team = widget.args.team;
     _cubit = TeamMembersCubit(
-      studentRepository: context.read<StudentDataRepository>(),
-      adminTeamService: context.read<AdminTeamService>(),
+      studentRepository: getIt<StudentDataRepository>(),
+      adminTeamService: getIt<AdminTeamService>(),
     )..load(groupId: team.groupId, teamId: team.id);
   }
 

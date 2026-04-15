@@ -11,6 +11,7 @@ import 'package:church_management_system/features/team/data/models/team_model.da
 import 'package:church_management_system/features/team/data/repos/team_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:church_management_system/core/di/injection.dart';
 
 class StudentEditScreen extends StatefulWidget {
   const StudentEditScreen({super.key, required this.args});
@@ -192,7 +193,7 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
 
     return BlocProvider(
       create: (context) =>
-          StudentFormTeamsCubit(teamRepository: context.read<TeamRepository>())
+          StudentFormTeamsCubit(teamRepository: getIt<TeamRepository>())
             ..loadTeamsForGroup(
               actor: actor,
               groupId: _group.name,

@@ -17,6 +17,9 @@ import 'package:church_management_system/features/student/data/services/student_
 import 'package:church_management_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
 import 'package:church_management_system/features/student/domain/usecases/get_students_stream_usecase.dart';
 import 'package:church_management_system/features/team/data/repos/team_repository.dart';
+import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
+import 'package:church_management_system/features/servant/domain/repos/i_servant_repository.dart';
+import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get_it/get_it.dart';
 
@@ -49,25 +52,34 @@ void configureDependencies() {
       ),
     )
     // ---- Repositories ----
-    ..registerLazySingleton<StudentDataRepository>(
+    ..registerLazySingleton<IStudentRepository>(
       () => StudentDataRepository(
         firestore: getIt(),
         queryService: getIt<StudentQueryService>(),
         linkedUserSyncService: getIt<StudentLinkedUserSyncService>(),
       ),
     )
-    ..registerLazySingleton<ServantDataRepository>(
+    ..registerLazySingleton<StudentDataRepository>(
+      () => getIt<IStudentRepository>() as StudentDataRepository,
+    )
+    ..registerLazySingleton<IServantRepository>(
       () => ServantDataRepository(firestore: getIt()),
+    )
+    ..registerLazySingleton<ServantDataRepository>(
+      () => getIt<IServantRepository>() as ServantDataRepository,
     )
     ..registerLazySingleton<StudentQueryService>(
       () => StudentQueryService(firestore: getIt()),
     )
     // ---- Attendance ----
-    ..registerLazySingleton<AttendanceRepository>(
+    ..registerLazySingleton<IAttendanceRepository>(
       () => AttendanceRepository(
         firestore: getIt(),
         studentQueryService: getIt<StudentQueryService>(),
       ),
+    )
+    ..registerLazySingleton<AttendanceRepository>(
+      () => getIt<IAttendanceRepository>() as AttendanceRepository,
     )
     ..registerLazySingleton<AttendanceSessionRepository>(
       () => AttendanceSessionRepository(firestore: getIt()),
@@ -98,7 +110,7 @@ void configureDependencies() {
     )
     // ---- UseCases ----
     ..registerLazySingleton<GetStudentsStreamUseCase>(
-      () => GetStudentsStreamUseCase(getIt<StudentDataRepository>()),
+      () => GetStudentsStreamUseCase(getIt<IStudentRepository>()),
     )
     ..registerLazySingleton<CanMutateStudentUseCase>(
       () => const CanMutateStudentUseCase(),

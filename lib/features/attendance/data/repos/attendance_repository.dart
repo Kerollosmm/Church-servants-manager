@@ -19,18 +19,20 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:rxdart/rxdart.dart';
 
+import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
+
 /// Repository for attendance data and operations.
 ///
 /// Handles session CRUD, mark management, roster tracking,
 /// and attendance statistics. Uses [StudentQueryService] for
 /// student lookups and delegates to Firestore.
-class AttendanceRepository {
+class AttendanceRepository implements IAttendanceRepository {
   AttendanceRepository({
-    FirebaseFirestore? firestore,
+    required FirebaseFirestore firestore,
     StudentQueryService? studentQueryService,
     DateTime Function()? nowProvider,
     Stream<DateTime>? clockStream,
-  }) : _firestore = firestore ?? FirebaseFirestore.instance,
+  }) : _firestore = firestore,
        _studentQueryService =
            studentQueryService ?? StudentQueryService(firestore: firestore),
        _nowProvider = nowProvider ?? DateTime.now,

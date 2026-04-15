@@ -7,6 +7,7 @@ import 'package:church_management_system/features/attendance/presentation/bloc/s
 import 'package:church_management_system/features/attendance/presentation/bloc/student_attendance/student_attendance_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:church_management_system/core/di/injection.dart';
 
 class StudentAttendanceScreen extends StatefulWidget {
   const StudentAttendanceScreen({super.key, required this.args});
@@ -25,7 +26,7 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen> {
   void initState() {
     super.initState();
     _cubit =
-        StudentAttendanceCubit(repository: context.read<AttendanceRepository>())
+        StudentAttendanceCubit(repository: getIt<AttendanceRepository>())
           ..loadForStudent(
             studentId: widget.args.studentId,
             teamId: widget.args.filterTeamId,

@@ -54,7 +54,7 @@ void main() {
     verifyNever(
       () => repository.getServantsPage(
         limit: any(named: 'limit'),
-        lastDocument: any(named: 'lastDocument'),
+        cursor: any(named: 'cursor'),
         includeArchived: any(named: 'includeArchived'),
       ),
     );
@@ -67,7 +67,7 @@ void main() {
       when(
         () => repository.getServantsPage(
           limit: any(named: 'limit'),
-          lastDocument: any(named: 'lastDocument'),
+          cursor: any(named: 'cursor'),
           includeArchived: any(named: 'includeArchived'),
         ),
       ).thenAnswer(
@@ -102,7 +102,7 @@ void main() {
       verify(
         () => repository.getServantsPage(
           limit: any(named: 'limit'),
-          lastDocument: any(named: 'lastDocument'),
+          cursor: any(named: 'cursor'),
           includeArchived: any(named: 'includeArchived'),
         ),
       ).called(1);
@@ -125,7 +125,7 @@ void main() {
     when(
       () => repository.getServantsPage(
         limit: any(named: 'limit'),
-        lastDocument: any(named: 'lastDocument'),
+        cursor: any(named: 'cursor'),
         includeArchived: any(named: 'includeArchived'),
       ),
     ).thenAnswer(
@@ -205,7 +205,7 @@ void main() {
       when(
         () => repository.getServantsPage(
           limit: any(named: 'limit'),
-          lastDocument: any(named: 'lastDocument'),
+          cursor: any(named: 'cursor'),
           includeArchived: any(named: 'includeArchived'),
         ),
       ).thenAnswer(

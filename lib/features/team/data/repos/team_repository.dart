@@ -12,8 +12,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class TeamRepository implements ITeamRepository {
   final FirebaseFirestore _firestore;
 
-  TeamRepository({FirebaseFirestore? firestore})
-    : _firestore = firestore ?? FirebaseFirestore.instance;
+  TeamRepository({required FirebaseFirestore firestore})
+    : _firestore = firestore;
 
   CollectionReference<Map<String, dynamic>> get _classesCollection =>
       _firestore.collection(FirestoreCollections.classes);

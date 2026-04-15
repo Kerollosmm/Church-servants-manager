@@ -13,6 +13,7 @@ import 'package:church_management_system/features/attendance/presentation/bloc/s
 import 'package:church_management_system/features/attendance/presentation/bloc/session_admin/attendance_session_admin_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:church_management_system/core/di/injection.dart';
 
 class AttendanceTakingScreen extends StatefulWidget {
   const AttendanceTakingScreen({super.key, required this.args});
@@ -68,7 +69,7 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
         BlocProvider<AttendanceTakingCubit>(
           create: (context) =>
               AttendanceTakingCubit(
-                repository: context.read<AttendanceRepository>(),
+                repository: getIt<AttendanceRepository>(),
               )..initialize(
                 teamId: widget.args.teamId,
                 sessionId: widget.args.sessionId,
@@ -76,7 +77,7 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
         ),
         BlocProvider<AttendanceSessionAdminCubit>(
           create: (context) => AttendanceSessionAdminCubit(
-            repository: context.read<AttendanceRepository>(),
+            repository: getIt<AttendanceRepository>(),
           ),
         ),
       ],

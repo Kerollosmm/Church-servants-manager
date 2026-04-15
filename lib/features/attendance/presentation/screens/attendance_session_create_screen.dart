@@ -16,6 +16,7 @@ import 'package:church_management_system/features/team/presentation/bloc/team_cu
 import 'package:church_management_system/features/team/presentation/widgets/team_dropdown.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:church_management_system/core/di/injection.dart';
 
 class AttendanceSessionCreateScreen extends StatefulWidget {
   const AttendanceSessionCreateScreen({super.key});
@@ -144,8 +145,8 @@ class _AttendanceSessionCreateScreenState
             BlocProvider<TeamCubit>(
               create: (context) {
                 final teamCubit = TeamCubit(
-                  teamRepository: context.read<TeamRepository>(),
-                  adminTeamService: context.read<AdminTeamService>(),
+                  teamRepository: getIt<TeamRepository>(),
+                  adminTeamService: getIt<AdminTeamService>(),
                 );
 
                 if (actor.role == UserRole.admin) {
@@ -172,7 +173,7 @@ class _AttendanceSessionCreateScreenState
             ),
             BlocProvider<AttendanceSessionAdminCubit>(
               create: (context) => AttendanceSessionAdminCubit(
-                repository: context.read<AttendanceRepository>(),
+                repository: getIt<AttendanceRepository>(),
               ),
             ),
           ],

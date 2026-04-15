@@ -1,12 +1,12 @@
 import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/routing/app_router.dart';
 import 'package:church_management_system/core/theme/app_theme.dart';
-import 'package:church_management_system/features/admin/data/admin_team_service.dart';
-import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
-import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
-import 'package:church_management_system/features/auth/data/services/auth_service.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:church_management_system/features/servant/domain/repos/i_servant_repository.dart';
+import 'package:church_management_system/features/auth/data/services/firebase_auth_provider.dart'; // added to provide AuthService if needed
+import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
+import 'package:church_management_system/features/auth/domain/auth_freshness_policy.dart';
+import 'package:church_management_system/features/auth/data/repos/firebase_auth_repository.dart'; // adding typical location for AuthService
+import 'package:church_management_system/features/auth/data/services/auth_service.dart'; // guessing location
 import 'package:church_management_system/features/servant/domain/usecases/provision_servant_with_auth_usecase.dart';
 import 'package:church_management_system/features/servant/presentation/bloc/servant_data/servant_data_cubit.dart';
 import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
@@ -15,78 +15,49 @@ import 'package:church_management_system/features/student/domain/usecases/get_st
 import 'package:church_management_system/features/student/domain/usecases/provision_student_with_auth_usecase.dart';
 import 'package:church_management_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
 import 'package:church_management_system/features/student/presentation/bloc/student_profile/student_profile_cubit.dart';
-import 'package:church_management_system/features/team/data/repos/team_repository.dart';
 import 'package:church_management_system/role_user_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:church_management_system/features/servant/domain/repos/i_servant_repository.dart';
 
 class ChurchApp extends StatelessWidget {
   const ChurchApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MultiRepositoryProvider(
+    return MultiBlocProvider(
       providers: [
-        RepositoryProvider<TeamRepository>.value(
-          value: getIt<TeamRepository>(),
+        BlocProvider(
+          create: (context) =>
+              AuthBloc(authService: getIt<AuthService>())
+                ..add(const AuthEventCheckStatus()),
         ),
-        RepositoryProvider<IStudentRepository>.value(
-          value: getIt<IStudentRepository>(),
+        BlocProvider(
+          create: (context) => StudentProfileCubit(
+            studentRepository: getIt<IStudentRepository>(),
+          ),
         ),
-        RepositoryProvider<IServantRepository>.value(
-          value: getIt<IServantRepository>(),
+        BlocProvider(
+          create: (context) => StudentDataBloc(
+            studentRepository: getIt<IStudentRepository>(),
+            getStudentsStream: getIt<GetStudentsStreamUseCase>(),
+            canMutateStudent: getIt<CanMutateStudentUseCase>(),
+            provisionUseCase: getIt<ProvisionStudentWithAuthUseCase>(),
+          ),
         ),
-        RepositoryProvider<AdminTeamService>.value(
-          value: getIt<AdminTeamService>(),
-        ),
-        RepositoryProvider<AuthService>.value(value: getIt<AuthService>()),
-        RepositoryProvider<AdminUserProvisioningService>.value(
-          value: getIt<AdminUserProvisioningService>(),
-        ),
-        RepositoryProvider<GetStudentsStreamUseCase>.value(
-          value: getIt<GetStudentsStreamUseCase>(),
-        ),
-        RepositoryProvider<CanMutateStudentUseCase>.value(
-          value: getIt<CanMutateStudentUseCase>(),
-        ),
-        RepositoryProvider<IAttendanceRepository>.value(
-          value: getIt<IAttendanceRepository>(),
+        BlocProvider(
+          create: (context) => ServantDataCubit(
+            repository: getIt<IServantRepository>(),
+            provisionUseCase: getIt<ProvisionServantWithAuthUseCase>(),
+          ),
         ),
       ],
-      child: MultiBlocProvider(
-        providers: [
-          BlocProvider(
-            create: (context) =>
-                AuthBloc(authService: context.read<AuthService>())
-                  ..add(const AuthEventCheckStatus()),
-          ),
-          BlocProvider(
-            create: (context) => StudentProfileCubit(
-              studentRepository: context.read<IStudentRepository>(),
-            ),
-          ),
-          BlocProvider(
-            create: (context) => StudentDataBloc(
-              studentRepository: context.read<IStudentRepository>(),
-              getStudentsStream: context.read<GetStudentsStreamUseCase>(),
-              canMutateStudent: context.read<CanMutateStudentUseCase>(),
-              provisionUseCase: getIt<ProvisionStudentWithAuthUseCase>(),
-            ),
-          ),
-          BlocProvider(
-            create: (context) => ServantDataCubit(
-              repository: context.read<IServantRepository>(),
-              provisionUseCase: getIt<ProvisionServantWithAuthUseCase>(),
-            ),
-          ),
-        ],
-        child: MaterialApp(
-          title: 'اعداد خدام',
-          debugShowCheckedModeBanner: false,
-          theme: AppTheme.light(),
-          onGenerateRoute: getIt<AppRouter>().onGenerateRoute,
-          home: const RoleUserRoute(),
-        ),
+      child: MaterialApp(
+        title: 'اعداد خدام',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.light(),
+        onGenerateRoute: getIt<AppRouter>().onGenerateRoute,
+        home: const RoleUserRoute(),
       ),
     );
   }

@@ -14,6 +14,7 @@ import 'package:church_management_system/features/team/presentation/bloc/team_cu
 import 'package:church_management_system/features/team/presentation/widgets/assign_servant_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:church_management_system/core/di/injection.dart';
 
 /// Admin screen for managing teams/classes within each year/group.
 class TeamManagementScreen extends StatefulWidget {
@@ -30,8 +31,8 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
   void initState() {
     super.initState();
     _cubit = TeamCubit(
-      teamRepository: context.read<TeamRepository>(),
-      adminTeamService: context.read<AdminTeamService>(),
+      teamRepository: getIt<TeamRepository>(),
+      adminTeamService: getIt<AdminTeamService>(),
     );
   }
 

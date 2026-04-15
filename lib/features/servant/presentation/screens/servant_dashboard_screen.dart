@@ -10,6 +10,7 @@ import 'package:church_management_system/features/servant/presentation/bloc/serv
 import 'package:church_management_system/features/team/data/repos/team_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:church_management_system/core/di/injection.dart';
 
 class ServantDashboardScreen extends StatelessWidget {
   const ServantDashboardScreen({super.key, required this.user});
@@ -161,7 +162,7 @@ class _UserStatsCardState extends State<_UserStatsCard> {
   void initState() {
     super.initState();
     _cubit = ServantDashboardCubit(
-      teamRepository: context.read<TeamRepository>(),
+      teamRepository: getIt<TeamRepository>(),
     )..loadAssignedTeamNames(widget.user.effectiveAssignedTeamIds);
   }
 
