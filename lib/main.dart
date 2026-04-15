@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:church_management_system/church_app.dart';
 import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/firebase_options.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -39,6 +40,10 @@ void main() {
 
       try {
         await _initializeFirebase();
+        FirebaseFirestore.instance.settings = const Settings(
+          persistenceEnabled: true,
+          cacheSizeBytes: 100 * 1024 * 1024,
+        );
         GoogleFonts.config.allowRuntimeFetching = false;
         configureDependencies();
         runApp(const ChurchApp());
