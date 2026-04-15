@@ -165,27 +165,8 @@ class TeamRepository implements ITeamRepository {
       final baseQuery = includeArchived
           ? _classesCollection
           : _classesCollection.where('isArchived', isEqualTo: false);
-      try {
-        final cacheSnapshot = await baseQuery.get(
-          const GetOptions(source: Source.cache),
-        );
-        if (cacheSnapshot.docs.isNotEmpty) {
-          final teams = _teamsFromDocs(
-            cacheSnapshot.docs,
-            includeArchived: includeArchived,
-          );
-          teams.sort((a, b) {
-            final groupCompare = a.groupId.compareTo(b.groupId);
-            if (groupCompare != 0) return groupCompare;
-            return a.name.compareTo(b.name);
-          });
-          return teams;
-        }
-      } catch (_) {}
 
-      final snapshot = await baseQuery.get(
-        const GetOptions(source: Source.server),
-      );
+      final snapshot = await baseQuery.get();
 
       final teams = _teamsFromDocs(
         snapshot.docs,

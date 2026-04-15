@@ -163,7 +163,11 @@ class StudentDataRepository implements IStudentRepository {
           ? _studentsCollection.doc(student.docID)
           : _studentsCollection.doc();
       final finalStudent = student.copyWith(docID: docRef.id);
-      await docRef.set(finalStudent.toMap());
+      
+      final batch = _firestore.batch();
+      batch.set(docRef, finalStudent.toMap());
+      await batch.commit();
+      
       return docRef.id;
     } catch (e) {
       throw mapExceptionToStudentFailure(e);

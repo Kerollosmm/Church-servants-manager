@@ -46,34 +46,10 @@ class StudentQueryService {
         .toList(growable: false);
   }
 
-  Query<Map<String, dynamic>> _studentsByClassQuery(String classId) {
-    return _studentsCollection
-        .where('classId', isEqualTo: classId)
-        .where('isArchived', isEqualTo: false);
-  }
-
   Query<Map<String, dynamic>> _studentsByGroupQuery(String groupName) {
     return _studentsCollection
         .where('group', isEqualTo: groupName)
         .where('isArchived', isEqualTo: false);
-  }
-
-  Future<List<StudentModel>> _tryGetStudentsByClassFromCache(
-    String classId,
-  ) async {
-    try {
-      final cacheSnapshot = await _studentsByClassQuery(
-        classId,
-      ).get(const GetOptions(source: Source.cache));
-      if (cacheSnapshot.docs.isNotEmpty) {
-        return mapStudentDocs(cacheSnapshot.docs);
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Cache read failed: $e');
-      }
-    }
-    return const <StudentModel>[];
   }
 
   Future<List<String>> _getStudentIdsFromClassDocument(String classId) async {
@@ -214,25 +190,11 @@ class StudentQueryService {
     bool includeArchived = false,
   }) async {
     try {
-      final cacheQuery = _studentsCollection
-          .where('classId', isEqualTo: classId)
-          .where('isArchived', isEqualTo: false);
-      if (!includeArchived) {
-        final cacheStudents = await _tryGetStudentsByQueryFromCache(cacheQuery);
-        if (cacheStudents.isNotEmpty) {
-          return cacheStudents;
-        }
-      } else {
-        final cacheStudents = await _tryGetStudentsByClassFromCache(classId);
-        if (cacheStudents.isNotEmpty) {
-          return cacheStudents;
-        }
-      }
-
       final serverQuery = _studentsCollection
           .where('classId', isEqualTo: classId)
           .where('isArchived', isEqualTo: false);
-      final serverStudents = await _getStudentsByQueryFromServer(serverQuery);
+      final serverSnapshot = await serverQuery.get();
+      final serverStudents = mapStudentDocs(serverSnapshot.docs);
       if (serverStudents.isNotEmpty) {
         return serverStudents;
       }
