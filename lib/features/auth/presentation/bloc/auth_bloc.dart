@@ -30,12 +30,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<_AuthEventSessionChanged>(_onSessionChanged);
     on<_AuthEventSessionError>(_onSessionError);
 
-    _authStateSubscription = _authService.authStateChanges
-        .skip(1)
-        .listen(
-          (user) => add(_AuthEventSessionChanged(user)),
-          onError: (error, stackTrace) => add(const _AuthEventSessionError()),
-        );
+    _authStateSubscription = _authService.authStateChanges.listen(
+      (user) {
+        // Only react to session changes after initial status check completes.
+        // AuthEventCheckStatus handles the cold-start case; the stream
+        // handles subsequent tab-switches, token refreshes, and remote sign-outs.
+        if (state is! AuthLoading && state is! AuthInitial) {
+          add(_AuthEventSessionChanged(user));
+        }
+      },
+      onError: (error, stackTrace) => add(const _AuthEventSessionError()),
+    );
   }
 
   Future<void> _emitResolvedState(
