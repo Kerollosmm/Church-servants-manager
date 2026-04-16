@@ -1,4 +1,4 @@
-# AGENT.md — CSMS Agent Guide (Technical + Workflows)
+# AGENTS.md — CSMS Agent Guide (Technical + Workflows)
 
 > **Audience**: AI coding agents and senior developers working on the Church Servants Management System (CSMS).
 > **Focus**: Concrete app behavior, user flows, functions, and how features interact with Firebase + Hive.
