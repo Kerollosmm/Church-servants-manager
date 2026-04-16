@@ -1,7 +1,7 @@
+import 'package:church_management_system/core/utils/pagination_cursor.dart';
 import 'package:church_management_system/features/servant/data/models/servant_models.dart';
 import 'package:church_management_system/features/servant/data/repo/servant_data_repository.dart'
     show ServantsPage;
-import 'package:church_management_system/core/utils/pagination_cursor.dart';
 
 /// Domain interface for servant repository.
 /// Enables dependency inversion: presentation and domain layers

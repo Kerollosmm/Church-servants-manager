@@ -151,6 +151,7 @@ class StudentDataRepository implements IStudentRepository {
         .get();
     return _queryService
         .mapStudentDocs(snapshot.docs)
+        .students
         .where((s) => !s.isArchived)
         .take(limit)
         .toList();
@@ -163,11 +164,11 @@ class StudentDataRepository implements IStudentRepository {
           ? _studentsCollection.doc(student.docID)
           : _studentsCollection.doc();
       final finalStudent = student.copyWith(docID: docRef.id);
-      
+
       final batch = _firestore.batch();
       batch.set(docRef, finalStudent.toMap());
       await batch.commit();
-      
+
       return docRef.id;
     } catch (e) {
       throw mapExceptionToStudentFailure(e);

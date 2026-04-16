@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
@@ -11,15 +12,13 @@ import 'package:church_management_system/features/attendance/data/models/attenda
 import 'package:church_management_system/features/attendance/data/models/attendance_stats.dart';
 import 'package:church_management_system/features/attendance/data/models/student_attendance_history_item.dart';
 import 'package:church_management_system/features/attendance/domain/failures/attendance_failures.dart';
+import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/student/data/services/student_query_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:rxdart/rxdart.dart';
-
-import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
 
 /// Repository for attendance data and operations.
 ///
@@ -188,12 +187,11 @@ class AttendanceRepository implements IAttendanceRepository {
     try {
       return AttendanceMark.fromMap(data, doc.id);
     } catch (error) {
-      if (kDebugMode) {
-        debugPrint(
-          'AttendanceRepository: skipped malformed attendance mark '
-          '${doc.reference.path} (${error.runtimeType})',
-        );
-      }
+      developer.log(
+        'skipped malformed attendance mark ${doc.reference.path}',
+        error: error,
+        name: 'AttendanceRepository',
+      );
       return null;
     }
   }
@@ -206,12 +204,11 @@ class AttendanceRepository implements IAttendanceRepository {
       try {
         sessions.add(_mapSessionDoc(doc));
       } catch (error) {
-        if (kDebugMode) {
-          debugPrint(
-            'AttendanceRepository: skipped malformed attendance session '
-            '${doc.reference.path} (${error.runtimeType})',
-          );
-        }
+        developer.log(
+          'skipped malformed attendance session ${doc.reference.path}',
+          error: error,
+          name: 'AttendanceRepository',
+        );
       }
     }
     sessions.sort((first, second) => second.startsAt.compareTo(first.startsAt));
@@ -228,12 +225,11 @@ class AttendanceRepository implements IAttendanceRepository {
         try {
           marks[doc.id] = AttendanceMark.fromMap(doc.data(), doc.id);
         } catch (error) {
-          if (kDebugMode) {
-            debugPrint(
-              'AttendanceRepository: skipped malformed attendance mark '
-              '${doc.reference.path} (${error.runtimeType})',
-            );
-          }
+          developer.log(
+            'skipped malformed attendance mark ${doc.reference.path}',
+            error: error,
+            name: 'AttendanceRepository',
+          );
         }
       }
       return marks;
@@ -391,6 +387,7 @@ class AttendanceRepository implements IAttendanceRepository {
     }
   }
 
+  @override
   Future<AttendanceSession> createSession({
     required String teamId,
     required String teamNameSnapshot,
@@ -488,6 +485,7 @@ class AttendanceRepository implements IAttendanceRepository {
     }
   }
 
+  @override
   Future<void> closeSession({
     required String teamId,
     required String sessionId,
@@ -561,6 +559,7 @@ class AttendanceRepository implements IAttendanceRepository {
     }
   }
 
+  @override
   Stream<List<AttendanceSession>> watchSessionsForTeam(String teamId) {
     return _sessionsCol(teamId)
         .orderBy('startsAt', descending: true)
@@ -568,6 +567,7 @@ class AttendanceRepository implements IAttendanceRepository {
         .map(_mapSessionsSnapshot);
   }
 
+  @override
   Stream<AttendanceSession?> watchActiveSessionForTeam(String teamId) {
     final openSessionsStream = _sessionsCol(teamId)
         .where('isClosed', isEqualTo: false)
@@ -588,6 +588,7 @@ class AttendanceRepository implements IAttendanceRepository {
     );
   }
 
+  @override
   Stream<AttendanceSession?> watchSessionById({
     required String teamId,
     required String sessionId,
@@ -599,6 +600,7 @@ class AttendanceRepository implements IAttendanceRepository {
     });
   }
 
+  @override
   Future<AttendanceSession?> getSessionById({
     required String teamId,
     required String sessionId,
@@ -613,6 +615,7 @@ class AttendanceRepository implements IAttendanceRepository {
     }
   }
 
+  @override
   Future<void> markStudentPresent({
     required String teamId,
     required String sessionId,
@@ -632,6 +635,7 @@ class AttendanceRepository implements IAttendanceRepository {
     );
   }
 
+  @override
   Future<void> markStudentLate({
     required String teamId,
     required String sessionId,
@@ -651,6 +655,7 @@ class AttendanceRepository implements IAttendanceRepository {
     );
   }
 
+  @override
   Future<void> clearStudentMark({
     required String teamId,
     required String sessionId,
@@ -672,6 +677,7 @@ class AttendanceRepository implements IAttendanceRepository {
     }
   }
 
+  @override
   Future<void> markAllPresentForRemainingStudents({
     required String teamId,
     required String sessionId,
@@ -729,6 +735,7 @@ class AttendanceRepository implements IAttendanceRepository {
     }
   }
 
+  @override
   Stream<List<AttendanceRosterItem>> watchSessionRoster({
     required String teamId,
     required String sessionId,
@@ -739,6 +746,7 @@ class AttendanceRepository implements IAttendanceRepository {
     ).map((snapshot) => snapshot.roster);
   }
 
+  @override
   Stream<AttendanceRosterSnapshot> watchSessionRosterSnapshot({
     required String teamId,
     required String sessionId,
@@ -769,6 +777,7 @@ class AttendanceRepository implements IAttendanceRepository {
   }
 
   /// Live stream of session status (open / closed / reopened).
+  @override
   Stream<SessionStatus> watchSessionStatus({
     required String teamId,
     required String sessionId,
@@ -790,6 +799,7 @@ class AttendanceRepository implements IAttendanceRepository {
     });
   }
 
+  @override
   Future<List<StudentAttendanceHistoryItem>> getStudentAttendanceHistory({
     required String studentId,
     String? teamId,
@@ -846,6 +856,7 @@ class AttendanceRepository implements IAttendanceRepository {
     return history;
   }
 
+  @override
   Future<StudentAttendanceStats> getStudentAttendanceStats({
     required String studentId,
     String? teamId,
@@ -914,6 +925,7 @@ class AttendanceRepository implements IAttendanceRepository {
     }
   }
 
+  @override
   Future<TeamAttendanceStats> getTeamAttendanceStats({
     required String teamId,
     DateTimeRange? range,
@@ -975,6 +987,7 @@ class AttendanceRepository implements IAttendanceRepository {
     }
   }
 
+  @override
   Future<bool> canUserManageAttendance({
     required AuthUser user,
     required String teamId,
@@ -1006,6 +1019,7 @@ class AttendanceRepository implements IAttendanceRepository {
     return false;
   }
 
+  @override
   Future<void> assertUserCanManageAttendance({
     required AuthUser user,
     required String teamId,

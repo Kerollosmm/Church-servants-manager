@@ -1,19 +1,21 @@
 import 'package:church_management_system/core/constants/enums.dart';
+import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/routing/route_args.dart';
 import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
 import 'package:church_management_system/core/widgets/common/app_info_banner.dart';
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
+import 'package:church_management_system/features/attendance/data/models/attendance_roster_item.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_cubit.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_state.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/session_admin/attendance_session_admin_cubit.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/session_admin/attendance_session_admin_state.dart';
+import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:church_management_system/core/di/injection.dart';
 
 class AttendanceTakingScreen extends StatefulWidget {
   const AttendanceTakingScreen({super.key, required this.args});
@@ -25,32 +27,6 @@ class AttendanceTakingScreen extends StatefulWidget {
 }
 
 class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
-  Color _statusColor(AttendanceEffectiveStatus status) {
-    switch (status) {
-      case AttendanceEffectiveStatus.present:
-        return AppColors.secondary;
-      case AttendanceEffectiveStatus.late:
-        return Colors.orange;
-      case AttendanceEffectiveStatus.absent:
-        return AppColors.error;
-      case AttendanceEffectiveStatus.unmarked:
-        return AppColors.textSecondary;
-    }
-  }
-
-  String _statusLabel(AttendanceEffectiveStatus status) {
-    switch (status) {
-      case AttendanceEffectiveStatus.present:
-        return 'حاضر';
-      case AttendanceEffectiveStatus.late:
-        return 'متأخر';
-      case AttendanceEffectiveStatus.absent:
-        return 'غائب';
-      case AttendanceEffectiveStatus.unmarked:
-        return 'غير محدد';
-    }
-  }
-
   Future<void> _closeSession(
     AttendanceTakingLoaded state,
     BuildContext context,
@@ -68,12 +44,11 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
       providers: [
         BlocProvider<AttendanceTakingCubit>(
           create: (context) =>
-              AttendanceTakingCubit(
-                repository: getIt<AttendanceRepository>(),
-              )..initialize(
-                teamId: widget.args.teamId,
-                sessionId: widget.args.sessionId,
-              ),
+              AttendanceTakingCubit(repository: getIt<AttendanceRepository>())
+                ..initialize(
+                  teamId: widget.args.teamId,
+                  sessionId: widget.args.sessionId,
+                ),
         ),
         BlocProvider<AttendanceSessionAdminCubit>(
           create: (context) => AttendanceSessionAdminCubit(
@@ -213,136 +188,13 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
                                   ),
                                   itemBuilder: (context, index) {
                                     final item = loaded.roster[index];
-                                    final isOpen = loaded.isSessionOpen;
-                                    return Card(
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(
-                                          AppSpacing.md,
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Row(
-                                              children: [
-                                                Expanded(
-                                                  child: Text(
-                                                    item.studentName,
-                                                    style: Theme.of(context)
-                                                        .textTheme
-                                                        .titleMedium
-                                                        ?.copyWith(
-                                                          fontWeight:
-                                                              FontWeight.w700,
-                                                        ),
-                                                  ),
-                                                ),
-                                                Chip(
-                                                  label: Text(
-                                                    _statusLabel(
-                                                      item.effectiveStatus,
-                                                    ),
-                                                  ),
-                                                  backgroundColor: _statusColor(
-                                                    item.effectiveStatus,
-                                                  ).withValues(alpha: 0.14),
-                                                  labelStyle: TextStyle(
-                                                    color: _statusColor(
-                                                      item.effectiveStatus,
-                                                    ),
-                                                    fontWeight: FontWeight.w700,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            if (item.markedByName != null) ...[
-                                              AppSpacing.gapXs,
-                                              Text(
-                                                'تم التسجيل بواسطة ${item.markedByName}',
-                                                style: Theme.of(
-                                                  context,
-                                                ).textTheme.bodySmall,
-                                              ),
-                                            ],
-                                            AppSpacing.gapMd,
-                                            Wrap(
-                                              spacing: AppSpacing.sm,
-                                              runSpacing: AppSpacing.sm,
-                                              children: [
-                                                OutlinedButton.icon(
-                                                  onPressed:
-                                                      !isOpen ||
-                                                          loaded.mutationStatus ==
-                                                              MutationStatus
-                                                                  .inProgress
-                                                      ? null
-                                                      : () => context
-                                                            .read<
-                                                              AttendanceTakingCubit
-                                                            >()
-                                                            .markPresent(
-                                                              actor: widget
-                                                                  .args
-                                                                  .actor,
-                                                              item: item,
-                                                            ),
-                                                  icon: const Icon(
-                                                    Icons.check_circle_outline,
-                                                  ),
-                                                  label: const Text('حاضر'),
-                                                ),
-                                                OutlinedButton.icon(
-                                                  onPressed:
-                                                      !isOpen ||
-                                                          loaded.mutationStatus ==
-                                                              MutationStatus
-                                                                  .inProgress
-                                                      ? null
-                                                      : () => context
-                                                            .read<
-                                                              AttendanceTakingCubit
-                                                            >()
-                                                            .markLate(
-                                                              actor: widget
-                                                                  .args
-                                                                  .actor,
-                                                              item: item,
-                                                            ),
-                                                  icon: const Icon(
-                                                    Icons.alarm_on_outlined,
-                                                  ),
-                                                  label: const Text('متأخر'),
-                                                ),
-                                                if (item.isMarked)
-                                                  TextButton.icon(
-                                                    onPressed:
-                                                        !isOpen ||
-                                                            loaded.mutationStatus ==
-                                                                MutationStatus
-                                                                    .inProgress
-                                                        ? null
-                                                        : () => context
-                                                              .read<
-                                                                AttendanceTakingCubit
-                                                              >()
-                                                              .clearMark(
-                                                                actor: widget
-                                                                    .args
-                                                                    .actor,
-                                                                item: item,
-                                                              ),
-                                                    icon: const Icon(
-                                                      Icons.clear,
-                                                    ),
-                                                    label: const Text(
-                                                      'مسح التحديد',
-                                                    ),
-                                                  ),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      ),
+                                    return _RosterItemCard(
+                                      item: item,
+                                      actor: widget.args.actor,
+                                      isMutationInProgress:
+                                          loaded.mutationStatus ==
+                                              MutationStatus.inProgress,
+                                      isSessionOpen: loaded.isSessionOpen,
                                     );
                                   },
                                   separatorBuilder: (_, _) => AppSpacing.gapSm,
@@ -357,6 +209,129 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
               },
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+class _RosterItemCard extends StatelessWidget {
+  final AttendanceRosterItem item;
+  final AuthUser actor;
+  final bool isMutationInProgress;
+  final bool isSessionOpen;
+
+  const _RosterItemCard({
+    required this.item,
+    required this.actor,
+    required this.isMutationInProgress,
+    required this.isSessionOpen,
+  });
+
+  Color _statusColor(AttendanceEffectiveStatus status) {
+    switch (status) {
+      case AttendanceEffectiveStatus.present:
+        return AppColors.secondary;
+      case AttendanceEffectiveStatus.late:
+        return Colors.orange;
+      case AttendanceEffectiveStatus.absent:
+        return AppColors.error;
+      case AttendanceEffectiveStatus.unmarked:
+        return AppColors.textSecondary;
+    }
+  }
+
+  String _statusLabel(AttendanceEffectiveStatus status) {
+    switch (status) {
+      case AttendanceEffectiveStatus.present:
+        return 'حاضر';
+      case AttendanceEffectiveStatus.late:
+        return 'متأخر';
+      case AttendanceEffectiveStatus.absent:
+        return 'غائب';
+      case AttendanceEffectiveStatus.unmarked:
+        return 'غير محدد';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    item.studentName,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Chip(
+                  label: Text(_statusLabel(item.effectiveStatus)),
+                  backgroundColor:
+                      _statusColor(item.effectiveStatus).withValues(alpha: 0.14),
+                  labelStyle: TextStyle(
+                    color: _statusColor(item.effectiveStatus),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+            if (item.markedByName != null) ...[
+              AppSpacing.gapXs,
+              Text(
+                'تم التسجيل بواسطة ${item.markedByName}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+            AppSpacing.gapMd,
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: [
+                OutlinedButton.icon(
+                  onPressed:
+                      !isSessionOpen || isMutationInProgress
+                          ? null
+                          : () => context.read<AttendanceTakingCubit>().markPresent(
+                            actor: actor,
+                            item: item,
+                          ),
+                  icon: const Icon(Icons.check_circle_outline),
+                  label: const Text('حاضر'),
+                ),
+                OutlinedButton.icon(
+                  onPressed:
+                      !isSessionOpen || isMutationInProgress
+                          ? null
+                          : () => context.read<AttendanceTakingCubit>().markLate(
+                            actor: actor,
+                            item: item,
+                          ),
+                  icon: const Icon(Icons.alarm_on_outlined),
+                  label: const Text('متأخر'),
+                ),
+                if (item.isMarked)
+                  TextButton.icon(
+                    onPressed:
+                        !isSessionOpen || isMutationInProgress
+                            ? null
+                            : () => context.read<AttendanceTakingCubit>().clearMark(
+                              actor: actor,
+                              item: item,
+                            ),
+                    icon: const Icon(Icons.clear),
+                    label: const Text('مسح التحديد'),
+                  ),
+              ],
+            ),
+          ],
         ),
       ),
     );

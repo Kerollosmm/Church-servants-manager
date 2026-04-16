@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'dart:ui';
 
 import 'package:church_management_system/church_app.dart';
@@ -48,18 +49,22 @@ void main() {
         configureDependencies();
         runApp(const ChurchApp());
       } catch (error, stack) {
-        if (kDebugMode) {
-          debugPrint('Startup initialization failed (${error.runtimeType})');
-          debugPrintStack(stackTrace: stack);
-        }
+        developer.log(
+          'Startup initialization failed (${error.runtimeType})',
+          error: error,
+          stackTrace: stack,
+          name: 'Main',
+        );
         runApp(_StartupFailureApp(error: error));
       }
     },
     (error, stack) {
-      if (kDebugMode) {
-        debugPrint('Uncaught application error (${error.runtimeType})');
-        debugPrintStack(stackTrace: stack);
-      }
+      developer.log(
+        'Uncaught application error (${error.runtimeType})',
+        error: error,
+        stackTrace: stack,
+        name: 'Main',
+      );
     },
   );
 }

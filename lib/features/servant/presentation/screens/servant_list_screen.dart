@@ -6,6 +6,7 @@ import 'package:church_management_system/core/routing/route_args.dart';
 import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
 import 'package:church_management_system/core/widgets/app_empty_state.dart';
+import 'package:church_management_system/core/widgets/app_error_state.dart';
 import 'package:church_management_system/core/widgets/cards/person_list_card.dart';
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
 import 'package:church_management_system/core/widgets/search/live_search_panel.dart';
@@ -180,6 +181,15 @@ class _ServantListScreenState extends State<ServantListScreen> {
                 )
               : null,
           body: BlocConsumer<ServantDataCubit, ServantDataState>(
+            buildWhen: (prev, curr) {
+              if (prev.runtimeType != curr.runtimeType) return true;
+              if (curr is ServantDataLoaded && prev is ServantDataLoaded) {
+                return prev.servants != curr.servants ||
+                    prev.mutationStatus != curr.mutationStatus ||
+                    prev.isLoadingMore != curr.isLoadingMore;
+              }
+              return true;
+            },
             listener: (context, state) {
               if (state is ServantDataError) {
                 AppSnackbars.showError(context, state.message);
@@ -244,6 +254,18 @@ class _ServantListScreenState extends State<ServantListScreen> {
                         hasScrollBody: false,
                         child: Center(child: CircularProgressIndicator()),
                       )
+                    else if (state is ServantDataError)
+                      SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: AppErrorState(
+                          message: state.message,
+                          onRetry: () =>
+                              context.read<ServantDataCubit>().loadServants(
+                                    actor: actor,
+                                    includeArchived: _showArchived,
+                                  ),
+                        ),
+                      )
                     else if (viewData.showEmptyState)
                       SliverFillRemaining(
                         hasScrollBody: false,
@@ -251,8 +273,20 @@ class _ServantListScreenState extends State<ServantListScreen> {
                           title: _showArchived
                               ? 'لا يوجد خدام مؤرشفون'
                               : 'لا يوجد خدام',
-                          subtitle: 'جرب البحث مرة أخرى أو قم بتحديث القائمة.',
-                          refreshLabel: 'تحديث',
+                          subtitle: 'جرب البحث مرة أخرى أو أضف خادما جديدا.',
+                          onAction: _canManage(actor)
+                              ? () async {
+                                  final result = await Navigator.pushNamed(
+                                    context,
+                                    servantEdit,
+                                    arguments: ServantEditArgs(actor: actor),
+                                  );
+                                  if (result == true && mounted) {
+                                    await _refresh(actor);
+                                  }
+                                }
+                              : null,
+                          actionLabel: 'إضافة خادم',
                           onRefresh: () => _refresh(actor),
                         ),
                       )

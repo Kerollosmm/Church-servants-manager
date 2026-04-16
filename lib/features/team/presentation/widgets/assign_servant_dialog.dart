@@ -1,3 +1,4 @@
+import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
 import 'package:church_management_system/core/widgets/common/app_info_banner.dart';
 import 'package:church_management_system/core/widgets/form/app_dropdown_field.dart';
@@ -9,7 +10,6 @@ import 'package:church_management_system/features/team/presentation/bloc/assign_
 import 'package:church_management_system/features/team/presentation/bloc/team_cubit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:church_management_system/core/di/injection.dart';
 
 class AssignServantDialog extends StatefulWidget {
   final AuthUser actor;

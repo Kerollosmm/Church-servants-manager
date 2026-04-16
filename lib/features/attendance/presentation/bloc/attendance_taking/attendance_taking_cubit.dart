@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 
 import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_roster_item.dart';
@@ -7,7 +8,6 @@ import 'package:church_management_system/features/attendance/data/repos/attendan
 import 'package:church_management_system/features/attendance/domain/failures/attendance_failures.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_state.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 /// Cubit for managing attendance-taking UI state during a session.
@@ -58,13 +58,12 @@ class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
         .listen(
           _onSnapshot,
           onError: (Object error, StackTrace stackTrace) {
-            if (kDebugMode) {
-              debugPrint(
-                'AttendanceTakingCubit: roster stream failed '
-                '(${error.runtimeType})',
-              );
-              debugPrintStack(stackTrace: stackTrace);
-            }
+            developer.log(
+              'roster stream failed',
+              error: error,
+              stackTrace: stackTrace,
+              name: 'AttendanceTakingCubit',
+            );
             final failure = mapExceptionToAttendanceFailure(error);
             emit(AttendanceTakingError(failure.message));
           },
@@ -230,12 +229,12 @@ class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
         );
       }
     } catch (error, stackTrace) {
-      if (kDebugMode) {
-        debugPrint(
-          'AttendanceTakingCubit: mutation failed (${error.runtimeType})',
-        );
-        debugPrintStack(stackTrace: stackTrace);
-      }
+      developer.log(
+        'mutation failed',
+        error: error,
+        stackTrace: stackTrace,
+        name: 'AttendanceTakingCubit',
+      );
       final failure = mapExceptionToAttendanceFailure(error);
       _isMutating = false;
       _mutationError = failure.message;

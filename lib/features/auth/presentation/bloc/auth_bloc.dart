@@ -2,22 +2,23 @@ import 'dart:async';
 import 'dart:developer' as developer;
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
-import 'package:church_management_system/features/auth/data/services/auth_service.dart';
+import 'package:church_management_system/features/auth/data/repos/firebase_auth_repository.dart';
 import 'package:church_management_system/features/auth/domain/failures/auth_failures.dart';
+import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 part 'auth_event.dart';
 part 'auth_state.dart';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
-  final AuthService _authService;
+  final FirebaseAuthRepository _authService;
   static const _degradedPermissionsMessage =
       'Unable to refresh account data. Showing last synced permissions.';
   static const _archivedMessage =
       'تم إيقاف هذا الحساب. تواصل مع الإدارة لاستعادته.';
   late final StreamSubscription<AuthUser?> _authStateSubscription;
 
-  AuthBloc({required AuthService authService})
+  AuthBloc({required FirebaseAuthRepository authService})
     : _authService = authService,
       super(const AuthInitial()) {
     on<AuthEventCheckStatus>(_onCheckStatus);
@@ -31,17 +32,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<_AuthEventSessionChanged>(_onSessionChanged);
     on<_AuthEventSessionError>(_onSessionError);
 
-    _authStateSubscription = _authService.authStateChanges.listen(
-      (user) {
-        // Only react to session changes after initial status check completes.
-        // AuthEventCheckStatus handles the cold-start case; the stream
-        // handles subsequent tab-switches, token refreshes, and remote sign-outs.
-        if (state is! AuthLoading && state is! AuthInitial) {
-          add(_AuthEventSessionChanged(user));
-        }
-      },
-      onError: (error, stackTrace) => add(const _AuthEventSessionError()),
-    );
+    _authStateSubscription = _authService.authStateChanges.listen((user) {
+      // Only react to session changes after initial status check completes.
+      // AuthEventCheckStatus handles the cold-start case; the stream
+      // handles subsequent tab-switches, token refreshes, and remote sign-outs.
+      if (state is! AuthLoading && state is! AuthInitial) {
+        add(_AuthEventSessionChanged(user));
+      }
+    }, onError: (error, stackTrace) => add(const _AuthEventSessionError()));
   }
 
   Future<void> _emitResolvedState(
@@ -171,7 +169,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthEventSignOut event,
     Emitter<AuthState> emit,
   ) async {
-    emit(const AuthSigningOut());           // explicit transition
+    emit(const AuthSigningOut()); // explicit transition
     try {
       await _authService.signOut();
       emit(const AuthUnauthenticated());

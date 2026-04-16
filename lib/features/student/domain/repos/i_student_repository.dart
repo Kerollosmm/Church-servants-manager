@@ -1,6 +1,6 @@
 import 'package:church_management_system/core/constants/enums.dart';
-import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/core/utils/pagination_cursor.dart';
+import 'package:church_management_system/features/student/data/models/student_model.dart';
 
 /// Domain interface for student repository.
 /// Enables dependency inversion: presentation and domain layers

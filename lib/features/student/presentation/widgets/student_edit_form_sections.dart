@@ -155,7 +155,7 @@ class StudentBasicsSection extends StatelessWidget {
               : onTeamChanged,
           validator: (value) {
             if (teamsState.isLoading) {
-              return 'الرجاء الانتظار حتى اكتمال تحميل الفرق';
+              return null; // Don't validate while loading to avoid premature error messages
             }
             if (teamsState.teams.isEmpty) {
               return 'لا توجد فرق متاحة لهذه المجموعة';

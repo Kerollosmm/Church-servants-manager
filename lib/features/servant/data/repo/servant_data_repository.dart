@@ -1,12 +1,12 @@
+import 'dart:developer' as developer;
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/core/utils/list_extensions.dart';
+import 'package:church_management_system/core/utils/pagination_cursor.dart';
 import 'package:church_management_system/features/servant/data/models/servant_models.dart';
 import 'package:church_management_system/features/servant/domain/failures/servant_failures.dart';
 import 'package:church_management_system/features/servant/domain/repos/i_servant_repository.dart';
-import 'package:church_management_system/core/utils/pagination_cursor.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 
 typedef _ServantDoc = QueryDocumentSnapshot<Map<String, dynamic>>;
 
@@ -208,7 +208,8 @@ class ServantDataRepository implements IServantRepository {
         limit + 1,
       );
 
-      final lastDocument = cursor?.token as DocumentSnapshot<Map<String, dynamic>>?;
+      final lastDocument =
+          cursor?.token as DocumentSnapshot<Map<String, dynamic>>?;
       if (lastDocument != null) {
         query = query.startAfterDocument(lastDocument);
       }
@@ -222,7 +223,9 @@ class ServantDataRepository implements IServantRepository {
 
       return ServantsPage(
         servants: _servantsFromDocs(pageDocs, includeArchived),
-        lastDocument: nextDoc != null ? PaginationCursor.fromToken(nextDoc) : null,
+        lastDocument: nextDoc != null
+            ? PaginationCursor.fromToken(nextDoc)
+            : null,
         hasMore: hasMore,
       );
     } catch (e) {
@@ -440,12 +443,11 @@ class ServantDataRepository implements IServantRepository {
         await batch.commit();
       }
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint(
-          'ServantDataRepository: Failed to propagate servant name '
-          'to teams: $e',
-        );
-      }
+      developer.log(
+        'Failed to propagate servant name to teams',
+        error: e,
+        name: 'ServantDataRepository',
+      );
     }
   }
 }

@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
@@ -6,7 +7,6 @@ import 'package:church_management_system/features/attendance/data/models/attenda
 import 'package:church_management_system/features/attendance/domain/failures/attendance_failures.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 
 /// Repository responsible for attendance mark CRUD operations.
 /// Handles creating, updating, and deleting individual student marks within a session.
@@ -226,12 +226,11 @@ class AttendanceMarkRepository {
       try {
         marks[doc.id] = AttendanceMark.fromMap(doc.data(), doc.id);
       } catch (error) {
-        if (kDebugMode) {
-          debugPrint(
-            'AttendanceMarkRepository: skipped malformed mark '
-            '${doc.reference.path} (${error.runtimeType})',
-          );
-        }
+        developer.log(
+          'skipped malformed mark ${doc.reference.path}',
+          error: error,
+          name: 'AttendanceMarkRepository',
+        );
       }
     }
     return marks;
@@ -248,12 +247,11 @@ class AttendanceMarkRepository {
         try {
           marks[doc.id] = AttendanceMark.fromMap(doc.data(), doc.id);
         } catch (error) {
-          if (kDebugMode) {
-            debugPrint(
-              'AttendanceMarkRepository: skipped malformed mark '
-              '${doc.reference.path} (${error.runtimeType})',
-            );
-          }
+          developer.log(
+            'skipped malformed mark ${doc.reference.path}',
+            error: error,
+            name: 'AttendanceMarkRepository',
+          );
         }
       }
       return marks;
@@ -273,12 +271,11 @@ class AttendanceMarkRepository {
     try {
       return AttendanceMark.fromMap(data, doc.id);
     } catch (error) {
-      if (kDebugMode) {
-        debugPrint(
-          'AttendanceMarkRepository: skipped malformed mark '
-          '${doc.reference.path} (${error.runtimeType})',
-        );
-      }
+      developer.log(
+        'skipped malformed mark ${doc.reference.path}',
+        error: error,
+        name: 'AttendanceMarkRepository',
+      );
       return null;
     }
   }
@@ -298,12 +295,11 @@ class AttendanceMarkRepository {
       try {
         return AttendanceMark.fromMap(data, doc.id);
       } catch (error) {
-        if (kDebugMode) {
-          debugPrint(
-            'AttendanceMarkRepository: skipped malformed mark '
-            '${doc.reference.path} (${error.runtimeType})',
-          );
-        }
+        developer.log(
+          'skipped malformed mark ${doc.reference.path}',
+          error: error,
+          name: 'AttendanceMarkRepository',
+        );
         return null;
       }
     });

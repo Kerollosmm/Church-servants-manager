@@ -1,9 +1,9 @@
+import 'dart:developer' as developer;
 import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
 import 'package:church_management_system/features/attendance/domain/failures/attendance_failures.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 
 /// Repository responsible for attendance session CRUD operations.
 /// Handles session creation, closing, reopening, and querying within a team.
@@ -34,12 +34,11 @@ class AttendanceSessionRepository {
       try {
         sessions.add(AttendanceSession.fromMap(doc.data(), doc.id));
       } catch (error) {
-        if (kDebugMode) {
-          debugPrint(
-            'AttendanceSessionRepository: skipped malformed session '
-            '${doc.reference.path} (${error.runtimeType})',
-          );
-        }
+        developer.log(
+          'skipped malformed session ${doc.reference.path}',
+          error: error,
+          name: 'AttendanceSessionRepository',
+        );
       }
     }
     sessions.sort((a, b) => b.startsAt.compareTo(a.startsAt));

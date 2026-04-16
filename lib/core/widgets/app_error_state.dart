@@ -2,24 +2,20 @@ import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
 import 'package:flutter/material.dart';
 
-class AppEmptyState extends StatelessWidget {
+class AppErrorState extends StatelessWidget {
   final String title;
-  final String subtitle;
-  final Future<void> Function()? onRefresh;
-  final String refreshLabel;
-  final VoidCallback? onAction;
-  final String? actionLabel;
+  final String message;
+  final VoidCallback? onRetry;
+  final String retryLabel;
   final IconData icon;
 
-  const AppEmptyState({
+  const AppErrorState({
     super.key,
-    required this.title,
-    required this.subtitle,
-    this.onRefresh,
-    this.refreshLabel = 'تحديث',
-    this.onAction,
-    this.actionLabel,
-    this.icon = Icons.people_outline,
+    required this.message,
+    this.title = 'حدث خطأ ما',
+    this.onRetry,
+    this.retryLabel = 'إعادة المحاولة',
+    this.icon = Icons.error_outline,
   });
 
   @override
@@ -32,31 +28,23 @@ class AppEmptyState extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 64, color: AppColors.outline),
+            Icon(icon, size: 64, color: AppColors.error),
             AppSpacing.gapMd,
             Text(title, style: theme.textTheme.titleMedium),
             AppSpacing.gapSm,
             Text(
-              subtitle,
+              message,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: AppColors.textSecondary,
               ),
               textAlign: TextAlign.center,
             ),
-            if (onAction != null && actionLabel != null) ...[
+            if (onRetry != null) ...[
               AppSpacing.gapMd,
               FilledButton.icon(
-                onPressed: onAction,
-                icon: const Icon(Icons.add),
-                label: Text(actionLabel!),
-              ),
-            ],
-            if (onRefresh != null) ...[
-              AppSpacing.gapMd,
-              TextButton.icon(
-                onPressed: onRefresh,
+                onPressed: onRetry,
                 icon: const Icon(Icons.refresh),
-                label: Text(refreshLabel),
+                label: Text(retryLabel),
               ),
             ],
           ],

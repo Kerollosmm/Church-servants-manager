@@ -1,9 +1,11 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/routes.dart';
+import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/routing/route_args.dart';
 import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
 import 'package:church_management_system/core/widgets/app_empty_state.dart';
+import 'package:church_management_system/core/widgets/app_error_state.dart';
 import 'package:church_management_system/core/widgets/common/app_info_banner.dart';
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
@@ -21,7 +23,6 @@ import 'package:church_management_system/features/team/presentation/bloc/team_cu
 import 'package:church_management_system/features/team/presentation/widgets/team_dropdown.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:church_management_system/core/di/injection.dart';
 
 /// Screen displaying attendance session history for a team.
 ///
@@ -294,27 +295,12 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                                   }
 
                                   if (state is AttendanceHistoryError) {
-                                    return Center(
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(
-                                          AppSpacing.lg,
-                                        ),
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            const Icon(
-                                              Icons.error_outline,
-                                              size: 48,
-                                              color: AppColors.error,
-                                            ),
-                                            AppSpacing.gapMd,
-                                            Text(
-                                              state.message,
-                                              textAlign: TextAlign.center,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
+                                    return AppErrorState(
+                                      message: state.message,
+                                      title: 'تعذر تحميل الحضور',
+                                      onRetry: () => innerContext
+                                          .read<AttendanceHistoryCubit>()
+                                          .loadForTeam(_selectedTeamId!),
                                     );
                                   }
 

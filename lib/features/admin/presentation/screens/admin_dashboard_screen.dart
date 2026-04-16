@@ -28,32 +28,28 @@ class AdminDashboardScreen extends StatelessWidget {
         padding: const EdgeInsets.all(AppSpacing.md),
         child: ListView(
           children: [
-            _tile(
-              context,
+            _AdminNavigationTile(
               icon: Icons.people_alt_outlined,
               title: 'المخدومون',
               subtitle: 'إدارة بيانات المخدومين',
               route: studentList,
             ),
             AppSpacing.gapSm,
-            _tile(
-              context,
+            _AdminNavigationTile(
               icon: Icons.group_work_outlined,
               title: 'الفرق',
               subtitle: 'إنشاء الفرق وتعديلها',
               route: teamManagement,
             ),
             AppSpacing.gapSm,
-            _tile(
-              context,
+            _AdminNavigationTile(
               icon: Icons.fact_check_outlined,
               title: 'الحضور',
               subtitle: 'إدارة الجلسات ومتابعة الحضور',
               route: attendanceHistory,
             ),
             AppSpacing.gapSm,
-            _tile(
-              context,
+            _AdminNavigationTile(
               icon: Icons.supervisor_account_outlined,
               title: 'الخدام',
               subtitle: 'إدارة بيانات الخدام',
@@ -61,8 +57,7 @@ class AdminDashboardScreen extends StatelessWidget {
             ),
             if (kDebugMode) ...[
               AppSpacing.gapSm,
-              _tile(
-                context,
+              _AdminNavigationTile(
                 icon: Icons.build_outlined,
                 title: 'أدوات التطوير',
                 subtitle: 'أدوات التشخيص والاختبار',
@@ -74,14 +69,23 @@ class AdminDashboardScreen extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _tile(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required String route,
-  }) {
+class _AdminNavigationTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String route;
+
+  const _AdminNavigationTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.route,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return AppNavigationTileCard(
       icon: icon,
       title: title,

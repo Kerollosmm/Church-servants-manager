@@ -1,9 +1,11 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/routes.dart';
+import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/routing/route_args.dart';
 import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
 import 'package:church_management_system/core/widgets/app_empty_state.dart';
+import 'package:church_management_system/core/widgets/app_error_state.dart';
 import 'package:church_management_system/core/widgets/cards/person_list_card.dart';
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
 import 'package:church_management_system/core/widgets/search/live_search_panel.dart';
@@ -18,7 +20,6 @@ import 'package:church_management_system/features/team/presentation/bloc/team_cu
 import 'package:church_management_system/features/team/presentation/widgets/team_dropdown.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:church_management_system/core/di/injection.dart';
 
 class StudentManagementScreen extends StatefulWidget {
   const StudentManagementScreen({super.key});
@@ -241,6 +242,15 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                   )
                 : null,
             body: BlocConsumer<StudentDataBloc, StudentDataState>(
+              buildWhen: (prev, curr) {
+                // Only rebuild when student list or loading state changes
+                if (prev.runtimeType != curr.runtimeType) return true;
+                if (curr is StudentDataLoaded && prev is StudentDataLoaded) {
+                  return prev.students != curr.students ||
+                      prev.mutationStatus != curr.mutationStatus;
+                }
+                return true;
+              },
               listener: (context, state) {
                 if (state is StudentDataError) {
                   AppSnackbars.showError(context, state.message);
@@ -355,6 +365,21 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                           hasScrollBody: false,
                           child: Center(child: CircularProgressIndicator()),
                         )
+                      else if (state is StudentDataError)
+                        SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: AppErrorState(
+                            message: state.message,
+                            onRetry: () =>
+                                context.read<StudentDataBloc>().add(
+                                      StudentsLoadRequested(
+                                        actor: actor,
+                                        teamId: _selectedTeamId,
+                                        includeArchived: _showArchived,
+                                      ),
+                                    ),
+                          ),
+                        )
                       else if (viewData.showEmptyState)
                         SliverFillRemaining(
                           hasScrollBody: false,
@@ -364,7 +389,11 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                                 : 'لا يوجد مخدومون',
                             subtitle: _showArchived
                                 ? 'عند أرشفة مخدوم سيظهر هنا.'
-                                : 'جرّب بحثا مختلفا أو حدّث القائمة.',
+                                : 'جرّب بحثا مختلفا أو أضف مخدوما جديدا.',
+                            onAction: _canManage(actor)
+                                ? () => _openStudentEditor(actor)
+                                : null,
+                            actionLabel: 'إضافة مخدوم',
                             onRefresh: () =>
                                 context.read<StudentDataBloc>().refresh(actor),
                           ),

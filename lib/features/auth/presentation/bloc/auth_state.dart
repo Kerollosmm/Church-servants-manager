@@ -1,7 +1,10 @@
 part of 'auth_bloc.dart';
 
-sealed class AuthState {
+sealed class AuthState extends Equatable {
   const AuthState();
+
+  @override
+  List<Object?> get props => [];
 }
 
 class AuthInitial extends AuthState {
@@ -15,6 +18,9 @@ class AuthLoading extends AuthState {
 class AuthAuthenticated extends AuthState {
   final AuthUser user;
   const AuthAuthenticated(this.user);
+
+  @override
+  List<Object?> get props => [user];
 }
 
 class AuthDegraded extends AuthState {
@@ -22,6 +28,9 @@ class AuthDegraded extends AuthState {
   final String message;
 
   const AuthDegraded({required this.user, required this.message});
+
+  @override
+  List<Object?> get props => [user, message];
 }
 
 class AuthUnauthenticated extends AuthState {
@@ -33,6 +42,9 @@ class AuthArchived extends AuthState {
   final String? email;
 
   const AuthArchived({required this.message, this.email});
+
+  @override
+  List<Object?> get props => [message, email];
 }
 
 class AuthNeedsVerification extends AuthState {
@@ -50,6 +62,9 @@ class AuthVerificationSent extends AuthState {
 class AuthError extends AuthState {
   final String message;
   const AuthError(this.message);
+
+  @override
+  List<Object?> get props => [message];
 }
 
 class AuthPasswordResetSent extends AuthState {

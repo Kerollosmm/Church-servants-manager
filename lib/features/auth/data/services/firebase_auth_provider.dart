@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/data/services/auth_provider.dart';
@@ -6,7 +7,6 @@ import 'package:church_management_system/features/auth/domain/failures/auth_exce
 import 'package:church_management_system/features/auth/domain/failures/auth_failures.dart';
 import 'package:firebase_auth/firebase_auth.dart'
     show FirebaseAuth, FirebaseAuthException, User;
-import 'package:flutter/foundation.dart';
 
 class FirebaseAuthProvider implements AuthProvider {
   final FirebaseAuth _auth;
@@ -157,12 +157,11 @@ class FirebaseAuthProvider implements AuthProvider {
         try {
           await user.sendEmailVerification();
         } catch (e) {
-          if (kDebugMode) {
-            debugPrint(
-              'FirebaseAuthProvider: Initial verification email send failed '
-              '(${e.runtimeType})',
-            );
-          }
+          developer.log(
+            'Initial verification email send failed',
+            error: e,
+            name: 'FirebaseAuthProvider',
+          );
         }
 
         return appUser;

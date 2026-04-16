@@ -1,12 +1,9 @@
 import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/routing/app_router.dart';
 import 'package:church_management_system/core/theme/app_theme.dart';
+import 'package:church_management_system/features/auth/data/repos/firebase_auth_repository.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:church_management_system/features/auth/data/services/firebase_auth_provider.dart'; // added to provide AuthService if needed
-import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
-import 'package:church_management_system/features/auth/domain/auth_freshness_policy.dart';
-import 'package:church_management_system/features/auth/data/repos/firebase_auth_repository.dart'; // adding typical location for AuthService
-import 'package:church_management_system/features/auth/data/services/auth_service.dart'; // guessing location
+import 'package:church_management_system/features/servant/domain/repos/i_servant_repository.dart';
 import 'package:church_management_system/features/servant/domain/usecases/provision_servant_with_auth_usecase.dart';
 import 'package:church_management_system/features/servant/presentation/bloc/servant_data/servant_data_cubit.dart';
 import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
@@ -18,7 +15,6 @@ import 'package:church_management_system/features/student/presentation/bloc/stud
 import 'package:church_management_system/role_user_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:church_management_system/features/servant/domain/repos/i_servant_repository.dart';
 
 class ChurchApp extends StatelessWidget {
   const ChurchApp({super.key});
@@ -29,7 +25,7 @@ class ChurchApp extends StatelessWidget {
       providers: [
         BlocProvider(
           create: (context) =>
-              AuthBloc(authService: getIt<AuthService>())
+              AuthBloc(authService: getIt<FirebaseAuthRepository>())
                 ..add(const AuthEventCheckStatus()),
         ),
         BlocProvider(

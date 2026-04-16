@@ -7,6 +7,5 @@ class PaginationCursor {
 
   Object get token => _token;
 
-  static PaginationCursor fromToken(Object token) =>
-      PaginationCursor._(token);
+  static PaginationCursor fromToken(Object token) => PaginationCursor._(token);
 }
