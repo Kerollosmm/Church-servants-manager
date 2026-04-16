@@ -316,11 +316,16 @@ class AttendanceMarkRepository {
     required Future<bool> Function() canManage,
   }) async {
     final normalizedStudentId = studentId.trim();
-    if (!await canManage()) {
+
+    final results = await Future.wait([canManage(), getSession()]);
+
+    final hasPermission = results[0] as bool;
+    final session = results[1] as AttendanceSession?;
+
+    if (!hasPermission) {
       throw const AttendancePermissionDeniedFailure();
     }
 
-    final session = await getSession();
     if (session == null) {
       throw const AttendanceSessionNotFoundFailure();
     }

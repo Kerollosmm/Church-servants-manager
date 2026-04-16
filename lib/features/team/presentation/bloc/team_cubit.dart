@@ -33,11 +33,7 @@ class TeamCubit extends Cubit<TeamState> {
     Object error,
     String userMessage,
   ) {
-    developer.log(
-      contextLabel,
-      error: error,
-      name: 'TeamCubit',
-    );
+    developer.log(contextLabel, error: error, name: 'TeamCubit');
     if (_currentTeams.isNotEmpty) {
       emit(
         TeamLoaded(
@@ -69,11 +65,7 @@ class TeamCubit extends Cubit<TeamState> {
       _currentLoadGroupId = loadGroupId;
       emit(TeamLoaded(teams: teams, selectedTeamId: selectedTeamId));
     } catch (e) {
-      developer.log(
-        errorContext,
-        error: e,
-        name: 'TeamCubit',
-      );
+      developer.log(errorContext, error: e, name: 'TeamCubit');
       emit(TeamError(errorMessage));
     }
   }

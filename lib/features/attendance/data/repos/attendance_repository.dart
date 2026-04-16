@@ -816,12 +816,21 @@ class AttendanceRepository implements IAttendanceRepository {
     final now = _nowProvider();
     final markFutures = sessions
         .map((session) async {
-          final doc = await _markDoc(
-            session.teamId,
-            session.id,
-            studentId,
-          ).get();
-          return (session: session, mark: _mapMarkOrNull(doc));
+          try {
+            final doc = await _markDoc(
+              session.teamId,
+              session.id,
+              studentId,
+            ).get(const GetOptions(source: Source.cache));
+            return (session: session, mark: _mapMarkOrNull(doc));
+          } catch (_) {
+            final doc = await _markDoc(
+              session.teamId,
+              session.id,
+              studentId,
+            ).get(const GetOptions(source: Source.server));
+            return (session: session, mark: _mapMarkOrNull(doc));
+          }
         })
         .toList(growable: false);
 

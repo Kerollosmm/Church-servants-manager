@@ -166,7 +166,11 @@ class StudentDataRepository implements IStudentRepository {
       final finalStudent = student.copyWith(docID: docRef.id);
 
       final batch = _firestore.batch();
-      batch.set(docRef, finalStudent.toMap());
+      batch.set(docRef, {
+        ...finalStudent.toMap(),
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
       await batch.commit();
 
       return docRef.id;
@@ -179,7 +183,10 @@ class StudentDataRepository implements IStudentRepository {
   Future<void> updateStudent(StudentModel student) async {
     try {
       final docRef = _studentsCollection.doc(student.docID);
-      await docRef.update(student.toMap());
+      await docRef.update({
+        ...student.toMap(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
     }
@@ -189,7 +196,10 @@ class StudentDataRepository implements IStudentRepository {
   Future<void> upsertStudent(StudentModel student) async {
     try {
       final docRef = _studentsCollection.doc(student.docID);
-      await docRef.set(student.toMap(), SetOptions(merge: true));
+      await docRef.set({
+        ...student.toMap(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
     }

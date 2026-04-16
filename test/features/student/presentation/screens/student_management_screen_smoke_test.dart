@@ -13,8 +13,11 @@ import 'package:get_it/get_it.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockStudentDataBloc extends Mock implements StudentDataBloc {}
+
 class MockAuthBloc extends Mock implements AuthBloc {}
+
 class MockTeamRepository extends Mock implements TeamRepository {}
+
 class MockAdminTeamService extends Mock implements AdminTeamService {}
 
 void main() {
@@ -47,13 +50,21 @@ void main() {
     when(() => mockAuthBloc.state).thenReturn(AuthAuthenticated(adminUser));
     when(() => mockAuthBloc.stream).thenAnswer((_) => const Stream.empty());
 
-    when(() => mockStudentDataBloc.state).thenReturn(const StudentDataInitial());
-    when(() => mockStudentDataBloc.stream).thenAnswer((_) => const Stream.empty());
+    when(
+      () => mockStudentDataBloc.state,
+    ).thenReturn(const StudentDataInitial());
+    when(
+      () => mockStudentDataBloc.stream,
+    ).thenAnswer((_) => const Stream.empty());
 
-    when(() => mockTeamRepository.getTeamsByGroup(any())).thenAnswer((_) async => []);
+    when(
+      () => mockTeamRepository.getTeamsByGroup(any()),
+    ).thenAnswer((_) async => []);
   });
 
-  testWidgets('StudentManagementScreen renders correctly in initial state', (WidgetTester tester) async {
+  testWidgets('StudentManagementScreen renders correctly in initial state', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         home: MultiBlocProvider(
@@ -70,12 +81,16 @@ void main() {
     expect(find.byType(TextField), findsOneWidget); // Search field
   });
 
-  testWidgets('StudentManagementScreen shows empty state when no students', (WidgetTester tester) async {
-    when(() => mockStudentDataBloc.state).thenReturn(const StudentDataLoaded(
-      students: [],
-      allStudents: [],
-      studentsByDocId: {},
-    ));
+  testWidgets('StudentManagementScreen shows empty state when no students', (
+    WidgetTester tester,
+  ) async {
+    when(() => mockStudentDataBloc.state).thenReturn(
+      const StudentDataLoaded(
+        students: [],
+        allStudents: [],
+        studentsByDocId: {},
+      ),
+    );
 
     await tester.pumpWidget(
       MaterialApp(
@@ -94,48 +109,53 @@ void main() {
     expect(find.text('لا يوجد مخدومون'), findsOneWidget);
   });
 
-  testWidgets('StudentManagementScreen shows student list when data is loaded', (WidgetTester tester) async {
-    final student = StudentModel(
-      uid: 's1',
-      docID: 's1',
-      name: 'Ahmed Mohamed',
-      imageUrl: null,
-      role: UserRole.student,
-      mobile: '01234567890',
-      group: Group.year1,
-      teamName: 'Team A',
-      motherPhone: '01234567890',
-      fatherPhone: '01234567890',
-      grade: 1,
-      educationStage: EducationStage.preparatory,
-      school: 'School X',
-      address: 'Address Y',
-      birthdate: DateTime(2010, 1, 1),
-      fatherOfConfession: 'Fr. Test',
-      notes: 'Some notes',
-      classId: 'team1',
-    );
+  testWidgets(
+    'StudentManagementScreen shows student list when data is loaded',
+    (WidgetTester tester) async {
+      final student = StudentModel(
+        uid: 's1',
+        docID: 's1',
+        name: 'Ahmed Mohamed',
+        imageUrl: null,
+        role: UserRole.student,
+        mobile: '01234567890',
+        group: Group.year1,
+        teamName: 'Team A',
+        motherPhone: '01234567890',
+        fatherPhone: '01234567890',
+        grade: 1,
+        educationStage: EducationStage.preparatory,
+        school: 'School X',
+        address: 'Address Y',
+        birthdate: DateTime(2010),
+        fatherOfConfession: 'Fr. Test',
+        notes: 'Some notes',
+        classId: 'team1',
+      );
 
-    when(() => mockStudentDataBloc.state).thenReturn(StudentDataLoaded(
-      students: [student],
-      allStudents: [student],
-      studentsByDocId: {'s1': student},
-    ));
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: MultiBlocProvider(
-          providers: [
-            BlocProvider<StudentDataBloc>.value(value: mockStudentDataBloc),
-            BlocProvider<AuthBloc>.value(value: mockAuthBloc),
-          ],
-          child: const StudentManagementScreen(),
+      when(() => mockStudentDataBloc.state).thenReturn(
+        StudentDataLoaded(
+          students: [student],
+          allStudents: [student],
+          studentsByDocId: {'s1': student},
         ),
-      ),
-    );
+      );
 
-    await tester.pump();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MultiBlocProvider(
+            providers: [
+              BlocProvider<StudentDataBloc>.value(value: mockStudentDataBloc),
+              BlocProvider<AuthBloc>.value(value: mockAuthBloc),
+            ],
+            child: const StudentManagementScreen(),
+          ),
+        ),
+      );
 
-    expect(find.text('Ahmed Mohamed'), findsOneWidget);
-  });
+      await tester.pump();
+
+      expect(find.text('Ahmed Mohamed'), findsOneWidget);
+    },
+  );
 }

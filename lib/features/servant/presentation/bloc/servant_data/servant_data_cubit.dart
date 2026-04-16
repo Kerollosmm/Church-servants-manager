@@ -136,7 +136,7 @@ class ServantDataCubit extends Cubit<ServantDataState> {
     if (_allServants.isEmpty) {
       await loadServants(actor: actor, includeArchived: includeArchived);
     }
-    _emitLoading();
+
     try {
       _lastQuery = query;
       final normalizedQuery = query.toLowerCase();

@@ -145,11 +145,7 @@ class StudentQueryService {
         );
       }
     } catch (e) {
-      developer.log(
-        'Cache read failed',
-        error: e,
-        name: 'StudentQueryService',
-      );
+      developer.log('Cache read failed', error: e, name: 'StudentQueryService');
     }
 
     try {
@@ -170,20 +166,21 @@ class StudentQueryService {
     bool includeArchived = false,
   }) async {
     try {
-      final serverQuery = _studentsCollection
-          .where('classId', isEqualTo: classId)
-          .where('isArchived', isEqualTo: false);
-      final serverSnapshot = await serverQuery.get();
-      final serverStudents = mapStudentDocs(serverSnapshot.docs).students;
-      if (serverStudents.isNotEmpty) {
-        return serverStudents;
+      try {
+        final serverQuery = _studentsCollection
+            .where('classId', isEqualTo: classId)
+            .where('isArchived', isEqualTo: false);
+        final serverSnapshot = await serverQuery.get(
+          const GetOptions(source: Source.server),
+        );
+        return mapStudentDocs(serverSnapshot.docs).students;
+      } catch (_) {
+        final studentIds = await _getStudentIdsFromClassDocument(classId);
+        return _applyArchivedFilter(
+          await _getStudentsByDocumentIds(studentIds),
+          includeArchived,
+        );
       }
-
-      final studentIds = await _getStudentIdsFromClassDocument(classId);
-      return _applyArchivedFilter(
-        await _getStudentsByDocumentIds(studentIds),
-        includeArchived,
-      );
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
     }
@@ -320,11 +317,7 @@ class StudentQueryService {
         );
       }
     } catch (e) {
-      developer.log(
-        'Cache read failed',
-        error: e,
-        name: 'StudentQueryService',
-      );
+      developer.log('Cache read failed', error: e, name: 'StudentQueryService');
     }
 
     try {
@@ -372,7 +365,9 @@ class StudentQueryService {
     if (!includeArchived) {
       query = query.where('isArchived', isEqualTo: false);
     }
-    return query.snapshots().map((snapshot) => mapStudentDocs(snapshot.docs).students);
+    return query.snapshots().map(
+      (snapshot) => mapStudentDocs(snapshot.docs).students,
+    );
   }
 
   Stream<List<StudentModel>> watchStudentsByClass(
@@ -386,7 +381,9 @@ class StudentQueryService {
     if (!includeArchived) {
       query = query.where('isArchived', isEqualTo: false);
     }
-    return query.snapshots().map((snapshot) => mapStudentDocs(snapshot.docs).students);
+    return query.snapshots().map(
+      (snapshot) => mapStudentDocs(snapshot.docs).students,
+    );
   }
 
   Stream<List<StudentModel>> watchStudentsByClasses(
@@ -446,6 +443,8 @@ class StudentQueryService {
     if (!includeArchived) {
       query = query.where('isArchived', isEqualTo: false);
     }
-    return query.snapshots().map((snapshot) => mapStudentDocs(snapshot.docs).students);
+    return query.snapshots().map(
+      (snapshot) => mapStudentDocs(snapshot.docs).students,
+    );
   }
 }

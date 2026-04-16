@@ -269,7 +269,7 @@ void main() {
     when(() => authService.getCurrentAppUser()).thenAnswer((_) async => null);
 
     final bloc = AuthBloc(authService: authService);
-    
+
     // Bootstrap the bloc
     bloc.add(const AuthEventCheckStatus());
     await Future<void>.delayed(Duration.zero);

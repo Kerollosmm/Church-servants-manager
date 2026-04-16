@@ -75,18 +75,22 @@ void main() {
         classId: 'team1',
       );
 
-      when(() => studentRepo.createStudent(any())).thenAnswer((_) async => 'doc1');
+      when(
+        () => studentRepo.createStudent(any()),
+      ).thenAnswer((_) async => 'doc1');
 
       final result = await useCase(student: student);
 
       expect(result, 'doc1');
       verify(() => studentRepo.createStudent(any())).called(1);
-      verifyNever(() => provisioningService.createUser(
-            email: any(named: 'email'),
-            password: any(named: 'password'),
-            name: any(named: 'name'),
-            role: any(named: 'role'),
-          ));
+      verifyNever(
+        () => provisioningService.createUser(
+          email: any(named: 'email'),
+          password: any(named: 'password'),
+          name: any(named: 'name'),
+          role: any(named: 'role'),
+        ),
+      );
     });
 
     test('creates student with auth when credentials provided', () async {
@@ -118,14 +122,18 @@ void main() {
         role: UserRole.student,
       );
 
-      when(() => provisioningService.createUser(
-            email: any(named: 'email'),
-            password: any(named: 'password'),
-            name: any(named: 'name'),
-            role: any(named: 'role'),
-          )).thenAnswer((_) async => authUser);
+      when(
+        () => provisioningService.createUser(
+          email: any(named: 'email'),
+          password: any(named: 'password'),
+          name: any(named: 'name'),
+          role: any(named: 'role'),
+        ),
+      ).thenAnswer((_) async => authUser);
 
-      when(() => studentRepo.createStudent(any())).thenAnswer((_) async => 'doc1');
+      when(
+        () => studentRepo.createStudent(any()),
+      ).thenAnswer((_) async => 'doc1');
 
       final result = await useCase(
         student: student,
@@ -134,14 +142,17 @@ void main() {
       );
 
       expect(result, 'doc1');
-      verify(() => provisioningService.createUser(
-            email: 'test@example.com',
-            password: 'password123',
-            name: 'Test Student',
-            role: UserRole.student,
-          )).called(1);
-      
-      final captured = verify(() => studentRepo.createStudent(captureAny())).captured.single as StudentModel;
+      verify(
+        () => provisioningService.createUser(
+          email: 'test@example.com',
+          password: 'password123',
+          name: 'Test Student',
+        ),
+      ).called(1);
+
+      final captured =
+          verify(() => studentRepo.createStudent(captureAny())).captured.single
+              as StudentModel;
       expect(captured.uid, 'auth-uid');
     });
 
@@ -174,21 +185,26 @@ void main() {
         role: UserRole.student,
       );
 
-      when(() => provisioningService.createUser(
-            email: any(named: 'email'),
-            password: any(named: 'password'),
-            name: any(named: 'name'),
-            role: any(named: 'role'),
-          )).thenAnswer((_) async => authUser);
+      when(
+        () => provisioningService.createUser(
+          email: any(named: 'email'),
+          password: any(named: 'password'),
+          name: any(named: 'name'),
+          role: any(named: 'role'),
+        ),
+      ).thenAnswer((_) async => authUser);
 
-      when(() => studentRepo.createStudent(any()))
-          .thenThrow(Exception('Firestore failed'));
+      when(
+        () => studentRepo.createStudent(any()),
+      ).thenThrow(Exception('Firestore failed'));
 
-      when(() => provisioningService.rollbackCreatedUser(
-            uid: any(named: 'uid'),
-            email: any(named: 'email'),
-            password: any(named: 'password'),
-          )).thenAnswer((_) async {});
+      when(
+        () => provisioningService.rollbackCreatedUser(
+          uid: any(named: 'uid'),
+          email: any(named: 'email'),
+          password: any(named: 'password'),
+        ),
+      ).thenAnswer((_) async {});
 
       await expectLater(
         () => useCase(
@@ -199,31 +215,65 @@ void main() {
         throwsA(isA<Exception>()),
       );
 
-      verify(() => provisioningService.rollbackCreatedUser(
-            uid: 'auth-uid',
-            email: 'test@example.com',
-            password: 'password123',
-          )).called(1);
+      verify(
+        () => provisioningService.rollbackCreatedUser(
+          uid: 'auth-uid',
+          email: 'test@example.com',
+          password: 'password123',
+        ),
+      ).called(1);
     });
 
-    test('archive calls provisioningService.archiveUser and repo.archiveStudent', () async {
-      when(() => provisioningService.archiveUser(uid: any(named: 'uid'))).thenAnswer((_) async {});
-      when(() => studentRepo.archiveStudent(any(), performedByUid: any(named: 'performedByUid'))).thenAnswer((_) async {});
+    test(
+      'archive calls provisioningService.archiveUser and repo.archiveStudent',
+      () async {
+        when(
+          () => provisioningService.archiveUser(uid: any(named: 'uid')),
+        ).thenAnswer((_) async {});
+        when(
+          () => studentRepo.archiveStudent(
+            any(),
+            performedByUid: any(named: 'performedByUid'),
+          ),
+        ).thenAnswer((_) async {});
 
-      await useCase.archive(docId: 's1', performedByUid: 'admin1', linkedUid: 'u1');
+        await useCase.archive(
+          docId: 's1',
+          performedByUid: 'admin1',
+          linkedUid: 'u1',
+        );
 
-      verify(() => provisioningService.archiveUser(uid: 'u1')).called(1);
-      verify(() => studentRepo.archiveStudent('s1', performedByUid: 'admin1')).called(1);
-    });
+        verify(() => provisioningService.archiveUser(uid: 'u1')).called(1);
+        verify(
+          () => studentRepo.archiveStudent('s1', performedByUid: 'admin1'),
+        ).called(1);
+      },
+    );
 
-    test('restore calls provisioningService.restoreUser and repo.restoreStudent', () async {
-      when(() => provisioningService.restoreUser(uid: any(named: 'uid'))).thenAnswer((_) async {});
-      when(() => studentRepo.restoreStudent(any(), performedByUid: any(named: 'performedByUid'))).thenAnswer((_) async {});
+    test(
+      'restore calls provisioningService.restoreUser and repo.restoreStudent',
+      () async {
+        when(
+          () => provisioningService.restoreUser(uid: any(named: 'uid')),
+        ).thenAnswer((_) async {});
+        when(
+          () => studentRepo.restoreStudent(
+            any(),
+            performedByUid: any(named: 'performedByUid'),
+          ),
+        ).thenAnswer((_) async {});
 
-      await useCase.restore(docId: 's1', performedByUid: 'admin1', linkedUid: 'u1');
+        await useCase.restore(
+          docId: 's1',
+          performedByUid: 'admin1',
+          linkedUid: 'u1',
+        );
 
-      verify(() => provisioningService.restoreUser(uid: 'u1')).called(1);
-      verify(() => studentRepo.restoreStudent('s1', performedByUid: 'admin1')).called(1);
-    });
+        verify(() => provisioningService.restoreUser(uid: 'u1')).called(1);
+        verify(
+          () => studentRepo.restoreStudent('s1', performedByUid: 'admin1'),
+        ).called(1);
+      },
+    );
   });
 }

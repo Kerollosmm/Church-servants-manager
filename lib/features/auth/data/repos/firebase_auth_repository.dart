@@ -9,7 +9,8 @@ class FirebaseAuthRepository implements AuthRepository {
   final FirebaseAuthProvider _provider;
   AuthUser? _lastKnownAppUser;
 
-  FirebaseAuthRepository({required FirebaseAuthProvider provider}) : _provider = provider;
+  FirebaseAuthRepository({required FirebaseAuthProvider provider})
+    : _provider = provider;
 
   /// Get the current Firebase user (basic info)
   AuthUser? get currentUser => _provider.currentUser;

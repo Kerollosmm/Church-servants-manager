@@ -237,7 +237,8 @@ class TeamRepository implements ITeamRepository {
   @override
   Future<String> createTeam(TeamModel team) async {
     try {
-      final registryId = '${team.groupId}_${team.name}';
+      final registryId =
+          '${team.groupId.toLowerCase().trim()}_${team.name.toLowerCase().trim()}';
       final registryRef = _registryCollection.doc(registryId);
 
       final docRef = await _firestore.runTransaction((transaction) async {
@@ -294,9 +295,10 @@ class TeamRepository implements ITeamRepository {
         // If name or group changed, handle uniqueness registry
         if (freshExisting.name != team.name ||
             freshExisting.groupId != team.groupId) {
-          final newRegistryId = '${team.groupId}_${team.name}';
+          final newRegistryId =
+              '${team.groupId.toLowerCase().trim()}_${team.name.toLowerCase().trim()}';
           final oldRegistryId =
-              '${freshExisting.groupId}_${freshExisting.name}';
+              '${freshExisting.groupId.toLowerCase().trim()}_${freshExisting.name.toLowerCase().trim()}';
 
           final newRegDoc = await transaction.get(
             _registryCollection.doc(newRegistryId),
@@ -310,7 +312,9 @@ class TeamRepository implements ITeamRepository {
           }
 
           // Release old registry and claim new one
-          transaction.delete(_registryCollection.doc(oldRegistryId));
+          if (oldRegistryId != newRegistryId) {
+            transaction.delete(_registryCollection.doc(oldRegistryId));
+          }
           transaction.set(_registryCollection.doc(newRegistryId), {
             'teamId': team.id,
             'groupId': team.groupId,

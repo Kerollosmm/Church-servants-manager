@@ -179,6 +179,10 @@ class AttendanceSessionRepository {
           .toList();
       updatedOpenIds.add(sessionId);
 
+      if (updatedOpenIds.length > 10) {
+        updatedOpenIds.removeRange(0, updatedOpenIds.length - 10);
+      }
+
       transaction.update(teamDoc.reference, {
         'openSessionIds': updatedOpenIds,
         'updatedAt': FieldValue.serverTimestamp(),

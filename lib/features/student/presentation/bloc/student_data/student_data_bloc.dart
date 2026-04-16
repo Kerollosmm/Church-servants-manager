@@ -120,11 +120,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
       },
       onError: (Object error) {
         if (isClosed) return;
-        developer.log(
-          'Stream error',
-          error: error,
-          name: 'StudentDataBloc',
-        );
+        developer.log('Stream error', error: error, name: 'StudentDataBloc');
         add(_StreamError('$error'));
       },
     );
@@ -242,11 +238,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     String message,
     Object error,
   ) {
-    developer.log(
-      message,
-      error: error,
-      name: 'StudentDataBloc',
-    );
+    developer.log(message, error: error, name: 'StudentDataBloc');
     emit(StudentDataError('$message. حاول مرة أخرى.'));
   }
 

@@ -121,14 +121,13 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<AuthBloc, AuthState>(
-      builder: (context, authState) {
-        final actor = switch (authState) {
-          AuthAuthenticated() => authState.user,
-          AuthDegraded() => authState.user,
-          _ => null,
-        };
-
+    return BlocSelector<AuthBloc, AuthState, AuthUser?>(
+      selector: (state) => switch (state) {
+        AuthAuthenticated() => state.user,
+        AuthDegraded() => state.user,
+        _ => null,
+      },
+      builder: (context, actor) {
         if (actor == null) {
           return const Scaffold(
             body: Center(child: Text('لم يتم تسجيل الدخول.')),

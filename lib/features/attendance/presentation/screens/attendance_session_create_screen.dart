@@ -123,9 +123,13 @@ class _AttendanceSessionCreateScreenState
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<AuthBloc, AuthState>(
-      builder: (context, authState) {
-        final actor = _currentActor();
+    return BlocSelector<AuthBloc, AuthState, AuthUser>(
+      selector: (state) {
+        if (state is AuthAuthenticated) return state.user;
+        if (state is AuthDegraded) return state.user;
+        throw StateError('Unreachable');
+      },
+      builder: (context, actor) {
         if (actor.role != UserRole.admin && actor.role != UserRole.servant) {
           return Scaffold(
             appBar: AppBar(

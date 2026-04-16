@@ -190,7 +190,9 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('تجاهل التعديلات؟'),
-            content: const Text('لديك تغييرات غير محفوظة. هل تريد حقاً الخروج؟'),
+            content: const Text(
+              'لديك تغييرات غير محفوظة. هل تريد حقاً الخروج؟',
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
@@ -322,7 +324,9 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
                                     strokeWidth: 2,
                                   ),
                                 )
-                              : Icon(isEditing ? Icons.save_outlined : Icons.add),
+                              : Icon(
+                                  isEditing ? Icons.save_outlined : Icons.add,
+                                ),
                           label: Text(
                             isEditing ? 'حفظ التعديلات' : 'إنشاء مخدوم',
                           ),

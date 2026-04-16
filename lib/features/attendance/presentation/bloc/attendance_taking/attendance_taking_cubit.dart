@@ -9,10 +9,11 @@ import 'package:church_management_system/features/attendance/domain/failures/att
 import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_state.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:rxdart/rxdart.dart';
 
 /// Cubit for managing attendance-taking UI state during a session.
 ///
-/// Listens to a single session-level marks stream and a session status stream.
+/// Listens to session-level marks and status streams, merging them atomically.
 /// Delegates mutations to [AttendanceRepository] with idempotency guards.
 class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
   AttendanceTakingCubit({
@@ -25,10 +26,7 @@ class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
   final AttendanceRepository _repository;
   final DateTime Function() _nowProvider;
 
-  StreamSubscription<AttendanceRosterSnapshot>? _rosterSubscription;
-  StreamSubscription<SessionStatus>? _statusSubscription;
-  bool _isMutating = false;
-  String? _mutationError;
+  StreamSubscription<AttendanceTakingState>? _sessionSubscription;
 
   /// Number of students without any mark in the current roster.
   int get unmarkedCount {
@@ -40,82 +38,81 @@ class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
   }
 
   void initialize({required String teamId, required String sessionId}) {
-    _isMutating = false;
-    _mutationError = null;
     emit(const AttendanceTakingLoading());
+    _sessionSubscription?.cancel();
 
-    _rosterSubscription?.cancel();
-    _statusSubscription?.cancel();
-
-    // Listen to session status stream for real-time open/closed state.
-    _statusSubscription = _repository
-        .watchSessionStatus(teamId: teamId, sessionId: sessionId)
-        .listen(_onSessionStatusChange);
-
-    // Single session-level stream replaces all per-student listeners.
-    _rosterSubscription = _repository
-        .watchSessionRosterSnapshot(teamId: teamId, sessionId: sessionId)
-        .listen(
-          _onSnapshot,
+    _sessionSubscription =
+        CombineLatestStream.combine2(
+          _repository.watchSessionRosterSnapshot(
+            teamId: teamId,
+            sessionId: sessionId,
+          ),
+          _repository.watchSessionStatus(teamId: teamId, sessionId: sessionId),
+          _mapSnapshotToState,
+        ).listen(
+          emit,
           onError: (Object error, StackTrace stackTrace) {
             developer.log(
-              'roster stream failed',
+              'session stream failed',
               error: error,
               stackTrace: stackTrace,
               name: 'AttendanceTakingCubit',
             );
-            final failure = mapExceptionToAttendanceFailure(error);
-            emit(AttendanceTakingError(failure.message));
+            emit(
+              AttendanceTakingError(
+                mapExceptionToAttendanceFailure(error).message,
+              ),
+            );
           },
         );
   }
 
-  void _onSessionStatusChange(SessionStatus status) {
-    final currentState = state;
-    if (currentState is! AttendanceTakingLoaded) return;
+  AttendanceTakingState _mapSnapshotToState(
+    AttendanceRosterSnapshot snapshot,
+    SessionStatus status,
+  ) {
+    final marksMap = {
+      for (final item in snapshot.roster)
+        if (item.manualStatus != null) item.studentId: item.manualStatus!,
+    };
 
-    final isSessionOpen = status != SessionStatus.closed;
-    if (currentState.isSessionOpen != isSessionOpen) {
-      emit(currentState.copyWith(isSessionOpen: isSessionOpen));
-    }
+    final currentState = state;
+    final currentMutationStatus = currentState is AttendanceTakingLoaded
+        ? currentState.mutationStatus
+        : MutationStatus.idle;
+
+    return AttendanceTakingLoaded(
+      session: snapshot.session,
+      roster: snapshot.roster,
+      marksMap: marksMap,
+      mutationStatus: currentMutationStatus,
+      isSessionOpen:
+          status != SessionStatus.closed &&
+          snapshot.session.isOpenAt(_nowProvider()),
+      errorMessage: currentState is AttendanceTakingLoaded
+          ? currentState.errorMessage
+          : null,
+    );
   }
 
-  void _onSnapshot(AttendanceRosterSnapshot snapshot) {
-    final marksMap = <String, AttendanceMarkStatus>{};
-    for (final item in snapshot.roster) {
-      if (item.manualStatus != null) {
-        marksMap[item.studentId] = item.manualStatus!;
-      }
-    }
-
-    emit(
-      AttendanceTakingLoaded(
-        session: snapshot.session,
-        roster: snapshot.roster,
-        marksMap: marksMap,
-        mutationStatus: _isMutating
-            ? MutationStatus.inProgress
-            : MutationStatus.idle,
-        isSessionOpen: snapshot.session.isOpenAt(_nowProvider()),
-        errorMessage: _mutationError,
-      ),
-    );
+  bool _shouldSkipMutation(
+    String studentId,
+    AttendanceMarkStatus targetStatus,
+  ) {
+    final currentState = state;
+    if (currentState is! AttendanceTakingLoaded) return true;
+    return currentState.marksMap[studentId] == targetStatus;
   }
 
   Future<void> markPresent({
     required AuthUser actor,
     required AttendanceRosterItem item,
-  }) {
-    // Idempotency guard: skip if already marked present.
-    final currentState = state;
-    if (currentState is AttendanceTakingLoaded) {
-      final existingStatus = currentState.marksMap[item.studentId];
-      if (existingStatus == AttendanceMarkStatus.present) {
-        return Future<void>.value();
-      }
+  }) async {
+    if (_shouldSkipMutation(item.studentId, AttendanceMarkStatus.present)) {
+      return;
     }
 
-    return _runMutation(
+    await _runMutation(
       action: () => _repository.markStudentPresent(
         teamId: item.teamId,
         sessionId: item.sessionId,
@@ -129,17 +126,10 @@ class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
   Future<void> markLate({
     required AuthUser actor,
     required AttendanceRosterItem item,
-  }) {
-    // Idempotency guard: skip if already marked late.
-    final currentState = state;
-    if (currentState is AttendanceTakingLoaded) {
-      final existingStatus = currentState.marksMap[item.studentId];
-      if (existingStatus == AttendanceMarkStatus.late) {
-        return Future<void>.value();
-      }
-    }
+  }) async {
+    if (_shouldSkipMutation(item.studentId, AttendanceMarkStatus.late)) return;
 
-    return _runMutation(
+    await _runMutation(
       action: () => _repository.markStudentLate(
         teamId: item.teamId,
         sessionId: item.sessionId,
@@ -153,16 +143,14 @@ class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
   Future<void> clearMark({
     required AuthUser actor,
     required AttendanceRosterItem item,
-  }) {
-    // Idempotency guard: skip if not marked.
+  }) async {
     final currentState = state;
-    if (currentState is AttendanceTakingLoaded) {
-      if (!currentState.marksMap.containsKey(item.studentId)) {
-        return Future<void>.value();
-      }
+    if (currentState is AttendanceTakingLoaded &&
+        !currentState.marksMap.containsKey(item.studentId)) {
+      return;
     }
 
-    return _runMutation(
+    await _runMutation(
       action: () => _repository.clearStudentMark(
         teamId: item.teamId,
         sessionId: item.sessionId,
@@ -174,9 +162,7 @@ class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
 
   Future<void> markAllRemainingPresent({required AuthUser actor}) async {
     final currentState = state;
-    if (currentState is! AttendanceTakingLoaded) {
-      return;
-    }
+    if (currentState is! AttendanceTakingLoaded) return;
 
     await _runMutation(
       action: () => _repository.markAllPresentForRemainingStudents(
@@ -190,44 +176,32 @@ class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
   Future<void> _runMutation({required Future<void> Function() action}) async {
     final currentState = state;
     if (currentState is! AttendanceTakingLoaded) return;
-    if (_isMutating) return;
+    if (currentState.mutationStatus == MutationStatus.inProgress) return;
+
     if (!currentState.isSessionOpen) {
-      _mutationError = 'انتهى وقت تسجيل الحضور لهذه الجلسة.';
-      emit(currentState.copyWith(errorMessage: _mutationError));
+      emit(
+        currentState.copyWith(
+          errorMessage: 'انتهى وقت تسجيل الحضور لهذه الجلسة.',
+        ),
+      );
       return;
     }
 
-    _isMutating = true;
-    _mutationError = null;
     emit(
       currentState.copyWith(
         mutationStatus: MutationStatus.inProgress,
         clearErrorMessage: true,
       ),
     );
+
     try {
       await action();
-      _isMutating = false;
-      _mutationError = null;
-      final latestState = state;
-      if (latestState is AttendanceTakingLoaded) {
-        emit(
-          latestState.copyWith(
-            mutationStatus: MutationStatus.success,
-            clearErrorMessage: true,
-          ),
-        );
-        // Reset success message after a brief delay.
-        unawaited(
-          Future<void>.delayed(const Duration(seconds: 2)).then((_) {
-            final current = state;
-            if (current is AttendanceTakingLoaded &&
-                current.mutationStatus == MutationStatus.success) {
-              emit(current.copyWith(mutationStatus: MutationStatus.idle));
-            }
-          }),
-        );
-      }
+      if (isClosed) return;
+
+      final loadedState = state as AttendanceTakingLoaded;
+      emit(loadedState.copyWith(mutationStatus: MutationStatus.success));
+
+      _scheduleReset(const Duration(seconds: 2));
     } catch (error, stackTrace) {
       developer.log(
         'mutation failed',
@@ -235,25 +209,32 @@ class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
         stackTrace: stackTrace,
         name: 'AttendanceTakingCubit',
       );
-      final failure = mapExceptionToAttendanceFailure(error);
-      _isMutating = false;
-      _mutationError = failure.message;
-      final latestState = state;
-      if (latestState is AttendanceTakingLoaded) {
-        emit(
-          latestState.copyWith(
-            mutationStatus: MutationStatus.failure,
-            errorMessage: _mutationError,
-          ),
-        );
-      }
+      if (isClosed) return;
+
+      final loadedState = state as AttendanceTakingLoaded;
+      emit(
+        loadedState.copyWith(
+          mutationStatus: MutationStatus.failure,
+          errorMessage: mapExceptionToAttendanceFailure(error).message,
+        ),
+      );
     }
+  }
+
+  void _scheduleReset(Duration delay) {
+    Future<void>.delayed(delay).then((_) {
+      if (isClosed) return;
+      final current = state;
+      if (current is AttendanceTakingLoaded &&
+          current.mutationStatus == MutationStatus.success) {
+        emit(current.copyWith(mutationStatus: MutationStatus.idle));
+      }
+    });
   }
 
   @override
   Future<void> close() async {
-    await _rosterSubscription?.cancel();
-    await _statusSubscription?.cancel();
+    await _sessionSubscription?.cancel();
     return super.close();
   }
 }

@@ -193,7 +193,7 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
                                       actor: widget.args.actor,
                                       isMutationInProgress:
                                           loaded.mutationStatus ==
-                                              MutationStatus.inProgress,
+                                          MutationStatus.inProgress,
                                       isSessionOpen: loaded.isSessionOpen,
                                     );
                                   },
@@ -274,8 +274,9 @@ class _RosterItemCard extends StatelessWidget {
                 ),
                 Chip(
                   label: Text(_statusLabel(item.effectiveStatus)),
-                  backgroundColor:
-                      _statusColor(item.effectiveStatus).withValues(alpha: 0.14),
+                  backgroundColor: _statusColor(
+                    item.effectiveStatus,
+                  ).withValues(alpha: 0.14),
                   labelStyle: TextStyle(
                     color: _statusColor(item.effectiveStatus),
                     fontWeight: FontWeight.w700,
@@ -296,36 +297,33 @@ class _RosterItemCard extends StatelessWidget {
               runSpacing: AppSpacing.sm,
               children: [
                 OutlinedButton.icon(
-                  onPressed:
-                      !isSessionOpen || isMutationInProgress
-                          ? null
-                          : () => context.read<AttendanceTakingCubit>().markPresent(
-                            actor: actor,
-                            item: item,
-                          ),
+                  onPressed: !isSessionOpen || isMutationInProgress
+                      ? null
+                      : () => context.read<AttendanceTakingCubit>().markPresent(
+                          actor: actor,
+                          item: item,
+                        ),
                   icon: const Icon(Icons.check_circle_outline),
                   label: const Text('حاضر'),
                 ),
                 OutlinedButton.icon(
-                  onPressed:
-                      !isSessionOpen || isMutationInProgress
-                          ? null
-                          : () => context.read<AttendanceTakingCubit>().markLate(
-                            actor: actor,
-                            item: item,
-                          ),
+                  onPressed: !isSessionOpen || isMutationInProgress
+                      ? null
+                      : () => context.read<AttendanceTakingCubit>().markLate(
+                          actor: actor,
+                          item: item,
+                        ),
                   icon: const Icon(Icons.alarm_on_outlined),
                   label: const Text('متأخر'),
                 ),
                 if (item.isMarked)
                   TextButton.icon(
-                    onPressed:
-                        !isSessionOpen || isMutationInProgress
-                            ? null
-                            : () => context.read<AttendanceTakingCubit>().clearMark(
-                              actor: actor,
-                              item: item,
-                            ),
+                    onPressed: !isSessionOpen || isMutationInProgress
+                        ? null
+                        : () => context.read<AttendanceTakingCubit>().clearMark(
+                            actor: actor,
+                            item: item,
+                          ),
                     icon: const Icon(Icons.clear),
                     label: const Text('مسح التحديد'),
                   ),

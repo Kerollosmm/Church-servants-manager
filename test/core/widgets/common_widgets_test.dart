@@ -22,7 +22,9 @@ void main() {
       expect(find.byIcon(Icons.people_outline), findsOneWidget);
     });
 
-    testWidgets('shows action button when onAction is provided', (WidgetTester tester) async {
+    testWidgets('shows action button when onAction is provided', (
+      WidgetTester tester,
+    ) async {
       bool actionCalled = false;
       await tester.pumpWidget(
         MaterialApp(
@@ -45,7 +47,9 @@ void main() {
       expect(actionCalled, true);
     });
 
-    testWidgets('shows refresh button when onRefresh is provided', (WidgetTester tester) async {
+    testWidgets('shows refresh button when onRefresh is provided', (
+      WidgetTester tester,
+    ) async {
       bool refreshCalled = false;
       await tester.pumpWidget(
         MaterialApp(
@@ -88,7 +92,9 @@ void main() {
       expect(find.byIcon(Icons.error_outline), findsOneWidget);
     });
 
-    testWidgets('shows retry button and calls onRetry', (WidgetTester tester) async {
+    testWidgets('shows retry button and calls onRetry', (
+      WidgetTester tester,
+    ) async {
       bool retryCalled = false;
       await tester.pumpWidget(
         MaterialApp(

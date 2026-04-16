@@ -31,7 +31,9 @@ class CanMutateStudentUseCase {
 
   /// Legacy method: checks if actor can perform ANY mutation on student.
   /// Prefer the specific canCreate/canUpdate/canDelete methods.
-  @Deprecated('Use specific canCreate, canUpdate, or canDelete methods instead.')
+  @Deprecated(
+    'Use specific canCreate, canUpdate, or canDelete methods instead.',
+  )
   bool call(AuthUser actor, StudentModel student) {
     return canUpdate(actor, student, student);
   }
