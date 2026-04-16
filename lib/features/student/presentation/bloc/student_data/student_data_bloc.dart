@@ -182,25 +182,50 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     StudentMutationOperation? mutationOperation,
   }) {
     final currentState = state;
+    List<StudentModel> allStudents = const [];
+    Map<String, StudentModel> studentsByDocId = const {};
+    String? groupId;
+    String? teamId;
+    String? query;
+    bool includeArchived = false;
+
     if (currentState is StudentDataLoaded) {
-      final students = _resolveVisibleStudents(
-        allStudents: currentState.allStudents,
-        query: currentState.currentQuery,
-      );
-      _emitLoadedState(
-        emit,
-        students: students,
-        allStudents: currentState.allStudents,
-        studentsByDocId: currentState.studentsByDocId,
-        groupId: currentState.currentFilterGroupId,
-        teamId: currentState.currentFilterTeamId,
-        query: currentState.currentQuery,
-        includeArchived: currentState.includeArchived,
-        mutationStatus: StudentMutationStatus.success,
-        mutationOperation: mutationOperation,
-        successMessage: message,
-      );
+      allStudents = currentState.allStudents;
+      studentsByDocId = currentState.studentsByDocId;
+      groupId = currentState.currentFilterGroupId;
+      teamId = currentState.currentFilterTeamId;
+      query = currentState.currentQuery;
+      includeArchived = currentState.includeArchived;
+    } else if (currentState is StudentDataLoading) {
+      allStudents = currentState.previousStudents;
+      groupId = currentState.currentFilterGroupId;
+      teamId = currentState.currentFilterTeamId;
+      query = currentState.currentQuery;
+      includeArchived = currentState.includeArchived;
+      // Re-populate studentsByDocId from allStudents if available
+      if (allStudents.isNotEmpty) {
+        studentsByDocId = {for (final s in allStudents) s.docID: s};
+      }
     }
+
+    final visibleStudents = _resolveVisibleStudents(
+      allStudents: allStudents,
+      query: query,
+    );
+
+    _emitLoadedState(
+      emit,
+      students: visibleStudents,
+      allStudents: allStudents,
+      studentsByDocId: studentsByDocId,
+      groupId: groupId,
+      teamId: teamId,
+      query: query,
+      includeArchived: includeArchived,
+      mutationStatus: StudentMutationStatus.success,
+      mutationOperation: mutationOperation,
+      successMessage: message,
+    );
   }
 
   Future<StudentModel?> _resolveExistingStudent(String docId) async {

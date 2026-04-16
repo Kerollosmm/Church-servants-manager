@@ -266,9 +266,16 @@ void main() {
       () => authService.authStateChanges,
     ).thenAnswer((_) => controller.stream);
     when(() => authService.currentUser).thenReturn(null);
+    when(() => authService.getCurrentAppUser()).thenAnswer((_) async => null);
 
     final bloc = AuthBloc(authService: authService);
+    
+    // Bootstrap the bloc
+    bloc.add(const AuthEventCheckStatus());
+    await Future<void>.delayed(Duration.zero);
     controller.add(null);
+    await Future<void>.delayed(Duration.zero);
+
     final expectation = expectLater(
       bloc.stream,
       emitsInOrder([
