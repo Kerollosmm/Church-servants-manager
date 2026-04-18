@@ -108,9 +108,13 @@ class FirebaseAuthRepository implements AuthRepository {
 
   /// Reload Firebase auth user and fetch a fresh app profile snapshot.
   Future<AuthUser?> refreshCurrentAppUser() async {
+    await forceTokenRefresh();
     await reloadUser();
     return getCurrentAppUser(forceRefresh: true);
   }
+
+  /// Force a token refresh, e.g. when claims change
+  Future<void> forceTokenRefresh() => _provider.forceTokenRefresh();
 
   @override
   Future<void> updatePassword(String newPassword) async {

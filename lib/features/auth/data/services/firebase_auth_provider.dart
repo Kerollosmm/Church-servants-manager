@@ -36,13 +36,26 @@ class FirebaseAuthProvider implements AuthProvider {
 
   @override
   Stream<AuthUser?> get authStateChanges {
-    return _auth.authStateChanges().asyncMap((user) async {
+    return _auth.userChanges().asyncMap((user) async {
       if (user == null) {
         _userCache.clear();
         return null;
       }
-      return await getUserData(user.uid, forceRefresh: true);
+      
+      try {
+        final idTokenResult = await user.getIdTokenResult(false);
+        final appUser = AuthUser.fromFirebaseToken(user, idTokenResult.claims ?? {});
+        _userCache[user.uid] = appUser;
+        return appUser;
+      } catch (_) {
+        // Fallback or handle error
+        return AuthUser.fromFirebase(user);
+      }
     });
+  }
+
+  Future<void> forceTokenRefresh() async {
+    await _auth.currentUser?.getIdToken(true);
   }
 
   Future<AuthUser> _clearRestorePendingPasswordResetIfNeeded(
