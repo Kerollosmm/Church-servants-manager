@@ -328,15 +328,41 @@ class FirebaseAuthProvider implements AuthProvider {
       // when available, then fall back to explicit cache on failures.
       final user = await _userProfileStore.fetchUser(uid);
       final firebaseUser = _auth.currentUser;
-      final syncedUser = firebaseUser != null && firebaseUser.uid == uid
-          ? user.copyWith(
-              email: firebaseUser.email ?? user.email,
-              name: firebaseUser.displayName?.trim().isNotEmpty == true
-                  ? firebaseUser.displayName!.trim()
-                  : user.name,
-              isEmailVerified: firebaseUser.emailVerified,
-            )
-          : user;
+      
+      var syncedUser = user;
+      if (firebaseUser != null && firebaseUser.uid == uid) {
+        try {
+          final idTokenResult = await firebaseUser.getIdTokenResult(forceRefresh);
+          final claims = idTokenResult.claims ?? {};
+          final roleString = claims['role'] as String? ?? 'student';
+          final role = UserRole.values.firstWhere(
+            (e) => e.name == roleString,
+            orElse: () => UserRole.student,
+          );
+          final teamIds = claims['assignedTeamIds'] != null ? List<String>.from(claims['assignedTeamIds']) : <String>[];
+
+          syncedUser = user.copyWith(
+            email: firebaseUser.email ?? user.email,
+            name: firebaseUser.displayName?.trim().isNotEmpty == true
+                ? firebaseUser.displayName!.trim()
+                : user.name,
+            isEmailVerified: firebaseUser.emailVerified,
+            role: role,
+            isArchived: claims['isArchived'] ?? user.isArchived,
+            assignedTeamIds: teamIds,
+            assignedTeamId: claims['assignedTeamId'] ?? user.assignedTeamId,
+            groupId: claims['groupId'] ?? user.groupId,
+          );
+        } catch (_) {
+          syncedUser = user.copyWith(
+            email: firebaseUser.email ?? user.email,
+            name: firebaseUser.displayName?.trim().isNotEmpty == true
+                ? firebaseUser.displayName!.trim()
+                : user.name,
+            isEmailVerified: firebaseUser.emailVerified,
+          );
+        }
+      }
 
       if (syncedUser != user) {
         await _userProfileStore.saveUser(syncedUser);

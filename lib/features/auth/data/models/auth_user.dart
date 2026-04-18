@@ -61,7 +61,7 @@ class AuthUser with _$AuthUser {
     );
 
     // Parse teams safely
-    final teamIds = claims['teams'] != null ? List<String>.from(claims['teams']) : <String>[];
+    final teamIds = claims['assignedTeamIds'] != null ? List<String>.from(claims['assignedTeamIds']) : <String>[];
     
     return AuthUser(
       uid: user.uid,
