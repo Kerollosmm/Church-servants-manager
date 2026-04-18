@@ -559,3 +559,5 @@ export const changeUserRole = onCall<ChangeUserRoleRequest>(async (request) => {
 
   return { uid: targetUid, oldRole: result.oldRole, newRole: result.newRole };
 });
+
+export * from "./admin_roles";
