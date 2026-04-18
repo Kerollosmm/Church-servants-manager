@@ -46,6 +46,36 @@ class AuthUser with _$AuthUser {
     );
   }
 
+  /// Create AuthUser from Firebase User and JWT Claims
+  factory AuthUser.fromFirebaseToken(User user, Map<String, dynamic> claims) {
+    final email = user.email;
+    if (email == null || email.isEmpty) {
+      throw const GenericAuthException('AuthUser must have a valid email');
+    }
+    
+    // Parse role safely
+    final roleString = claims['role'] as String? ?? 'student';
+    final role = UserRole.values.firstWhere(
+      (e) => e.name == roleString,
+      orElse: () => UserRole.student,
+    );
+
+    // Parse teams safely
+    final teamIds = claims['teams'] != null ? List<String>.from(claims['teams']) : <String>[];
+    
+    return AuthUser(
+      uid: user.uid,
+      name: user.displayName ?? email.split('@').first,
+      email: email,
+      role: role,
+      isEmailVerified: user.emailVerified,
+      isArchived: claims['isArchived'] ?? false,
+      assignedTeamIds: teamIds,
+      assignedTeamId: claims['assignedTeamId'], // For legacy claim compatibility
+      groupId: claims['groupId'], // For legacy claim compatibility
+    );
+  }
+
   factory AuthUser.fromJson(Map<String, dynamic> json) =>
       _$AuthUserFromJson(json);
 
