@@ -61,6 +61,14 @@ class StudentModel with _$StudentModel {
       return value.toString();
     }
 
+    int? readInt(String key) {
+      final value = data[key];
+      if (value == null) return null;
+      if (value is int) return value;
+      if (value is String) return int.tryParse(value);
+      return null;
+    }
+
     return StudentModel.fromJson({
       ...data,
       'uid': readString('uid') ?? '',
@@ -76,6 +84,10 @@ class StudentModel with _$StudentModel {
       'notes': readString('notes'),
       'classId': readString('classId'),
       'imageUrl': readString('imageUrl'),
+      'grade': readInt('grade') ?? 1,
+      'role': readString('role') ?? 'student',
+      'group': readString('group') ?? 'year1',
+      'education_stage': readString('education_stage') ?? 'highSchool',
     });
   }
 

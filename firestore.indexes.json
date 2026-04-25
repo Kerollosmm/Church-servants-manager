@@ -96,6 +96,21 @@
         { "fieldPath": "studentIdsSnapshot", "arrayConfig": "CONTAINS" },
         { "fieldPath": "teamId", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "attendance_sessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "dateKey", "order": "ASCENDING" },
+        { "fieldPath": "startsAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "attendance_sessions",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "studentIdsSnapshot", "arrayConfig": "CONTAINS" }
+      ]
     }
   ],
   "fieldOverrides": [

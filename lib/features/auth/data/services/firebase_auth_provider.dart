@@ -1,12 +1,15 @@
+import 'dart:async';
+import 'dart:developer' as developer;
 import 'package:church_management_system/core/constants/enums.dart';
+import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/data/services/auth_provider.dart';
 import 'package:church_management_system/features/auth/data/services/auth_user_profile_store.dart';
 import 'package:church_management_system/features/auth/domain/failures/auth_exceptions.dart';
 import 'package:church_management_system/features/auth/domain/failures/auth_failures.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart'
     show FirebaseAuth, FirebaseAuthException, User;
-import 'package:flutter/foundation.dart';
 
 class FirebaseAuthProvider implements AuthProvider {
   final FirebaseAuth _auth;
@@ -14,6 +17,7 @@ class FirebaseAuthProvider implements AuthProvider {
 
   // In-memory cache for user data
   final Map<String, AuthUser> _userCache = {};
+  StreamSubscription<DocumentSnapshot>? _userDocSubscription;
 
   FirebaseAuthProvider({
     FirebaseAuth? auth,
@@ -36,13 +40,64 @@ class FirebaseAuthProvider implements AuthProvider {
 
   @override
   Stream<AuthUser?> get authStateChanges {
-    return _auth.authStateChanges().asyncMap((user) async {
+    return _auth.userChanges().asyncMap((user) async {
       if (user == null) {
         _userCache.clear();
+        _userDocSubscription?.cancel();
+        _userDocSubscription = null;
         return null;
       }
-      return await getUserData(user.uid, forceRefresh: true);
+      
+      if (_userDocSubscription == null) {
+        _userDocSubscription = FirebaseFirestore.instance
+            .collection(FirestoreCollections.users)
+            .doc(user.uid)
+            .snapshots()
+            .skip(1)
+            .listen((snapshot) async {
+          if (snapshot.exists) {
+            // Force a refresh of the token when the user document changes.
+            // This is crucial because admin actions (like role changes) 
+            // update the doc and claims asynchronously. This ensures the app
+            // isn't stuck with stale claims for 1 hour.
+            await forceTokenRefresh();
+          }
+        });
+      }
+
+      try {
+        final idTokenResult = await user.getIdTokenResult(false);
+        final claims = idTokenResult.claims ?? {};
+        final roleString = claims['role'] as String? ?? 'student';
+        final role = UserRole.values.firstWhere(
+          (e) => e.name == roleString,
+          orElse: () => UserRole.student,
+        );
+        final teamIds = claims['assignedTeamIds'] != null ? List<String>.from(claims['assignedTeamIds']) : <String>[];
+
+        final appUser = AuthUser(
+          uid: user.uid,
+          name: user.displayName ?? user.email?.split('@').first ?? '',
+          email: user.email ?? '',
+          role: role,
+          isEmailVerified: user.emailVerified,
+          isArchived: claims['isArchived'] ?? false,
+          assignedTeamIds: teamIds,
+          assignedTeamId: claims['assignedTeamId'],
+          groupId: claims['groupId'],
+        );
+
+        _userCache[user.uid] = appUser;
+        return appUser;
+      } catch (_) {
+        // Fallback or handle error
+        return AuthUser.fromFirebase(user);
+      }
     });
+  }
+
+  Future<void> forceTokenRefresh() async {
+    await _auth.currentUser?.getIdToken(true);
   }
 
   Future<AuthUser> _clearRestorePendingPasswordResetIfNeeded(
@@ -157,12 +212,11 @@ class FirebaseAuthProvider implements AuthProvider {
         try {
           await user.sendEmailVerification();
         } catch (e) {
-          if (kDebugMode) {
-            debugPrint(
-              'FirebaseAuthProvider: Initial verification email send failed '
-              '(${e.runtimeType})',
-            );
-          }
+          developer.log(
+            'Initial verification email send failed',
+            error: e,
+            name: 'FirebaseAuthProvider',
+          );
         }
 
         return appUser;
@@ -316,15 +370,41 @@ class FirebaseAuthProvider implements AuthProvider {
       // when available, then fall back to explicit cache on failures.
       final user = await _userProfileStore.fetchUser(uid);
       final firebaseUser = _auth.currentUser;
-      final syncedUser = firebaseUser != null && firebaseUser.uid == uid
-          ? user.copyWith(
-              email: firebaseUser.email ?? user.email,
-              name: firebaseUser.displayName?.trim().isNotEmpty == true
-                  ? firebaseUser.displayName!.trim()
-                  : user.name,
-              isEmailVerified: firebaseUser.emailVerified,
-            )
-          : user;
+      
+      var syncedUser = user;
+      if (firebaseUser != null && firebaseUser.uid == uid) {
+        try {
+          final idTokenResult = await firebaseUser.getIdTokenResult(forceRefresh);
+          final claims = idTokenResult.claims ?? {};
+          final roleString = claims['role'] as String? ?? 'student';
+          final role = UserRole.values.firstWhere(
+            (e) => e.name == roleString,
+            orElse: () => UserRole.student,
+          );
+          final teamIds = claims['assignedTeamIds'] != null ? List<String>.from(claims['assignedTeamIds']) : <String>[];
+
+          syncedUser = user.copyWith(
+            email: firebaseUser.email ?? user.email,
+            name: firebaseUser.displayName?.trim().isNotEmpty == true
+                ? firebaseUser.displayName!.trim()
+                : user.name,
+            isEmailVerified: firebaseUser.emailVerified,
+            role: role,
+            isArchived: claims['isArchived'] ?? user.isArchived,
+            assignedTeamIds: teamIds,
+            assignedTeamId: claims['assignedTeamId'] ?? user.assignedTeamId,
+            groupId: claims['groupId'] ?? user.groupId,
+          );
+        } catch (_) {
+          syncedUser = user.copyWith(
+            email: firebaseUser.email ?? user.email,
+            name: firebaseUser.displayName?.trim().isNotEmpty == true
+                ? firebaseUser.displayName!.trim()
+                : user.name,
+            isEmailVerified: firebaseUser.emailVerified,
+          );
+        }
+      }
 
       if (syncedUser != user) {
         await _userProfileStore.saveUser(syncedUser);

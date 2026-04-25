@@ -1,8 +1,11 @@
 part of 'student_data_bloc.dart';
 
 /// Sealed states for StudentDataBloc with exhaustive switch support.
-sealed class StudentDataState {
+sealed class StudentDataState extends Equatable {
   const StudentDataState();
+
+  @override
+  List<Object?> get props => [];
 }
 
 enum StudentMutationStatus { idle, success }
@@ -19,19 +22,37 @@ final class StudentDataLoading extends StudentDataState {
   final List<StudentModel> previousStudents;
   final bool isRefresh;
   final bool includeArchived;
+  final String? currentFilterGroupId;
+  final String? currentFilterTeamId;
+  final String? currentQuery;
 
   const StudentDataLoading({
     this.previousStudents = const <StudentModel>[],
     this.isRefresh = false,
     this.includeArchived = false,
+    this.currentFilterGroupId,
+    this.currentFilterTeamId,
+    this.currentQuery,
   });
 
   bool get hasPreviousStudents => previousStudents.isNotEmpty;
+
+  @override
+  List<Object?> get props => [
+    previousStudents,
+    isRefresh,
+    includeArchived,
+    currentFilterGroupId,
+    currentFilterTeamId,
+    currentQuery,
+  ];
 }
 
 /// Loaded state - students fetched successfully.
 final class StudentDataLoaded extends StudentDataState {
   final List<StudentModel> students;
+  final List<StudentModel> allStudents;
+  final Map<String, StudentModel> studentsByDocId;
   final String? currentFilterGroupId;
   final String? currentFilterTeamId;
   final String? currentQuery;
@@ -44,6 +65,8 @@ final class StudentDataLoaded extends StudentDataState {
 
   const StudentDataLoaded({
     required this.students,
+    required this.allStudents,
+    required this.studentsByDocId,
     this.currentFilterGroupId,
     this.currentFilterTeamId,
     this.currentQuery,
@@ -55,6 +78,8 @@ final class StudentDataLoaded extends StudentDataState {
 
   StudentDataLoaded copyWith({
     List<StudentModel>? students,
+    List<StudentModel>? allStudents,
+    Map<String, StudentModel>? studentsByDocId,
     String? currentFilterGroupId,
     String? currentFilterTeamId,
     String? currentQuery,
@@ -66,6 +91,8 @@ final class StudentDataLoaded extends StudentDataState {
   }) {
     return StudentDataLoaded(
       students: students ?? this.students,
+      allStudents: allStudents ?? this.allStudents,
+      studentsByDocId: studentsByDocId ?? this.studentsByDocId,
       currentFilterGroupId: currentFilterGroupId ?? this.currentFilterGroupId,
       currentFilterTeamId: currentFilterTeamId ?? this.currentFilterTeamId,
       currentQuery: currentQuery ?? this.currentQuery,
@@ -89,22 +116,10 @@ final class StudentDataLoaded extends StudentDataState {
   bool get isEmpty => students.isEmpty;
 
   @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is StudentDataLoaded &&
-          runtimeType == other.runtimeType &&
-          currentFilterGroupId == other.currentFilterGroupId &&
-          currentFilterTeamId == other.currentFilterTeamId &&
-          currentQuery == other.currentQuery &&
-          includeArchived == other.includeArchived &&
-          mutationStatus == other.mutationStatus &&
-          mutationOperation == other.mutationOperation &&
-          successMessage == other.successMessage &&
-          const ListEquality<StudentModel>().equals(students, other.students);
-
-  @override
-  int get hashCode => Object.hash(
-    const ListEquality<StudentModel>().hash(students),
+  List<Object?> get props => [
+    students,
+    allStudents,
+    studentsByDocId,
     currentFilterGroupId,
     currentFilterTeamId,
     currentQuery,
@@ -112,7 +127,7 @@ final class StudentDataLoaded extends StudentDataState {
     mutationStatus,
     mutationOperation,
     successMessage,
-  );
+  ];
 }
 
 /// Error state - operation failed.
@@ -122,12 +137,5 @@ final class StudentDataError extends StudentDataState {
   const StudentDataError(this.message);
 
   @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is StudentDataError &&
-          runtimeType == other.runtimeType &&
-          message == other.message;
-
-  @override
-  int get hashCode => message.hashCode;
+  List<Object?> get props => [message];
 }

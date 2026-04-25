@@ -1,5 +1,6 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/routes.dart';
+import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
 import 'package:church_management_system/core/widgets/common/app_info_banner.dart';
@@ -160,9 +161,8 @@ class _UserStatsCardState extends State<_UserStatsCard> {
   @override
   void initState() {
     super.initState();
-    _cubit = ServantDashboardCubit(
-      teamRepository: context.read<TeamRepository>(),
-    )..loadAssignedTeamNames(widget.user.effectiveAssignedTeamIds);
+    _cubit = ServantDashboardCubit(teamRepository: getIt<TeamRepository>())
+      ..loadAssignedTeamNames(widget.user.effectiveAssignedTeamIds);
   }
 
   @override

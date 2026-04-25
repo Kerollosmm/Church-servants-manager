@@ -5,15 +5,18 @@ import 'package:church_management_system/features/attendance/data/repos/attendan
 import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_session_repository.dart';
 import 'package:church_management_system/features/attendance/data/services/attendance_session_service.dart';
+import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
+import 'package:church_management_system/features/auth/data/repos/firebase_auth_repository.dart';
 import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
-import 'package:church_management_system/features/auth/data/services/auth_service.dart';
 import 'package:church_management_system/features/auth/data/services/auth_user_profile_store.dart';
 import 'package:church_management_system/features/auth/data/services/firebase_auth_provider.dart';
 import 'package:church_management_system/features/auth/domain/auth_freshness_policy.dart';
 import 'package:church_management_system/features/servant/data/repo/servant_data_repository.dart';
+import 'package:church_management_system/features/servant/domain/repos/i_servant_repository.dart';
 import 'package:church_management_system/features/student/data/repos/student_data_repository.dart';
 import 'package:church_management_system/features/student/data/services/student_linked_user_sync_service.dart';
 import 'package:church_management_system/features/student/data/services/student_query_service.dart';
+import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
 import 'package:church_management_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
 import 'package:church_management_system/features/student/domain/usecases/get_students_stream_usecase.dart';
 import 'package:church_management_system/features/team/data/repos/team_repository.dart';
@@ -26,20 +29,11 @@ final getIt = GetIt.instance;
 void configureDependencies() {
   // ---- External ----
   getIt
-    ..registerLazySingleton<FirebaseFirestore>(() {
-      final firestore = FirebaseFirestore.instance
-        ..settings = const Settings(
-          persistenceEnabled: true,
-          cacheSizeBytes: 100 * 1024 * 1024,
-        );
-      return firestore;
-    })
-
+    ..registerLazySingleton<FirebaseFirestore>(() => FirebaseFirestore.instance)
     // ---- Auth Freshness ----
     // Note: AuthFreshnessPolicy.initialize() must be called after login
     // and on app cold start to restore persisted state.
     ..registerFactory<AuthFreshnessPolicy>(AuthFreshnessPolicy.new)
-
     // ---- Services ----
     ..registerLazySingleton<AuthUserProfileStore>(
       () => AuthUserProfileStore(firestore: getIt()),
@@ -48,36 +42,44 @@ void configureDependencies() {
       () =>
           FirebaseAuthProvider(userProfileStore: getIt<AuthUserProfileStore>()),
     )
-    ..registerLazySingleton<AuthService>(
-      () => AuthService(provider: getIt<FirebaseAuthProvider>()),
+    ..registerLazySingleton<FirebaseAuthRepository>(
+      () => FirebaseAuthRepository(provider: getIt<FirebaseAuthProvider>()),
     )
     ..registerLazySingleton<AdminUserProvisioningService>(
       () => ClientAdminUserProvisioningService(
         userProfileStore: getIt<AuthUserProfileStore>(),
-        authService: getIt<AuthService>(),
+        authService: getIt<FirebaseAuthRepository>(),
       ),
     )
-
     // ---- Repositories ----
-    ..registerLazySingleton<StudentDataRepository>(
+    ..registerLazySingleton<IStudentRepository>(
       () => StudentDataRepository(
         firestore: getIt(),
         queryService: getIt<StudentQueryService>(),
         linkedUserSyncService: getIt<StudentLinkedUserSyncService>(),
       ),
     )
-    ..registerLazySingleton<ServantDataRepository>(
+    ..registerLazySingleton<StudentDataRepository>(
+      () => getIt<IStudentRepository>() as StudentDataRepository,
+    )
+    ..registerLazySingleton<IServantRepository>(
       () => ServantDataRepository(firestore: getIt()),
+    )
+    ..registerLazySingleton<ServantDataRepository>(
+      () => getIt<IServantRepository>() as ServantDataRepository,
     )
     ..registerLazySingleton<StudentQueryService>(
       () => StudentQueryService(firestore: getIt()),
     )
     // ---- Attendance ----
-    ..registerLazySingleton<AttendanceRepository>(
+    ..registerLazySingleton<IAttendanceRepository>(
       () => AttendanceRepository(
         firestore: getIt(),
         studentQueryService: getIt<StudentQueryService>(),
       ),
+    )
+    ..registerLazySingleton<AttendanceRepository>(
+      () => getIt<IAttendanceRepository>() as AttendanceRepository,
     )
     ..registerLazySingleton<AttendanceSessionRepository>(
       () => AttendanceSessionRepository(firestore: getIt()),
@@ -106,15 +108,13 @@ void configureDependencies() {
         membershipService: getIt<AdminTeamMembershipService>(),
       ),
     )
-
     // ---- UseCases ----
     ..registerLazySingleton<GetStudentsStreamUseCase>(
-      () => GetStudentsStreamUseCase(getIt<StudentDataRepository>()),
+      () => GetStudentsStreamUseCase(getIt<IStudentRepository>()),
     )
     ..registerLazySingleton<CanMutateStudentUseCase>(
       () => const CanMutateStudentUseCase(),
     )
-
     // ---- Routing ----
     ..registerLazySingleton<AppRouter>(AppRouter.new);
 }

@@ -1,3 +1,4 @@
+import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
 import 'package:church_management_system/core/widgets/common/app_info_banner.dart';
 import 'package:church_management_system/core/widgets/form/app_dropdown_field.dart';
@@ -33,7 +34,7 @@ class _AssignServantDialogState extends State<AssignServantDialog> {
   void initState() {
     super.initState();
     _cubit = AssignServantOptionsCubit(
-      servantRepository: context.read<ServantDataRepository>(),
+      servantRepository: getIt<ServantDataRepository>(),
     )..load(widget.team.groupId);
   }
 

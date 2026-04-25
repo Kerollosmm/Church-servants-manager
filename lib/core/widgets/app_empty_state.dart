@@ -5,16 +5,20 @@ import 'package:flutter/material.dart';
 class AppEmptyState extends StatelessWidget {
   final String title;
   final String subtitle;
-  final Future<void> Function() onRefresh;
+  final Future<void> Function()? onRefresh;
   final String refreshLabel;
+  final VoidCallback? onAction;
+  final String? actionLabel;
   final IconData icon;
 
   const AppEmptyState({
     super.key,
     required this.title,
     required this.subtitle,
-    required this.onRefresh,
-    this.refreshLabel = 'Refresh',
+    this.onRefresh,
+    this.refreshLabel = 'تحديث',
+    this.onAction,
+    this.actionLabel,
     this.icon = Icons.people_outline,
   });
 
@@ -39,12 +43,22 @@ class AppEmptyState extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
-            AppSpacing.gapMd,
-            FilledButton.icon(
-              onPressed: onRefresh,
-              icon: const Icon(Icons.refresh),
-              label: Text(refreshLabel),
-            ),
+            if (onAction != null && actionLabel != null) ...[
+              AppSpacing.gapMd,
+              FilledButton.icon(
+                onPressed: onAction,
+                icon: const Icon(Icons.add),
+                label: Text(actionLabel!),
+              ),
+            ],
+            if (onRefresh != null) ...[
+              AppSpacing.gapMd,
+              TextButton.icon(
+                onPressed: onRefresh,
+                icon: const Icon(Icons.refresh),
+                label: Text(refreshLabel),
+              ),
+            ],
           ],
         ),
       ),

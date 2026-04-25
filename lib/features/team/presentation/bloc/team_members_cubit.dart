@@ -1,10 +1,10 @@
+import 'dart:developer' as developer;
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/student/data/repos/student_data_repository.dart';
 import 'package:church_management_system/features/team/data/models/team_model.dart';
 import 'package:equatable/equatable.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 enum TeamMembersMutationStatus { idle, success, failure }
@@ -131,12 +131,11 @@ class TeamMembersCubit extends Cubit<TeamMembersState> {
         ),
       );
     } catch (error) {
-      if (kDebugMode) {
-        debugPrint(
-          'TeamMembersCubit: failed to load students '
-          '(${error.runtimeType})',
-        );
-      }
+      developer.log(
+        'failed to load students',
+        error: error,
+        name: 'TeamMembersCubit',
+      );
       emit(
         const TeamMembersState(
           errorMessage: 'فشل تحميل المخدومين. حاول مرة أخرى.',
@@ -193,12 +192,11 @@ class TeamMembersCubit extends Cubit<TeamMembersState> {
         ),
       );
     } catch (error) {
-      if (kDebugMode) {
-        debugPrint(
-          'TeamMembersCubit: failed to save team members '
-          '(${error.runtimeType})',
-        );
-      }
+      developer.log(
+        'failed to save team members',
+        error: error,
+        name: 'TeamMembersCubit',
+      );
       emit(
         state.copyWith(
           isSaving: false,

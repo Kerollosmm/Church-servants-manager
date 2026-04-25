@@ -2,19 +2,22 @@ part of 'team_cubit.dart';
 
 enum TeamMutationStatus { idle, inProgress, success, failure }
 
-abstract class TeamState {
+sealed class TeamState extends Equatable {
   const TeamState();
+
+  @override
+  List<Object?> get props => [];
 }
 
-class TeamInitial extends TeamState {
+final class TeamInitial extends TeamState {
   const TeamInitial();
 }
 
-class TeamLoading extends TeamState {
+final class TeamLoading extends TeamState {
   const TeamLoading();
 }
 
-class TeamLoaded extends TeamState {
+final class TeamLoaded extends TeamState {
   final List<TeamModel> teams;
   final String? selectedTeamId;
   final TeamMutationStatus mutationStatus;
@@ -46,9 +49,20 @@ class TeamLoaded extends TeamState {
           : (feedbackMessage ?? this.feedbackMessage),
     );
   }
+
+  @override
+  List<Object?> get props => [
+    teams,
+    selectedTeamId,
+    mutationStatus,
+    feedbackMessage,
+  ];
 }
 
-class TeamError extends TeamState {
+final class TeamError extends TeamState {
   final String message;
   const TeamError(this.message);
+
+  @override
+  List<Object?> get props => [message];
 }

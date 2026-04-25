@@ -1,3 +1,4 @@
+import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/routing/route_args.dart';
 import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
@@ -24,12 +25,11 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen> {
   @override
   void initState() {
     super.initState();
-    _cubit =
-        StudentAttendanceCubit(repository: context.read<AttendanceRepository>())
-          ..loadForStudent(
-            studentId: widget.args.studentId,
-            teamId: widget.args.filterTeamId,
-          );
+    _cubit = StudentAttendanceCubit(repository: getIt<AttendanceRepository>())
+      ..loadForStudent(
+        studentId: widget.args.studentId,
+        teamId: widget.args.filterTeamId,
+      );
   }
 
   @override

@@ -1,5 +1,6 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/routes.dart';
+import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/routing/route_args.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
 import 'package:church_management_system/core/widgets/common/app_info_banner.dart';
@@ -122,9 +123,13 @@ class _AttendanceSessionCreateScreenState
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<AuthBloc, AuthState>(
-      builder: (context, authState) {
-        final actor = _currentActor();
+    return BlocSelector<AuthBloc, AuthState, AuthUser>(
+      selector: (state) {
+        if (state is AuthAuthenticated) return state.user;
+        if (state is AuthDegraded) return state.user;
+        throw StateError('Unreachable');
+      },
+      builder: (context, actor) {
         if (actor.role != UserRole.admin && actor.role != UserRole.servant) {
           return Scaffold(
             appBar: AppBar(
@@ -144,8 +149,8 @@ class _AttendanceSessionCreateScreenState
             BlocProvider<TeamCubit>(
               create: (context) {
                 final teamCubit = TeamCubit(
-                  teamRepository: context.read<TeamRepository>(),
-                  adminTeamService: context.read<AdminTeamService>(),
+                  teamRepository: getIt<TeamRepository>(),
+                  adminTeamService: getIt<AdminTeamService>(),
                 );
 
                 if (actor.role == UserRole.admin) {
@@ -172,7 +177,7 @@ class _AttendanceSessionCreateScreenState
             ),
             BlocProvider<AttendanceSessionAdminCubit>(
               create: (context) => AttendanceSessionAdminCubit(
-                repository: context.read<AttendanceRepository>(),
+                repository: getIt<AttendanceRepository>(),
               ),
             ),
           ],

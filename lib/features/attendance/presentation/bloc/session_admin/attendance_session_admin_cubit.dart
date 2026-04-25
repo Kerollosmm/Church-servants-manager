@@ -1,8 +1,8 @@
+import 'dart:developer' as developer;
 import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
 import 'package:church_management_system/features/attendance/domain/failures/attendance_failures.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/session_admin/attendance_session_admin_state.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class AttendanceSessionAdminCubit extends Cubit<AttendanceSessionAdminState> {
@@ -55,13 +55,12 @@ class AttendanceSessionAdminCubit extends Cubit<AttendanceSessionAdminState> {
         ),
       );
     } catch (error, stackTrace) {
-      if (kDebugMode) {
-        debugPrint(
-          'AttendanceSessionAdminCubit: createSession failed '
-          '(${error.runtimeType})',
-        );
-        debugPrintStack(stackTrace: stackTrace);
-      }
+      developer.log(
+        'createSession failed',
+        error: error,
+        stackTrace: stackTrace,
+        name: 'AttendanceSessionAdminCubit',
+      );
       final failure = mapExceptionToAttendanceFailure(error);
       emit(AttendanceSessionAdminError(failure.message));
     }
@@ -99,13 +98,12 @@ class AttendanceSessionAdminCubit extends Cubit<AttendanceSessionAdminState> {
         ),
       );
     } catch (error, stackTrace) {
-      if (kDebugMode) {
-        debugPrint(
-          'AttendanceSessionAdminCubit: closeSession failed '
-          '(${error.runtimeType})',
-        );
-        debugPrintStack(stackTrace: stackTrace);
-      }
+      developer.log(
+        'closeSession failed',
+        error: error,
+        stackTrace: stackTrace,
+        name: 'AttendanceSessionAdminCubit',
+      );
       final failure = mapExceptionToAttendanceFailure(error);
       emit(AttendanceSessionAdminError(failure.message));
     }

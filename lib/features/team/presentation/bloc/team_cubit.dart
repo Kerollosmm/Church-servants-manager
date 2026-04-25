@@ -1,10 +1,11 @@
+import 'dart:developer' as developer;
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/servant/data/models/servant_models.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/team/data/models/team_model.dart';
 import 'package:church_management_system/features/team/data/repos/team_repository.dart';
-import 'package:flutter/foundation.dart';
+import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 part 'team_state.dart';
@@ -32,9 +33,7 @@ class TeamCubit extends Cubit<TeamState> {
     Object error,
     String userMessage,
   ) {
-    if (kDebugMode) {
-      debugPrint('TeamCubit: $contextLabel (${error.runtimeType})');
-    }
+    developer.log(contextLabel, error: error, name: 'TeamCubit');
     if (_currentTeams.isNotEmpty) {
       emit(
         TeamLoaded(
@@ -66,9 +65,7 @@ class TeamCubit extends Cubit<TeamState> {
       _currentLoadGroupId = loadGroupId;
       emit(TeamLoaded(teams: teams, selectedTeamId: selectedTeamId));
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('TeamCubit: $errorContext (${e.runtimeType})');
-      }
+      developer.log(errorContext, error: e, name: 'TeamCubit');
       emit(TeamError(errorMessage));
     }
   }

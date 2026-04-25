@@ -1,5 +1,6 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
+import 'package:church_management_system/core/utils/pagination_cursor.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/student/data/services/student_linked_user_sync_service.dart';
 import 'package:church_management_system/features/student/data/services/student_query_service.dart';
@@ -17,10 +18,10 @@ class StudentDataRepository implements IStudentRepository {
   final StudentLinkedUserSyncService _linkedUserSyncService;
 
   StudentDataRepository({
-    FirebaseFirestore? firestore,
+    required FirebaseFirestore firestore,
     StudentQueryService? queryService,
     StudentLinkedUserSyncService? linkedUserSyncService,
-  }) : _firestore = firestore ?? FirebaseFirestore.instance,
+  }) : _firestore = firestore,
        _queryService =
            queryService ?? StudentQueryService(firestore: firestore),
        _linkedUserSyncService =
@@ -80,12 +81,13 @@ class StudentDataRepository implements IStudentRepository {
   @override
   Future<List<StudentModel>> getAllStudents({
     int limit = 10,
-    DocumentSnapshot? lastDocument,
+    PaginationCursor? cursor,
     bool includeArchived = false,
   }) async {
+    final lastDoc = cursor?.token as DocumentSnapshot?;
     return _queryService.getAllStudents(
       limit: limit,
-      lastDocument: lastDocument,
+      lastDocument: lastDoc,
       includeArchived: includeArchived,
     );
   }
@@ -149,6 +151,7 @@ class StudentDataRepository implements IStudentRepository {
         .get();
     return _queryService
         .mapStudentDocs(snapshot.docs)
+        .students
         .where((s) => !s.isArchived)
         .take(limit)
         .toList();
@@ -161,7 +164,15 @@ class StudentDataRepository implements IStudentRepository {
           ? _studentsCollection.doc(student.docID)
           : _studentsCollection.doc();
       final finalStudent = student.copyWith(docID: docRef.id);
-      await docRef.set(finalStudent.toMap());
+
+      final batch = _firestore.batch();
+      batch.set(docRef, {
+        ...finalStudent.toMap(),
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      await batch.commit();
+
       return docRef.id;
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
@@ -172,7 +183,10 @@ class StudentDataRepository implements IStudentRepository {
   Future<void> updateStudent(StudentModel student) async {
     try {
       final docRef = _studentsCollection.doc(student.docID);
-      await docRef.update(student.toMap());
+      await docRef.update({
+        ...student.toMap(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
     }
@@ -182,7 +196,10 @@ class StudentDataRepository implements IStudentRepository {
   Future<void> upsertStudent(StudentModel student) async {
     try {
       final docRef = _studentsCollection.doc(student.docID);
-      await docRef.set(student.toMap(), SetOptions(merge: true));
+      await docRef.set({
+        ...student.toMap(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
     }

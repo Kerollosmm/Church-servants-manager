@@ -5,11 +5,12 @@ import 'package:church_management_system/features/auth/data/utils/auth_error_map
 import 'package:church_management_system/features/auth/domain/failures/auth_exceptions.dart';
 import 'package:church_management_system/features/auth/domain/repos/auth_repository.dart';
 
-class AuthService implements AuthRepository {
+class FirebaseAuthRepository implements AuthRepository {
   final FirebaseAuthProvider _provider;
   AuthUser? _lastKnownAppUser;
 
-  AuthService({required FirebaseAuthProvider provider}) : _provider = provider;
+  FirebaseAuthRepository({required FirebaseAuthProvider provider})
+    : _provider = provider;
 
   /// Get the current Firebase user (basic info)
   AuthUser? get currentUser => _provider.currentUser;
@@ -107,9 +108,13 @@ class AuthService implements AuthRepository {
 
   /// Reload Firebase auth user and fetch a fresh app profile snapshot.
   Future<AuthUser?> refreshCurrentAppUser() async {
+    await forceTokenRefresh();
     await reloadUser();
     return getCurrentAppUser(forceRefresh: true);
   }
+
+  /// Force a token refresh, e.g. when claims change
+  Future<void> forceTokenRefresh() => _provider.forceTokenRefresh();
 
   @override
   Future<void> updatePassword(String newPassword) async {

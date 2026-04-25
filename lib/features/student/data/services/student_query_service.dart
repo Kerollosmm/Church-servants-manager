@@ -1,37 +1,40 @@
+import 'dart:developer' as developer;
 import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/core/utils/list_extensions.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/student/domain/failures/student_failures.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 import 'package:rxdart/rxdart.dart';
 
 typedef StudentQueryDoc = QueryDocumentSnapshot<Map<String, dynamic>>;
 
 class StudentQueryService {
-  StudentQueryService({FirebaseFirestore? firestore})
-    : _firestore = firestore ?? FirebaseFirestore.instance;
+  StudentQueryService({required FirebaseFirestore firestore})
+    : _firestore = firestore;
 
   final FirebaseFirestore _firestore;
 
   CollectionReference<Map<String, dynamic>> get _studentsCollection =>
       _firestore.collection(FirestoreCollections.students);
 
-  List<StudentModel> mapStudentDocs(List<StudentQueryDoc> docs) {
+  ({List<StudentModel> students, List<String> skippedDocIds}) mapStudentDocs(
+    List<StudentQueryDoc> docs,
+  ) {
     final students = <StudentModel>[];
+    final skippedDocIds = <String>[];
     for (final doc in docs) {
       try {
         students.add(StudentModel.fromMap(doc.data(), doc.id));
       } catch (e) {
-        if (kDebugMode) {
-          debugPrint(
-            'StudentQueryService: skipped malformed student doc '
-            '${doc.id} (${e.runtimeType})',
-          );
-        }
+        skippedDocIds.add(doc.id);
+        developer.log(
+          'skipped malformed student doc ${doc.id}',
+          error: e,
+          name: 'StudentQueryService',
+        );
       }
     }
-    return students;
+    return (students: students, skippedDocIds: skippedDocIds);
   }
 
   List<StudentModel> _applyArchivedFilter(
@@ -46,34 +49,10 @@ class StudentQueryService {
         .toList(growable: false);
   }
 
-  Query<Map<String, dynamic>> _studentsByClassQuery(String classId) {
-    return _studentsCollection
-        .where('classId', isEqualTo: classId)
-        .where('isArchived', isEqualTo: false);
-  }
-
   Query<Map<String, dynamic>> _studentsByGroupQuery(String groupName) {
     return _studentsCollection
         .where('group', isEqualTo: groupName)
         .where('isArchived', isEqualTo: false);
-  }
-
-  Future<List<StudentModel>> _tryGetStudentsByClassFromCache(
-    String classId,
-  ) async {
-    try {
-      final cacheSnapshot = await _studentsByClassQuery(
-        classId,
-      ).get(const GetOptions(source: Source.cache));
-      if (cacheSnapshot.docs.isNotEmpty) {
-        return mapStudentDocs(cacheSnapshot.docs);
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Cache read failed: $e');
-      }
-    }
-    return const <StudentModel>[];
   }
 
   Future<List<String>> _getStudentIdsFromClassDocument(String classId) async {
@@ -99,7 +78,7 @@ class StudentQueryService {
 
     final results = await Future.wait(futures);
     final docs = results.expand((snap) => snap.docs).toList(growable: false);
-    return mapStudentDocs(docs);
+    return mapStudentDocs(docs).students;
   }
 
   Future<StudentModel?> getStudentById(
@@ -161,14 +140,12 @@ class StudentQueryService {
       );
       if (cacheSnapshot.docs.isNotEmpty) {
         return _applyArchivedFilter(
-          mapStudentDocs(cacheSnapshot.docs),
+          mapStudentDocs(cacheSnapshot.docs).students,
           includeArchived,
         );
       }
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Cache read failed: $e');
-      }
+      developer.log('Cache read failed', error: e, name: 'StudentQueryService');
     }
 
     try {
@@ -176,7 +153,7 @@ class StudentQueryService {
         const GetOptions(source: Source.server),
       );
       return _applyArchivedFilter(
-        mapStudentDocs(serverSnapshot.docs),
+        mapStudentDocs(serverSnapshot.docs).students,
         includeArchived,
       );
     } catch (e) {
@@ -184,64 +161,26 @@ class StudentQueryService {
     }
   }
 
-  Future<List<StudentModel>> _tryGetStudentsByQueryFromCache(
-    Query<Map<String, dynamic>> query,
-  ) async {
-    try {
-      final cacheSnapshot = await query.get(
-        const GetOptions(source: Source.cache),
-      );
-      if (cacheSnapshot.docs.isNotEmpty) {
-        return mapStudentDocs(cacheSnapshot.docs);
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Cache read failed: $e');
-      }
-    }
-    return const <StudentModel>[];
-  }
-
-  Future<List<StudentModel>> _getStudentsByQueryFromServer(
-    Query<Map<String, dynamic>> query,
-  ) async {
-    final snapshot = await query.get(const GetOptions(source: Source.server));
-    return mapStudentDocs(snapshot.docs);
-  }
-
   Future<List<StudentModel>> getStudentsByClass(
     String classId, {
     bool includeArchived = false,
   }) async {
     try {
-      final cacheQuery = _studentsCollection
-          .where('classId', isEqualTo: classId)
-          .where('isArchived', isEqualTo: false);
-      if (!includeArchived) {
-        final cacheStudents = await _tryGetStudentsByQueryFromCache(cacheQuery);
-        if (cacheStudents.isNotEmpty) {
-          return cacheStudents;
-        }
-      } else {
-        final cacheStudents = await _tryGetStudentsByClassFromCache(classId);
-        if (cacheStudents.isNotEmpty) {
-          return cacheStudents;
-        }
+      try {
+        final serverQuery = _studentsCollection
+            .where('classId', isEqualTo: classId)
+            .where('isArchived', isEqualTo: false);
+        final serverSnapshot = await serverQuery.get(
+          const GetOptions(source: Source.server),
+        );
+        return mapStudentDocs(serverSnapshot.docs).students;
+      } catch (_) {
+        final studentIds = await _getStudentIdsFromClassDocument(classId);
+        return _applyArchivedFilter(
+          await _getStudentsByDocumentIds(studentIds),
+          includeArchived,
+        );
       }
-
-      final serverQuery = _studentsCollection
-          .where('classId', isEqualTo: classId)
-          .where('isArchived', isEqualTo: false);
-      final serverStudents = await _getStudentsByQueryFromServer(serverQuery);
-      if (serverStudents.isNotEmpty) {
-        return serverStudents;
-      }
-
-      final studentIds = await _getStudentIdsFromClassDocument(classId);
-      return _applyArchivedFilter(
-        await _getStudentsByDocumentIds(studentIds),
-        includeArchived,
-      );
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
     }
@@ -266,12 +205,14 @@ class StudentQueryService {
             const GetOptions(source: Source.cache),
           );
           if (cacheSnapshot.docs.isNotEmpty) {
-            return mapStudentDocs(cacheSnapshot.docs);
+            return mapStudentDocs(cacheSnapshot.docs).students;
           }
         } catch (e) {
-          if (kDebugMode) {
-            debugPrint('Cache read failed: $e');
-          }
+          developer.log(
+            'Cache read failed',
+            error: e,
+            name: 'StudentQueryService',
+          );
         }
       } else {
         try {
@@ -279,17 +220,19 @@ class StudentQueryService {
               .where('grade', isEqualTo: grade)
               .get(const GetOptions(source: Source.cache));
           if (cacheSnapshot.docs.isNotEmpty) {
-            return mapStudentDocs(cacheSnapshot.docs);
+            return mapStudentDocs(cacheSnapshot.docs).students;
           }
         } catch (e) {
-          if (kDebugMode) {
-            debugPrint('Cache read failed: $e');
-          }
+          developer.log(
+            'Cache read failed',
+            error: e,
+            name: 'StudentQueryService',
+          );
         }
       }
 
       final snapshot = await query.get(const GetOptions(source: Source.server));
-      return mapStudentDocs(snapshot.docs);
+      return mapStudentDocs(snapshot.docs).students;
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
     }
@@ -315,12 +258,14 @@ class StudentQueryService {
             const GetOptions(source: Source.cache),
           );
           if (cacheSnapshot.docs.isNotEmpty) {
-            return mapStudentDocs(cacheSnapshot.docs);
+            return mapStudentDocs(cacheSnapshot.docs).students;
           }
         } catch (e) {
-          if (kDebugMode) {
-            debugPrint('Cache read failed: $e');
-          }
+          developer.log(
+            'Cache read failed',
+            error: e,
+            name: 'StudentQueryService',
+          );
         }
       } else {
         try {
@@ -328,12 +273,14 @@ class StudentQueryService {
             const GetOptions(source: Source.cache),
           );
           if (cacheSnapshot.docs.isNotEmpty) {
-            return mapStudentDocs(cacheSnapshot.docs);
+            return mapStudentDocs(cacheSnapshot.docs).students;
           }
         } catch (e) {
-          if (kDebugMode) {
-            debugPrint('Cache read failed: $e');
-          }
+          developer.log(
+            'Cache read failed',
+            error: e,
+            name: 'StudentQueryService',
+          );
         }
       }
 
@@ -345,7 +292,7 @@ class StudentQueryService {
         query = query.where('isArchived', isEqualTo: false);
       }
       final snapshot = await query.get(const GetOptions(source: Source.server));
-      return mapStudentDocs(snapshot.docs);
+      return mapStudentDocs(snapshot.docs).students;
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
     }
@@ -363,16 +310,14 @@ class StudentQueryService {
       if (cacheSnapshot.docs.isNotEmpty) {
         return (
           students: _applyArchivedFilter(
-            mapStudentDocs(cacheSnapshot.docs),
+            mapStudentDocs(cacheSnapshot.docs).students,
             includeArchived,
           ),
           isFromCache: true,
         );
       }
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Cache read failed: $e');
-      }
+      developer.log('Cache read failed', error: e, name: 'StudentQueryService');
     }
 
     try {
@@ -381,7 +326,7 @@ class StudentQueryService {
       ).get(const GetOptions(source: Source.server));
       return (
         students: _applyArchivedFilter(
-          mapStudentDocs(serverSnapshot.docs),
+          mapStudentDocs(serverSnapshot.docs).students,
           includeArchived,
         ),
         isFromCache: false,
@@ -420,7 +365,9 @@ class StudentQueryService {
     if (!includeArchived) {
       query = query.where('isArchived', isEqualTo: false);
     }
-    return query.snapshots().map((snapshot) => mapStudentDocs(snapshot.docs));
+    return query.snapshots().map(
+      (snapshot) => mapStudentDocs(snapshot.docs).students,
+    );
   }
 
   Stream<List<StudentModel>> watchStudentsByClass(
@@ -434,7 +381,9 @@ class StudentQueryService {
     if (!includeArchived) {
       query = query.where('isArchived', isEqualTo: false);
     }
-    return query.snapshots().map((snapshot) => mapStudentDocs(snapshot.docs));
+    return query.snapshots().map(
+      (snapshot) => mapStudentDocs(snapshot.docs).students,
+    );
   }
 
   Stream<List<StudentModel>> watchStudentsByClasses(
@@ -461,7 +410,7 @@ class StudentQueryService {
               .snapshots()
               .map(
                 (snapshot) => _applyArchivedFilter(
-                  mapStudentDocs(snapshot.docs),
+                  mapStudentDocs(snapshot.docs).students,
                   includeArchived,
                 ),
               ),
@@ -494,6 +443,8 @@ class StudentQueryService {
     if (!includeArchived) {
       query = query.where('isArchived', isEqualTo: false);
     }
-    return query.snapshots().map((snapshot) => mapStudentDocs(snapshot.docs));
+    return query.snapshots().map(
+      (snapshot) => mapStudentDocs(snapshot.docs).students,
+    );
   }
 }
