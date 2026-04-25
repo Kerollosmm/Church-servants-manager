@@ -1,12 +1,15 @@
+import 'dart:async';
+import 'dart:developer' as developer;
 import 'package:church_management_system/core/constants/enums.dart';
+import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/data/services/auth_provider.dart';
 import 'package:church_management_system/features/auth/data/services/auth_user_profile_store.dart';
 import 'package:church_management_system/features/auth/domain/failures/auth_exceptions.dart';
 import 'package:church_management_system/features/auth/domain/failures/auth_failures.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart'
     show FirebaseAuth, FirebaseAuthException, User;
-import 'package:flutter/foundation.dart';
 
 class FirebaseAuthProvider implements AuthProvider {
   final FirebaseAuth _auth;
@@ -36,13 +39,47 @@ class FirebaseAuthProvider implements AuthProvider {
 
   @override
   Stream<AuthUser?> get authStateChanges {
-    return _auth.authStateChanges().asyncMap((user) async {
+    return _auth.userChanges().asyncExpand((user) {
       if (user == null) {
         _userCache.clear();
-        return null;
+        return Stream.value(null);
       }
-      return await getUserData(user.uid, forceRefresh: true);
+
+      return FirebaseFirestore.instance
+          .collection(FirestoreCollections.users)
+          .doc(user.uid)
+          .snapshots()
+          .map((snapshot) {
+            if (snapshot.exists && snapshot.data() != null) {
+              try {
+                final firestoreUser = AuthUser.fromJson(snapshot.data()!);
+
+                // Merge Firestore data with Firebase Auth transient data (emailVerified)
+                final mergedUser = firestoreUser.copyWith(
+                  isEmailVerified: user.emailVerified,
+                  email: user.email ?? firestoreUser.email,
+                );
+
+                _userCache[user.uid] = mergedUser;
+                return mergedUser;
+              } catch (e) {
+                developer.log(
+                  'Error parsing user profile from Firestore',
+                  error: e,
+                  name: 'FirebaseAuthProvider',
+                );
+                return AuthUser.fromFirebase(user);
+              }
+            } else {
+              // Document doesn't exist yet, emit basic user info
+              return AuthUser.fromFirebase(user);
+            }
+          });
     });
+  }
+
+  Future<void> forceTokenRefresh() async {
+    await _auth.currentUser?.getIdToken(true);
   }
 
   Future<AuthUser> _clearRestorePendingPasswordResetIfNeeded(
@@ -150,19 +187,18 @@ class FirebaseAuthProvider implements AuthProvider {
           role: role,
         );
 
-        await _userProfileStore.saveUser(appUser);
+        await _userProfileStore.saveUser(appUser, initialRole: role.name);
         profileSaved = true;
         _userCache[appUser.uid] = appUser;
 
         try {
           await user.sendEmailVerification();
         } catch (e) {
-          if (kDebugMode) {
-            debugPrint(
-              'FirebaseAuthProvider: Initial verification email send failed '
-              '(${e.runtimeType})',
-            );
-          }
+          developer.log(
+            'Initial verification email send failed',
+            error: e,
+            name: 'FirebaseAuthProvider',
+          );
         }
 
         return appUser;
@@ -235,18 +271,13 @@ class FirebaseAuthProvider implements AuthProvider {
     try {
       await _auth.sendPasswordResetEmail(email: toEmail);
     } on FirebaseAuthException catch (e) {
-      switch (e.code) {
-        case 'invalid-email':
-        case 'firebase_auth/invalid-email':
-          throw InvalidEmailAuthException();
-        case 'user-not-found':
-        case 'firebase_auth/user-not-found':
-          throw UserNotFoundAuthException();
-        default:
-          rethrow;
+      if (e.code == 'user-not-found' || e.code == 'firebase_auth/user-not-found') {
+        // Swallow user-not-found to prevent account enumeration
+        return;
       }
+      rethrow;
     } catch (e) {
-      throw const PasswordResetAuthException();
+      rethrow;
     }
   }
 
@@ -316,18 +347,18 @@ class FirebaseAuthProvider implements AuthProvider {
       // when available, then fall back to explicit cache on failures.
       final user = await _userProfileStore.fetchUser(uid);
       final firebaseUser = _auth.currentUser;
-      final syncedUser = firebaseUser != null && firebaseUser.uid == uid
-          ? user.copyWith(
-              email: firebaseUser.email ?? user.email,
-              name: firebaseUser.displayName?.trim().isNotEmpty == true
-                  ? firebaseUser.displayName!.trim()
-                  : user.name,
-              isEmailVerified: firebaseUser.emailVerified,
-            )
-          : user;
 
-      if (syncedUser != user) {
-        await _userProfileStore.saveUser(syncedUser);
+      var syncedUser = user;
+      if (firebaseUser != null && firebaseUser.uid == uid) {
+        // DRIVE-02: Merge Firestore data with Firebase Auth transient data
+        // without writing back to Firestore.
+        syncedUser = user.copyWith(
+          email: firebaseUser.email ?? user.email,
+          name: firebaseUser.displayName?.trim().isNotEmpty == true
+              ? firebaseUser.displayName!.trim()
+              : user.name,
+          isEmailVerified: firebaseUser.emailVerified,
+        );
       }
 
       final resolvedUser = await _clearRestorePendingPasswordResetIfNeeded(

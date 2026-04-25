@@ -101,6 +101,8 @@ class AttendanceMarkStatusJsonConverter
     switch (json?.trim().toLowerCase()) {
       case 'late':
         return AttendanceMarkStatus.late;
+      case 'absent':
+        return AttendanceMarkStatus.absent;
       case 'present':
       default:
         return AttendanceMarkStatus.present;

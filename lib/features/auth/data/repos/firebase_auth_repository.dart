@@ -2,14 +2,20 @@ import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/data/services/firebase_auth_provider.dart';
 import 'package:church_management_system/features/auth/data/utils/auth_error_mapper.dart';
+import 'package:church_management_system/features/auth/domain/auth_freshness_policy.dart';
 import 'package:church_management_system/features/auth/domain/failures/auth_exceptions.dart';
 import 'package:church_management_system/features/auth/domain/repos/auth_repository.dart';
 
-class AuthService implements AuthRepository {
+class FirebaseAuthRepository implements AuthRepository {
   final FirebaseAuthProvider _provider;
+  final AuthFreshnessPolicy _freshnessPolicy;
   AuthUser? _lastKnownAppUser;
 
-  AuthService({required FirebaseAuthProvider provider}) : _provider = provider;
+  FirebaseAuthRepository({
+    required FirebaseAuthProvider provider,
+    required AuthFreshnessPolicy freshnessPolicy,
+  }) : _provider = provider,
+       _freshnessPolicy = freshnessPolicy;
 
   /// Get the current Firebase user (basic info)
   AuthUser? get currentUser => _provider.currentUser;
@@ -75,6 +81,7 @@ class AuthService implements AuthRepository {
   Future<void> signOut() async {
     try {
       await _provider.logOut();
+      await _freshnessPolicy.reset();
       _lastKnownAppUser = null;
     } catch (e) {
       throw AuthErrorMapper.mapException(e);
@@ -91,6 +98,7 @@ class AuthService implements AuthRepository {
   }
 
   /// Send password reset email
+  @override
   Future<void> sendPasswordResetEmail(String email) async {
     try {
       await _provider.sendPasswordReset(toEmail: email);
@@ -107,9 +115,13 @@ class AuthService implements AuthRepository {
 
   /// Reload Firebase auth user and fetch a fresh app profile snapshot.
   Future<AuthUser?> refreshCurrentAppUser() async {
+    await forceTokenRefresh();
     await reloadUser();
     return getCurrentAppUser(forceRefresh: true);
   }
+
+  /// Force a token refresh, e.g. when claims change
+  Future<void> forceTokenRefresh() => _provider.forceTokenRefresh();
 
   @override
   Future<void> updatePassword(String newPassword) async {

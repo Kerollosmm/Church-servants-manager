@@ -71,7 +71,7 @@ class RoleUserRoute extends StatelessWidget {
       child: BlocBuilder<AuthBloc, AuthState>(
         builder: (context, state) {
           // Loading state
-          if (state is AuthLoading) {
+          if (state is AuthLoading || state is AuthSigningOut) {
             return const Scaffold(
               body: Center(child: CircularProgressIndicator()),
             );

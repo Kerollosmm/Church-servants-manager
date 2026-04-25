@@ -1,8 +1,8 @@
+import 'dart:developer' as developer;
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/team/data/models/team_model.dart';
 import 'package:church_management_system/features/team/data/repos/team_repository.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class StudentFormTeamsState {
@@ -101,12 +101,11 @@ class StudentFormTeamsCubit extends Cubit<StudentFormTeamsState> {
         ),
       );
     } catch (error) {
-      if (kDebugMode) {
-        debugPrint(
-          'StudentFormTeamsCubit: failed to load teams '
-          '(${error.runtimeType})',
-        );
-      }
+      developer.log(
+        'failed to load teams',
+        error: error,
+        name: 'StudentFormTeamsCubit',
+      );
       emit(
         const StudentFormTeamsState(
           errorMessage: 'تعذر تحميل الفرق. حاول مرة أخرى.',

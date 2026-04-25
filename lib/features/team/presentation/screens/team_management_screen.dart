@@ -1,9 +1,11 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/routes.dart';
+import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/routing/route_args.dart';
 import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
-import 'package:church_management_system/core/widgets/common/app_state_message.dart';
+import 'package:church_management_system/core/widgets/app_empty_state.dart';
+import 'package:church_management_system/core/widgets/app_error_state.dart';
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
@@ -30,8 +32,8 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
   void initState() {
     super.initState();
     _cubit = TeamCubit(
-      teamRepository: context.read<TeamRepository>(),
-      adminTeamService: context.read<AdminTeamService>(),
+      teamRepository: getIt<TeamRepository>(),
+      adminTeamService: getIt<AdminTeamService>(),
     );
   }
 
@@ -272,15 +274,17 @@ class _TeamManagementViewState extends State<_TeamManagementView>
           if (state is TeamLoaded) {
             final teams = state.teams;
             if (teams.isEmpty) {
-              return AppStateMessage(
+              return AppEmptyState(
                 icon: _showArchived
                     ? Icons.archive_outlined
                     : Icons.group_work_outlined,
                 title: _showArchived ? 'لا توجد فرق مؤرشفة' : 'لا توجد فرق بعد',
-                message: _showArchived
+                subtitle: _showArchived
                     ? 'عند أرشفة فريق سيظهر هنا.'
-                    : 'اضغط + لإنشاء فريق لهذه السنة.',
-                onRetry: _loadTeamsForCurrentTab,
+                    : 'اضغط لإضافة فريق لهذه السنة.',
+                onAction: _showAddTeamDialog,
+                actionLabel: 'إضافة فريق',
+                onRefresh: _loadTeamsForCurrentTab,
               );
             }
 
@@ -306,11 +310,9 @@ class _TeamManagementViewState extends State<_TeamManagementView>
           }
 
           if (state is TeamError) {
-            return AppStateMessage(
-              icon: Icons.error_outline,
-              iconColor: AppColors.error,
-              title: 'تعذر تحميل الفرق',
+            return AppErrorState(
               message: state.message,
+              title: 'تعذر تحميل الفرق',
               onRetry: _loadTeamsForCurrentTab,
             );
           }

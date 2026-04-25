@@ -1,9 +1,11 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/routes.dart';
+import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/routing/route_args.dart';
 import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
 import 'package:church_management_system/core/widgets/app_empty_state.dart';
+import 'package:church_management_system/core/widgets/app_error_state.dart';
 import 'package:church_management_system/core/widgets/cards/person_list_card.dart';
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
 import 'package:church_management_system/core/widgets/search/live_search_panel.dart';
@@ -39,8 +41,8 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
     super.initState();
     _studentDataBloc = context.read<StudentDataBloc>();
     _teamCubit = TeamCubit(
-      teamRepository: context.read<TeamRepository>(),
-      adminTeamService: context.read<AdminTeamService>(),
+      teamRepository: getIt<TeamRepository>(),
+      adminTeamService: getIt<AdminTeamService>(),
     );
     final actor = _currentActorOrNull();
     if (actor != null) {
@@ -176,14 +178,13 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return BlocBuilder<AuthBloc, AuthState>(
-      builder: (context, authState) {
-        final actor = switch (authState) {
-          AuthAuthenticated() => authState.user,
-          AuthDegraded() => authState.user,
-          _ => null,
-        };
-
+    return BlocSelector<AuthBloc, AuthState, AuthUser?>(
+      selector: (state) => switch (state) {
+        AuthAuthenticated() => state.user,
+        AuthDegraded() => state.user,
+        _ => null,
+      },
+      builder: (context, actor) {
         if (actor == null) {
           return const Scaffold(
             body: Center(child: Text('لم يتم تسجيل الدخول.')),
@@ -240,6 +241,15 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                   )
                 : null,
             body: BlocConsumer<StudentDataBloc, StudentDataState>(
+              buildWhen: (prev, curr) {
+                // Only rebuild when student list or loading state changes
+                if (prev.runtimeType != curr.runtimeType) return true;
+                if (curr is StudentDataLoaded && prev is StudentDataLoaded) {
+                  return prev.students != curr.students ||
+                      prev.mutationStatus != curr.mutationStatus;
+                }
+                return true;
+              },
               listener: (context, state) {
                 if (state is StudentDataError) {
                   AppSnackbars.showError(context, state.message);
@@ -354,6 +364,20 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                           hasScrollBody: false,
                           child: Center(child: CircularProgressIndicator()),
                         )
+                      else if (state is StudentDataError)
+                        SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: AppErrorState(
+                            message: state.message,
+                            onRetry: () => context.read<StudentDataBloc>().add(
+                              StudentsLoadRequested(
+                                actor: actor,
+                                teamId: _selectedTeamId,
+                                includeArchived: _showArchived,
+                              ),
+                            ),
+                          ),
+                        )
                       else if (viewData.showEmptyState)
                         SliverFillRemaining(
                           hasScrollBody: false,
@@ -363,7 +387,11 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                                 : 'لا يوجد مخدومون',
                             subtitle: _showArchived
                                 ? 'عند أرشفة مخدوم سيظهر هنا.'
-                                : 'جرّب بحثا مختلفا أو حدّث القائمة.',
+                                : 'جرّب بحثا مختلفا أو أضف مخدوما جديدا.',
+                            onAction: _canManage(actor)
+                                ? () => _openStudentEditor(actor)
+                                : null,
+                            actionLabel: 'إضافة مخدوم',
                             onRefresh: () =>
                                 context.read<StudentDataBloc>().refresh(actor),
                           ),

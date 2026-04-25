@@ -1,5 +1,6 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/utils/json_converters.dart';
+import 'package:church_management_system/features/auth/domain/failures/auth_exceptions.dart';
 import 'package:firebase_auth/firebase_auth.dart' show User;
 import 'package:freezed_annotation/freezed_annotation.dart';
 
@@ -31,13 +32,50 @@ class AuthUser with _$AuthUser {
   }) = _AuthUser;
 
   /// Create AuthUser from Firebase User (basic info only)
-  factory AuthUser.fromFirebase(User user) => AuthUser(
-    uid: user.uid,
-    name: user.displayName ?? user.email?.split('@').first ?? 'User',
-    email: user.email ?? '',
-    role: UserRole.student,
-    isEmailVerified: user.emailVerified,
-  );
+  factory AuthUser.fromFirebase(User user) {
+    final email = user.email;
+    if (email == null || email.isEmpty) {
+      throw const GenericAuthException('AuthUser must have a valid email');
+    }
+    return AuthUser(
+      uid: user.uid,
+      name: user.displayName ?? email.split('@').first,
+      email: email,
+      role: UserRole.student,
+      isEmailVerified: user.emailVerified,
+    );
+  }
+
+  /// Create AuthUser from Firebase User and custom claims
+  factory AuthUser.fromFirebaseToken(User user, Map<String, dynamic> claims) {
+    final email = user.email;
+    if (email == null || email.isEmpty) {
+      throw const GenericAuthException('AuthUser must have a valid email');
+    }
+
+    // Parse role from claims
+    final roleStr = claims['role'] as String? ?? 'student';
+    final role = UserRole.values.firstWhere(
+      (e) => e.name == roleStr,
+      orElse: () => UserRole.student,
+    );
+
+    // Parse teams from claims
+    final teamsRaw = claims['teams'];
+    final List<String> assignedTeamIds = [];
+    if (teamsRaw is List) {
+      assignedTeamIds.addAll(teamsRaw.map((e) => e.toString()));
+    }
+
+    return AuthUser(
+      uid: user.uid,
+      name: user.displayName ?? email.split('@').first,
+      email: email,
+      role: role,
+      isEmailVerified: user.emailVerified,
+      assignedTeamIds: assignedTeamIds,
+    );
+  }
 
   factory AuthUser.fromJson(Map<String, dynamic> json) =>
       _$AuthUserFromJson(json);

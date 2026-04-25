@@ -119,9 +119,33 @@ class _AddEditServantScreenState extends State<AddEditServantScreen> {
     );
   }
 
+  Future<bool> _showExitConfirmation() async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('تجاهل التعديلات؟'),
+            content: const Text(
+              'لديك تغييرات غير محفوظة. هل تريد حقاً الخروج؟',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('بقاء'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('تجاهل'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.args.isEditing;
+    final servant = widget.args.servant;
 
     return BlocListener<ServantDataCubit, ServantDataState>(
       listener: (context, state) {
@@ -136,60 +160,90 @@ class _AddEditServantScreenState extends State<AddEditServantScreen> {
           AppSnackbars.showError(context, state.feedbackMessage!);
         }
       },
-      child: Scaffold(
-        appBar: AppBar(title: Text(isEditing ? 'تعديل خادم' : 'إضافة خادم')),
-        body: SafeArea(
-          child: Form(
-            key: _formKey,
-            child: ListView(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              children: [
-                ServantPrimaryDetailsSection(
-                  nameController: _controllers.name,
-                  phoneController: _controllers.phone,
-                  emailController: _controllers.email,
-                  passwordController: _controllers.password,
-                  isEditing: isEditing,
-                  selectedRole: _selectedRole,
-                  selectedGroup: _selectedGroup,
-                  onRoleChanged: (value) {
-                    setState(() => _selectedRole = value);
-                  },
-                  onGroupChanged: (value) {
-                    setState(() => _selectedGroup = value);
-                  },
-                  passwordValidator: _passwordValidator,
-                ),
-                AppSpacing.gapMd,
-                ServantSecondaryDetailsSection(
-                  fatherOfConfessionController: _controllers.fatherOfConfession,
-                  notesController: _controllers.notes,
-                  imageUrlController: _controllers.imageUrl,
-                  birthdate: _birthdate,
-                  onPickBirthdate: _pickBirthdate,
-                ),
-                AppSpacing.gapMd,
-                BlocBuilder<ServantDataCubit, ServantDataState>(
-                  builder: (context, state) {
-                    final isSubmitting =
-                        state is ServantDataLoading ||
-                        (state is ServantDataLoaded &&
-                            state.mutationStatus ==
-                                ServantMutationStatus.inProgress);
-                    return FilledButton.icon(
-                      onPressed: isSubmitting ? null : _submit,
-                      icon: isSubmitting
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : Icon(isEditing ? Icons.save_outlined : Icons.add),
-                      label: Text(isEditing ? 'حفظ التعديلات' : 'إنشاء خادم'),
-                    );
-                  },
-                ),
-              ],
+      child: PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) async {
+          if (didPop) return;
+          if (!_controllers.hasChanges(
+            servant,
+            _birthdate,
+            _selectedRole,
+            _selectedGroup,
+          )) {
+            Navigator.pop(context);
+            return;
+          }
+          final shouldPop = await _showExitConfirmation();
+          if (shouldPop && context.mounted) {
+            Navigator.pop(context);
+          }
+        },
+        child: Scaffold(
+          appBar: AppBar(title: Text(isEditing ? 'تعديل خادم' : 'إضافة خادم')),
+          body: SafeArea(
+            child: Form(
+              key: _formKey,
+              child: ListView(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                children: [
+                  ServantPrimaryDetailsSection(
+                    nameController: _controllers.name,
+                    phoneController: _controllers.phone,
+                    emailController: _controllers.email,
+                    passwordController: _controllers.password,
+                    isEditing: isEditing,
+                    selectedRole: _selectedRole,
+                    selectedGroup: _selectedGroup,
+                    onRoleChanged: (value) {
+                      setState(() => _selectedRole = value);
+                    },
+                    onGroupChanged: (value) {
+                      setState(() => _selectedGroup = value);
+                    },
+                    passwordValidator: _passwordValidator,
+                  ),
+                  AppSpacing.gapMd,
+                  ServantSecondaryDetailsSection(
+                    fatherOfConfessionController:
+                        _controllers.fatherOfConfession,
+                    notesController: _controllers.notes,
+                    imageUrlController: _controllers.imageUrl,
+                    birthdate: _birthdate,
+                    onPickBirthdate: _pickBirthdate,
+                  ),
+                  AppSpacing.gapMd,
+                  BlocBuilder<ServantDataCubit, ServantDataState>(
+                    buildWhen: (prev, curr) {
+                      if (prev.runtimeType != curr.runtimeType) return true;
+                      if (curr is ServantDataLoaded &&
+                          prev is ServantDataLoaded) {
+                        return prev.mutationStatus != curr.mutationStatus;
+                      }
+                      return true;
+                    },
+                    builder: (context, state) {
+                      final isSubmitting =
+                          state is ServantDataLoading ||
+                          (state is ServantDataLoaded &&
+                              state.mutationStatus ==
+                                  ServantMutationStatus.inProgress);
+                      return FilledButton.icon(
+                        onPressed: isSubmitting ? null : _submit,
+                        icon: isSubmitting
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Icon(isEditing ? Icons.save_outlined : Icons.add),
+                        label: Text(isEditing ? 'حفظ التعديلات' : 'إنشاء خادم'),
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -230,6 +284,33 @@ class _ServantEditControllers {
   final TextEditingController fatherOfConfession;
   final TextEditingController notes;
   final TextEditingController imageUrl;
+
+  bool hasChanges(
+    ServantModel? servant,
+    DateTime? birthdate,
+    UserRole selectedRole,
+    Group selectedGroup,
+  ) {
+    if (servant == null) {
+      return name.text.isNotEmpty ||
+          phone.text.isNotEmpty ||
+          email.text.isNotEmpty ||
+          fatherOfConfession.text.isNotEmpty ||
+          notes.text.isNotEmpty ||
+          imageUrl.text.isNotEmpty ||
+          birthdate != null;
+    }
+
+    return name.text.trim() != servant.name ||
+        phone.text.trim() != (servant.phone ?? '') ||
+        email.text.trim() != (servant.email ?? '') ||
+        fatherOfConfession.text.trim() != (servant.fatherOfConfession ?? '') ||
+        notes.text.trim() != (servant.notes ?? '') ||
+        imageUrl.text.trim() != (servant.imageUrl ?? '') ||
+        birthdate != servant.birthdate ||
+        selectedRole != servant.role ||
+        selectedGroup.name != servant.teamName;
+  }
 
   void dispose() {
     name.dispose();

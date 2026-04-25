@@ -213,7 +213,7 @@ void main() {
   });
 
   test(
-    'markStudentPresent uses studentId as document id and remains idempotent',
+    'markStudentPresent uses studentId_servantId as document id and remains idempotent',
     () async {
       await seedStudent(student(id: 'student-1', name: 'Mina'));
       final session = await repository.createSession(
@@ -249,7 +249,7 @@ void main() {
           .get();
 
       expect(marks.docs.length, 1);
-      expect(marks.docs.single.id, 'student-1');
+      expect(marks.docs.single.id, 'student-1_servant-1');
     },
   );
 
@@ -342,8 +342,9 @@ void main() {
         .collection('attendance_sessions')
         .doc(session.id)
         .collection('marks')
-        .doc('student-1')
+        .doc('student-1_servant-1')
         .set({
+          'studentId': 'student-1',
           'studentNameSnapshot': 'Mina',
           'status': 'late',
           'markedByUserId': servant.uid,
@@ -422,9 +423,11 @@ void main() {
           .collection('marks')
           .get();
       expect(marks.docs.length, 2);
-      final markedIds = marks.docs.map((d) => d.id).toSet();
-      expect(markedIds.contains('student-1'), isTrue);
-      expect(markedIds.contains('student-2'), isTrue);
+      final markedStudentIds = marks.docs
+          .map((d) => d.id.split('_').first)
+          .toSet();
+      expect(markedStudentIds.contains('student-1'), isTrue);
+      expect(markedStudentIds.contains('student-2'), isTrue);
     });
   });
 }

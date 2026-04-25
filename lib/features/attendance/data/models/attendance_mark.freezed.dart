@@ -12,8 +12,7 @@ part of 'attendance_mark.dart';
 T _$identity<T>(T value) => value;
 
 final _privateConstructorUsedError = UnsupportedError(
-  'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
-);
+    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
 
 AttendanceMark _$AttendanceMarkFromJson(Map<String, dynamic> json) {
   return _AttendanceMark.fromJson(json);
@@ -64,22 +63,20 @@ mixin _$AttendanceMark {
 /// @nodoc
 abstract class $AttendanceMarkCopyWith<$Res> {
   factory $AttendanceMarkCopyWith(
-    AttendanceMark value,
-    $Res Function(AttendanceMark) then,
-  ) = _$AttendanceMarkCopyWithImpl<$Res, AttendanceMark>;
+          AttendanceMark value, $Res Function(AttendanceMark) then) =
+      _$AttendanceMarkCopyWithImpl<$Res, AttendanceMark>;
   @useResult
-  $Res call({
-    String studentId,
-    String studentNameSnapshot,
-    String? studentUid,
-    @AttendanceMarkStatusJsonConverter() AttendanceMarkStatus status,
-    String markedByUserId,
-    String markedByName,
-    @_RequiredTimestampConverter() DateTime markedAt,
-    @_RequiredTimestampConverter() DateTime updatedAt,
-    @FirestoreTimestampConverter() DateTime? serverUpdatedAt,
-    String? note,
-  });
+  $Res call(
+      {String studentId,
+      String studentNameSnapshot,
+      String? studentUid,
+      @AttendanceMarkStatusJsonConverter() AttendanceMarkStatus status,
+      String markedByUserId,
+      String markedByName,
+      @_RequiredTimestampConverter() DateTime markedAt,
+      @_RequiredTimestampConverter() DateTime updatedAt,
+      @FirestoreTimestampConverter() DateTime? serverUpdatedAt,
+      String? note});
 }
 
 /// @nodoc
@@ -106,75 +103,70 @@ class _$AttendanceMarkCopyWithImpl<$Res, $Val extends AttendanceMark>
     Object? serverUpdatedAt = freezed,
     Object? note = freezed,
   }) {
-    return _then(
-      _value.copyWith(
-            studentId: null == studentId
-                ? _value.studentId
-                : studentId // ignore: cast_nullable_to_non_nullable
-                      as String,
-            studentNameSnapshot: null == studentNameSnapshot
-                ? _value.studentNameSnapshot
-                : studentNameSnapshot // ignore: cast_nullable_to_non_nullable
-                      as String,
-            studentUid: freezed == studentUid
-                ? _value.studentUid
-                : studentUid // ignore: cast_nullable_to_non_nullable
-                      as String?,
-            status: null == status
-                ? _value.status
-                : status // ignore: cast_nullable_to_non_nullable
-                      as AttendanceMarkStatus,
-            markedByUserId: null == markedByUserId
-                ? _value.markedByUserId
-                : markedByUserId // ignore: cast_nullable_to_non_nullable
-                      as String,
-            markedByName: null == markedByName
-                ? _value.markedByName
-                : markedByName // ignore: cast_nullable_to_non_nullable
-                      as String,
-            markedAt: null == markedAt
-                ? _value.markedAt
-                : markedAt // ignore: cast_nullable_to_non_nullable
-                      as DateTime,
-            updatedAt: null == updatedAt
-                ? _value.updatedAt
-                : updatedAt // ignore: cast_nullable_to_non_nullable
-                      as DateTime,
-            serverUpdatedAt: freezed == serverUpdatedAt
-                ? _value.serverUpdatedAt
-                : serverUpdatedAt // ignore: cast_nullable_to_non_nullable
-                      as DateTime?,
-            note: freezed == note
-                ? _value.note
-                : note // ignore: cast_nullable_to_non_nullable
-                      as String?,
-          )
-          as $Val,
-    );
+    return _then(_value.copyWith(
+      studentId: null == studentId
+          ? _value.studentId
+          : studentId // ignore: cast_nullable_to_non_nullable
+              as String,
+      studentNameSnapshot: null == studentNameSnapshot
+          ? _value.studentNameSnapshot
+          : studentNameSnapshot // ignore: cast_nullable_to_non_nullable
+              as String,
+      studentUid: freezed == studentUid
+          ? _value.studentUid
+          : studentUid // ignore: cast_nullable_to_non_nullable
+              as String?,
+      status: null == status
+          ? _value.status
+          : status // ignore: cast_nullable_to_non_nullable
+              as AttendanceMarkStatus,
+      markedByUserId: null == markedByUserId
+          ? _value.markedByUserId
+          : markedByUserId // ignore: cast_nullable_to_non_nullable
+              as String,
+      markedByName: null == markedByName
+          ? _value.markedByName
+          : markedByName // ignore: cast_nullable_to_non_nullable
+              as String,
+      markedAt: null == markedAt
+          ? _value.markedAt
+          : markedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime,
+      updatedAt: null == updatedAt
+          ? _value.updatedAt
+          : updatedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime,
+      serverUpdatedAt: freezed == serverUpdatedAt
+          ? _value.serverUpdatedAt
+          : serverUpdatedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      note: freezed == note
+          ? _value.note
+          : note // ignore: cast_nullable_to_non_nullable
+              as String?,
+    ) as $Val);
   }
 }
 
 /// @nodoc
 abstract class _$$AttendanceMarkImplCopyWith<$Res>
     implements $AttendanceMarkCopyWith<$Res> {
-  factory _$$AttendanceMarkImplCopyWith(
-    _$AttendanceMarkImpl value,
-    $Res Function(_$AttendanceMarkImpl) then,
-  ) = __$$AttendanceMarkImplCopyWithImpl<$Res>;
+  factory _$$AttendanceMarkImplCopyWith(_$AttendanceMarkImpl value,
+          $Res Function(_$AttendanceMarkImpl) then) =
+      __$$AttendanceMarkImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call({
-    String studentId,
-    String studentNameSnapshot,
-    String? studentUid,
-    @AttendanceMarkStatusJsonConverter() AttendanceMarkStatus status,
-    String markedByUserId,
-    String markedByName,
-    @_RequiredTimestampConverter() DateTime markedAt,
-    @_RequiredTimestampConverter() DateTime updatedAt,
-    @FirestoreTimestampConverter() DateTime? serverUpdatedAt,
-    String? note,
-  });
+  $Res call(
+      {String studentId,
+      String studentNameSnapshot,
+      String? studentUid,
+      @AttendanceMarkStatusJsonConverter() AttendanceMarkStatus status,
+      String markedByUserId,
+      String markedByName,
+      @_RequiredTimestampConverter() DateTime markedAt,
+      @_RequiredTimestampConverter() DateTime updatedAt,
+      @FirestoreTimestampConverter() DateTime? serverUpdatedAt,
+      String? note});
 }
 
 /// @nodoc
@@ -182,9 +174,8 @@ class __$$AttendanceMarkImplCopyWithImpl<$Res>
     extends _$AttendanceMarkCopyWithImpl<$Res, _$AttendanceMarkImpl>
     implements _$$AttendanceMarkImplCopyWith<$Res> {
   __$$AttendanceMarkImplCopyWithImpl(
-    _$AttendanceMarkImpl _value,
-    $Res Function(_$AttendanceMarkImpl) _then,
-  ) : super(_value, _then);
+      _$AttendanceMarkImpl _value, $Res Function(_$AttendanceMarkImpl) _then)
+      : super(_value, _then);
 
   @pragma('vm:prefer-inline')
   @override
@@ -200,68 +191,66 @@ class __$$AttendanceMarkImplCopyWithImpl<$Res>
     Object? serverUpdatedAt = freezed,
     Object? note = freezed,
   }) {
-    return _then(
-      _$AttendanceMarkImpl(
-        studentId: null == studentId
-            ? _value.studentId
-            : studentId // ignore: cast_nullable_to_non_nullable
-                  as String,
-        studentNameSnapshot: null == studentNameSnapshot
-            ? _value.studentNameSnapshot
-            : studentNameSnapshot // ignore: cast_nullable_to_non_nullable
-                  as String,
-        studentUid: freezed == studentUid
-            ? _value.studentUid
-            : studentUid // ignore: cast_nullable_to_non_nullable
-                  as String?,
-        status: null == status
-            ? _value.status
-            : status // ignore: cast_nullable_to_non_nullable
-                  as AttendanceMarkStatus,
-        markedByUserId: null == markedByUserId
-            ? _value.markedByUserId
-            : markedByUserId // ignore: cast_nullable_to_non_nullable
-                  as String,
-        markedByName: null == markedByName
-            ? _value.markedByName
-            : markedByName // ignore: cast_nullable_to_non_nullable
-                  as String,
-        markedAt: null == markedAt
-            ? _value.markedAt
-            : markedAt // ignore: cast_nullable_to_non_nullable
-                  as DateTime,
-        updatedAt: null == updatedAt
-            ? _value.updatedAt
-            : updatedAt // ignore: cast_nullable_to_non_nullable
-                  as DateTime,
-        serverUpdatedAt: freezed == serverUpdatedAt
-            ? _value.serverUpdatedAt
-            : serverUpdatedAt // ignore: cast_nullable_to_non_nullable
-                  as DateTime?,
-        note: freezed == note
-            ? _value.note
-            : note // ignore: cast_nullable_to_non_nullable
-                  as String?,
-      ),
-    );
+    return _then(_$AttendanceMarkImpl(
+      studentId: null == studentId
+          ? _value.studentId
+          : studentId // ignore: cast_nullable_to_non_nullable
+              as String,
+      studentNameSnapshot: null == studentNameSnapshot
+          ? _value.studentNameSnapshot
+          : studentNameSnapshot // ignore: cast_nullable_to_non_nullable
+              as String,
+      studentUid: freezed == studentUid
+          ? _value.studentUid
+          : studentUid // ignore: cast_nullable_to_non_nullable
+              as String?,
+      status: null == status
+          ? _value.status
+          : status // ignore: cast_nullable_to_non_nullable
+              as AttendanceMarkStatus,
+      markedByUserId: null == markedByUserId
+          ? _value.markedByUserId
+          : markedByUserId // ignore: cast_nullable_to_non_nullable
+              as String,
+      markedByName: null == markedByName
+          ? _value.markedByName
+          : markedByName // ignore: cast_nullable_to_non_nullable
+              as String,
+      markedAt: null == markedAt
+          ? _value.markedAt
+          : markedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime,
+      updatedAt: null == updatedAt
+          ? _value.updatedAt
+          : updatedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime,
+      serverUpdatedAt: freezed == serverUpdatedAt
+          ? _value.serverUpdatedAt
+          : serverUpdatedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      note: freezed == note
+          ? _value.note
+          : note // ignore: cast_nullable_to_non_nullable
+              as String?,
+    ));
   }
 }
 
 /// @nodoc
 @JsonSerializable()
 class _$AttendanceMarkImpl extends _AttendanceMark {
-  const _$AttendanceMarkImpl({
-    required this.studentId,
-    required this.studentNameSnapshot,
-    this.studentUid,
-    @AttendanceMarkStatusJsonConverter() required this.status,
-    required this.markedByUserId,
-    required this.markedByName,
-    @_RequiredTimestampConverter() required this.markedAt,
-    @_RequiredTimestampConverter() required this.updatedAt,
-    @FirestoreTimestampConverter() this.serverUpdatedAt,
-    this.note,
-  }) : super._();
+  const _$AttendanceMarkImpl(
+      {required this.studentId,
+      required this.studentNameSnapshot,
+      this.studentUid,
+      @AttendanceMarkStatusJsonConverter() required this.status,
+      required this.markedByUserId,
+      required this.markedByName,
+      @_RequiredTimestampConverter() required this.markedAt,
+      @_RequiredTimestampConverter() required this.updatedAt,
+      @FirestoreTimestampConverter() this.serverUpdatedAt,
+      this.note})
+      : super._();
 
   factory _$AttendanceMarkImpl.fromJson(Map<String, dynamic> json) =>
       _$$AttendanceMarkImplFromJson(json);
@@ -343,85 +332,93 @@ class _$AttendanceMarkImpl extends _AttendanceMark {
   @JsonKey(ignore: true)
   @override
   int get hashCode => Object.hash(
-    runtimeType,
-    studentId,
-    studentNameSnapshot,
-    studentUid,
-    status,
-    markedByUserId,
-    markedByName,
-    markedAt,
-    updatedAt,
-    serverUpdatedAt,
-    note,
-  );
+      runtimeType,
+      studentId,
+      studentNameSnapshot,
+      studentUid,
+      status,
+      markedByUserId,
+      markedByName,
+      markedAt,
+      updatedAt,
+      serverUpdatedAt,
+      note);
 
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$AttendanceMarkImplCopyWith<_$AttendanceMarkImpl> get copyWith =>
       __$$AttendanceMarkImplCopyWithImpl<_$AttendanceMarkImpl>(
-        this,
-        _$identity,
-      );
+          this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$AttendanceMarkImplToJson(this);
+    return _$$AttendanceMarkImplToJson(
+      this,
+    );
   }
 }
 
 abstract class _AttendanceMark extends AttendanceMark {
-  const factory _AttendanceMark({
-    required final String studentId,
-    required final String studentNameSnapshot,
-    final String? studentUid,
-    @AttendanceMarkStatusJsonConverter()
-    required final AttendanceMarkStatus status,
-    required final String markedByUserId,
-    required final String markedByName,
-    @_RequiredTimestampConverter() required final DateTime markedAt,
-    @_RequiredTimestampConverter() required final DateTime updatedAt,
-    @FirestoreTimestampConverter() final DateTime? serverUpdatedAt,
-    final String? note,
-  }) = _$AttendanceMarkImpl;
+  const factory _AttendanceMark(
+      {required final String studentId,
+      required final String studentNameSnapshot,
+      final String? studentUid,
+      @AttendanceMarkStatusJsonConverter()
+      required final AttendanceMarkStatus status,
+      required final String markedByUserId,
+      required final String markedByName,
+      @_RequiredTimestampConverter() required final DateTime markedAt,
+      @_RequiredTimestampConverter() required final DateTime updatedAt,
+      @FirestoreTimestampConverter() final DateTime? serverUpdatedAt,
+      final String? note}) = _$AttendanceMarkImpl;
   const _AttendanceMark._() : super._();
 
   factory _AttendanceMark.fromJson(Map<String, dynamic> json) =
       _$AttendanceMarkImpl.fromJson;
 
   @override
+
   /// The student document ID (used as the Firestore mark document ID).
   String get studentId;
   @override
+
   /// The student's display name captured at mark time.
   String get studentNameSnapshot;
   @override
+
   /// Optional UID of the student's auth account (null if student has no account).
   String? get studentUid;
   @override
+
   /// The attendance status of the student.
   @AttendanceMarkStatusJsonConverter()
   AttendanceMarkStatus get status;
   @override
+
   /// UID of the servant/admin who created this mark.
   String get markedByUserId;
   @override
+
   /// Name of the servant/admin who created this mark.
   String get markedByName;
   @override
+
   /// Device-side timestamp when the mark was first created.
   @_RequiredTimestampConverter()
   DateTime get markedAt;
   @override
+
   /// Device-side timestamp of the last update to this mark.
   @_RequiredTimestampConverter()
   DateTime get updatedAt;
   @override
+
   /// Server-side timestamp set by Firestore on write (nullable).
   @FirestoreTimestampConverter()
   DateTime? get serverUpdatedAt;
   @override
+
   /// Optional note added by the servant when marking.
   String? get note;
   @override

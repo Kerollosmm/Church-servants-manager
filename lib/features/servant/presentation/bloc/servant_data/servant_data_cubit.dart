@@ -1,12 +1,11 @@
 import 'package:church_management_system/core/constants/enums.dart';
+import 'package:church_management_system/core/utils/pagination_cursor.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
-import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
 import 'package:church_management_system/features/servant/data/models/servant_models.dart';
 import 'package:church_management_system/features/servant/domain/failures/servant_failures.dart';
 import 'package:church_management_system/features/servant/domain/repos/i_servant_repository.dart';
+import 'package:church_management_system/features/servant/domain/usecases/provision_servant_with_auth_usecase.dart';
 import 'package:church_management_system/features/servant/presentation/bloc/servant_data/servant_data_state.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 export 'servant_data_state.dart';
@@ -19,13 +18,13 @@ export 'servant_data_state.dart';
 class ServantDataCubit extends Cubit<ServantDataState> {
   ServantDataCubit({
     required IServantRepository repository,
-    required AdminUserProvisioningService adminUserProvisioningService,
+    required ProvisionServantWithAuthUseCase provisionUseCase,
   }) : _repository = repository,
-       _adminUserProvisioningService = adminUserProvisioningService,
+       _provisionUseCase = provisionUseCase,
        super(const ServantDataInitial());
 
   final IServantRepository _repository;
-  final AdminUserProvisioningService _adminUserProvisioningService;
+  final ProvisionServantWithAuthUseCase _provisionUseCase;
 
   String? _lastQuery;
   int _lastLimit = 50;
@@ -34,7 +33,7 @@ class ServantDataCubit extends Cubit<ServantDataState> {
   bool _hasMore = true;
   bool _isLoadingMore = false;
   bool _isLoadingFirstPage = false;
-  DocumentSnapshot<Map<String, dynamic>>? _lastDocument;
+  PaginationCursor? _lastDocument;
 
   ServantDataLoaded? get _loadedState =>
       state is ServantDataLoaded ? state as ServantDataLoaded : null;
@@ -51,6 +50,13 @@ class ServantDataCubit extends Cubit<ServantDataState> {
       ),
     );
     return false;
+  }
+
+  bool _canRead(AuthUser actor) {
+    final canRead = actor.role == UserRole.admin;
+    // ignore: avoid_print
+    print('DEBUG: actor.role=${actor.role}, canRead=$canRead');
+    return canRead;
   }
 
   void _emitLoading() {
@@ -99,7 +105,14 @@ class ServantDataCubit extends Cubit<ServantDataState> {
     bool forceRefresh = false,
     bool includeArchived = false,
   }) async {
-    if (!_ensureAdmin(actor)) return;
+    if (actor.role != UserRole.admin) {
+      emit(
+        const ServantDataError(
+          GenericServantFailure('Unauthorized: Admin access required.'),
+        ),
+      );
+      return;
+    }
 
     _includeArchived = includeArchived;
     if (!forceRefresh &&
@@ -131,13 +144,13 @@ class ServantDataCubit extends Cubit<ServantDataState> {
     required String query,
     bool includeArchived = false,
   }) async {
-    if (!_ensureAdmin(actor)) return;
+    if (!_canRead(actor)) return;
 
     _includeArchived = includeArchived;
     if (_allServants.isEmpty) {
       await loadServants(actor: actor, includeArchived: includeArchived);
     }
-    _emitLoading();
+
     try {
       _lastQuery = query;
       final normalizedQuery = query.toLowerCase();
@@ -166,21 +179,19 @@ class ServantDataCubit extends Cubit<ServantDataState> {
   }) async {
     if (!_ensureAdmin(actor)) return;
     final previousLoaded = _loadedState;
-    AuthUser? createdAuthUser;
     _emitLoaded(mutationStatus: ServantMutationStatus.inProgress);
     try {
-      createdAuthUser = await _createServantAuthUser(
+      final docId = await _provisionUseCase(
         servant: servant,
         email: email,
         password: password,
       );
-      final authUid = createdAuthUser?.uid;
 
-      final servantWithUid = authUid != null
-          ? servant.copyWith(uid: authUid, docID: authUid)
-          : servant;
-      final docId = await _repository.createServant(servantWithUid);
-      final createdServant = servantWithUid.copyWith(docID: docId);
+      final createdServant = servant.copyWith(
+        docID: docId,
+        uid: (email != null && email.isNotEmpty) ? docId : servant.uid,
+      );
+
       final didOptimisticUpdate = _tryEmitOptimisticUpdate(previousLoaded, (
         servants,
       ) {
@@ -197,26 +208,6 @@ class ServantDataCubit extends Cubit<ServantDataState> {
         feedbackMessage: 'تم إنشاء الخادم بنجاح',
       );
     } catch (e) {
-      if (createdAuthUser != null &&
-          email != null &&
-          email.isNotEmpty &&
-          password != null &&
-          password.isNotEmpty) {
-        try {
-          await _adminUserProvisioningService.rollbackCreatedUser(
-            uid: createdAuthUser.uid,
-            email: email,
-            password: password,
-          );
-        } catch (rollbackError) {
-          _emitMutationFailure(
-            Exception(
-              'Create servant failed and rollback was incomplete: $rollbackError',
-            ),
-          );
-          return;
-        }
-      }
       _emitMutationFailure(e);
     }
   }
@@ -255,48 +246,14 @@ class ServantDataCubit extends Cubit<ServantDataState> {
         throw const GenericServantFailure('الخادم غير موجود.');
       }
 
-      // Capture assignments for potential compensation
-      final capturedTeamId = existing.assignedTeamId;
-      final capturedTeamIds = existing.assignedTeamIds;
+      await _provisionUseCase.archive(
+        docId: docId,
+        performedByUid: actor.uid,
+        linkedUid: existing.uid,
+        capturedTeamId: existing.assignedTeamId,
+        capturedTeamIds: existing.assignedTeamIds,
+      );
 
-      await _repository.deleteServant(docId, performedByUid: actor.uid);
-
-      if (existing.uid?.trim().isNotEmpty == true) {
-        try {
-          await _adminUserProvisioningService.archiveUser(
-            uid: existing.uid!.trim(),
-          );
-        } catch (archiveError) {
-          if (kDebugMode) {
-            debugPrint(
-              'ServantDataCubit: archiveUser failed after deleteServant '
-              'for uid=${existing.uid}, orphaned auth user: $archiveError',
-            );
-          }
-          try {
-            // Restore with captured assignments
-            await _repository.restoreServant(
-              docId,
-              performedByUid: actor.uid,
-              assignedTeamId: capturedTeamId,
-              assignedTeamIds: capturedTeamIds,
-            );
-          } catch (rollbackError) {
-            if (kDebugMode) {
-              debugPrint(
-                'ServantDataCubit: rollback of deleteServant also failed: '
-                '$rollbackError',
-              );
-            }
-          }
-          _emitMutationFailure(
-            Exception(
-              'تم حذف الخادم لكن فشل في أرشفة الحساب. الرجاء مراجعة المسؤول.',
-            ),
-          );
-          return;
-        }
-      }
       final didOptimisticUpdate = _tryEmitOptimisticUpdate(previousLoaded, (
         servants,
       ) {
@@ -332,36 +289,11 @@ class ServantDataCubit extends Cubit<ServantDataState> {
         );
         return;
       }
-      await _repository.restoreServant(docId, performedByUid: actor.uid);
-      final normalizedUid = existing.uid?.trim();
-      if (normalizedUid != null && normalizedUid.isNotEmpty) {
-        try {
-          await _adminUserProvisioningService.restoreUser(uid: normalizedUid);
-        } catch (restoreError) {
-          if (kDebugMode) {
-            debugPrint(
-              'ServantDataCubit: restoreUser failed for uid=$normalizedUid, '
-              'rolling back servant restore: $restoreError',
-            );
-          }
-          try {
-            await _repository.deleteServant(docId, performedByUid: actor.uid);
-          } catch (rollbackError) {
-            if (kDebugMode) {
-              debugPrint(
-                'ServantDataCubit: rollback of restoreServant also failed: '
-                '$rollbackError',
-              );
-            }
-          }
-          _emitMutationFailure(
-            Exception(
-              'تمت استعادة الخادم لكن فشل في استعادة الحساب. الرجاء مراجعة المسؤول.',
-            ),
-          );
-          return;
-        }
-      }
+      await _provisionUseCase.restore(
+        docId: docId,
+        performedByUid: actor.uid,
+        linkedUid: existing.uid,
+      );
       await _reloadFromServer(actor);
       _emitLoaded(
         mutationStatus: ServantMutationStatus.success,
@@ -374,7 +306,7 @@ class ServantDataCubit extends Cubit<ServantDataState> {
   }
 
   Future<void> refreshServants({required AuthUser actor}) async {
-    if (!_ensureAdmin(actor)) return;
+    if (!_canRead(actor)) return;
     await _reloadFromServer(actor);
     if (_lastQuery != null && _lastQuery!.isNotEmpty) {
       await searchServants(
@@ -386,7 +318,7 @@ class ServantDataCubit extends Cubit<ServantDataState> {
   }
 
   Future<void> loadMoreServants({required AuthUser actor}) async {
-    if (!_ensureAdmin(actor)) return;
+    if (!_canRead(actor)) return;
     if (_isLoadingMore || !_hasMore) return;
     if (_lastQuery != null && _lastQuery!.isNotEmpty) return;
 
@@ -396,7 +328,7 @@ class ServantDataCubit extends Cubit<ServantDataState> {
     try {
       final page = await _repository.getServantsPage(
         limit: _lastLimit,
-        lastDocument: _lastDocument,
+        cursor: _lastDocument,
         includeArchived: _includeArchived,
       );
 
@@ -443,25 +375,6 @@ class ServantDataCubit extends Cubit<ServantDataState> {
     _hasMore = true;
     _isLoadingMore = false;
     _lastDocument = null;
-  }
-
-  Future<AuthUser?> _createServantAuthUser({
-    required ServantModel servant,
-    String? email,
-    String? password,
-  }) async {
-    if (email == null ||
-        email.isEmpty ||
-        password == null ||
-        password.isEmpty) {
-      return null;
-    }
-    return _adminUserProvisioningService.createUser(
-      email: email,
-      password: password,
-      name: servant.name,
-      role: servant.role,
-    );
   }
 
   ServantFailure _mapFailure(Object error) {

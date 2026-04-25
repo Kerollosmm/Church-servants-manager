@@ -1,16 +1,17 @@
+import 'dart:developer' as developer;
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
-import 'package:church_management_system/features/student/data/repos/student_data_repository.dart';
-import 'package:flutter/foundation.dart';
+import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
+import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 part 'student_profile_state.dart';
 
 class StudentProfileCubit extends Cubit<StudentProfileState> {
-  final StudentDataRepository _studentRepository;
+  final IStudentRepository _studentRepository;
 
-  StudentProfileCubit({required StudentDataRepository studentRepository})
+  StudentProfileCubit({required IStudentRepository studentRepository})
     : _studentRepository = studentRepository,
       super(const StudentProfileInitial());
 
@@ -35,11 +36,11 @@ class StudentProfileCubit extends Cubit<StudentProfileState> {
 
       emit(StudentProfileLoaded(profile));
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint(
-          'StudentProfileCubit: Unable to load profile (${e.runtimeType})',
-        );
-      }
+      developer.log(
+        'Unable to load profile',
+        error: e,
+        name: 'StudentProfileCubit',
+      );
       emit(
         const StudentProfileError('Unable to load profile. Please try again.'),
       );
