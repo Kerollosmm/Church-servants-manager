@@ -114,12 +114,20 @@ service cloud.firestore {
       ]);
     }
 
+    function isStudentInClass(classId) {
+      return isStudent() && getUserData().get('assignedTeamId', '') == classId;
+    }
+
+    function isStudentInSessionRoster(classId, sessionId, studentId) {
+      let session = get(/databases/$(database)/documents/Classes/$(classId)/attendance_sessions/$(sessionId)).data;
+      return studentId in session.get('studentIdsSnapshot', []);
+    }
+
     // ─── Users Collection ─────────────────────────────────────────
     match /Users/{userId} {
       allow read: if isSignedIn() && (
         callerUid() == userId || 
-        isAdmin() || 
-        (isServant() && (resource == null || resource.data.role == 'servant'))
+        isAdmin()
       );
 
       allow create: if isSignedIn() && (
@@ -146,7 +154,15 @@ service cloud.firestore {
       );
 
       allow update: if isSignedIn() && (
-        isAdmin() || (isServant() && servantCanManageStudent(resource.data) && !isPrivilegedFieldUpdate())
+        isAdmin() || (
+          isServant() && 
+          servantCanManageStudent(resource.data) && 
+          !isPrivilegedFieldUpdate() &&
+          // Constrain servant updates to non-sensitive student fields
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'name', 'phone', 'birthDate', 'address', 'parentPhone', 'avatarUrl', 'notes', 'grade'
+          ])
+        )
       );
 
       allow delete: if isAdmin();
@@ -155,8 +171,7 @@ service cloud.firestore {
     // ─── Classes (Teams) Collection ───────────────────────────────
     match /Classes/{classId} {
       allow read: if isSignedIn() && (
-        isAdmin() || isServant() ||
-        (isStudent() && classId == getUserData().get('assignedTeamId', ''))
+        isAdmin() || isServant() || isStudentInClass(classId)
       );
 
       allow create, update, delete: if isAdmin();
@@ -176,10 +191,14 @@ service cloud.firestore {
 
           allow create, update: if isSignedIn() && (
             isAdmin() || 
-            (servantCanManageTeam(classId) && (
-              sessionAcceptsLiveMarks(get(/databases/$(database)/documents/Classes/$(classId)/attendance_sessions/$(sessionId)).data) ||
-              sessionAcceptsAdminCorrection(get(/databases/$(database)/documents/Classes/$(classId)/attendance_sessions/$(sessionId)).data)
-            ))
+            (
+              servantCanManageTeam(classId) && 
+              isStudentInSessionRoster(classId, sessionId, studentDocId) &&
+              (
+                sessionAcceptsLiveMarks(get(/databases/$(database)/documents/Classes/$(classId)/attendance_sessions/$(sessionId)).data) ||
+                sessionAcceptsAdminCorrection(get(/databases/$(database)/documents/Classes/$(classId)/attendance_sessions/$(sessionId)).data)
+              )
+            )
           );
 
           allow delete: if isAdmin();
@@ -196,8 +215,12 @@ service cloud.firestore {
       
       allow write: if isSignedIn() && (
         isAdmin() || 
-        (isServant() && request.resource.data.servantId == callerUid() &&
-         servantCanManageStudent(get(/databases/$(database)/documents/Students/$(request.resource.data.studentId)).data))
+        (
+          isServant() && 
+          request.resource.data.servantId == callerUid() &&
+          servantCanManageTeam(request.resource.data.classId) &&
+          isStudentInSessionRoster(request.resource.data.classId, request.resource.data.sessionId, request.resource.data.studentId)
+        )
       );
     }
 

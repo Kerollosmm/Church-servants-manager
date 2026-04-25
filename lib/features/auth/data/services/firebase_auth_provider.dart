@@ -17,8 +17,6 @@ class FirebaseAuthProvider implements AuthProvider {
 
   // In-memory cache for user data
   final Map<String, AuthUser> _userCache = {};
-  StreamSubscription<DocumentSnapshot>? _userDocSubscription;
-  String? _subscribedUid;
 
   FirebaseAuthProvider({
     FirebaseAuth? auth,
@@ -41,59 +39,43 @@ class FirebaseAuthProvider implements AuthProvider {
 
   @override
   Stream<AuthUser?> get authStateChanges {
-    // Controller to merge Firebase Auth state with Firestore user profile
-    final controller = StreamController<AuthUser?>();
-
-    _auth.userChanges().listen((user) async {
+    return _auth.userChanges().asyncExpand((user) {
       if (user == null) {
         _userCache.clear();
-        unawaited(_userDocSubscription?.cancel());
-        _userDocSubscription = null;
-        _subscribedUid = null;
-        controller.add(null);
-        return;
+        return Stream.value(null);
       }
 
-      // If user ID changed, restart the Firestore listener
-      if (_subscribedUid != user.uid) {
-        unawaited(_userDocSubscription?.cancel());
-        _subscribedUid = user.uid;
+      return FirebaseFirestore.instance
+          .collection(FirestoreCollections.users)
+          .doc(user.uid)
+          .snapshots()
+          .map((snapshot) {
+            if (snapshot.exists && snapshot.data() != null) {
+              try {
+                final firestoreUser = AuthUser.fromJson(snapshot.data()!);
 
-        _userDocSubscription = FirebaseFirestore.instance
-            .collection(FirestoreCollections.users)
-            .doc(user.uid)
-            .snapshots()
-            .listen((snapshot) {
-          if (snapshot.exists && snapshot.data() != null) {
-            try {
-              final firestoreUser = AuthUser.fromJson(snapshot.data()!);
+                // Merge Firestore data with Firebase Auth transient data (emailVerified)
+                final mergedUser = firestoreUser.copyWith(
+                  isEmailVerified: user.emailVerified,
+                  email: user.email ?? firestoreUser.email,
+                );
 
-              // Merge Firestore data with Firebase Auth transient data (emailVerified)
-              final mergedUser = firestoreUser.copyWith(
-                isEmailVerified: user.emailVerified,
-                email: user.email ?? firestoreUser.email,
-              );
-
-              _userCache[user.uid] = mergedUser;
-              controller.add(mergedUser);
-            } catch (e) {
-              developer.log(
-                'Error parsing user profile from Firestore',
-                error: e,
-                name: 'FirebaseAuthProvider',
-              );
-              // Fallback to basic Firebase Auth info
-              controller.add(AuthUser.fromFirebase(user));
+                _userCache[user.uid] = mergedUser;
+                return mergedUser;
+              } catch (e) {
+                developer.log(
+                  'Error parsing user profile from Firestore',
+                  error: e,
+                  name: 'FirebaseAuthProvider',
+                );
+                return AuthUser.fromFirebase(user);
+              }
+            } else {
+              // Document doesn't exist yet, emit basic user info
+              return AuthUser.fromFirebase(user);
             }
-          } else {
-            // Document doesn't exist yet, emit basic user info
-            controller.add(AuthUser.fromFirebase(user));
-          }
-        });
-      }
+          });
     });
-
-    return controller.stream;
   }
 
   Future<void> forceTokenRefresh() async {
@@ -205,7 +187,7 @@ class FirebaseAuthProvider implements AuthProvider {
           role: role,
         );
 
-        await _userProfileStore.saveUser(appUser);
+        await _userProfileStore.saveUser(appUser, initialRole: role.name);
         profileSaved = true;
         _userCache[appUser.uid] = appUser;
 
@@ -289,18 +271,13 @@ class FirebaseAuthProvider implements AuthProvider {
     try {
       await _auth.sendPasswordResetEmail(email: toEmail);
     } on FirebaseAuthException catch (e) {
-      switch (e.code) {
-        case 'invalid-email':
-        case 'firebase_auth/invalid-email':
-          throw InvalidEmailAuthException();
-        case 'user-not-found':
-        case 'firebase_auth/user-not-found':
-          throw UserNotFoundAuthException();
-        default:
-          rethrow;
+      if (e.code == 'user-not-found' || e.code == 'firebase_auth/user-not-found') {
+        // Swallow user-not-found to prevent account enumeration
+        return;
       }
+      rethrow;
     } catch (e) {
-      throw const PasswordResetAuthException();
+      rethrow;
     }
   }
 
@@ -373,45 +350,15 @@ class FirebaseAuthProvider implements AuthProvider {
 
       var syncedUser = user;
       if (firebaseUser != null && firebaseUser.uid == uid) {
-        try {
-          final idTokenResult = await firebaseUser.getIdTokenResult(
-            forceRefresh,
-          );
-          final claims = idTokenResult.claims ?? {};
-          final roleString = claims['role'] as String? ?? 'student';
-          final role = UserRole.values.firstWhere(
-            (e) => e.name == roleString,
-            orElse: () => UserRole.student,
-          );
-          final teamIds = claims['assignedTeamIds'] != null
-              ? List<String>.from(claims['assignedTeamIds'])
-              : <String>[];
-
-          syncedUser = user.copyWith(
-            email: firebaseUser.email ?? user.email,
-            name: firebaseUser.displayName?.trim().isNotEmpty == true
-                ? firebaseUser.displayName!.trim()
-                : user.name,
-            isEmailVerified: firebaseUser.emailVerified,
-            role: role,
-            isArchived: claims['isArchived'] ?? user.isArchived,
-            assignedTeamIds: teamIds,
-            assignedTeamId: claims['assignedTeamId'] ?? user.assignedTeamId,
-            groupId: claims['groupId'] ?? user.groupId,
-          );
-        } catch (_) {
-          syncedUser = user.copyWith(
-            email: firebaseUser.email ?? user.email,
-            name: firebaseUser.displayName?.trim().isNotEmpty == true
-                ? firebaseUser.displayName!.trim()
-                : user.name,
-            isEmailVerified: firebaseUser.emailVerified,
-          );
-        }
-      }
-
-      if (syncedUser != user) {
-        await _userProfileStore.saveUser(syncedUser);
+        // DRIVE-02: Merge Firestore data with Firebase Auth transient data
+        // without writing back to Firestore.
+        syncedUser = user.copyWith(
+          email: firebaseUser.email ?? user.email,
+          name: firebaseUser.displayName?.trim().isNotEmpty == true
+              ? firebaseUser.displayName!.trim()
+              : user.name,
+          isEmailVerified: firebaseUser.emailVerified,
+        );
       }
 
       final resolvedUser = await _clearRestorePendingPasswordResetIfNeeded(

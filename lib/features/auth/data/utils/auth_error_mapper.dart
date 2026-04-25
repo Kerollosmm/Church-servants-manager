@@ -22,6 +22,10 @@ class AuthErrorMapper {
           return const GenericAuthFailure(
             'تم إيقاف هذا الحساب. تواصل مع الإدارة.',
           );
+        case 'too-many-requests':
+          return const GenericAuthFailure(
+            'لقد حاولت عدة مرات بشكل خاطئ. يرجى المحاولة مرة أخرى لاحقاً.',
+          );
         default:
           return GenericAuthFailure(e.message ?? e.code);
       }

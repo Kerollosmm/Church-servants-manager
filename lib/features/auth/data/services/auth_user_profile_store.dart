@@ -36,59 +36,28 @@ class AuthUserProfileStore {
     }
   }
 
-  Future<void> saveUser(AuthUser appUser) async {
+  Future<void> saveUser(AuthUser appUser, {String? initialRole}) async {
     try {
+      // DRIVE-01: Stop client-side write-backs of authorization fields.
+      // role, isArchived, and team assignments are now exclusively driven 
+      // by administrative Firestore writes to prevent stale data revert.
       final payload = <String, dynamic>{
         'uid': appUser.uid,
         'name': appUser.name,
         'email': appUser.email,
-        'role': appUser.role.name,
         'isEmailVerified': appUser.isEmailVerified,
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
-      if (appUser.isArchived) {
-        payload['isArchived'] = true;
+      // Only set role if it's an initial creation (e.g., self-registration)
+      if (initialRole != null) {
+        payload['role'] = initialRole;
       }
-      if (appUser.archivedAt != null) {
-        payload['archivedAt'] = appUser.archivedAt;
-      }
-      if (appUser.archivedByUserId != null &&
-          appUser.archivedByUserId!.isNotEmpty) {
-        payload['archivedByUserId'] = appUser.archivedByUserId;
-      } else {
-        payload['archivedByUserId'] = FieldValue.delete();
-      }
-      if (appUser.archiveReason != null && appUser.archiveReason!.isNotEmpty) {
-        payload['archiveReason'] = appUser.archiveReason;
-      } else {
-        payload['archiveReason'] = FieldValue.delete();
-      }
-      if (appUser.restoredAt != null) {
-        payload['restoredAt'] = appUser.restoredAt;
-      } else {
-        payload['restoredAt'] = FieldValue.delete();
-      }
-      if (appUser.restoredByUserId != null &&
-          appUser.restoredByUserId!.isNotEmpty) {
-        payload['restoredByUserId'] = appUser.restoredByUserId;
-      } else {
-        payload['restoredByUserId'] = FieldValue.delete();
-      }
+
+      // These fields are strictly READ-ONLY for the client saveUser operation
+      // We only allow updating non-sensitive metadata here.
       if (appUser.restorePendingPasswordReset) {
         payload['restorePendingPasswordReset'] = true;
-      }
-      if (appUser.groupId != null && appUser.groupId!.isNotEmpty) {
-        payload['groupId'] = appUser.groupId;
-      }
-      if (appUser.assignedTeamIds.isNotEmpty) {
-        payload['assignedTeamIds'] = appUser.assignedTeamIds;
-      }
-      if (appUser.assignedTeamId != null &&
-          appUser.assignedTeamId!.isNotEmpty) {
-        payload['assignedTeamId'] = appUser.assignedTeamId;
-      } else {
-        payload['assignedTeamId'] = FieldValue.delete();
       }
 
       await _db

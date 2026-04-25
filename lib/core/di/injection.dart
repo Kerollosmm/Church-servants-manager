@@ -43,7 +43,10 @@ void configureDependencies() {
           FirebaseAuthProvider(userProfileStore: getIt<AuthUserProfileStore>()),
     )
     ..registerLazySingleton<FirebaseAuthRepository>(
-      () => FirebaseAuthRepository(provider: getIt<FirebaseAuthProvider>()),
+      () => FirebaseAuthRepository(
+        provider: getIt<FirebaseAuthProvider>(),
+        freshnessPolicy: getIt<AuthFreshnessPolicy>(),
+      ),
     )
     ..registerLazySingleton<AdminUserProvisioningService>(
       () => ClientAdminUserProvisioningService(
