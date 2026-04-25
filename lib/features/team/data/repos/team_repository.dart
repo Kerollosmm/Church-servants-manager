@@ -205,10 +205,20 @@ class TeamRepository implements ITeamRepository {
   }
 
   @override
-  Stream<List<TeamModel>> watchAllTeams({bool includeArchived = false}) {
-    final query = includeArchived
-        ? _classesCollection
-        : _classesCollection.where('isArchived', isEqualTo: false);
+  Stream<List<TeamModel>> watchAllTeams({
+    bool includeArchived = false,
+    String? groupId,
+  }) {
+    Query<Map<String, dynamic>> query = _classesCollection;
+
+    if (!includeArchived) {
+      query = query.where('isArchived', isEqualTo: false);
+    }
+
+    if (groupId != null && groupId.isNotEmpty) {
+      query = query.where('groupId', isEqualTo: groupId);
+    }
+
     return query.orderBy('groupId').orderBy('name').snapshots().map((snapshot) {
       return _teamsFromDocs(snapshot.docs, includeArchived: includeArchived);
     });

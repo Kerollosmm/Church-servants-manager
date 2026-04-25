@@ -67,6 +67,12 @@ class ServantModel with _$ServantModel {
 
     /// Multiple assigned team IDs (if applicable).
     List<String>? assignedTeamIds,
+
+    /// Aggregated group attendance metrics (for US1 Trend Insights).
+    Map<String, dynamic>? groupAttendanceSummary,
+
+    /// AI-generated insights and recommendations for the servant.
+    Map<String, dynamic>? aiRecommendations,
   }) = _ServantModel;
 
   /// Creates a ServantModel from JSON.

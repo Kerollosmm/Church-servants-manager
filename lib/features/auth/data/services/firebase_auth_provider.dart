@@ -47,33 +47,33 @@ class FirebaseAuthProvider implements AuthProvider {
         _userDocSubscription = null;
         return null;
       }
-      
-      if (_userDocSubscription == null) {
-        _userDocSubscription = FirebaseFirestore.instance
-            .collection(FirestoreCollections.users)
-            .doc(user.uid)
-            .snapshots()
-            .skip(1)
-            .listen((snapshot) async {
-          if (snapshot.exists) {
-            // Force a refresh of the token when the user document changes.
-            // This is crucial because admin actions (like role changes) 
-            // update the doc and claims asynchronously. This ensures the app
-            // isn't stuck with stale claims for 1 hour.
-            await forceTokenRefresh();
-          }
-        });
-      }
+
+      _userDocSubscription ??= FirebaseFirestore.instance
+          .collection(FirestoreCollections.users)
+          .doc(user.uid)
+          .snapshots()
+          .skip(1)
+          .listen((snapshot) async {
+            if (snapshot.exists) {
+              // Force a refresh of the token when the user document changes.
+              // This is crucial because admin actions (like role changes)
+              // update the doc and claims asynchronously. This ensures the app
+              // isn't stuck with stale claims for 1 hour.
+              await forceTokenRefresh();
+            }
+          });
 
       try {
-        final idTokenResult = await user.getIdTokenResult(false);
+        final idTokenResult = await user.getIdTokenResult();
         final claims = idTokenResult.claims ?? {};
         final roleString = claims['role'] as String? ?? 'student';
         final role = UserRole.values.firstWhere(
           (e) => e.name == roleString,
           orElse: () => UserRole.student,
         );
-        final teamIds = claims['assignedTeamIds'] != null ? List<String>.from(claims['assignedTeamIds']) : <String>[];
+        final teamIds = claims['assignedTeamIds'] != null
+            ? List<String>.from(claims['assignedTeamIds'])
+            : <String>[];
 
         final appUser = AuthUser(
           uid: user.uid,
@@ -370,18 +370,22 @@ class FirebaseAuthProvider implements AuthProvider {
       // when available, then fall back to explicit cache on failures.
       final user = await _userProfileStore.fetchUser(uid);
       final firebaseUser = _auth.currentUser;
-      
+
       var syncedUser = user;
       if (firebaseUser != null && firebaseUser.uid == uid) {
         try {
-          final idTokenResult = await firebaseUser.getIdTokenResult(forceRefresh);
+          final idTokenResult = await firebaseUser.getIdTokenResult(
+            forceRefresh,
+          );
           final claims = idTokenResult.claims ?? {};
           final roleString = claims['role'] as String? ?? 'student';
           final role = UserRole.values.firstWhere(
             (e) => e.name == roleString,
             orElse: () => UserRole.student,
           );
-          final teamIds = claims['assignedTeamIds'] != null ? List<String>.from(claims['assignedTeamIds']) : <String>[];
+          final teamIds = claims['assignedTeamIds'] != null
+              ? List<String>.from(claims['assignedTeamIds'])
+              : <String>[];
 
           syncedUser = user.copyWith(
             email: firebaseUser.email ?? user.email,

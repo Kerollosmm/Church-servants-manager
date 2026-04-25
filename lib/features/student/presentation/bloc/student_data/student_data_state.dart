@@ -21,6 +21,7 @@ final class StudentDataInitial extends StudentDataState {
 final class StudentDataLoading extends StudentDataState {
   final List<StudentModel> previousStudents;
   final bool isRefresh;
+  final bool isSearch;
   final bool includeArchived;
   final String? currentFilterGroupId;
   final String? currentFilterTeamId;
@@ -29,6 +30,7 @@ final class StudentDataLoading extends StudentDataState {
   const StudentDataLoading({
     this.previousStudents = const <StudentModel>[],
     this.isRefresh = false,
+    this.isSearch = false,
     this.includeArchived = false,
     this.currentFilterGroupId,
     this.currentFilterTeamId,
@@ -41,6 +43,7 @@ final class StudentDataLoading extends StudentDataState {
   List<Object?> get props => [
     previousStudents,
     isRefresh,
+    isSearch,
     includeArchived,
     currentFilterGroupId,
     currentFilterTeamId,

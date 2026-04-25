@@ -392,6 +392,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
             query: previousQuery,
           ),
           isRefresh: allStudents.isNotEmpty,
+          isSearch: true,
           includeArchived: nextIncludeArchived,
           currentFilterGroupId: event.actor.groupId,
           currentFilterTeamId: nextTeamId,
@@ -399,9 +400,25 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
         ),
       );
       try {
+        // Determine scope for search
+        String? searchGroupId;
+        String? searchClassId;
+
+        if (event.actor.role == UserRole.servant) {
+          if (nextTeamId != null && nextTeamId.isNotEmpty) {
+            searchClassId = nextTeamId;
+          } else {
+            searchGroupId = event.actor.groupId;
+          }
+        } else if (event.actor.role == UserRole.admin) {
+          searchClassId = nextTeamId;
+        }
+
         final students = await _studentRepository.searchStudents(
           query,
           limit: 20,
+          groupId: searchGroupId,
+          classId: searchClassId,
         );
         final filtered = nextTeamId != null && nextTeamId.isNotEmpty
             ? students.where((s) => s.classId == nextTeamId).toList()

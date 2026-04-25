@@ -16,27 +16,30 @@ service cloud.firestore {
       return request.auth.uid;
     }
 
-    // Access custom claims from Auth Token
-    function callerToken() {
-      return request.auth.token;
+    // Get user document from Firestore (Source of Truth)
+    function getUserData() {
+      return get(/databases/$(database)/documents/Users/$(callerUid())).data;
     }
 
     function isAdmin() {
+      let user = getUserData();
       return isSignedIn() && 
-             callerToken().get('isArchived', false) == false && 
-             callerToken().get('role', 'none') == 'admin';
+             user.get('isArchived', false) == false && 
+             user.get('role', 'none') == 'admin';
     }
 
     function isServant() {
+      let user = getUserData();
       return isSignedIn() && 
-             callerToken().get('isArchived', false) == false && 
-             callerToken().get('role', 'none') == 'servant';
+             user.get('isArchived', false) == false && 
+             user.get('role', 'none') == 'servant';
     }
 
     function isStudent() {
+      let user = getUserData();
       return isSignedIn() && 
-             callerToken().get('isArchived', false) == false && 
-             callerToken().get('role', 'none') == 'student';
+             user.get('isArchived', false) == false && 
+             user.get('role', 'none') == 'student';
     }
 
     // ─── Collection/Team Helpers ──────────────────────────────────
@@ -46,25 +49,28 @@ service cloud.firestore {
     }
 
     function servantCanManageTeam(classId) {
+      let user = getUserData();
       return isServant() && (
-        callerToken().get('assignedTeamId', null) == classId || 
-        classId in callerToken().get('assignedTeamIds', []) ||
-        (callerToken().get('groupId', null) != null && getClassData(classId).get('groupId', null) == callerToken().get('groupId', null))
+        user.get('assignedTeamId', null) == classId || 
+        classId in user.get('assignedTeamIds', []) ||
+        (user.get('groupId', null) != null && getClassData(classId).get('groupId', null) == user.get('groupId', null))
       );
     }
 
     // ─── Student Helpers ──────────────────────────────────────────
 
     function servantCanReadStudent(studentData) {
+      let user = getUserData();
+      let assignedTeams = user.get('assignedTeamIds', []) + (user.get('assignedTeamId', null) != null ? [user.get('assignedTeamId', null)] : []);
       return isServant() && studentData != null && (
         (
-          (callerToken().get('assignedTeamIds', []) + (callerToken().get('assignedTeamId', null) != null ? [callerToken().get('assignedTeamId', null)] : [])).size() > 0 && 
+          assignedTeams.size() > 0 && 
           studentData.get('classId', null) != null && 
-          studentData.get('classId', null) in (callerToken().get('assignedTeamIds', []) + (callerToken().get('assignedTeamId', null) != null ? [callerToken().get('assignedTeamId', null)] : []))
+          studentData.get('classId', null) in assignedTeams
         ) ||
         (
-          callerToken().get('groupId', null) != null && 
-          studentData.get('group', null) == callerToken().get('groupId', null)
+          user.get('groupId', null) != null && 
+          studentData.get('group', null) == user.get('groupId', null)
         )
       );
     }
@@ -101,6 +107,13 @@ service cloud.firestore {
         ]);
     }
 
+    function isPrivilegedFieldUpdate() {
+      let affected = request.resource.data.diff(resource.data).affectedKeys();
+      return affected.hasAny([
+        'role', 'isArchived', 'attendanceSummary', 'groupAttendanceSummary', 'aiRecommendations'
+      ]);
+    }
+
     // ─── Users Collection ─────────────────────────────────────────
     match /Users/{userId} {
       allow read: if isSignedIn() && (
@@ -114,7 +127,7 @@ service cloud.firestore {
       );
 
       allow update: if isSignedIn() && (
-        isAdmin() || validSelfUserUpdate(userId)
+        isAdmin() || (validSelfUserUpdate(userId) && !isPrivilegedFieldUpdate())
       );
 
       allow delete: if isAdmin();
@@ -133,7 +146,7 @@ service cloud.firestore {
       );
 
       allow update: if isSignedIn() && (
-        isAdmin() || (isServant() && servantCanManageStudent(resource.data))
+        isAdmin() || (isServant() && servantCanManageStudent(resource.data) && !isPrivilegedFieldUpdate())
       );
 
       allow delete: if isAdmin();
@@ -143,7 +156,7 @@ service cloud.firestore {
     match /Classes/{classId} {
       allow read: if isSignedIn() && (
         isAdmin() || isServant() ||
-        (isStudent() && classId == callerToken().get('assignedTeamId', ''))
+        (isStudent() && classId == getUserData().get('assignedTeamId', ''))
       );
 
       allow create, update, delete: if isAdmin();

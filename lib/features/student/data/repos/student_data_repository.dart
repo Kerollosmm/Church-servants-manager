@@ -141,20 +141,45 @@ class StudentDataRepository implements IStudentRepository {
   Future<List<StudentModel>> searchStudents(
     String query, {
     int limit = 20,
+    String? groupId,
+    String? classId,
   }) async {
-    if (query.isEmpty) return getAllStudents(limit: limit);
-    final snapshot = await _studentsCollection
-        .orderBy('name')
-        .startAt([query])
-        .endAt(['$query\uf8ff'])
-        .limit(limit * 2)
-        .get();
-    return _queryService
-        .mapStudentDocs(snapshot.docs)
-        .students
-        .where((s) => !s.isArchived)
-        .take(limit)
-        .toList();
+    try {
+      if (query.isEmpty) {
+        if (classId != null && classId.isNotEmpty) {
+          return getStudentsByClass(classId);
+        }
+        if (groupId != null && groupId.isNotEmpty) {
+          return getStudentsByGroup(groupId);
+        }
+        return getAllStudents(limit: limit);
+      }
+
+      Query<Map<String, dynamic>> firestoreQuery = _studentsCollection.orderBy(
+        'name',
+      );
+
+      if (classId != null && classId.isNotEmpty) {
+        firestoreQuery = firestoreQuery.where('classId', isEqualTo: classId);
+      } else if (groupId != null && groupId.isNotEmpty) {
+        firestoreQuery = firestoreQuery.where('group', isEqualTo: groupId);
+      }
+
+      final snapshot = await firestoreQuery
+          .startAt([query])
+          .endAt(['$query\uf8ff'])
+          .limit(limit * 2)
+          .get();
+
+      return _queryService
+          .mapStudentDocs(snapshot.docs)
+          .students
+          .where((s) => !s.isArchived)
+          .take(limit)
+          .toList();
+    } catch (e) {
+      throw mapExceptionToStudentFailure(e);
+    }
   }
 
   @override

@@ -1,4 +1,4 @@
-enum AttendanceMarkStatus { present, late }
+enum AttendanceMarkStatus { present, late, absent }
 
 enum AttendanceEffectiveStatus { present, late, absent, unmarked }
 

@@ -34,7 +34,12 @@ abstract class IStudentRepository {
   Future<({List<StudentModel> students, bool isFromCache})>
   getStudentsByGroupWithFallback(String groupName, {bool includeArchived});
 
-  Future<List<StudentModel>> searchStudents(String query, {int limit});
+  Future<List<StudentModel>> searchStudents(
+    String query, {
+    int limit,
+    String? groupId,
+    String? classId,
+  });
 
   Future<String> createStudent(StudentModel student);
 

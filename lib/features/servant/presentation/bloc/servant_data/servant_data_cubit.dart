@@ -52,6 +52,13 @@ class ServantDataCubit extends Cubit<ServantDataState> {
     return false;
   }
 
+  bool _canRead(AuthUser actor) {
+    final canRead = actor.role == UserRole.admin;
+    // ignore: avoid_print
+    print('DEBUG: actor.role=${actor.role}, canRead=$canRead');
+    return canRead;
+  }
+
   void _emitLoading() {
     emit(
       ServantDataLoading(
@@ -98,7 +105,14 @@ class ServantDataCubit extends Cubit<ServantDataState> {
     bool forceRefresh = false,
     bool includeArchived = false,
   }) async {
-    if (!_ensureAdmin(actor)) return;
+    if (actor.role != UserRole.admin) {
+      emit(
+        const ServantDataError(
+          GenericServantFailure('Unauthorized: Admin access required.'),
+        ),
+      );
+      return;
+    }
 
     _includeArchived = includeArchived;
     if (!forceRefresh &&
@@ -130,7 +144,7 @@ class ServantDataCubit extends Cubit<ServantDataState> {
     required String query,
     bool includeArchived = false,
   }) async {
-    if (!_ensureAdmin(actor)) return;
+    if (!_canRead(actor)) return;
 
     _includeArchived = includeArchived;
     if (_allServants.isEmpty) {
@@ -292,7 +306,7 @@ class ServantDataCubit extends Cubit<ServantDataState> {
   }
 
   Future<void> refreshServants({required AuthUser actor}) async {
-    if (!_ensureAdmin(actor)) return;
+    if (!_canRead(actor)) return;
     await _reloadFromServer(actor);
     if (_lastQuery != null && _lastQuery!.isNotEmpty) {
       await searchServants(
@@ -304,7 +318,7 @@ class ServantDataCubit extends Cubit<ServantDataState> {
   }
 
   Future<void> loadMoreServants({required AuthUser actor}) async {
-    if (!_ensureAdmin(actor)) return;
+    if (!_canRead(actor)) return;
     if (_isLoadingMore || !_hasMore) return;
     if (_lastQuery != null && _lastQuery!.isNotEmpty) return;
 

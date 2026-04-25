@@ -526,7 +526,9 @@ export const changeUserRole = onCall<ChangeUserRoleRequest>(async (request) => {
   let claimsSet = false;
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      await adminAuth.setCustomUserClaims(targetUid, { role: result.newRole });
+      const userRecord = await adminAuth.getUser(targetUid);
+      const currentClaims = userRecord.customClaims || {};
+      await adminAuth.setCustomUserClaims(targetUid, { ...currentClaims, role: result.newRole });
       claimsSet = true;
       break;
     } catch (claimsError) {
@@ -561,3 +563,6 @@ export const changeUserRole = onCall<ChangeUserRoleRequest>(async (request) => {
 });
 
 export * from "./admin_roles";
+export * from "./ai_logic";
+export * from "./student_ai";
+export * from "./triggers/update_aggregates";

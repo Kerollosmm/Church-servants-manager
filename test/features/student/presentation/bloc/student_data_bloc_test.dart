@@ -497,4 +497,46 @@ void main() {
     ).called(1);
     await bloc.close();
   });
+
+  test('search scopes search by groupId for servant actor', () async {
+    final servant = actor(UserRole.servant);
+    final results = [student(id: 's5')];
+
+    when(
+      () => repository.searchStudents(
+        'search term',
+        limit: any(named: 'limit'),
+        groupId: 'year1',
+      ),
+    ).thenAnswer((_) async => results);
+
+    final bloc = StudentDataBloc(
+      studentRepository: repository,
+      getStudentsStream: getStudentsStream,
+      canMutateStudent: canMutateStudent,
+      provisionUseCase: provisionUseCase,
+    );
+
+    final expectation = expectLater(
+      bloc.stream,
+      emitsInOrder([
+        isA<StudentDataLoading>().having((s) => s.isSearch, 'isSearch', true),
+        isA<StudentDataLoaded>()
+            .having((s) => s.students.length, 'count', 1)
+            .having((s) => s.currentQuery, 'query', 'search term'),
+      ]),
+    );
+
+    bloc.add(StudentsSearchRequested(actor: servant, query: 'search term'));
+    await expectation;
+
+    verify(
+      () => repository.searchStudents(
+        'search term',
+        limit: any(named: 'limit'),
+        groupId: 'year1',
+      ),
+    ).called(1);
+    await bloc.close();
+  });
 }
