@@ -196,7 +196,8 @@ service cloud.firestore {
       
       allow write: if isSignedIn() && (
         isAdmin() || 
-        (isServant() && request.resource.data.servantId == callerUid())
+        (isServant() && request.resource.data.servantId == callerUid() &&
+         servantCanManageStudent(get(/databases/$(database)/documents/Students/$(request.resource.data.studentId)).data))
       );
     }
 

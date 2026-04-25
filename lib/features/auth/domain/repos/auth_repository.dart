@@ -25,4 +25,7 @@ abstract class AuthRepository {
 
   /// Clears the restorePendingPasswordReset flag on the user's Firestore doc.
   Future<void> clearRestorePendingPasswordReset(String uid);
+
+  /// Sends a password reset email.
+  Future<void> sendPasswordResetEmail(String email);
 }

@@ -18,6 +18,7 @@ class FirebaseAuthProvider implements AuthProvider {
   // In-memory cache for user data
   final Map<String, AuthUser> _userCache = {};
   StreamSubscription<DocumentSnapshot>? _userDocSubscription;
+  String? _subscribedUid;
 
   FirebaseAuthProvider({
     FirebaseAuth? auth,
@@ -40,60 +41,59 @@ class FirebaseAuthProvider implements AuthProvider {
 
   @override
   Stream<AuthUser?> get authStateChanges {
-    return _auth.userChanges().asyncMap((user) async {
+    // Controller to merge Firebase Auth state with Firestore user profile
+    final controller = StreamController<AuthUser?>();
+
+    _auth.userChanges().listen((user) async {
       if (user == null) {
         _userCache.clear();
-        _userDocSubscription?.cancel();
+        unawaited(_userDocSubscription?.cancel());
         _userDocSubscription = null;
-        return null;
+        _subscribedUid = null;
+        controller.add(null);
+        return;
       }
 
-      _userDocSubscription ??= FirebaseFirestore.instance
-          .collection(FirestoreCollections.users)
-          .doc(user.uid)
-          .snapshots()
-          .skip(1)
-          .listen((snapshot) async {
-            if (snapshot.exists) {
-              // Force a refresh of the token when the user document changes.
-              // This is crucial because admin actions (like role changes)
-              // update the doc and claims asynchronously. This ensures the app
-              // isn't stuck with stale claims for 1 hour.
-              await forceTokenRefresh();
+      // If user ID changed, restart the Firestore listener
+      if (_subscribedUid != user.uid) {
+        unawaited(_userDocSubscription?.cancel());
+        _subscribedUid = user.uid;
+
+        _userDocSubscription = FirebaseFirestore.instance
+            .collection(FirestoreCollections.users)
+            .doc(user.uid)
+            .snapshots()
+            .listen((snapshot) {
+          if (snapshot.exists && snapshot.data() != null) {
+            try {
+              final firestoreUser = AuthUser.fromJson(snapshot.data()!);
+
+              // Merge Firestore data with Firebase Auth transient data (emailVerified)
+              final mergedUser = firestoreUser.copyWith(
+                isEmailVerified: user.emailVerified,
+                email: user.email ?? firestoreUser.email,
+              );
+
+              _userCache[user.uid] = mergedUser;
+              controller.add(mergedUser);
+            } catch (e) {
+              developer.log(
+                'Error parsing user profile from Firestore',
+                error: e,
+                name: 'FirebaseAuthProvider',
+              );
+              // Fallback to basic Firebase Auth info
+              controller.add(AuthUser.fromFirebase(user));
             }
-          });
-
-      try {
-        final idTokenResult = await user.getIdTokenResult();
-        final claims = idTokenResult.claims ?? {};
-        final roleString = claims['role'] as String? ?? 'student';
-        final role = UserRole.values.firstWhere(
-          (e) => e.name == roleString,
-          orElse: () => UserRole.student,
-        );
-        final teamIds = claims['assignedTeamIds'] != null
-            ? List<String>.from(claims['assignedTeamIds'])
-            : <String>[];
-
-        final appUser = AuthUser(
-          uid: user.uid,
-          name: user.displayName ?? user.email?.split('@').first ?? '',
-          email: user.email ?? '',
-          role: role,
-          isEmailVerified: user.emailVerified,
-          isArchived: claims['isArchived'] ?? false,
-          assignedTeamIds: teamIds,
-          assignedTeamId: claims['assignedTeamId'],
-          groupId: claims['groupId'],
-        );
-
-        _userCache[user.uid] = appUser;
-        return appUser;
-      } catch (_) {
-        // Fallback or handle error
-        return AuthUser.fromFirebase(user);
+          } else {
+            // Document doesn't exist yet, emit basic user info
+            controller.add(AuthUser.fromFirebase(user));
+          }
+        });
       }
     });
+
+    return controller.stream;
   }
 
   Future<void> forceTokenRefresh() async {

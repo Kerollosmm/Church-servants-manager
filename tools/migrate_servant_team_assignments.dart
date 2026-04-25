@@ -61,7 +61,7 @@ void main() async {
   print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
   // 3. Process each servant
-  final batch = firestore.batch();
+  var batch = firestore.batch();
   int batchCount = 0;
   const maxBatchSize = 400; // Firestore batch limit is 500, use 400 for safety
 
@@ -128,6 +128,7 @@ void main() async {
       print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       print('📦 Committing batch of $batchCount updates...');
       await batch.commit();
+      batch = firestore.batch();
       batchCount = 0;
       // Note: In a real script, you'd need to create a new WriteBatch here
       // since Firestore batches can only be committed once.

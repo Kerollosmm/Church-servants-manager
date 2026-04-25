@@ -33,7 +33,7 @@ void configureDependencies() {
   getIt
     ..registerLazySingleton<FirebaseFirestore>(() => FirebaseFirestore.instance)
     // ---- Auth Freshness ----
-    ..registerFactory<AuthFreshnessPolicy>(AuthFreshnessPolicy.new)
+    ..registerLazySingleton<AuthFreshnessPolicy>(AuthFreshnessPolicy.new)
     // ---- Services (Low-level) ----
     ..registerLazySingleton<AuthUserProfileStore>(
       () => AuthUserProfileStore(firestore: getIt()),

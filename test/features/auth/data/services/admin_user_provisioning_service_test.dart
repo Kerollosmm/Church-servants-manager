@@ -82,19 +82,17 @@ void main() {
     verify(() => adminAuthClient.rollbackCreatedUser(uid: 'u1')).called(1);
   });
 
-  test('archiveUser archives linked user through backend client', () async {
+  test('archiveUser archives user through admin client', () async {
     when(() => adminAuthClient.archiveUser(uid: 'u1')).thenAnswer((_) async {});
-    when(
-      () => userProfileStore.updateUserFields('u1', any()),
-    ).thenAnswer((_) async {});
 
     await service.archiveUser(uid: 'u1');
 
     verify(() => adminAuthClient.archiveUser(uid: 'u1')).called(1);
-    verify(() => userProfileStore.updateUserFields('u1', any())).called(1);
+    // userProfileStore.updateUserFields is no longer called by the service directly
+    verifyNever(() => userProfileStore.updateUserFields('u1', any()));
   });
 
-  test('restoreUser restores auth account and sends reset email', () async {
+  test('restoreUser restores user and sends reset email', () async {
     final restoredUser = AuthUser(
       uid: 'u1',
       email: 'restored@example.com',
@@ -109,18 +107,28 @@ void main() {
     ).thenAnswer((_) async => restoredUser);
     when(() => adminAuthClient.restoreUser(uid: 'u1')).thenAnswer((_) async {});
     when(
-      () => userProfileStore.updateUserFields('u1', any()),
-    ).thenAnswer((_) async {});
-    when(
       () => authService.sendPasswordResetEmail('restored@example.com'),
     ).thenAnswer((_) async {});
 
     await service.restoreUser(uid: 'u1');
 
     verify(() => adminAuthClient.restoreUser(uid: 'u1')).called(1);
-    verify(() => userProfileStore.updateUserFields('u1', any())).called(1);
     verify(
       () => authService.sendPasswordResetEmail('restored@example.com'),
+    ).called(1);
+    // userProfileStore.updateUserFields is no longer called by the service directly
+    verifyNever(() => userProfileStore.updateUserFields('u1', any()));
+  });
+
+  test('changeUserRole updates role through admin client', () async {
+    when(
+      () => adminAuthClient.changeUserRole(uid: 'u1', role: UserRole.admin),
+    ).thenAnswer((_) async {});
+
+    await service.changeUserRole(uid: 'u1', role: UserRole.admin);
+
+    verify(
+      () => adminAuthClient.changeUserRole(uid: 'u1', role: UserRole.admin),
     ).called(1);
   });
 }

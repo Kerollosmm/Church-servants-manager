@@ -107,9 +107,10 @@
     },
     {
       "collectionGroup": "attendance_sessions",
-      "queryScope": "COLLECTION_GROUP",
+      "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "studentIdsSnapshot", "arrayConfig": "CONTAINS" }
+        { "fieldPath": "studentIdsSnapshot", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "startsAt", "order": "ASCENDING" }
       ]
     }
   ],
@@ -118,6 +119,26 @@
       "collectionGroup": "attendance_sessions",
       "fieldPath": "studentNameSnapshots",
       "indexes": []
+    },
+    {
+      "collectionGroup": "attendance_sessions",
+      "fieldPath": "studentIdsSnapshot",
+      "indexes": [
+        {
+          "arrayConfig": "CONTAINS",
+          "queryScope": "COLLECTION_GROUP"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "marks",
+      "fieldPath": "studentId",
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        }
+      ]
     }
   ]
 }
