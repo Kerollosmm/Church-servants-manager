@@ -39,7 +39,7 @@ class AuthUserProfileStore {
   Future<void> saveUser(AuthUser appUser, {String? initialRole}) async {
     try {
       // DRIVE-01: Stop client-side write-backs of authorization fields.
-      // role, isArchived, and team assignments are now exclusively driven 
+      // role, isArchived, and team assignments are now exclusively driven
       // by administrative Firestore writes to prevent stale data revert.
       final payload = <String, dynamic>{
         'uid': appUser.uid,
@@ -51,7 +51,33 @@ class AuthUserProfileStore {
 
       // Only set role if it's an initial creation (e.g., self-registration)
       if (initialRole != null) {
-        payload['role'] = initialRole;
+        // SPARK PLAN FIX: Check if there is an invitation for this user
+        try {
+          final inviteDoc = await _db
+              .collection(FirestoreCollections.invitations)
+              .doc(appUser.email.toLowerCase().trim())
+              .get();
+
+          if (inviteDoc.exists) {
+            final inviteData = inviteDoc.data();
+            if (inviteData != null && inviteData['role'] != null) {
+              payload['role'] = inviteData['role'];
+              // Mark invitation as claimed
+              await inviteDoc.reference.update({
+                'status': 'claimed',
+                'claimedAt': FieldValue.serverTimestamp(),
+                'claimedByUid': appUser.uid,
+              });
+            } else {
+              payload['role'] = initialRole;
+            }
+          } else {
+            payload['role'] = initialRole;
+          }
+        } catch (_) {
+          // Fallback to default initial role if invitation check fails
+          payload['role'] = initialRole;
+        }
       }
 
       // These fields are strictly READ-ONLY for the client saveUser operation

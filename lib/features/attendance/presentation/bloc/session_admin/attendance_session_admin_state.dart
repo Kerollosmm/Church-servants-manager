@@ -29,6 +29,16 @@ final class AttendanceSessionAdminSuccess extends AttendanceSessionAdminState {
   List<Object?> get props => [session, message];
 }
 
+final class AttendanceSessionAdminBulkSuccess
+    extends AttendanceSessionAdminState {
+  const AttendanceSessionAdminBulkSuccess({required this.message});
+
+  final String message;
+
+  @override
+  List<Object?> get props => [message];
+}
+
 final class AttendanceSessionAdminError extends AttendanceSessionAdminState {
   const AttendanceSessionAdminError(this.message);
 

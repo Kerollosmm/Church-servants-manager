@@ -495,6 +495,48 @@ class AttendanceRepository implements IAttendanceRepository {
   }
 
   @override
+  Future<void> createSessionsBulk({
+    required Map<String, String> teamIdsAndNames,
+    required DateTime startsAt,
+    required int durationMinutes,
+    required AuthUser createdBy,
+    String? title,
+  }) async {
+    final futures = teamIdsAndNames.entries.map((entry) {
+      return createSession(
+        teamId: entry.key,
+        teamNameSnapshot: entry.value,
+        startsAt: startsAt,
+        durationMinutes: durationMinutes,
+        createdBy: createdBy,
+        title: title,
+      ).catchError((Object error) {
+        developer.log(
+          'Bulk session creation failed for team ${entry.key}',
+          error: error,
+          name: 'AttendanceRepository',
+        );
+        // Silently continue for other teams.
+        // We could collect errors here if needed.
+        return AttendanceSession(
+          id: 'failed',
+          teamId: entry.key,
+          dateKey: '',
+          startsAt: startsAt,
+          endsAt: startsAt,
+          durationMinutes: 0,
+          createdByUserId: '',
+          createdByName: '',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        );
+      });
+    });
+
+    await Future.wait(futures);
+  }
+
+  @override
   Future<void> closeSession({
     required String teamId,
     required String sessionId,
@@ -526,15 +568,25 @@ class AttendanceRepository implements IAttendanceRepository {
         }
 
         final marksSnapshot = await _marksCol(teamId, sessionId).get();
-        final markedStudentIds = marksSnapshot.docs
-            .map((d) => d.id.split('_').first)
-            .toSet();
+        final markedStudentIds = <String>{};
+        final presentStudentIds = <String>{};
+
+        for (final doc in marksSnapshot.docs) {
+          final studentId = doc.id.split('_').first;
+          markedStudentIds.add(studentId);
+          final status = doc.data()['status'];
+          if (status == 'present' || status == 'late') {
+            presentStudentIds.add(studentId);
+          }
+        }
 
         final unmarkedStudents = currentSession.studentIdsSnapshot
             .where((id) => !markedStudentIds.contains(id))
             .toList(growable: false);
 
         final batch = _firestore.batch();
+
+        // 1. Mark unmarked students as absent
         for (final studentId in unmarkedStudents) {
           // Use 'system' as servantId for automated marks
           final markRef = _markDoc(teamId, sessionId, studentId, 'system');
@@ -543,8 +595,7 @@ class AttendanceRepository implements IAttendanceRepository {
           batch.set(markRef, {
             'studentId': studentId,
             'studentNameSnapshot': studentName,
-            'status':
-                AttendanceMarkStatus.absent.name, // Fixed: absent if unmarked
+            'status': AttendanceMarkStatus.absent.name,
             'markedByUserId': 'system',
             'markedByName': 'النظام',
             'markedAt': FieldValue.serverTimestamp(),
@@ -552,14 +603,44 @@ class AttendanceRepository implements IAttendanceRepository {
           });
         }
 
+        // 2. SPARK PLAN FIX: Update Student Aggregates (Migrated from Cloud Function)
+        for (final studentId in presentStudentIds) {
+          final studentRef = _firestore
+              .collection(FirestoreCollections.students)
+              .doc(studentId);
+          batch.set(studentRef, {
+            'attendanceSummary': {
+              'totalPresent': FieldValue.increment(1),
+              'lastAttendanceDate': FieldValue.serverTimestamp(),
+            },
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        }
+
+        // 3. Update Group Aggregate (Migrated from Cloud Function)
+        final classRef = _firestore
+            .collection(FirestoreCollections.classes)
+            .doc(teamId);
+        batch.set(classRef, {
+          'groupAttendanceSummary': {
+            'lastSessionDate': FieldValue.serverTimestamp(),
+            'lastSessionAttendanceCount': presentStudentIds.length,
+            'updatedAt': FieldValue.serverTimestamp(),
+          },
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+
+        // 4. Update the session itself
         transaction.update(sessionRef, {
           'isClosed': true,
           'updatedAt': FieldValue.serverTimestamp(),
+          'presentCount': presentStudentIds.length,
+          'absentCount':
+              currentSession.studentIdsSnapshot.length -
+              presentStudentIds.length,
         });
 
-        if (unmarkedStudents.isNotEmpty) {
-          await batch.commit();
-        }
+        await batch.commit();
       });
     } catch (error) {
       if (error is AttendanceFailure) rethrow;

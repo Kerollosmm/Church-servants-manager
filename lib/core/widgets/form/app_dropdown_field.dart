@@ -4,7 +4,7 @@ class AppDropdownField<T> extends StatelessWidget {
   const AppDropdownField({
     super.key,
     this.fieldKey,
-    required this.initialValue,
+    required this.value,
     required this.labelText,
     required this.prefixIcon,
     required this.items,
@@ -14,7 +14,7 @@ class AppDropdownField<T> extends StatelessWidget {
   });
 
   final Key? fieldKey;
-  final T? initialValue;
+  final T? value;
   final String labelText;
   final IconData prefixIcon;
   final List<DropdownMenuItem<T>> items;
@@ -26,7 +26,7 @@ class AppDropdownField<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     return DropdownButtonFormField<T>(
       key: fieldKey,
-      initialValue: initialValue,
+      initialValue: value,
       isExpanded: isExpanded,
       decoration: InputDecoration(
         labelText: labelText,

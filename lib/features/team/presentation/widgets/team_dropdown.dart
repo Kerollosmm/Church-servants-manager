@@ -84,6 +84,7 @@ class TeamDropdown extends StatelessWidget {
     if (showAllOption) {
       items.add(
         DropdownMenuItem<String?>(
+          value: 'ALL_TEAMS',
           child: SizedBox(
             height: 48,
             child: Align(
@@ -111,13 +112,17 @@ class TeamDropdown extends StatelessWidget {
     );
 
     final validIds = visibleTeams.map((t) => t.id).toSet();
+    if (showAllOption) validIds.add('ALL_TEAMS');
+
     final effectiveValue =
         (selectedTeamId != null && validIds.contains(selectedTeamId))
         ? selectedTeamId
-        : (showAllOption ? null : visibleTeams.first.id);
+        : (showAllOption
+              ? 'ALL_TEAMS'
+              : (visibleTeams.isNotEmpty ? visibleTeams.first.id : null));
 
     return AppDropdownField<String?>(
-      initialValue: effectiveValue,
+      value: effectiveValue,
       labelText: label ?? 'الفريق',
       prefixIcon: Icons.group,
       items: items,

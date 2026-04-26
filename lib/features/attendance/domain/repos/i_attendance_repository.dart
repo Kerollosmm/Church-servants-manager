@@ -17,6 +17,14 @@ abstract class IAttendanceRepository {
     String? title,
   });
 
+  Future<void> createSessionsBulk({
+    required Map<String, String> teamIdsAndNames,
+    required DateTime startsAt,
+    required int durationMinutes,
+    required AuthUser createdBy,
+    String? title,
+  });
+
   Future<void> closeSession({
     required String teamId,
     required String sessionId,

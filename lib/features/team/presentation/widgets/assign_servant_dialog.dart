@@ -117,7 +117,7 @@ class _AssignServantDialogState extends State<AssignServantDialog> {
                     ),
                   ),
                 AppDropdownField<String?>(
-                  initialValue: _selectedId,
+                  value: _selectedId,
                   isExpanded: true,
                   labelText: 'الخادم المسؤول',
                   prefixIcon: Icons.person_outline,

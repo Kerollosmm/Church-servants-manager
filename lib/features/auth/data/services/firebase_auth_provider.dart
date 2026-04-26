@@ -271,7 +271,8 @@ class FirebaseAuthProvider implements AuthProvider {
     try {
       await _auth.sendPasswordResetEmail(email: toEmail);
     } on FirebaseAuthException catch (e) {
-      if (e.code == 'user-not-found' || e.code == 'firebase_auth/user-not-found') {
+      if (e.code == 'user-not-found' ||
+          e.code == 'firebase_auth/user-not-found') {
         // Swallow user-not-found to prevent account enumeration
         return;
       }

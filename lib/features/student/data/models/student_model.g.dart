@@ -6,72 +6,67 @@ part of 'student_model.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-_$StudentModelImpl _$$StudentModelImplFromJson(Map<String, dynamic> json) =>
-    _$StudentModelImpl(
-      uid: json['uid'] as String,
-      docID: json['docID'] as String,
-      name: json['name'] as String,
-      imageUrl: json['imageUrl'] as String?,
-      role: $enumDecode(_$UserRoleEnumMap, json['role']),
-      mobile: json['mobile'] as String,
-      group: $enumDecode(_$GroupEnumMap, json['group']),
-      teamName: json['team_name'] as String,
-      motherPhone: json['mother_number'] as String,
-      fatherPhone: json['father_number'] as String,
-      grade: (json['grade'] as num).toInt(),
-      educationStage:
-          $enumDecode(_$EducationStageEnumMap, json['education_stage']),
-      school: json['school_college'] as String?,
-      address: json['address'] as String?,
-      birthdate:
-          const FirestoreTimestampConverter().fromJson(json['birthdate']),
-      fatherOfConfession: json['father_of_confession'] as String,
-      notes: json['notes'] as String?,
-      isArchived: json['isArchived'] as bool? ?? false,
-      archivedAt:
-          const FirestoreTimestampConverter().fromJson(json['archivedAt']),
-      archivedByUserId: json['archivedByUserId'] as String?,
-      archiveReason: json['archiveReason'] as String?,
-      restoredAt:
-          const FirestoreTimestampConverter().fromJson(json['restoredAt']),
-      restoredByUserId: json['restoredByUserId'] as String?,
-      classId: json['classId'] as String?,
-      attendanceSummary: json['attendanceSummary'] as Map<String, dynamic>?,
-      aiRecommendations: json['aiRecommendations'] as Map<String, dynamic>?,
-    );
+_$StudentModelImpl _$$StudentModelImplFromJson(
+  Map<String, dynamic> json,
+) => _$StudentModelImpl(
+  uid: json['uid'] as String,
+  docID: json['docID'] as String,
+  name: json['name'] as String,
+  imageUrl: json['imageUrl'] as String?,
+  role: $enumDecode(_$UserRoleEnumMap, json['role']),
+  mobile: json['mobile'] as String,
+  group: $enumDecode(_$GroupEnumMap, json['group']),
+  teamName: json['team_name'] as String,
+  motherPhone: json['mother_number'] as String,
+  fatherPhone: json['father_number'] as String,
+  grade: (json['grade'] as num).toInt(),
+  educationStage: $enumDecode(_$EducationStageEnumMap, json['education_stage']),
+  school: json['school_college'] as String?,
+  address: json['address'] as String?,
+  birthdate: const FirestoreTimestampConverter().fromJson(json['birthdate']),
+  fatherOfConfession: json['father_of_confession'] as String,
+  notes: json['notes'] as String?,
+  isArchived: json['isArchived'] as bool? ?? false,
+  archivedAt: const FirestoreTimestampConverter().fromJson(json['archivedAt']),
+  archivedByUserId: json['archivedByUserId'] as String?,
+  archiveReason: json['archiveReason'] as String?,
+  restoredAt: const FirestoreTimestampConverter().fromJson(json['restoredAt']),
+  restoredByUserId: json['restoredByUserId'] as String?,
+  classId: json['classId'] as String?,
+  attendanceSummary: json['attendanceSummary'] as Map<String, dynamic>?,
+  aiRecommendations: json['aiRecommendations'] as Map<String, dynamic>?,
+);
 
-Map<String, dynamic> _$$StudentModelImplToJson(_$StudentModelImpl instance) =>
-    <String, dynamic>{
-      'uid': instance.uid,
-      'docID': instance.docID,
-      'name': instance.name,
-      'imageUrl': instance.imageUrl,
-      'role': _$UserRoleEnumMap[instance.role]!,
-      'mobile': instance.mobile,
-      'group': _$GroupEnumMap[instance.group]!,
-      'team_name': instance.teamName,
-      'mother_number': instance.motherPhone,
-      'father_number': instance.fatherPhone,
-      'grade': instance.grade,
-      'education_stage': _$EducationStageEnumMap[instance.educationStage]!,
-      'school_college': instance.school,
-      'address': instance.address,
-      'birthdate':
-          const FirestoreTimestampConverter().toJson(instance.birthdate),
-      'father_of_confession': instance.fatherOfConfession,
-      'notes': instance.notes,
-      'isArchived': instance.isArchived,
-      'archivedAt':
-          const FirestoreTimestampConverter().toJson(instance.archivedAt),
-      'archivedByUserId': instance.archivedByUserId,
-      'archiveReason': instance.archiveReason,
-      'restoredAt':
-          const FirestoreTimestampConverter().toJson(instance.restoredAt),
-      'restoredByUserId': instance.restoredByUserId,
-      'classId': instance.classId,
-      'attendanceSummary': instance.attendanceSummary,
-      'aiRecommendations': instance.aiRecommendations,
-    };
+Map<String, dynamic> _$$StudentModelImplToJson(
+  _$StudentModelImpl instance,
+) => <String, dynamic>{
+  'uid': instance.uid,
+  'docID': instance.docID,
+  'name': instance.name,
+  'imageUrl': instance.imageUrl,
+  'role': _$UserRoleEnumMap[instance.role]!,
+  'mobile': instance.mobile,
+  'group': _$GroupEnumMap[instance.group]!,
+  'team_name': instance.teamName,
+  'mother_number': instance.motherPhone,
+  'father_number': instance.fatherPhone,
+  'grade': instance.grade,
+  'education_stage': _$EducationStageEnumMap[instance.educationStage]!,
+  'school_college': instance.school,
+  'address': instance.address,
+  'birthdate': const FirestoreTimestampConverter().toJson(instance.birthdate),
+  'father_of_confession': instance.fatherOfConfession,
+  'notes': instance.notes,
+  'isArchived': instance.isArchived,
+  'archivedAt': const FirestoreTimestampConverter().toJson(instance.archivedAt),
+  'archivedByUserId': instance.archivedByUserId,
+  'archiveReason': instance.archiveReason,
+  'restoredAt': const FirestoreTimestampConverter().toJson(instance.restoredAt),
+  'restoredByUserId': instance.restoredByUserId,
+  'classId': instance.classId,
+  'attendanceSummary': instance.attendanceSummary,
+  'aiRecommendations': instance.aiRecommendations,
+};
 
 const _$UserRoleEnumMap = {
   UserRole.servant: 'servant',

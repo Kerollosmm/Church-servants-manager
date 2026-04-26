@@ -89,7 +89,10 @@ class _AttendanceSessionCreateScreenState
     if (_selectedTeamId != null || teams.isEmpty) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      setState(() => _selectedTeamId = teams.first.id);
+      // Default to "All Teams" ('ALL_TEAMS') if there are multiple teams, otherwise first team.
+      setState(
+        () => _selectedTeamId = teams.length > 1 ? 'ALL_TEAMS' : teams.first.id,
+      );
     });
   }
 
@@ -99,21 +102,42 @@ class _AttendanceSessionCreateScreenState
     List<TeamModel> teams,
   ) async {
     final teamId = _selectedTeamId;
-    if (teamId == null || teamId.isEmpty) {
-      AppSnackbars.showError(context, 'اختر الفريق قبل إنشاء الجلسة.');
-      return;
-    }
     final durationMinutes = int.tryParse(_durationController.text.trim());
     if (durationMinutes == null || durationMinutes <= 0) {
       AppSnackbars.showError(context, 'أدخل مدة صحيحة أكبر من صفر.');
       return;
     }
 
-    final selectedTeam = teams.firstWhere((team) => team.id == teamId);
+    if (teamId == 'ALL_TEAMS' || (teamId == null && teams.length > 1)) {
+      // Bulk creation for all teams
+      if (teams.isEmpty) {
+        AppSnackbars.showError(context, 'لا توجد فرق متاحة لإنشاء الجلسات.');
+        return;
+      }
+
+      await context.read<AttendanceSessionAdminCubit>().createSessionsBulk(
+        actor: actor,
+        teamIdsAndNames: {for (final team in teams) team.id: team.name},
+        startsAt: _startsAt,
+        durationMinutes: durationMinutes,
+        title: _titleController.text.trim(),
+      );
+      return;
+    }
+
+    // Single team creation
+    final effectiveTeamId =
+        teamId ?? (teams.isNotEmpty ? teams.first.id : null);
+    if (effectiveTeamId == null) {
+      AppSnackbars.showError(context, 'يجب اختيار فريق.');
+      return;
+    }
+
+    final selectedTeam = teams.firstWhere((team) => team.id == effectiveTeamId);
 
     await context.read<AttendanceSessionAdminCubit>().createSession(
       actor: actor,
-      teamId: teamId,
+      teamId: effectiveTeamId,
       teamNameSnapshot: selectedTeam.name,
       startsAt: _startsAt,
       durationMinutes: durationMinutes,
@@ -204,6 +228,10 @@ class _AttendanceSessionCreateScreenState
                       ),
                     );
                   }
+                  if (state is AttendanceSessionAdminBulkSuccess) {
+                    AppSnackbars.showSuccess(context, state.message);
+                    Navigator.pop(context);
+                  }
                 },
                 child: Scaffold(
                   appBar: AppBar(title: const Text('إنشاء جلسة حضور')),
@@ -232,7 +260,10 @@ class _AttendanceSessionCreateScreenState
                             errorMessage: teamState is TeamError
                                 ? teamState.message
                                 : null,
-                            showAllOption: actor.role == UserRole.admin,
+                            showAllOption:
+                                teams.isNotEmpty &&
+                                (actor.role == UserRole.admin ||
+                                    teams.length > 1),
                             restrictToTeamIds: actor.role == UserRole.servant
                                 ? actor.effectiveAssignedTeamIds
                                 : null,
@@ -307,9 +338,13 @@ class _AttendanceSessionCreateScreenState
                             builder: (context, state) {
                               final isLoading =
                                   state is AttendanceSessionAdminLoading;
-                              final hasResolvedTeam = teams.any(
-                                (team) => team.id == _selectedTeamId,
-                              );
+                              final isAllTeamsSelected =
+                                  _selectedTeamId == 'ALL_TEAMS';
+                              final hasResolvedTeam =
+                                  isAllTeamsSelected ||
+                                  teams.any(
+                                    (team) => team.id == _selectedTeamId,
+                                  );
                               return FilledButton.icon(
                                 onPressed: isLoading || !hasResolvedTeam
                                     ? null
@@ -323,7 +358,11 @@ class _AttendanceSessionCreateScreenState
                                         ),
                                       )
                                     : const Icon(Icons.playlist_add_check),
-                                label: const Text('إنشاء الجلسة'),
+                                label: Text(
+                                  isAllTeamsSelected
+                                      ? 'إنشاء للكل'
+                                      : 'إنشاء الجلسة',
+                                ),
                               );
                             },
                           ),

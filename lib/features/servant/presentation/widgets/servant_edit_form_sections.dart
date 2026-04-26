@@ -80,7 +80,7 @@ class ServantPrimaryDetailsSection extends StatelessWidget {
           AppSpacing.gapMd,
           AppDropdownField<UserRole>(
             fieldKey: const Key('servant_role_field'),
-            initialValue: selectedRole,
+            value: selectedRole,
             labelText: 'الدور',
             prefixIcon: Icons.security_outlined,
             items: const [
@@ -97,7 +97,7 @@ class ServantPrimaryDetailsSection extends StatelessWidget {
         ],
         AppSpacing.gapMd,
         AppDropdownField<Group>(
-          initialValue: selectedGroup,
+          value: selectedGroup,
           labelText: 'السنة الدراسية',
           prefixIcon: Icons.school_outlined,
           items: Group.values

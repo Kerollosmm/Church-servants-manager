@@ -66,6 +66,52 @@ class AttendanceSessionAdminCubit extends Cubit<AttendanceSessionAdminState> {
     }
   }
 
+  Future<void> createSessionsBulk({
+    required AuthUser actor,
+    required Map<String, String> teamIdsAndNames,
+    required DateTime startsAt,
+    required int durationMinutes,
+    String? title,
+  }) async {
+    if (teamIdsAndNames.isEmpty) {
+      emit(const AttendanceSessionAdminError('لا توجد فرق مختارة.'));
+      return;
+    }
+    if (durationMinutes <= 0 || durationMinutes > 480) {
+      emit(
+        const AttendanceSessionAdminError(
+          'مدة الجلسة يجب أن تكون بين دقيقة واحدة و 480 دقيقة.',
+        ),
+      );
+      return;
+    }
+
+    emit(const AttendanceSessionAdminLoading());
+    try {
+      await _repository.createSessionsBulk(
+        teamIdsAndNames: teamIdsAndNames,
+        startsAt: startsAt,
+        durationMinutes: durationMinutes,
+        createdBy: actor,
+        title: title,
+      );
+      emit(
+        const AttendanceSessionAdminBulkSuccess(
+          message: 'تم إنشاء جلسات الحضور لجميع الفرق بنجاح.',
+        ),
+      );
+    } catch (error, stackTrace) {
+      developer.log(
+        'createSessionsBulk failed',
+        error: error,
+        stackTrace: stackTrace,
+        name: 'AttendanceSessionAdminCubit',
+      );
+      final failure = mapExceptionToAttendanceFailure(error);
+      emit(AttendanceSessionAdminError(failure.message));
+    }
+  }
+
   Future<void> closeSession({
     required AuthUser actor,
     required String teamId,
