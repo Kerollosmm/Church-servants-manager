@@ -1,4 +1,3 @@
-import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/data/services/firebase_auth_provider.dart';
 import 'package:church_management_system/features/auth/data/utils/auth_error_mapper.dart';
@@ -18,15 +17,18 @@ class FirebaseAuthRepository implements AuthRepository {
        _freshnessPolicy = freshnessPolicy;
 
   /// Get the current Firebase user (basic info)
+  @override
   AuthUser? get currentUser => _provider.currentUser;
 
   /// Get stream of auth state changes
+  @override
   Stream<AuthUser?> get authStateChanges => _provider.authStateChanges;
 
   @override
   Future<AuthUser?> getCurrentUser() async => getCurrentAppUser();
 
   /// Get current user with full app data from Firestore
+  @override
   Future<AuthUser?> getCurrentAppUser({bool forceRefresh = false}) async {
     final firebaseUser = _provider.currentUser;
     if (firebaseUser == null) {
@@ -42,6 +44,7 @@ class FirebaseAuthRepository implements AuthRepository {
     return appUser;
   }
 
+  @override
   AuthUser? get lastKnownAppUser => _lastKnownAppUser;
 
   @override
@@ -61,7 +64,6 @@ class FirebaseAuthRepository implements AuthRepository {
     required String email,
     required String password,
     required String name,
-    UserRole role = UserRole.student,
     String? grade,
   }) async {
     try {
@@ -69,7 +71,6 @@ class FirebaseAuthRepository implements AuthRepository {
         email: email,
         password: password,
         name: name,
-        role: role,
         grade: grade,
       );
     } catch (e) {
@@ -89,6 +90,7 @@ class FirebaseAuthRepository implements AuthRepository {
   }
 
   /// Send email verification
+  @override
   Future<void> sendEmailVerification() async {
     try {
       await _provider.sendEmailVerification();
@@ -103,6 +105,10 @@ class FirebaseAuthRepository implements AuthRepository {
     try {
       await _provider.sendPasswordReset(toEmail: email);
     } catch (e) {
+      if (e is UserNotFoundAuthException) {
+        // Swallow exception to prevent account enumeration
+        return;
+      }
       throw AuthErrorMapper.mapException(e);
     }
   }
@@ -111,9 +117,11 @@ class FirebaseAuthRepository implements AuthRepository {
   Future<bool> isEmailVerified() => _provider.isEmailVerified();
 
   /// Reload user data
+  @override
   Future<void> reloadUser() => _provider.reloadUser();
 
   /// Reload Firebase auth user and fetch a fresh app profile snapshot.
+  @override
   Future<AuthUser?> refreshCurrentAppUser() async {
     await forceTokenRefresh();
     await reloadUser();

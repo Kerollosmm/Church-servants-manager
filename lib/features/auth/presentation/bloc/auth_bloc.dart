@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:developer' as developer;
-import 'package:church_management_system/core/constants/enums.dart';
+
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
-import 'package:church_management_system/features/auth/data/repos/firebase_auth_repository.dart';
 import 'package:church_management_system/features/auth/domain/failures/auth_failures.dart';
+import 'package:church_management_system/features/auth/domain/repos/auth_repository.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -11,14 +11,14 @@ part 'auth_event.dart';
 part 'auth_state.dart';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
-  final FirebaseAuthRepository _authService;
+  final AuthRepository _authService;
   static const _degradedPermissionsMessage =
       'Unable to refresh account data. Showing last synced permissions.';
   static const _archivedMessage =
       'تم إيقاف هذا الحساب. تواصل مع الإدارة لاستعادته.';
   late final StreamSubscription<AuthUser?> _authStateSubscription;
 
-  AuthBloc({required FirebaseAuthRepository authService})
+  AuthBloc({required AuthRepository authService})
     : _authService = authService,
       super(const AuthInitial()) {
     on<AuthEventCheckStatus>(_onCheckStatus);
@@ -156,7 +156,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         email: event.email,
         password: event.password,
         name: event.name,
-        role: event.role,
         grade: event.grade,
       );
 

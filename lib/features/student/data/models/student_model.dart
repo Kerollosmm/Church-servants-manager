@@ -70,7 +70,7 @@ class StudentModel with _$StudentModel {
     int? readInt(String key) {
       final value = data[key];
       if (value == null) return null;
-      if (value is int) return value;
+      if (value is num) return value.toInt();
       if (value is String) return int.tryParse(value);
       return null;
     }
@@ -101,4 +101,14 @@ class StudentModel with _$StudentModel {
   Map<String, dynamic> toMap() => toJson();
 
   bool get isActive => !isArchived;
+
+  /// Returns true if all required fields are filled.
+  bool get isProfileComplete {
+    return name.trim().isNotEmpty &&
+        mobile.trim().isNotEmpty &&
+        motherPhone.trim().isNotEmpty &&
+        fatherPhone.trim().isNotEmpty &&
+        fatherOfConfession.trim().isNotEmpty &&
+        (classId?.trim().isNotEmpty ?? false);
+  }
 }

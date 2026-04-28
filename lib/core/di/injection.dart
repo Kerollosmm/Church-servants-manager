@@ -13,6 +13,7 @@ import 'package:church_management_system/features/auth/data/services/admin_user_
 import 'package:church_management_system/features/auth/data/services/auth_user_profile_store.dart';
 import 'package:church_management_system/features/auth/data/services/firebase_auth_provider.dart';
 import 'package:church_management_system/features/auth/domain/auth_freshness_policy.dart';
+import 'package:church_management_system/features/auth/domain/repos/auth_repository.dart';
 import 'package:church_management_system/features/servant/data/repo/servant_data_repository.dart';
 import 'package:church_management_system/features/servant/domain/repos/i_servant_repository.dart';
 import 'package:church_management_system/features/servant/domain/usecases/provision_servant_with_auth_usecase.dart';
@@ -45,16 +46,19 @@ void configureDependencies() {
       () =>
           FirebaseAuthProvider(userProfileStore: getIt<AuthUserProfileStore>()),
     )
-    ..registerLazySingleton<FirebaseAuthRepository>(
+    ..registerLazySingleton<AuthRepository>(
       () => FirebaseAuthRepository(
         provider: getIt<FirebaseAuthProvider>(),
         freshnessPolicy: getIt<AuthFreshnessPolicy>(),
       ),
     )
+    ..registerLazySingleton<FirebaseAuthRepository>(
+      () => getIt<AuthRepository>() as FirebaseAuthRepository,
+    )
     ..registerLazySingleton<AdminUserProvisioningService>(
       () => ClientAdminUserProvisioningService(
         userProfileStore: getIt<AuthUserProfileStore>(),
-        authService: getIt<FirebaseAuthRepository>(),
+        authService: getIt<AuthRepository>(),
       ),
     )
     ..registerLazySingleton<StudentQueryService>(
@@ -67,11 +71,15 @@ void configureDependencies() {
       () => AdminTeamMembershipService(firestore: getIt()),
     )
     // ---- AI Services ----
-    ..registerLazySingleton<StudentAIService>(
-      () => StudentAIService(
-        apiKey: const String.fromEnvironment('GEMINI_API_KEY'),
-      ),
-    )
+    ..registerLazySingleton<StudentAIService>(() {
+      const apiKey = String.fromEnvironment('GEMINI_API_KEY');
+      if (apiKey.isEmpty) {
+        throw ArgumentError(
+          'GEMINI_API_KEY must be provided via --dart-define',
+        );
+      }
+      return StudentAIService(apiKey: apiKey);
+    })
     // ---- Repositories ----
     ..registerLazySingleton<IStudentRepository>(
       () => StudentDataRepository(

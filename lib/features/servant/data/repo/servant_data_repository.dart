@@ -208,8 +208,10 @@ class ServantDataRepository implements IServantRepository {
         limit + 1,
       );
 
-      final lastDocument =
-          cursor?.token as DocumentSnapshot<Map<String, dynamic>>?;
+      final token = cursor?.token;
+      final lastDocument = token is DocumentSnapshot<Map<String, dynamic>>
+          ? token
+          : null;
       if (lastDocument != null) {
         query = query.startAfterDocument(lastDocument);
       }

@@ -59,7 +59,10 @@ class StudentAIService {
     required String studentName,
     required Map<String, dynamic> summary,
   }) async {
-    final firstName = studentName.split(' ')[0];
+    final name = studentName.trim();
+    final firstName = name.isNotEmpty
+        ? name.split(RegExp(r'\s+'))[0]
+        : 'Student';
     final prompt =
         '''
       You are a supportive church youth leader.
@@ -84,6 +87,27 @@ class StudentAIService {
     } catch (e) {
       developer.log('Student AI Error', error: e, name: 'StudentAIService');
       return 'We are so glad to have you in our community! See you next time.';
+    }
+  }
+
+  /// US-02: Smart Query Assistant
+  Future<String> smartQuery(String query) async {
+    final prompt =
+        '''
+      You are a helpful and knowledgeable AI assistant for a church attendance management system.
+      A user has asked the following query: "$query"
+      
+      Please provide a concise, helpful response based on general knowledge of church management systems.
+      If it's about checking who is absent, explain that they can check the history or reports.
+    ''';
+
+    try {
+      final response = await _model.generateContent([Content.text(prompt)]);
+      return response.text ??
+          'I am sorry, I could not generate an answer at this time.';
+    } catch (e) {
+      developer.log('Smart Query AI Error', error: e, name: 'StudentAIService');
+      throw Exception('Failed to process smart query.');
     }
   }
 }

@@ -12,7 +12,12 @@ class AIOfflineGate extends StatelessWidget {
     return StreamBuilder<List<ConnectivityResult>>(
       stream: Connectivity().onConnectivityChanged,
       builder: (context, snapshot) {
-        final results = snapshot.data ?? [ConnectivityResult.none];
+        if (!snapshot.hasData ||
+            snapshot.connectionState == ConnectionState.waiting) {
+          return child;
+        }
+
+        final results = snapshot.data!;
         final isOffline =
             results.contains(ConnectivityResult.none) && results.length == 1;
 

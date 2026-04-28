@@ -295,10 +295,13 @@ class _ServantEditControllers {
       return name.text.isNotEmpty ||
           phone.text.isNotEmpty ||
           email.text.isNotEmpty ||
+          password.text.isNotEmpty ||
           fatherOfConfession.text.isNotEmpty ||
           notes.text.isNotEmpty ||
           imageUrl.text.isNotEmpty ||
-          birthdate != null;
+          birthdate != null ||
+          selectedRole != UserRole.servant ||
+          selectedGroup != Group.year1;
     }
 
     return name.text.trim() != servant.name ||

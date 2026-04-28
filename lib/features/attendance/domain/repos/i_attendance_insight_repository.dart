@@ -7,6 +7,9 @@ abstract class IAttendanceInsightRepository {
 
   /// US-03: Fetches personal encouragement for a student.
   Future<String?> getStudentEncouragement({required String studentId});
+
+  /// US-02: Process natural language queries about attendance.
+  Future<String> smartQuery(String query);
 }
 
 class AttendanceInsight {

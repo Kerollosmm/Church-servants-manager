@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/domain/failures/auth_exceptions.dart';
@@ -53,28 +54,38 @@ class AuthUserProfileStore {
       if (initialRole != null) {
         // SPARK PLAN FIX: Check if there is an invitation for this user
         try {
-          final inviteDoc = await _db
+          final inviteRef = _db
               .collection(FirestoreCollections.invitations)
-              .doc(appUser.email.toLowerCase().trim())
-              .get();
+              .doc(appUser.email.toLowerCase().trim());
 
-          if (inviteDoc.exists) {
-            final inviteData = inviteDoc.data();
-            if (inviteData != null && inviteData['role'] != null) {
-              payload['role'] = inviteData['role'];
-              // Mark invitation as claimed
-              await inviteDoc.reference.update({
-                'status': 'claimed',
-                'claimedAt': FieldValue.serverTimestamp(),
-                'claimedByUid': appUser.uid,
-              });
+          await _db.runTransaction((transaction) async {
+            final inviteDoc = await transaction.get(inviteRef);
+            if (inviteDoc.exists) {
+              final inviteData = inviteDoc.data();
+              if (inviteData != null &&
+                  inviteData['status'] != 'claimed' &&
+                  inviteData['role'] != null) {
+                payload['role'] = inviteData['role'];
+                // Mark invitation as claimed
+                transaction.update(inviteRef, {
+                  'status': 'claimed',
+                  'claimedAt': FieldValue.serverTimestamp(),
+                  'claimedByUid': appUser.uid,
+                });
+              } else {
+                payload['role'] = initialRole;
+              }
             } else {
               payload['role'] = initialRole;
             }
-          } else {
-            payload['role'] = initialRole;
-          }
-        } catch (_) {
+          });
+        } catch (e, stack) {
+          developer.log(
+            'Invitation transaction failed',
+            error: e,
+            stackTrace: stack,
+            name: 'AuthUserProfileStore',
+          );
           // Fallback to default initial role if invitation check fails
           payload['role'] = initialRole;
         }

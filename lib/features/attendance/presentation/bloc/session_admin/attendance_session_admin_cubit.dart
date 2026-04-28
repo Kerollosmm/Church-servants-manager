@@ -88,18 +88,36 @@ class AttendanceSessionAdminCubit extends Cubit<AttendanceSessionAdminState> {
 
     emit(const AttendanceSessionAdminLoading());
     try {
-      await _repository.createSessionsBulk(
+      final result = await _repository.createSessionsBulk(
         teamIdsAndNames: teamIdsAndNames,
         startsAt: startsAt,
         durationMinutes: durationMinutes,
         createdBy: actor,
         title: title,
       );
-      emit(
-        const AttendanceSessionAdminBulkSuccess(
-          message: 'تم إنشاء جلسات الحضور لجميع الفرق بنجاح.',
-        ),
-      );
+
+      if (result.isCompleteSuccess) {
+        emit(
+          AttendanceSessionAdminBulkSuccess(
+            message: 'تم إنشاء جلسات الحضور لجميع الفرق بنجاح.',
+            result: result,
+          ),
+        );
+      } else if (result.isCompleteFailure) {
+        emit(
+          const AttendanceSessionAdminError(
+            'فشلت عملية إنشاء جلسات الحضور لجميع الفرق.',
+          ),
+        );
+      } else {
+        emit(
+          AttendanceSessionAdminBulkSuccess(
+            message:
+                'تم إنشاء بعض الجلسات بنجاح، وفشل البعض الآخر (${result.failedItems.length} فشل).',
+            result: result,
+          ),
+        );
+      }
     } catch (error, stackTrace) {
       developer.log(
         'createSessionsBulk failed',

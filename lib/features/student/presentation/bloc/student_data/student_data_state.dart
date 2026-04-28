@@ -20,6 +20,7 @@ final class StudentDataInitial extends StudentDataState {
 /// Loading state - fetching data.
 final class StudentDataLoading extends StudentDataState {
   final List<StudentModel> previousStudents;
+  final List<StudentModel> previousAllStudents;
   final bool isRefresh;
   final bool isSearch;
   final bool includeArchived;
@@ -29,6 +30,7 @@ final class StudentDataLoading extends StudentDataState {
 
   const StudentDataLoading({
     this.previousStudents = const <StudentModel>[],
+    this.previousAllStudents = const <StudentModel>[],
     this.isRefresh = false,
     this.isSearch = false,
     this.includeArchived = false,
@@ -42,6 +44,7 @@ final class StudentDataLoading extends StudentDataState {
   @override
   List<Object?> get props => [
     previousStudents,
+    previousAllStudents,
     isRefresh,
     isSearch,
     includeArchived,

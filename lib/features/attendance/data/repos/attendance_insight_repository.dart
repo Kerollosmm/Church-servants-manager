@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/features/attendance/domain/repos/i_attendance_insight_repository.dart';
 import 'package:church_management_system/features/student/data/services/student_ai_service.dart';
@@ -66,8 +67,29 @@ class AttendanceInsightRepository implements IAttendanceInsightRepository {
         studentName: studentName,
         summary: summary,
       );
-    } catch (e) {
+    } catch (e, stack) {
+      developer.log(
+        'AttendanceInsightRepository.generateMessage error:',
+        error: e,
+        stackTrace: stack,
+        name: 'AttendanceInsightRepository',
+      );
       return 'We are so glad to have you in our community! See you next time.';
+    }
+  }
+
+  @override
+  Future<String> smartQuery(String query) async {
+    try {
+      return await _aiService.smartQuery(query);
+    } catch (e, stack) {
+      developer.log(
+        'AttendanceInsightRepository.smartQuery error:',
+        error: e,
+        stackTrace: stack,
+        name: 'AttendanceInsightRepository',
+      );
+      throw Exception('Failed to process smart query locally: $e');
     }
   }
 }

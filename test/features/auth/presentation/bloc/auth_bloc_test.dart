@@ -266,7 +266,11 @@ void main() {
       () => authService.authStateChanges,
     ).thenAnswer((_) => controller.stream);
     when(() => authService.currentUser).thenReturn(null);
-    when(() => authService.getCurrentAppUser()).thenAnswer((_) async => null);
+    when(
+      () => authService.getCurrentAppUser(
+        forceRefresh: any(named: 'forceRefresh'),
+      ),
+    ).thenAnswer((_) async => null);
 
     final bloc = AuthBloc(authService: authService);
 

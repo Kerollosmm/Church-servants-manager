@@ -1,0 +1,16 @@
+# CodeRabbit Configuration
+# Focuses review on lib/ directory and Firebase rules
+
+reviews:
+  # Path filters to include only lib/ and firestore.rules
+  path_filters: # Exclude all files by default
+    - "!.agent/**"
+    - "!.agents/**"
+    - "!skills/**"
+
+  # Path-specific instructions
+  path_instructions:
+    - path: "lib/**"
+      instructions: "Focus on Flutter/Dart best practices, clean architecture, and offline-first logic."
+    - path: "firestore.rules"
+      instructions: "Focus on security, role-based access control (Servant vs Admin vs Student), and data integrity."

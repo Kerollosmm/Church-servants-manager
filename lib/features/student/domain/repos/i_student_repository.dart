@@ -39,6 +39,7 @@ abstract class IStudentRepository {
     int limit,
     String? groupId,
     String? classId,
+    bool includeArchived,
   });
 
   Future<String> createStudent(StudentModel student);

@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/routes.dart';
 import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/routing/route_args.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
 import 'package:church_management_system/core/widgets/common/app_info_banner.dart';
+import 'package:church_management_system/core/widgets/dialogs/generic_dialog.dart';
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
@@ -89,9 +91,11 @@ class _AttendanceSessionCreateScreenState
     if (_selectedTeamId != null || teams.isEmpty) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      // Default to "All Teams" ('ALL_TEAMS') if there are multiple teams, otherwise first team.
+      // Default to "All Teams" (TeamDropdown.allTeamsSentinel) if there are multiple teams, otherwise first team.
       setState(
-        () => _selectedTeamId = teams.length > 1 ? 'ALL_TEAMS' : teams.first.id,
+        () => _selectedTeamId = teams.length > 1
+            ? TeamDropdown.allTeamsSentinel
+            : teams.first.id,
       );
     });
   }
@@ -108,7 +112,8 @@ class _AttendanceSessionCreateScreenState
       return;
     }
 
-    if (teamId == 'ALL_TEAMS' || (teamId == null && teams.length > 1)) {
+    if (teamId == TeamDropdown.allTeamsSentinel ||
+        (teamId == null && teams.length > 1)) {
       // Bulk creation for all teams
       if (teams.isEmpty) {
         AppSnackbars.showError(context, 'لا توجد فرق متاحة لإنشاء الجلسات.');
@@ -133,7 +138,10 @@ class _AttendanceSessionCreateScreenState
       return;
     }
 
-    final selectedTeam = teams.firstWhere((team) => team.id == effectiveTeamId);
+    final selectedTeam = teams.firstWhere(
+      (team) => team.id == effectiveTeamId,
+      orElse: () => teams.first,
+    );
 
     await context.read<AttendanceSessionAdminCubit>().createSession(
       actor: actor,
@@ -205,173 +213,191 @@ class _AttendanceSessionCreateScreenState
               ),
             ),
           ],
-          child:
-              BlocListener<
-                AttendanceSessionAdminCubit,
-                AttendanceSessionAdminState
-              >(
-                listener: (context, state) {
-                  if (state is AttendanceSessionAdminError) {
-                    AppSnackbars.showError(context, state.message);
-                    return;
-                  }
-                  if (state is AttendanceSessionAdminSuccess) {
-                    AppSnackbars.showSuccess(context, state.message);
-                    final currentActor = _currentActor();
-                    Navigator.pushReplacementNamed(
-                      context,
-                      attendanceTaking,
-                      arguments: AttendanceTakingArgs(
-                        actor: currentActor,
-                        teamId: state.session.teamId,
-                        sessionId: state.session.id,
-                      ),
-                    );
-                  }
-                  if (state is AttendanceSessionAdminBulkSuccess) {
-                    AppSnackbars.showSuccess(context, state.message);
-                    Navigator.pop(context);
-                  }
-                },
-                child: Scaffold(
-                  appBar: AppBar(title: const Text('إنشاء جلسة حضور')),
-                  body: BlocBuilder<TeamCubit, TeamState>(
-                    builder: (context, teamState) {
-                      final teams = teamState is TeamLoaded
-                          ? teamState.teams
-                          : const <TeamModel>[];
-                      _ensureInitialTeam(teams);
+          child: BlocListener<AttendanceSessionAdminCubit, AttendanceSessionAdminState>(
+            listener: (context, state) async {
+              if (state is AttendanceSessionAdminError) {
+                AppSnackbars.showError(context, state.message);
+                return;
+              }
+              if (state is AttendanceSessionAdminSuccess) {
+                AppSnackbars.showSuccess(context, state.message);
+                final currentActor = _currentActor();
+                unawaited(
+                  Navigator.pushReplacementNamed(
+                    context,
+                    attendanceTaking,
+                    arguments: AttendanceTakingArgs(
+                      actor: currentActor,
+                      teamId: state.session.teamId,
+                      sessionId: state.session.id,
+                    ),
+                  ),
+                );
+              }
+              if (state is AttendanceSessionAdminBulkSuccess) {
+                if (state.result.isCompleteSuccess) {
+                  AppSnackbars.showSuccess(context, state.message);
+                  Navigator.pop(context);
+                } else {
+                  // Partial success or failure with details
+                  final teamCubit = context.read<TeamCubit>();
+                  final teams = teamCubit.state is TeamLoaded
+                      ? (teamCubit.state as TeamLoaded).teams
+                      : <TeamModel>[];
 
-                      return ListView(
-                        padding: const EdgeInsets.all(AppSpacing.md),
-                        children: [
-                          const AppInfoBanner(
-                            icon: Icons.auto_awesome,
-                            message:
-                                'الغياب لا يتم تسجيله يدويا. أي مخدوم غير محدد عند نهاية الجلسة يصبح غائبا تلقائيا.',
-                          ),
-                          AppSpacing.gapMd,
-                          TeamDropdown(
-                            teams: teams,
-                            selectedTeamId: _selectedTeamId,
-                            isLoading:
-                                teamState is TeamLoading ||
-                                teamState is TeamInitial,
-                            errorMessage: teamState is TeamError
-                                ? teamState.message
-                                : null,
-                            showAllOption:
-                                teams.isNotEmpty &&
-                                (actor.role == UserRole.admin ||
-                                    teams.length > 1),
-                            restrictToTeamIds: actor.role == UserRole.servant
-                                ? actor.effectiveAssignedTeamIds
-                                : null,
-                            label: 'الفريق',
-                            onChanged: (teamId) {
-                              setState(() => _selectedTeamId = teamId);
-                            },
-                          ),
-                          AppSpacing.gapMd,
-                          TextField(
-                            controller: _titleController,
-                            decoration: const InputDecoration(
-                              labelText: 'عنوان الجلسة (اختياري)',
-                              border: OutlineInputBorder(),
-                            ),
-                          ),
-                          AppSpacing.gapMd,
-                          TextField(
-                            controller: _durationController,
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: 'المدة بالدقائق',
-                              border: OutlineInputBorder(),
-                            ),
-                          ),
-                          AppSpacing.gapMd,
-                          Card(
-                            child: Padding(
-                              padding: const EdgeInsets.all(AppSpacing.md),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                  final failedNames = state.result.failedItems
+                      .map((id) {
+                        final team = teams.cast<TeamModel?>().firstWhere(
+                          (t) => t?.id == id,
+                          orElse: () => null,
+                        );
+                        return team?.name ?? id;
+                      })
+                      .join('\n');
+
+                  await showGenericDialog(
+                    context: context,
+                    title: 'نتائج إنشاء الجلسات',
+                    content:
+                        '${state.message}\n\nالفرق التي فشل إنشاؤها:\n$failedNames',
+                    optionBuilder: () => {'موافق': true},
+                  );
+                  if (context.mounted) Navigator.pop(context);
+                }
+              }
+            },
+            child: Scaffold(
+              appBar: AppBar(title: const Text('إنشاء جلسة حضور')),
+              body: BlocBuilder<TeamCubit, TeamState>(
+                builder: (context, teamState) {
+                  final teams = teamState is TeamLoaded
+                      ? teamState.teams
+                      : const <TeamModel>[];
+                  _ensureInitialTeam(teams);
+
+                  return ListView(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    children: [
+                      const AppInfoBanner(
+                        icon: Icons.auto_awesome,
+                        message:
+                            'الغياب لا يتم تسجيله يدويا. أي مخدوم غير محدد عند نهاية الجلسة يصبح غائبا تلقائيا.',
+                      ),
+                      AppSpacing.gapMd,
+                      TeamDropdown(
+                        teams: teams,
+                        selectedTeamId: _selectedTeamId,
+                        isLoading:
+                            teamState is TeamLoading ||
+                            teamState is TeamInitial,
+                        errorMessage: teamState is TeamError
+                            ? teamState.message
+                            : null,
+                        showAllOption:
+                            teams.isNotEmpty &&
+                            (actor.role == UserRole.admin || teams.length > 1),
+                        restrictToTeamIds: actor.role == UserRole.servant
+                            ? actor.effectiveAssignedTeamIds
+                            : null,
+                        label: 'الفريق',
+                        onChanged: (teamId) {
+                          setState(() => _selectedTeamId = teamId);
+                        },
+                      ),
+                      AppSpacing.gapMd,
+                      TextField(
+                        controller: _titleController,
+                        decoration: const InputDecoration(
+                          labelText: 'عنوان الجلسة (اختياري)',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      AppSpacing.gapMd,
+                      TextField(
+                        controller: _durationController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'المدة بالدقائق',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      AppSpacing.gapMd,
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'بداية الجلسة',
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              AppSpacing.gapSm,
+                              Text(_formatDateTime(_startsAt)),
+                              AppSpacing.gapMd,
+                              Row(
                                 children: [
-                                  Text(
-                                    'بداية الجلسة',
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.titleMedium,
+                                  Expanded(
+                                    child: OutlinedButton.icon(
+                                      onPressed: _pickDate,
+                                      icon: const Icon(Icons.calendar_month),
+                                      label: const Text('اختيار التاريخ'),
+                                    ),
                                   ),
                                   AppSpacing.gapSm,
-                                  Text(_formatDateTime(_startsAt)),
-                                  AppSpacing.gapMd,
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: OutlinedButton.icon(
-                                          onPressed: _pickDate,
-                                          icon: const Icon(
-                                            Icons.calendar_month,
-                                          ),
-                                          label: const Text('اختيار التاريخ'),
-                                        ),
-                                      ),
-                                      AppSpacing.gapSm,
-                                      Expanded(
-                                        child: OutlinedButton.icon(
-                                          onPressed: _pickTime,
-                                          icon: const Icon(Icons.access_time),
-                                          label: const Text('اختيار الوقت'),
-                                        ),
-                                      ),
-                                    ],
+                                  Expanded(
+                                    child: OutlinedButton.icon(
+                                      onPressed: _pickTime,
+                                      icon: const Icon(Icons.access_time),
+                                      label: const Text('اختيار الوقت'),
+                                    ),
                                   ),
                                 ],
                               ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      AppSpacing.gapLg,
+                      BlocBuilder<
+                        AttendanceSessionAdminCubit,
+                        AttendanceSessionAdminState
+                      >(
+                        builder: (context, state) {
+                          final isLoading =
+                              state is AttendanceSessionAdminLoading;
+                          final isAllTeamsSelected =
+                              _selectedTeamId == TeamDropdown.allTeamsSentinel;
+                          final hasResolvedTeam =
+                              isAllTeamsSelected ||
+                              teams.any((team) => team.id == _selectedTeamId);
+                          return FilledButton.icon(
+                            onPressed: isLoading || !hasResolvedTeam
+                                ? null
+                                : () => _submit(context, actor, teams),
+                            icon: isLoading
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.playlist_add_check),
+                            label: Text(
+                              isAllTeamsSelected
+                                  ? 'إنشاء للكل'
+                                  : 'إنشاء الجلسة',
                             ),
-                          ),
-                          AppSpacing.gapLg,
-                          BlocBuilder<
-                            AttendanceSessionAdminCubit,
-                            AttendanceSessionAdminState
-                          >(
-                            builder: (context, state) {
-                              final isLoading =
-                                  state is AttendanceSessionAdminLoading;
-                              final isAllTeamsSelected =
-                                  _selectedTeamId == 'ALL_TEAMS';
-                              final hasResolvedTeam =
-                                  isAllTeamsSelected ||
-                                  teams.any(
-                                    (team) => team.id == _selectedTeamId,
-                                  );
-                              return FilledButton.icon(
-                                onPressed: isLoading || !hasResolvedTeam
-                                    ? null
-                                    : () => _submit(context, actor, teams),
-                                icon: isLoading
-                                    ? const SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                        ),
-                                      )
-                                    : const Icon(Icons.playlist_add_check),
-                                label: Text(
-                                  isAllTeamsSelected
-                                      ? 'إنشاء للكل'
-                                      : 'إنشاء الجلسة',
-                                ),
-                              );
-                            },
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ),
+                          );
+                        },
+                      ),
+                    ],
+                  );
+                },
               ),
+            ),
+          ),
         );
       },
     );

@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 
 /// Pure dropdown widget for selecting a team.
 class TeamDropdown extends StatelessWidget {
+  static const String allTeamsSentinel = 'ALL_TEAMS';
+
   final List<TeamModel> teams;
   final String? selectedTeamId;
   final bool isLoading;
@@ -84,7 +86,7 @@ class TeamDropdown extends StatelessWidget {
     if (showAllOption) {
       items.add(
         DropdownMenuItem<String?>(
-          value: 'ALL_TEAMS',
+          value: allTeamsSentinel,
           child: SizedBox(
             height: 48,
             child: Align(
@@ -112,13 +114,13 @@ class TeamDropdown extends StatelessWidget {
     );
 
     final validIds = visibleTeams.map((t) => t.id).toSet();
-    if (showAllOption) validIds.add('ALL_TEAMS');
+    if (showAllOption) validIds.add(allTeamsSentinel);
 
     final effectiveValue =
         (selectedTeamId != null && validIds.contains(selectedTeamId))
         ? selectedTeamId
         : (showAllOption
-              ? 'ALL_TEAMS'
+              ? allTeamsSentinel
               : (visibleTeams.isNotEmpty ? visibleTeams.first.id : null));
 
     return AppDropdownField<String?>(
