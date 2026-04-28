@@ -38,14 +38,25 @@ class ServantDataCubit extends Cubit<ServantDataState> {
   ServantDataLoaded? get _loadedState =>
       state is ServantDataLoaded ? state as ServantDataLoaded : null;
 
-  bool _ensureAdminOrReadGuard(AuthUser actor) {
-    if (actor.role == UserRole.admin) {
-      return true;
-    }
+  bool _canRead(AuthUser actor) =>
+      actor.role == UserRole.admin || actor.role == UserRole.servant;
+
+  bool _ensureRead(AuthUser actor) {
+    if (_canRead(actor)) return true;
+    emit(
+      const ServantDataError(
+        GenericServantFailure('خطأ في الصلاحية: ليس لديك صلاحية عرض الخدام.'),
+      ),
+    );
+    return false;
+  }
+
+  bool _ensureAdmin(AuthUser actor) {
+    if (actor.role == UserRole.admin) return true;
     emit(
       const ServantDataError(
         GenericServantFailure(
-          'خطأ في الصلاحية: المسؤول فقط يمكنه إدارة الخدام.',
+          'خطأ في الصلاحية: المسؤول فقط يمكنه إجراء هذه العملية.',
         ),
       ),
     );
@@ -98,7 +109,7 @@ class ServantDataCubit extends Cubit<ServantDataState> {
     bool forceRefresh = false,
     bool includeArchived = false,
   }) async {
-    if (!_ensureAdminOrReadGuard(actor)) return;
+    if (!_ensureRead(actor)) return;
 
     _includeArchived = includeArchived;
     if (!forceRefresh &&
@@ -130,7 +141,7 @@ class ServantDataCubit extends Cubit<ServantDataState> {
     required String query,
     bool includeArchived = false,
   }) async {
-    if (!_ensureAdminOrReadGuard(actor)) return;
+    if (!_ensureRead(actor)) return;
 
     _includeArchived = includeArchived;
     if (_allServants.isEmpty) {
@@ -163,7 +174,7 @@ class ServantDataCubit extends Cubit<ServantDataState> {
     String? email,
     String? password,
   }) async {
-    if (!_ensureAdminOrReadGuard(actor)) return;
+    if (!_ensureAdmin(actor)) return;
     final previousLoaded = _loadedState;
     _emitLoaded(mutationStatus: ServantMutationStatus.inProgress);
     try {
@@ -202,7 +213,7 @@ class ServantDataCubit extends Cubit<ServantDataState> {
     required AuthUser actor,
     required ServantModel servant,
   }) async {
-    if (!_ensureAdminOrReadGuard(actor)) return;
+    if (!_ensureAdmin(actor)) return;
     _emitLoaded(mutationStatus: ServantMutationStatus.inProgress);
     try {
       await _repository.updateServant(servant);
@@ -220,7 +231,7 @@ class ServantDataCubit extends Cubit<ServantDataState> {
     required AuthUser actor,
     required String docId,
   }) async {
-    if (!_ensureAdminOrReadGuard(actor)) return;
+    if (!_ensureAdmin(actor)) return;
     final previousLoaded = _loadedState;
     _emitLoaded(mutationStatus: ServantMutationStatus.inProgress);
     try {
@@ -262,7 +273,7 @@ class ServantDataCubit extends Cubit<ServantDataState> {
     required AuthUser actor,
     required String docId,
   }) async {
-    if (!_ensureAdminOrReadGuard(actor)) return;
+    if (!_ensureAdmin(actor)) return;
     _emitLoaded(mutationStatus: ServantMutationStatus.inProgress);
     try {
       final existing = await _repository.getServantById(
@@ -292,7 +303,7 @@ class ServantDataCubit extends Cubit<ServantDataState> {
   }
 
   Future<void> refreshServants({required AuthUser actor}) async {
-    if (!_ensureAdminOrReadGuard(actor)) return;
+    if (!_ensureRead(actor)) return;
     await _reloadFromServer(actor);
     if (_lastQuery != null && _lastQuery!.isNotEmpty) {
       await searchServants(
@@ -304,7 +315,7 @@ class ServantDataCubit extends Cubit<ServantDataState> {
   }
 
   Future<void> loadMoreServants({required AuthUser actor}) async {
-    if (!_ensureAdminOrReadGuard(actor)) return;
+    if (!_ensureRead(actor)) return;
     if (_isLoadingMore || !_hasMore) return;
     if (_lastQuery != null && _lastQuery!.isNotEmpty) return;
 

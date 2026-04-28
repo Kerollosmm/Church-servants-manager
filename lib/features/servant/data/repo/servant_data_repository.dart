@@ -145,7 +145,9 @@ class ServantDataRepository implements IServantRepository {
           isFromCache: true,
         );
       }
-    } catch (_) {}
+    } catch (e) {
+      // Cache miss or other cache error is expected, fallback to server
+    }
 
     try {
       final serverSnapshot = await _usersCollection
@@ -185,7 +187,9 @@ class ServantDataRepository implements IServantRepository {
       if (cacheSnapshot.docs.isNotEmpty) {
         return _servantsFromDocs(cacheSnapshot.docs, includeArchived);
       }
-    } catch (_) {}
+    } catch (e) {
+      // Cache miss or other cache error is expected, fallback to server
+    }
 
     try {
       final serverSnapshot = await query.get(
@@ -250,7 +254,9 @@ class ServantDataRepository implements IServantRepository {
         if (cacheSnapshot.docs.isNotEmpty) {
           return _servantsFromDocs(cacheSnapshot.docs, includeArchived);
         }
-      } catch (_) {}
+      } catch (e) {
+        // Cache miss or other cache error is expected, fallback to server
+      }
 
       final snapshot = await _usersCollection
           .where('role', isEqualTo: UserRole.servant.name)

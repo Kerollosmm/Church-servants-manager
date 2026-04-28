@@ -13,7 +13,7 @@ class AIAssistantBloc extends Bloc<AIAssistantEvent, AIAssistantState> {
         case GetGroupInsight():
           await _onGetGroupInsight(event.groupId, event.question, emit);
         case SendQuery():
-          await _onSendQuery(event.query, emit);
+          await _onSendQuery(event.query, event.contextData, emit);
         case ClearChat():
           _onClearChat(emit);
       }
@@ -39,6 +39,7 @@ class AIAssistantBloc extends Bloc<AIAssistantEvent, AIAssistantState> {
 
   Future<void> _onSendQuery(
     String query,
+    Map<String, dynamic>? contextData,
     Emitter<AIAssistantState> emit,
   ) async {
     final userMessage = ChatMessage(
@@ -56,7 +57,10 @@ class AIAssistantBloc extends Bloc<AIAssistantEvent, AIAssistantState> {
     );
 
     try {
-      final responseText = await _repository.smartQuery(query);
+      final responseText = await _repository.smartQuery(
+        query,
+        contextData: contextData,
+      );
 
       final assistantMessage = ChatMessage(
         text: responseText,

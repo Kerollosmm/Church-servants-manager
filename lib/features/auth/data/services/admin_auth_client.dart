@@ -76,16 +76,26 @@ class FirebaseAdminAuthClient implements AdminAuthClient {
 
   @override
   Future<void> archiveUser({required String uid}) async {
-    throw const GenericAuthException(
-      'Security restriction: User archiving must be performed via server-side admin logic.',
-    );
+    try {
+      await _db.collection(FirestoreCollections.users).doc(uid).update({
+        'isArchived': true,
+        'archivedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      throw GenericAuthException('Failed to archive user: $e');
+    }
   }
 
   @override
   Future<void> restoreUser({required String uid}) async {
-    throw const GenericAuthException(
-      'Security restriction: User restoration must be performed via server-side admin logic.',
-    );
+    try {
+      await _db.collection(FirestoreCollections.users).doc(uid).update({
+        'isArchived': false,
+        'restoredAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      throw GenericAuthException('Failed to restore user: $e');
+    }
   }
 
   @override
@@ -93,8 +103,12 @@ class FirebaseAdminAuthClient implements AdminAuthClient {
     required String uid,
     required UserRole role,
   }) async {
-    throw const GenericAuthException(
-      'Security restriction: Role assignment must be performed via server-side admin logic.',
-    );
+    try {
+      await _db.collection(FirestoreCollections.users).doc(uid).update({
+        'role': role.name,
+      });
+    } catch (e) {
+      throw GenericAuthException('Failed to change user role: $e');
+    }
   }
 }

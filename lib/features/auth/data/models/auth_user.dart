@@ -69,7 +69,7 @@ class AuthUser with _$AuthUser {
     );
 
     // Parse teams from claims
-    final teamsRaw = claims['teams'];
+    final teamsRaw = claims['assignedTeamIds'] ?? claims['teams'];
     final List<String> assignedTeamIds = [];
     if (teamsRaw is List) {
       assignedTeamIds.addAll(teamsRaw.map((e) => e.toString()));

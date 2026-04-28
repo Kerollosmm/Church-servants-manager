@@ -9,7 +9,7 @@ abstract class IAttendanceInsightRepository {
   Future<String?> getStudentEncouragement({required String studentId});
 
   /// US-02: Process natural language queries about attendance.
-  Future<String> smartQuery(String query);
+  Future<String> smartQuery(String query, {Map<String, dynamic>? contextData});
 }
 
 class AttendanceInsight {

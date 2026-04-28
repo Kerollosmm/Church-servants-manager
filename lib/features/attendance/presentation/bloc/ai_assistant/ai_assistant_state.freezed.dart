@@ -12,8 +12,7 @@ part of 'ai_assistant_state.dart';
 T _$identity<T>(T value) => value;
 
 final _privateConstructorUsedError = UnsupportedError(
-  'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
-);
+    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
 
 /// @nodoc
 mixin _$AIAssistantState {
@@ -30,16 +29,14 @@ mixin _$AIAssistantState {
 /// @nodoc
 abstract class $AIAssistantStateCopyWith<$Res> {
   factory $AIAssistantStateCopyWith(
-    AIAssistantState value,
-    $Res Function(AIAssistantState) then,
-  ) = _$AIAssistantStateCopyWithImpl<$Res, AIAssistantState>;
+          AIAssistantState value, $Res Function(AIAssistantState) then) =
+      _$AIAssistantStateCopyWithImpl<$Res, AIAssistantState>;
   @useResult
-  $Res call({
-    List<ChatMessage> messages,
-    bool isLoading,
-    String? errorMessage,
-    AttendanceInsight? lastInsight,
-  });
+  $Res call(
+      {List<ChatMessage> messages,
+      bool isLoading,
+      String? errorMessage,
+      AttendanceInsight? lastInsight});
 }
 
 /// @nodoc
@@ -60,55 +57,49 @@ class _$AIAssistantStateCopyWithImpl<$Res, $Val extends AIAssistantState>
     Object? errorMessage = freezed,
     Object? lastInsight = freezed,
   }) {
-    return _then(
-      _value.copyWith(
-            messages: null == messages
-                ? _value.messages
-                : messages // ignore: cast_nullable_to_non_nullable
-                      as List<ChatMessage>,
-            isLoading: null == isLoading
-                ? _value.isLoading
-                : isLoading // ignore: cast_nullable_to_non_nullable
-                      as bool,
-            errorMessage: freezed == errorMessage
-                ? _value.errorMessage
-                : errorMessage // ignore: cast_nullable_to_non_nullable
-                      as String?,
-            lastInsight: freezed == lastInsight
-                ? _value.lastInsight
-                : lastInsight // ignore: cast_nullable_to_non_nullable
-                      as AttendanceInsight?,
-          )
-          as $Val,
-    );
+    return _then(_value.copyWith(
+      messages: null == messages
+          ? _value.messages
+          : messages // ignore: cast_nullable_to_non_nullable
+              as List<ChatMessage>,
+      isLoading: null == isLoading
+          ? _value.isLoading
+          : isLoading // ignore: cast_nullable_to_non_nullable
+              as bool,
+      errorMessage: freezed == errorMessage
+          ? _value.errorMessage
+          : errorMessage // ignore: cast_nullable_to_non_nullable
+              as String?,
+      lastInsight: freezed == lastInsight
+          ? _value.lastInsight
+          : lastInsight // ignore: cast_nullable_to_non_nullable
+              as AttendanceInsight?,
+    ) as $Val);
   }
 }
 
 /// @nodoc
 abstract class _$$AIAssistantStateImplCopyWith<$Res>
     implements $AIAssistantStateCopyWith<$Res> {
-  factory _$$AIAssistantStateImplCopyWith(
-    _$AIAssistantStateImpl value,
-    $Res Function(_$AIAssistantStateImpl) then,
-  ) = __$$AIAssistantStateImplCopyWithImpl<$Res>;
+  factory _$$AIAssistantStateImplCopyWith(_$AIAssistantStateImpl value,
+          $Res Function(_$AIAssistantStateImpl) then) =
+      __$$AIAssistantStateImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call({
-    List<ChatMessage> messages,
-    bool isLoading,
-    String? errorMessage,
-    AttendanceInsight? lastInsight,
-  });
+  $Res call(
+      {List<ChatMessage> messages,
+      bool isLoading,
+      String? errorMessage,
+      AttendanceInsight? lastInsight});
 }
 
 /// @nodoc
 class __$$AIAssistantStateImplCopyWithImpl<$Res>
     extends _$AIAssistantStateCopyWithImpl<$Res, _$AIAssistantStateImpl>
     implements _$$AIAssistantStateImplCopyWith<$Res> {
-  __$$AIAssistantStateImplCopyWithImpl(
-    _$AIAssistantStateImpl _value,
-    $Res Function(_$AIAssistantStateImpl) _then,
-  ) : super(_value, _then);
+  __$$AIAssistantStateImplCopyWithImpl(_$AIAssistantStateImpl _value,
+      $Res Function(_$AIAssistantStateImpl) _then)
+      : super(_value, _then);
 
   @pragma('vm:prefer-inline')
   @override
@@ -118,38 +109,36 @@ class __$$AIAssistantStateImplCopyWithImpl<$Res>
     Object? errorMessage = freezed,
     Object? lastInsight = freezed,
   }) {
-    return _then(
-      _$AIAssistantStateImpl(
-        messages: null == messages
-            ? _value._messages
-            : messages // ignore: cast_nullable_to_non_nullable
-                  as List<ChatMessage>,
-        isLoading: null == isLoading
-            ? _value.isLoading
-            : isLoading // ignore: cast_nullable_to_non_nullable
-                  as bool,
-        errorMessage: freezed == errorMessage
-            ? _value.errorMessage
-            : errorMessage // ignore: cast_nullable_to_non_nullable
-                  as String?,
-        lastInsight: freezed == lastInsight
-            ? _value.lastInsight
-            : lastInsight // ignore: cast_nullable_to_non_nullable
-                  as AttendanceInsight?,
-      ),
-    );
+    return _then(_$AIAssistantStateImpl(
+      messages: null == messages
+          ? _value._messages
+          : messages // ignore: cast_nullable_to_non_nullable
+              as List<ChatMessage>,
+      isLoading: null == isLoading
+          ? _value.isLoading
+          : isLoading // ignore: cast_nullable_to_non_nullable
+              as bool,
+      errorMessage: freezed == errorMessage
+          ? _value.errorMessage
+          : errorMessage // ignore: cast_nullable_to_non_nullable
+              as String?,
+      lastInsight: freezed == lastInsight
+          ? _value.lastInsight
+          : lastInsight // ignore: cast_nullable_to_non_nullable
+              as AttendanceInsight?,
+    ));
   }
 }
 
 /// @nodoc
 
 class _$AIAssistantStateImpl implements _AIAssistantState {
-  const _$AIAssistantStateImpl({
-    final List<ChatMessage> messages = const [],
-    this.isLoading = false,
-    this.errorMessage,
-    this.lastInsight,
-  }) : _messages = messages;
+  const _$AIAssistantStateImpl(
+      {final List<ChatMessage> messages = const [],
+      this.isLoading = false,
+      this.errorMessage,
+      this.lastInsight})
+      : _messages = messages;
 
   final List<ChatMessage> _messages;
   @override
@@ -189,30 +178,26 @@ class _$AIAssistantStateImpl implements _AIAssistantState {
 
   @override
   int get hashCode => Object.hash(
-    runtimeType,
-    const DeepCollectionEquality().hash(_messages),
-    isLoading,
-    errorMessage,
-    lastInsight,
-  );
+      runtimeType,
+      const DeepCollectionEquality().hash(_messages),
+      isLoading,
+      errorMessage,
+      lastInsight);
 
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$AIAssistantStateImplCopyWith<_$AIAssistantStateImpl> get copyWith =>
       __$$AIAssistantStateImplCopyWithImpl<_$AIAssistantStateImpl>(
-        this,
-        _$identity,
-      );
+          this, _$identity);
 }
 
 abstract class _AIAssistantState implements AIAssistantState {
-  const factory _AIAssistantState({
-    final List<ChatMessage> messages,
-    final bool isLoading,
-    final String? errorMessage,
-    final AttendanceInsight? lastInsight,
-  }) = _$AIAssistantStateImpl;
+  const factory _AIAssistantState(
+      {final List<ChatMessage> messages,
+      final bool isLoading,
+      final String? errorMessage,
+      final AttendanceInsight? lastInsight}) = _$AIAssistantStateImpl;
 
   @override
   List<ChatMessage> get messages;

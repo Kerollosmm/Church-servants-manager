@@ -44,12 +44,12 @@ void main() {
 
     final expectation = expectLater(
       cubit.stream,
-      emitsInOrder([
+      emitsThrough(
         isA<ServantDataError>().having((s) => s.message, 'message', isNotEmpty),
-      ]),
+      ),
     );
 
-    await cubit.loadServants(actor: actor(UserRole.servant));
+    await cubit.loadServants(actor: actor(UserRole.student));
     await expectation;
     verifyNever(
       () => repository.getServantsPage(

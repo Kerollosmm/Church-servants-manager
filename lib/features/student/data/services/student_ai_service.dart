@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
 
+import 'package:church_management_system/core/constants/ai_constants.dart';
 import 'package:church_management_system/features/attendance/domain/repos/i_attendance_insight_repository.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 
@@ -11,7 +12,7 @@ class StudentAIService {
   late final GenerativeModel _model;
 
   StudentAIService({required String apiKey}) : _apiKey = apiKey {
-    _model = GenerativeModel(model: 'gemini-2.0-flash-lite', apiKey: _apiKey);
+    _model = GenerativeModel(model: AIConstants.modelName, apiKey: _apiKey);
   }
 
   /// US-01: Servant Get Trend Insight
@@ -91,13 +92,21 @@ class StudentAIService {
   }
 
   /// US-02: Smart Query Assistant
-  Future<String> smartQuery(String query) async {
+  Future<String> smartQuery(
+    String query, {
+    Map<String, dynamic>? contextData,
+  }) async {
+    final contextString = contextData != null
+        ? 'Context Data: ${jsonEncode(contextData)}'
+        : 'No specific data provided.';
     final prompt =
         '''
       You are a helpful and knowledgeable AI assistant for a church attendance management system.
+      $contextString
       A user has asked the following query: "$query"
       
-      Please provide a concise, helpful response based on general knowledge of church management systems.
+      Please provide a concise, helpful response. 
+      If context data is provided, use it to give a specific answer. 
       If it's about checking who is absent, explain that they can check the history or reports.
     ''';
 

@@ -96,6 +96,7 @@ abstract class IAttendanceRepository {
   Future<List<StudentAttendanceHistoryItem>> getStudentAttendanceHistory({
     required String studentId,
     String? teamId,
+    DateTimeRange? range,
   });
 
   Future<StudentAttendanceStats> getStudentAttendanceStats({

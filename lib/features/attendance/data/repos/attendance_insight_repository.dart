@@ -79,9 +79,12 @@ class AttendanceInsightRepository implements IAttendanceInsightRepository {
   }
 
   @override
-  Future<String> smartQuery(String query) async {
+  Future<String> smartQuery(
+    String query, {
+    Map<String, dynamic>? contextData,
+  }) async {
     try {
-      return await _aiService.smartQuery(query);
+      return await _aiService.smartQuery(query, contextData: contextData);
     } catch (e, stack) {
       developer.log(
         'AttendanceInsightRepository.smartQuery error:',

@@ -24,8 +24,18 @@ class DataExportService {
     await file.writeAsString(csvString);
 
     await SharePlus.instance.share(
-      ShareParams(files: [XFile(file.path)], text: 'تصدير بيانات المخدومين'),
+      ShareParams(
+        files: [XFile(file.path)],
+        text: 'تصدير بيانات المخدومين',
+      ),
     );
+
+    // Cleanup temporary file after a short delay to ensure sharing is complete
+    Future.delayed(const Duration(minutes: 1), () async {
+      if (await file.exists()) {
+        await file.delete();
+      }
+    });
   }
 
   /// Exports and shares a PDF file.
@@ -57,7 +67,17 @@ class DataExportService {
     await file.writeAsBytes(await pdf.save());
 
     await SharePlus.instance.share(
-      ShareParams(files: [XFile(file.path)], text: 'تصدير تقرير المخدومين'),
+      ShareParams(
+        files: [XFile(file.path)],
+        text: 'تصدير تقرير المخدومين',
+      ),
     );
+
+    // Cleanup temporary file after a short delay
+    Future.delayed(const Duration(minutes: 1), () async {
+      if (await file.exists()) {
+        await file.delete();
+      }
+    });
   }
 }

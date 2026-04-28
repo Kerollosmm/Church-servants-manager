@@ -21,10 +21,11 @@ class FirestoreCollections {
   static const String classes = 'Classes';
 }
 
-void main() async {
+Future<void> main() async {
   // Initialize Firebase
   await Firebase.initializeApp();
   final firestore = FirebaseFirestore.instance;
+  int exitCode = 0;
 
   try {
     print('🚀 Starting servant team assignment migration...');
@@ -135,9 +136,6 @@ void main() async {
         await batch.commit();
         batch = firestore.batch();
         batchCount = 0;
-        // Note: In a real script, you'd need to create a new WriteBatch here
-        // since Firestore batches can only be committed once.
-        // For simplicity, we assume < 400 servants need migration.
       }
     }
 
@@ -161,11 +159,12 @@ void main() async {
     }
   } catch (error) {
     print('❌ Critical migration error: $error');
-    exit(1);
+    exitCode = 1;
   } finally {
     print('Shutting down Firebase connections...');
     await FirebaseFirestore.instance.terminate();
     await Firebase.app().delete();
-    exit(0);
   }
+
+  exit(exitCode);
 }
