@@ -1,7 +1,7 @@
 import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/routing/app_router.dart';
 import 'package:church_management_system/core/theme/app_theme.dart';
-import 'package:church_management_system/features/auth/data/repos/firebase_auth_repository.dart';
+import 'package:church_management_system/features/auth/domain/repos/auth_repository.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_management_system/features/servant/domain/repos/i_servant_repository.dart';
 import 'package:church_management_system/features/servant/domain/usecases/provision_servant_with_auth_usecase.dart';
@@ -25,7 +25,7 @@ class ChurchApp extends StatelessWidget {
       providers: [
         BlocProvider(
           create: (context) =>
-              AuthBloc(authService: getIt<FirebaseAuthRepository>())
+              AuthBloc(authService: getIt<AuthRepository>())
                 ..add(const AuthEventCheckStatus()),
         ),
         BlocProvider(

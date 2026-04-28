@@ -15,7 +15,26 @@ class CanMutateStudentUseCase {
   /// Checks if [actor] can UPDATE [existing] to [updated].
   bool canUpdate(AuthUser actor, StudentModel existing, StudentModel updated) {
     if (actor.role == UserRole.admin) return true;
-    if (actor.role == UserRole.servant) return true;
+    if (actor.role == UserRole.servant) {
+      final inScope =
+          actor.effectiveAssignedTeamIds.contains(existing.classId) ||
+          actor.effectiveAssignedTeamIds.contains(existing.teamName) ||
+          actor.groupId == existing.group.name;
+      if (!inScope) return false;
+
+      // Check field whitelist (e.g., name, mobile, fatherPhone, motherPhone, address, school, notes, fatherOfConfession, imageUrl)
+      // Any change outside these fields means they are mutating unauthorized fields
+      if (existing.grade != updated.grade ||
+          existing.educationStage != updated.educationStage ||
+          existing.group != updated.group ||
+          existing.teamName != updated.teamName ||
+          existing.role != updated.role ||
+          existing.isArchived != updated.isArchived) {
+        return false;
+      }
+
+      return true;
+    }
     return false;
   }
 

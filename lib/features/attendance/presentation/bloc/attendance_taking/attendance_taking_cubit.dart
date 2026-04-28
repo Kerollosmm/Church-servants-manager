@@ -197,6 +197,7 @@ class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
     try {
       await action();
       if (isClosed) return;
+      if (state is! AttendanceTakingLoaded) return;
 
       final loadedState = state as AttendanceTakingLoaded;
       emit(loadedState.copyWith(mutationStatus: MutationStatus.success));
@@ -210,6 +211,7 @@ class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
         name: 'AttendanceTakingCubit',
       );
       if (isClosed) return;
+      if (state is! AttendanceTakingLoaded) return;
 
       final loadedState = state as AttendanceTakingLoaded;
       emit(

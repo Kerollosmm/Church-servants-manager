@@ -7,6 +7,7 @@ import 'package:church_management_system/core/widgets/common/app_state_message.d
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_management_system/features/student/presentation/bloc/student_profile/student_profile_cubit.dart';
+import 'package:church_management_system/features/student/presentation/widgets/student_profile_setup_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -73,14 +74,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
           }
 
           if (state is StudentProfileMissingProfile) {
-            return AppStateMessage(
-              icon: Icons.person_search_outlined,
-              title: 'الملف الشخصي غير مكتمل',
-              message: state.message,
-              onRetry: () {
-                context.read<StudentProfileCubit>().loadProfile(widget.user);
-              },
-            );
+            return StudentProfileSetupView(user: widget.user);
           }
 
           if (state is StudentProfileError) {

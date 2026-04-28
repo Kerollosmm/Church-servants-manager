@@ -167,19 +167,26 @@ class StudentQueryService {
   }) async {
     try {
       try {
-        final serverQuery = _studentsCollection
-            .where('classId', isEqualTo: classId)
-            .where('isArchived', isEqualTo: false);
+        Query<Map<String, dynamic>> serverQuery = _studentsCollection.where(
+          'classId',
+          isEqualTo: classId,
+        );
+        if (!includeArchived) {
+          serverQuery = serverQuery.where('isArchived', isEqualTo: false);
+        }
         final serverSnapshot = await serverQuery.get(
           const GetOptions(source: Source.server),
         );
         return mapStudentDocs(serverSnapshot.docs).students;
-      } catch (_) {
-        final studentIds = await _getStudentIdsFromClassDocument(classId);
-        return _applyArchivedFilter(
-          await _getStudentsByDocumentIds(studentIds),
-          includeArchived,
-        );
+      } on FirebaseException catch (e) {
+        if (e.code == 'unavailable' || e.code == 'deadline-exceeded') {
+          final studentIds = await _getStudentIdsFromClassDocument(classId);
+          return _applyArchivedFilter(
+            await _getStudentsByDocumentIds(studentIds),
+            includeArchived,
+          );
+        }
+        rethrow;
       }
     } catch (e) {
       throw mapExceptionToStudentFailure(e);

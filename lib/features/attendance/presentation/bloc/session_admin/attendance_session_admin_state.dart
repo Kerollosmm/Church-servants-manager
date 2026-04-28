@@ -1,3 +1,4 @@
+import 'package:church_management_system/core/utils/bulk_operation_result.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
 import 'package:equatable/equatable.dart';
 
@@ -27,6 +28,20 @@ final class AttendanceSessionAdminSuccess extends AttendanceSessionAdminState {
 
   @override
   List<Object?> get props => [session, message];
+}
+
+final class AttendanceSessionAdminBulkSuccess
+    extends AttendanceSessionAdminState {
+  const AttendanceSessionAdminBulkSuccess({
+    required this.message,
+    required this.result,
+  });
+
+  final String message;
+  final BulkOperationResult<String> result;
+
+  @override
+  List<Object?> get props => [message, result];
 }
 
 final class AttendanceSessionAdminError extends AttendanceSessionAdminState {

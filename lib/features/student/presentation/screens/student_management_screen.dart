@@ -1,12 +1,15 @@
+import 'dart:developer' as developer;
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/routes.dart';
 import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/routing/route_args.dart';
 import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
+import 'package:church_management_system/core/utils/data_export_service.dart';
 import 'package:church_management_system/core/widgets/app_empty_state.dart';
 import 'package:church_management_system/core/widgets/app_error_state.dart';
 import 'package:church_management_system/core/widgets/cards/person_list_card.dart';
+import 'package:church_management_system/core/widgets/dialogs/generic_dialog.dart';
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
 import 'package:church_management_system/core/widgets/search/live_search_panel.dart';
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
@@ -35,6 +38,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
   bool _showArchived = false;
   late final StudentDataBloc _studentDataBloc;
   late final TeamCubit _teamCubit;
+  final DataExportService _exportService = DataExportService();
 
   @override
   void initState() {
@@ -174,6 +178,50 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
     );
   }
 
+  Future<void> _onExport() async {
+    final state = _studentDataBloc.state;
+    if (state is! StudentDataLoaded) return;
+
+    final format = await showGenericDialog<String>(
+      context: context,
+      title: 'تصدير البيانات',
+      content: 'اختر تنسيق الملف للتصدير:',
+      optionBuilder: () => {'Excel (CSV)': 'csv', 'PDF': 'pdf', 'إلغاء': null},
+    );
+
+    if (format == null || !mounted) return;
+
+    final headers = ['الاسم', 'المجموعة', 'الصف', 'الموبايل'];
+    final rows = state.students
+        .map((s) => [s.name, s.group.name, s.grade, s.mobile])
+        .toList();
+
+    try {
+      if (format == 'csv') {
+        await _exportService.exportCsv(
+          fileName: 'students_export',
+          headers: headers,
+          rows: rows,
+        );
+      } else if (format == 'pdf') {
+        await _exportService.exportPdf(
+          title: 'قائمة المخدومين',
+          fileName: 'students_report',
+          headers: headers,
+          rows: rows,
+        );
+      }
+    } catch (e, stack) {
+      developer.log(
+        'Export failed',
+        error: e,
+        stackTrace: stack,
+        name: 'StudentManagementScreen',
+      );
+      if (mounted) AppSnackbars.showError(context, 'فشل تصدير البيانات');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -204,6 +252,11 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                           : 'مخدومي'),
               ),
               actions: [
+                IconButton(
+                  icon: const Icon(Icons.download),
+                  tooltip: 'تصدير',
+                  onPressed: _onExport,
+                ),
                 IconButton(
                   icon: const Icon(Icons.refresh),
                   tooltip: 'تحديث',

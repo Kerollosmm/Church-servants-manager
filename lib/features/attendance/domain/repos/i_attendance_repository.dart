@@ -1,3 +1,4 @@
+import 'package:church_management_system/core/utils/bulk_operation_result.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_roster_item.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_roster_snapshot.dart';
@@ -11,6 +12,14 @@ abstract class IAttendanceRepository {
   Future<AttendanceSession> createSession({
     required String teamId,
     required String teamNameSnapshot,
+    required DateTime startsAt,
+    required int durationMinutes,
+    required AuthUser createdBy,
+    String? title,
+  });
+
+  Future<BulkOperationResult<String>> createSessionsBulk({
+    required Map<String, String> teamIdsAndNames,
     required DateTime startsAt,
     required int durationMinutes,
     required AuthUser createdBy,

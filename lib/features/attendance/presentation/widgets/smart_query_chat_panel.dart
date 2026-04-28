@@ -1,3 +1,4 @@
+import 'package:church_management_system/features/attendance/presentation/models/chat_message.dart';
 import 'package:flutter/material.dart';
 
 class SmartQueryChatPanel extends StatefulWidget {
@@ -19,6 +20,12 @@ class SmartQueryChatPanel extends StatefulWidget {
 class _SmartQueryChatPanelState extends State<SmartQueryChatPanel> {
   final TextEditingController _controller = TextEditingController();
 
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
   void _handleSend() {
     if (_controller.text.trim().isNotEmpty) {
       widget.onSendMessage(_controller.text.trim());
@@ -35,7 +42,7 @@ class _SmartQueryChatPanelState extends State<SmartQueryChatPanel> {
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             spreadRadius: 2,
           ),
@@ -148,7 +155,7 @@ class _SmartQueryChatPanelState extends State<SmartQueryChatPanel> {
                   vertical: 10,
                 ),
               ),
-              onSubmitted: (_) => _handleSend(),
+              onSubmitted: widget.isLoading ? null : (_) => _handleSend(),
             ),
           ),
           const SizedBox(width: 8),
@@ -160,16 +167,4 @@ class _SmartQueryChatPanelState extends State<SmartQueryChatPanel> {
       ),
     );
   }
-}
-
-class ChatMessage {
-  final String text;
-  final bool isUser;
-  final DateTime timestamp;
-
-  ChatMessage({
-    required this.text,
-    required this.isUser,
-    required this.timestamp,
-  });
 }

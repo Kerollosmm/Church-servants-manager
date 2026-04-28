@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
+import 'package:church_management_system/core/utils/bulk_operation_result.dart';
 import 'package:church_management_system/core/utils/list_extensions.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_mark.dart';
@@ -495,6 +496,46 @@ class AttendanceRepository implements IAttendanceRepository {
   }
 
   @override
+  Future<BulkOperationResult<String>> createSessionsBulk({
+    required Map<String, String> teamIdsAndNames,
+    required DateTime startsAt,
+    required int durationMinutes,
+    required AuthUser createdBy,
+    String? title,
+  }) async {
+    final successfulItems = <String>[];
+    final failedItems = <String>[];
+
+    final futures = teamIdsAndNames.entries.map((entry) async {
+      try {
+        await createSession(
+          teamId: entry.key,
+          teamNameSnapshot: entry.value,
+          startsAt: startsAt,
+          durationMinutes: durationMinutes,
+          createdBy: createdBy,
+          title: title,
+        );
+        successfulItems.add(entry.key);
+      } catch (error) {
+        developer.log(
+          'Bulk session creation failed for team ${entry.key}',
+          error: error,
+          name: 'AttendanceRepository',
+        );
+        failedItems.add(entry.key);
+      }
+    });
+
+    await Future.wait(futures);
+
+    return BulkOperationResult(
+      successfulItems: successfulItems,
+      failedItems: failedItems,
+    );
+  }
+
+  @override
   Future<void> closeSession({
     required String teamId,
     required String sessionId,
@@ -508,6 +549,19 @@ class AttendanceRepository implements IAttendanceRepository {
       );
       if (session.isClosed) {
         return;
+      }
+
+      final marksSnapshot = await _marksCol(teamId, sessionId).get();
+      final markedStudentIds = <String>{};
+      final presentStudentIds = <String>{};
+
+      for (final doc in marksSnapshot.docs) {
+        final studentId = doc.id.split('_').first;
+        markedStudentIds.add(studentId);
+        final status = doc.data()['status'];
+        if (status == 'present' || status == 'late') {
+          presentStudentIds.add(studentId);
+        }
       }
 
       final sessionRef = _sessionDoc(teamId, sessionId);
@@ -525,26 +579,20 @@ class AttendanceRepository implements IAttendanceRepository {
           return;
         }
 
-        final marksSnapshot = await _marksCol(teamId, sessionId).get();
-        final markedStudentIds = marksSnapshot.docs
-            .map((d) => d.id.split('_').first)
-            .toSet();
-
         final unmarkedStudents = currentSession.studentIdsSnapshot
             .where((id) => !markedStudentIds.contains(id))
             .toList(growable: false);
 
-        final batch = _firestore.batch();
+        // 1. Mark unmarked students as absent
         for (final studentId in unmarkedStudents) {
           // Use 'system' as servantId for automated marks
           final markRef = _markDoc(teamId, sessionId, studentId, 'system');
           final studentName =
               currentSession.studentNameSnapshots[studentId] ?? 'مخدوم';
-          batch.set(markRef, {
+          transaction.set(markRef, {
             'studentId': studentId,
             'studentNameSnapshot': studentName,
-            'status':
-                AttendanceMarkStatus.absent.name, // Fixed: absent if unmarked
+            'status': AttendanceMarkStatus.absent.name,
             'markedByUserId': 'system',
             'markedByName': 'النظام',
             'markedAt': FieldValue.serverTimestamp(),
@@ -552,15 +600,48 @@ class AttendanceRepository implements IAttendanceRepository {
           });
         }
 
+        // 4. Update the session itself
         transaction.update(sessionRef, {
           'isClosed': true,
           'updatedAt': FieldValue.serverTimestamp(),
+          'presentCount': presentStudentIds.length,
+          'absentCount':
+              currentSession.studentIdsSnapshot.length -
+              presentStudentIds.length,
         });
-
-        if (unmarkedStudents.isNotEmpty) {
-          await batch.commit();
-        }
       });
+
+      // 2. SPARK PLAN FIX: Update Student Aggregates (Migrated from Cloud Function)
+      final studentIdsList = presentStudentIds.toList();
+      for (final chunk in studentIdsList.chunk(400)) {
+        final batch = _firestore.batch();
+        for (final studentId in chunk) {
+          final studentRef = _firestore
+              .collection(FirestoreCollections.students)
+              .doc(studentId);
+          batch.set(studentRef, {
+            'attendanceSummary': {
+              'totalPresent': FieldValue.increment(1),
+              'lastAttendanceDate': FieldValue.serverTimestamp(),
+            },
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        }
+        await batch.commit();
+      }
+
+      // 3. Update Group Aggregate (Migrated from Cloud Function)
+      final classRef = _firestore
+          .collection(FirestoreCollections.classes)
+          .doc(teamId);
+      await classRef.set({
+        'groupAttendanceSummary': {
+          'lastSessionDate': FieldValue.serverTimestamp(),
+          'lastSessionAttendanceCount': presentStudentIds.length,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     } catch (error) {
       if (error is AttendanceFailure) rethrow;
       throw mapExceptionToAttendanceFailure(error);

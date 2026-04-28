@@ -12,7 +12,8 @@ part of 'ai_assistant_event.dart';
 T _$identity<T>(T value) => value;
 
 final _privateConstructorUsedError = UnsupportedError(
-    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
+  'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
+);
 
 /// @nodoc
 mixin _$AIAssistantEvent {
@@ -21,52 +22,47 @@ mixin _$AIAssistantEvent {
     required TResult Function(String groupId, String question) getGroupInsight,
     required TResult Function(String query) sendQuery,
     required TResult Function() clearChat,
-  }) =>
-      throw _privateConstructorUsedError;
+  }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
     TResult? Function(String groupId, String question)? getGroupInsight,
     TResult? Function(String query)? sendQuery,
     TResult? Function()? clearChat,
-  }) =>
-      throw _privateConstructorUsedError;
+  }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
     TResult Function(String groupId, String question)? getGroupInsight,
     TResult Function(String query)? sendQuery,
     TResult Function()? clearChat,
     required TResult orElse(),
-  }) =>
-      throw _privateConstructorUsedError;
+  }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult map<TResult extends Object?>({
     required TResult Function(GetGroupInsight value) getGroupInsight,
     required TResult Function(SendQuery value) sendQuery,
     required TResult Function(ClearChat value) clearChat,
-  }) =>
-      throw _privateConstructorUsedError;
+  }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult? mapOrNull<TResult extends Object?>({
     TResult? Function(GetGroupInsight value)? getGroupInsight,
     TResult? Function(SendQuery value)? sendQuery,
     TResult? Function(ClearChat value)? clearChat,
-  }) =>
-      throw _privateConstructorUsedError;
+  }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult maybeMap<TResult extends Object?>({
     TResult Function(GetGroupInsight value)? getGroupInsight,
     TResult Function(SendQuery value)? sendQuery,
     TResult Function(ClearChat value)? clearChat,
     required TResult orElse(),
-  }) =>
-      throw _privateConstructorUsedError;
+  }) => throw _privateConstructorUsedError;
 }
 
 /// @nodoc
 abstract class $AIAssistantEventCopyWith<$Res> {
   factory $AIAssistantEventCopyWith(
-          AIAssistantEvent value, $Res Function(AIAssistantEvent) then) =
-      _$AIAssistantEventCopyWithImpl<$Res, AIAssistantEvent>;
+    AIAssistantEvent value,
+    $Res Function(AIAssistantEvent) then,
+  ) = _$AIAssistantEventCopyWithImpl<$Res, AIAssistantEvent>;
 }
 
 /// @nodoc
@@ -82,9 +78,10 @@ class _$AIAssistantEventCopyWithImpl<$Res, $Val extends AIAssistantEvent>
 
 /// @nodoc
 abstract class _$$GetGroupInsightImplCopyWith<$Res> {
-  factory _$$GetGroupInsightImplCopyWith(_$GetGroupInsightImpl value,
-          $Res Function(_$GetGroupInsightImpl) then) =
-      __$$GetGroupInsightImplCopyWithImpl<$Res>;
+  factory _$$GetGroupInsightImplCopyWith(
+    _$GetGroupInsightImpl value,
+    $Res Function(_$GetGroupInsightImpl) then,
+  ) = __$$GetGroupInsightImplCopyWithImpl<$Res>;
   @useResult
   $Res call({String groupId, String question});
 }
@@ -94,25 +91,25 @@ class __$$GetGroupInsightImplCopyWithImpl<$Res>
     extends _$AIAssistantEventCopyWithImpl<$Res, _$GetGroupInsightImpl>
     implements _$$GetGroupInsightImplCopyWith<$Res> {
   __$$GetGroupInsightImplCopyWithImpl(
-      _$GetGroupInsightImpl _value, $Res Function(_$GetGroupInsightImpl) _then)
-      : super(_value, _then);
+    _$GetGroupInsightImpl _value,
+    $Res Function(_$GetGroupInsightImpl) _then,
+  ) : super(_value, _then);
 
   @pragma('vm:prefer-inline')
   @override
-  $Res call({
-    Object? groupId = null,
-    Object? question = null,
-  }) {
-    return _then(_$GetGroupInsightImpl(
-      groupId: null == groupId
-          ? _value.groupId
-          : groupId // ignore: cast_nullable_to_non_nullable
-              as String,
-      question: null == question
-          ? _value.question
-          : question // ignore: cast_nullable_to_non_nullable
-              as String,
-    ));
+  $Res call({Object? groupId = null, Object? question = null}) {
+    return _then(
+      _$GetGroupInsightImpl(
+        groupId: null == groupId
+            ? _value.groupId
+            : groupId // ignore: cast_nullable_to_non_nullable
+                  as String,
+        question: null == question
+            ? _value.question
+            : question // ignore: cast_nullable_to_non_nullable
+                  as String,
+      ),
+    );
   }
 }
 
@@ -149,7 +146,9 @@ class _$GetGroupInsightImpl implements GetGroupInsight {
   @pragma('vm:prefer-inline')
   _$$GetGroupInsightImplCopyWith<_$GetGroupInsightImpl> get copyWith =>
       __$$GetGroupInsightImplCopyWithImpl<_$GetGroupInsightImpl>(
-          this, _$identity);
+        this,
+        _$identity,
+      );
 
   @override
   @optionalTypeArgs
@@ -221,9 +220,10 @@ class _$GetGroupInsightImpl implements GetGroupInsight {
 }
 
 abstract class GetGroupInsight implements AIAssistantEvent {
-  const factory GetGroupInsight(
-      {required final String groupId,
-      required final String question}) = _$GetGroupInsightImpl;
+  const factory GetGroupInsight({
+    required final String groupId,
+    required final String question,
+  }) = _$GetGroupInsightImpl;
 
   String get groupId;
   String get question;
@@ -235,8 +235,9 @@ abstract class GetGroupInsight implements AIAssistantEvent {
 /// @nodoc
 abstract class _$$SendQueryImplCopyWith<$Res> {
   factory _$$SendQueryImplCopyWith(
-          _$SendQueryImpl value, $Res Function(_$SendQueryImpl) then) =
-      __$$SendQueryImplCopyWithImpl<$Res>;
+    _$SendQueryImpl value,
+    $Res Function(_$SendQueryImpl) then,
+  ) = __$$SendQueryImplCopyWithImpl<$Res>;
   @useResult
   $Res call({String query});
 }
@@ -246,20 +247,21 @@ class __$$SendQueryImplCopyWithImpl<$Res>
     extends _$AIAssistantEventCopyWithImpl<$Res, _$SendQueryImpl>
     implements _$$SendQueryImplCopyWith<$Res> {
   __$$SendQueryImplCopyWithImpl(
-      _$SendQueryImpl _value, $Res Function(_$SendQueryImpl) _then)
-      : super(_value, _then);
+    _$SendQueryImpl _value,
+    $Res Function(_$SendQueryImpl) _then,
+  ) : super(_value, _then);
 
   @pragma('vm:prefer-inline')
   @override
-  $Res call({
-    Object? query = null,
-  }) {
-    return _then(_$SendQueryImpl(
-      query: null == query
-          ? _value.query
-          : query // ignore: cast_nullable_to_non_nullable
-              as String,
-    ));
+  $Res call({Object? query = null}) {
+    return _then(
+      _$SendQueryImpl(
+        query: null == query
+            ? _value.query
+            : query // ignore: cast_nullable_to_non_nullable
+                  as String,
+      ),
+    );
   }
 }
 
@@ -374,8 +376,9 @@ abstract class SendQuery implements AIAssistantEvent {
 /// @nodoc
 abstract class _$$ClearChatImplCopyWith<$Res> {
   factory _$$ClearChatImplCopyWith(
-          _$ClearChatImpl value, $Res Function(_$ClearChatImpl) then) =
-      __$$ClearChatImplCopyWithImpl<$Res>;
+    _$ClearChatImpl value,
+    $Res Function(_$ClearChatImpl) then,
+  ) = __$$ClearChatImplCopyWithImpl<$Res>;
 }
 
 /// @nodoc
@@ -383,8 +386,9 @@ class __$$ClearChatImplCopyWithImpl<$Res>
     extends _$AIAssistantEventCopyWithImpl<$Res, _$ClearChatImpl>
     implements _$$ClearChatImplCopyWith<$Res> {
   __$$ClearChatImplCopyWithImpl(
-      _$ClearChatImpl _value, $Res Function(_$ClearChatImpl) _then)
-      : super(_value, _then);
+    _$ClearChatImpl _value,
+    $Res Function(_$ClearChatImpl) _then,
+  ) : super(_value, _then);
 }
 
 /// @nodoc

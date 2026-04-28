@@ -397,6 +397,8 @@ class _StudentEditControllers {
     if (student == null) {
       return name.text.isNotEmpty ||
           mobile.text.isNotEmpty ||
+          email.text.isNotEmpty ||
+          password.text.isNotEmpty ||
           motherPhone.text.isNotEmpty ||
           fatherPhone.text.isNotEmpty ||
           school.text.isNotEmpty ||

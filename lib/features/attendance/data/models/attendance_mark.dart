@@ -84,11 +84,10 @@ class AttendanceMark with _$AttendanceMark {
   }
 
   Map<String, dynamic> toMap() {
-    final map = toJson();
-    map.remove('studentId');
-    // Remove serverUpdatedAt from client writes — Firestore sets it.
-    map.remove('serverUpdatedAt');
-    return map;
+    return toJson()
+      ..remove('studentId')
+      // Remove serverUpdatedAt from client writes — Firestore sets it.
+      ..remove('serverUpdatedAt');
   }
 }
 

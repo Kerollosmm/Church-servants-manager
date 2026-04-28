@@ -9,8 +9,7 @@ class AIAssistantEvent with _$AIAssistantEvent {
     required String question,
   }) = GetGroupInsight;
 
-  const factory AIAssistantEvent.sendQuery({required String query}) =
-      SendQuery;
+  const factory AIAssistantEvent.sendQuery({required String query}) = SendQuery;
 
   const factory AIAssistantEvent.clearChat() = ClearChat;
 }

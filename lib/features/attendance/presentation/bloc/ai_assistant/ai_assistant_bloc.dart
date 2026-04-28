@@ -1,7 +1,7 @@
 import 'package:church_management_system/features/attendance/domain/repos/i_attendance_insight_repository.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/ai_assistant/ai_assistant_event.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/ai_assistant/ai_assistant_state.dart';
-import 'package:church_management_system/features/attendance/presentation/widgets/smart_query_chat_panel.dart';
+import 'package:church_management_system/features/attendance/presentation/models/chat_message.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class AIAssistantBloc extends Bloc<AIAssistantEvent, AIAssistantState> {
@@ -56,12 +56,10 @@ class AIAssistantBloc extends Bloc<AIAssistantEvent, AIAssistantState> {
     );
 
     try {
-      // US-02: Use the repository to send the query
-      await Future.delayed(const Duration(seconds: 1));
+      final responseText = await _repository.smartQuery(query);
 
       final assistantMessage = ChatMessage(
-        text:
-            'I understood your query: "$query". I am finding the matching students...',
+        text: responseText,
         isUser: false,
         timestamp: DateTime.now(),
       );
