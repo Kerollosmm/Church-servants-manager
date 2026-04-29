@@ -41,9 +41,13 @@ class FirebaseAdminAuthClient implements AdminAuthClient {
   }) async {
     try {
       // SPARK PLAN WORKAROUND:
-      // Client-side code cannot create other users' Auth accounts.
+      // Client-side code cannot create other users' Auth accounts or set Custom Claims.
       // We create an "Invitation" record. The user will self-register,
-      // and the app will assign this role upon first login.
+      // and the app will assign this role upon first login in AuthUserProfileStore.
+      //
+      // IMPORTANT: Firebase Auth Custom Claims must be synced manually using
+      // the 'tools/set_custom_claims.js' script, as Cloud Functions are not
+      // available on the Spark plan.
 
       final invitationId = email.trim().toLowerCase();
       await _db

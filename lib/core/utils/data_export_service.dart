@@ -30,12 +30,9 @@ class DataExportService {
       ),
     );
 
-    // Cleanup temporary file after a short delay to ensure sharing is complete
-    Future.delayed(const Duration(minutes: 1), () async {
-      if (await file.exists()) {
-        await file.delete();
-      }
-    });
+    if (await file.exists()) {
+      await file.delete();
+    }
   }
 
   /// Exports and shares a PDF file.
@@ -73,11 +70,8 @@ class DataExportService {
       ),
     );
 
-    // Cleanup temporary file after a short delay
-    Future.delayed(const Duration(minutes: 1), () async {
-      if (await file.exists()) {
-        await file.delete();
-      }
-    });
+    if (await file.exists()) {
+      await file.delete();
+    }
   }
 }

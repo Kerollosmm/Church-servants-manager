@@ -631,9 +631,30 @@ class AttendanceRepository implements IAttendanceRepository {
         await batch.commit();
       } else {
         // Fallback for very large groups: multi-batch
-        // We do aggregates first, and the session status LAST to minimize partial close risk.
+        // We do ALL student updates first (present aggregates + absent marks),
+        // and the session status LAST to minimize partial close risk.
 
-        // 1. Student Aggregates (Batched)
+        // 1. Mark unmarked as absent in chunks
+        final unmarkedList = unmarkedStudents.toList();
+        for (final chunk in unmarkedList.chunk(450)) {
+          final batch = _firestore.batch();
+          for (final studentId in chunk) {
+            final markRef = _markDoc(teamId, sessionId, studentId, 'system');
+            batch.set(markRef, {
+              'studentId': studentId,
+              'studentNameSnapshot':
+                  session.studentNameSnapshots[studentId] ?? 'مخدوم',
+              'status': AttendanceMarkStatus.absent.name,
+              'markedByUserId': 'system',
+              'markedByName': 'النظام',
+              'markedAt': FieldValue.serverTimestamp(),
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+          }
+          await batch.commit();
+        }
+
+        // 2. Student Aggregates (Batched)
         final studentIdsList = presentStudentIds.toList();
         for (final chunk in studentIdsList.chunk(450)) {
           final batch = _firestore.batch();
@@ -652,24 +673,8 @@ class AttendanceRepository implements IAttendanceRepository {
           await batch.commit();
         }
 
-        // 2. Final batch for group aggregate and session status
+        // 3. Final batch for group aggregate and session status
         final finalBatch = _firestore.batch();
-
-        // Mark unmarked as absent in chunks too if needed, but here we assume they fit
-        // with the final 2 ops (group + session). If not, we should chunk them too.
-        for (final studentId in unmarkedStudents) {
-          final markRef = _markDoc(teamId, sessionId, studentId, 'system');
-          finalBatch.set(markRef, {
-            'studentId': studentId,
-            'studentNameSnapshot':
-                session.studentNameSnapshots[studentId] ?? 'مخدوم',
-            'status': AttendanceMarkStatus.absent.name,
-            'markedByUserId': 'system',
-            'markedByName': 'النظام',
-            'markedAt': FieldValue.serverTimestamp(),
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
-        }
 
         finalBatch.set(_teamDoc(teamId), {
           'groupAttendanceSummary': {

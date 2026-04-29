@@ -138,23 +138,161 @@ Always convert components to `StatefulWidget` when they need to instantiate thei
 
 ---
 
-## [LRN-20260416-001] best_practice
+## [LRN-20260429-001] best_practice
 
-**Logged**: 2026-04-16T17:35:00Z
-**Priority**: medium
-**Status**: resolved
+**Logged**: 2026-04-29T18:00:00Z
+**Priority**: high
+**Status**: pending
 **Area**: backend
 
 ### Summary
-Aggressive refactoring often leaves "orphaned" private methods that are no longer referenced.
+Firestore batch operations must account for total operations (500 limit) and ensure atomicity of state changes.
 
 ### Details
-Shifting logic from services/BLoCs into state classes or other layers can leave private helper methods unused. In Phase 4, `_tryGetStudentsByQueryFromCache` and `_getStudentsByQueryFromServer` were left in `student_query_service.dart` despite no longer being needed by the updated logic.
+In `closeSession`, the fallback logic for large groups chunked some updates but not others, and updated the session status in a final batch before ensuring all student aggregates succeeded. This risks leaving a session "partially closed" with incorrect counts if an intermediate batch fails.
 
 ### Suggested Action
-When deleting or moving logic out of a class, perform a "dead code sweep" by checking for unused private members. `flutter analyze` is the best tool for identifying these `unused_element` warnings.
+Always chunk ALL dynamic lists in multi-batch operations. Execute entity updates (aggregates, marks) first, and the final state transition (e.g., `isClosed: true`) only in the absolute final batch to ensure atomicity. Verify total operation counts (`length + 2`) against the 500-operation limit before choosing atomic vs. fallback paths.
 
 ### Metadata
-- Source: user_feedback
+- Source: code_review
+- Related Files: lib/features/attendance/data/repos/attendance_repository.dart
+- Tags: firestore, atomicity, batching, integrity
+
+---
+
+## [LRN-20260429-002] best_practice
+
+**Logged**: 2026-04-29T18:05:00Z
+**Priority**: medium
+**Status**: pending
+**Area**: backend
+
+### Summary
+Rollback failures in Use Cases must be rethrown to prevent silent failures and data inconsistency.
+
+### Details
+In `ProvisionServantWithAuthUseCase`, rollback errors (e.g., failing to delete a user after a repository error) were caught and logged but not rethrown. This masks the fact that the system is now in an inconsistent state (Auth user created but database record failed).
+
+### Suggested Action
+Always `rethrow` in catch blocks handling cleanup or rollbacks within Use Cases. This ensures the failure reaches the UI or orchestration layer, even if the primary error is already being handled.
+
+### Metadata
+- Source: code_review
+- Related Files: lib/features/servant/domain/usecases/provision_servant_with_auth_usecase.dart
+- Tags: use-cases, error-handling, rollback, integrity
+
+---
+
+## [LRN-20260429-003] security_best_practice
+
+**Logged**: 2026-04-29T18:10:00Z
+**Priority**: critical
+**Status**: pending
+**Area**: security
+
+### Summary
+Firestore rules must never trust client-provided fields (e.g., email) when looking up sensitive documents if that data is available in the Auth Token.
+
+### Details
+A rule trusted `request.resource.data.email` to look up an invitation document. An attacker could provide a victim's email in the JSON body while authenticated as themselves, claiming an invitation they don't own.
+
+### Suggested Action
+Always use `request.auth.token.email` or `request.auth.uid` for document lookups in security rules. Never rely on the request body for identity-based lookups unless verified against the auth token.
+
+### Metadata
+- Source: code_review
+- Related Files: firestore.rules
+- Tags: security, firestore-rules, RBAC, spoofing
+
+---
+
+## [LRN-20260429-004] best_practice
+
+**Logged**: 2026-04-29T18:15:00Z
+**Priority**: medium
+**Status**: pending
+**Area**: core
+
+### Summary
+Avoid fixed `Future.delayed` for file I/O cleanup; use the operation's completion signal.
+
+### Details
+Temporary files were being deleted after a fixed 1-minute delay after sharing. This created a race condition: if the user took >1 minute to complete the share action, the source file was deleted, causing the share to fail.
+
+### Suggested Action
+`await` the sharing operation (most Flutter sharing plugins return a `Future` that completes when the UI is dismissed) and delete the file immediately after.
+
+### Metadata
+- Source: code_review
+- Related Files: lib/core/utils/data_export_service.dart
+- Tags: race-condition, cleanup, IO, flutter
+
+---
+
+## [LRN-20260429-005] security_best_practice
+
+**Logged**: 2026-04-29T18:20:00Z
+**Priority**: high
+**Status**: pending
+**Area**: backend
+
+### Summary
+Use allowlists instead of blacklists for security mutation checks in Use Cases.
+
+### Details
+`CanMutateStudentUseCase` used a blacklist to prevent servants from editing fields like `role` or `isArchived`. This is "fail-open" logic; if a new sensitive field (like `classId` or metadata) is added and not explicitly added to the blacklist, it becomes editable by unauthorized users.
+
+### Suggested Action
+Implement an explicit allowlist by creating a "candidate" object using `existing.copyWith(...)` with only allowed fields from the `updated` object. Then verify `updated == candidate`. This ensures only intended fields can be changed.
+
+### Metadata
+- Source: code_review
+- Related Files: lib/features/student/domain/usecases/can_mutate_student_usecase.dart
+- Tags: security, use-cases, allowlist, validation
+
+---
+
+## [LRN-20260429-006] best_practice
+
+**Logged**: 2026-04-29T18:25:00Z
+**Priority**: medium
+**Status**: pending
+**Area**: backend
+
+### Summary
+Avoid silent data truncation by removing or parameterizing hardcoded `.limit()` calls in streams.
+
+### Details
+Several student streams had a hardcoded `.limit(100)`. In a project with 500+ students, the UI would silently show incomplete data with no indication to the user or developer why records were missing.
+
+### Suggested Action
+Remove hardcoded limits from live-updating streams unless they are part of a pagination contract. If a limit is required for performance, it must be exposed to the UI/caller or handled via cursor-based pagination.
+
+### Metadata
+- Source: code_review
 - Related Files: lib/features/student/data/services/student_query_service.dart
-- Tags: refactoring, dead-code, maintenance, flutter
+- Tags: firestore, truncation, streams, pagination
+
+---
+
+## [LRN-20260429-007] best_practice
+
+**Logged**: 2026-04-29T18:30:00Z
+**Priority**: high
+**Status**: pending
+**Area**: backend
+
+### Summary
+Ensure atomicity in invitation-to-user conversion by including both operations in a single Firestore transaction.
+
+### Details
+`AuthUserProfileStore.saveUser` updated the invitation status inside a transaction but wrote the user document outside of it. If the user document write failed (e.g., due to a rule violation or network drop), the invitation would be marked "claimed" but the user would have no profile.
+
+### Suggested Action
+Include all related cross-collection writes inside the `runTransaction` callback. Use `transaction.set()` for the secondary document within the same block.
+
+### Metadata
+- Source: code_review
+- Related Files: lib/features/auth/data/services/auth_user_profile_store.dart
+- Tags: firestore, transactions, atomicity, invitation-flow

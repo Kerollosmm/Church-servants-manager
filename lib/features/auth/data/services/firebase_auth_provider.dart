@@ -84,7 +84,9 @@ class FirebaseAuthProvider implements AuthProvider {
                   stackTrace: stackTrace,
                   name: 'FirebaseAuthProvider',
                 );
-                sink.add(AuthUser.fromFirebase(user));
+                // SIGNAL ERROR: Don't emit a default user with student role.
+                // This allows the Bloc/UI to handle the error properly (e.g., AuthError or AuthDegraded).
+                sink.addError(error, stackTrace);
               },
             ),
           );

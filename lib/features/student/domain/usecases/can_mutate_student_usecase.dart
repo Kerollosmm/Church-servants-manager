@@ -22,18 +22,22 @@ class CanMutateStudentUseCase {
           actor.groupId == existing.group.name;
       if (!inScope) return false;
 
-      // Check field whitelist (e.g., name, mobile, fatherPhone, motherPhone, address, school, notes, fatherOfConfession, imageUrl)
-      // Any change outside these fields means they are mutating unauthorized fields
-      if (existing.grade != updated.grade ||
-          existing.educationStage != updated.educationStage ||
-          existing.group != updated.group ||
-          existing.teamName != updated.teamName ||
-          existing.role != updated.role ||
-          existing.isArchived != updated.isArchived) {
-        return false;
-      }
+      // STRICT ALLOWLIST: Servants can only mutate basic contact/profile info.
+      // Any attempt to change role, team, group, or system aggregates will fail.
+      final allowedMutation = existing.copyWith(
+        name: updated.name,
+        mobile: updated.mobile,
+        motherPhone: updated.motherPhone,
+        fatherPhone: updated.fatherPhone,
+        school: updated.school,
+        address: updated.address,
+        birthdate: updated.birthdate,
+        fatherOfConfession: updated.fatherOfConfession,
+        notes: updated.notes,
+        imageUrl: updated.imageUrl,
+      );
 
-      return true;
+      return updated == allowedMutation;
     }
     return false;
   }

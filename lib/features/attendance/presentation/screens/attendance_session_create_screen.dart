@@ -115,6 +115,14 @@ class _AttendanceSessionCreateScreenState
     if (teamId == TeamDropdown.allTeamsSentinel ||
         (teamId == null && teams.length > 1)) {
       // Bulk creation for all teams
+      if (actor.role != UserRole.admin) {
+        AppSnackbars.showError(
+          context,
+          'فقط المسؤولون يمكنهم إنشاء جلسات لكافة الفرق.',
+        );
+        return;
+      }
+
       if (teams.isEmpty) {
         AppSnackbars.showError(context, 'لا توجد فرق متاحة لإنشاء الجلسات.');
         return;

@@ -19,7 +19,7 @@ metadata:
 
 ## Core Concepts
 
-Dart utilizes a single-threaded execution model driven by an Event Loop (comparable to the iOS main loop). By default, all Flutter application code runs on the Main Isolate. 
+Dart utilizes a single-threaded execution model driven by an Event Loop (comparable to the iOS main loop). By default, all Flutter application code runs on the Main Isolate.
 
 *   **Asynchronous Operations (`async`/`await`):** Use for non-blocking I/O tasks (network requests, file access). The Event Loop continues processing other events while waiting for the `Future` to complete.
 *   **Isolates:** Dart's implementation of lightweight threads. Isolates possess their own isolated memory and do not share state. They communicate exclusively via message passing.
@@ -56,7 +56,7 @@ Use this workflow for one-off, CPU-intensive tasks using Dart 2.19+.
 **Task Progress:**
 - [ ] Identify the CPU-bound operation blocking the Main Isolate.
 - [ ] Extract the computation into a standalone callback function.
-- [ ] Ensure the callback function signature accepts exactly one required, unnamed argument (as per specific architectural constraints).
+- [ ] Ensure the callback function is a zero-argument closure (e.g., `() => compute()`).
 - [ ] Invoke `Isolate.run()` passing the callback.
 - [ ] `await` the result of `Isolate.run()` in the Main Isolate.
 - [ ] Assign the returned value to the application state.
@@ -108,8 +108,7 @@ Widget build(BuildContext context) {
 import 'dart:isolate';
 import 'dart:convert';
 
-// 1. Define the heavy computation callback
-// Note: Adhering to the strict single-argument signature requirement.
+// 1. Define the heavy computation
 List<dynamic> decodeHeavyJson(String jsonString) {
   return jsonDecode(jsonString) as List<dynamic>;
 }
@@ -117,6 +116,7 @@ List<dynamic> decodeHeavyJson(String jsonString) {
 // 2. Offload to a worker isolate
 Future<List<dynamic>> processDataInBackground(String rawJson) async {
   // Isolate.run spawns the isolate, runs the computation, returns the value, and exits.
+  // It requires a zero-argument closure.
   final result = await Isolate.run(() => decodeHeavyJson(rawJson));
   return result;
 }
@@ -157,14 +157,14 @@ class WorkerManager {
   // 3. Worker Isolate Entry Point
   static void _workerEntry(SendPort mainSendPort) {
     final workerReceivePort = ReceivePort();
-    
+
     // Send the Worker's SendPort back to the Main Isolate
     mainSendPort.send(workerReceivePort.sendPort);
 
     // Listen for incoming tasks
     workerReceivePort.listen((message) {
       print('Worker Isolate received: $message');
-      
+
       // Perform work and send result back
       final result = "Processed: $message";
       mainSendPort.send(result);

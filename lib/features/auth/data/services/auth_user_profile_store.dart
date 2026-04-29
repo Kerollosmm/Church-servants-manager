@@ -42,6 +42,9 @@ class AuthUserProfileStore {
       // DRIVE-01: Stop client-side write-backs of authorization fields.
       // role, isArchived, and team assignments are now exclusively driven
       // by administrative Firestore writes to prevent stale data revert.
+      final userRef = _db
+          .collection(FirestoreCollections.users)
+          .doc(appUser.uid);
       final payload = <String, dynamic>{
         'uid': appUser.uid,
         'name': appUser.name,
@@ -49,6 +52,12 @@ class AuthUserProfileStore {
         'isEmailVerified': appUser.isEmailVerified,
         'updatedAt': FieldValue.serverTimestamp(),
       };
+
+      // These fields are strictly READ-ONLY for the client saveUser operation
+      // We only allow updating non-sensitive metadata here.
+      if (appUser.restorePendingPasswordReset) {
+        payload['restorePendingPasswordReset'] = true;
+      }
 
       // Only set role if it's an initial creation (e.g., self-registration)
       if (initialRole != null) {
@@ -78,7 +87,12 @@ class AuthUserProfileStore {
             } else {
               payload['role'] = initialRole;
             }
+
+            // ATOMIC FIX: Write user document INSIDE the transaction
+            // to ensure invitation is only claimed if user doc is created.
+            transaction.set(userRef, payload, SetOptions(merge: true));
           });
+          return;
         } catch (e, stack) {
           developer.log(
             'Invitation transaction failed',
@@ -91,16 +105,7 @@ class AuthUserProfileStore {
         }
       }
 
-      // These fields are strictly READ-ONLY for the client saveUser operation
-      // We only allow updating non-sensitive metadata here.
-      if (appUser.restorePendingPasswordReset) {
-        payload['restorePendingPasswordReset'] = true;
-      }
-
-      await _db
-          .collection(FirestoreCollections.users)
-          .doc(appUser.uid)
-          .set(payload, SetOptions(merge: true));
+      await userRef.set(payload, SetOptions(merge: true));
     } catch (e) {
       throw GenericAuthException('Failed to save user data: $e');
     }

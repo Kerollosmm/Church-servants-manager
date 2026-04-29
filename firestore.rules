@@ -128,8 +128,8 @@ service cloud.firestore {
           (
             request.resource.data.role == 'student' ||
             (
-              exists(/databases/$(database)/documents/Invitations/$(request.resource.data.email.lower())) &&
-              request.resource.data.role == get(/databases/$(database)/documents/Invitations/$(request.resource.data.email.lower())).data.role
+              exists(/databases/$(database)/documents/Invitations/$(request.auth.token.email.lower())) &&
+              request.resource.data.role == get(/databases/$(database)/documents/Invitations/$(request.auth.token.email.lower())).data.role
             )
           )
         )
