@@ -368,9 +368,7 @@ class StudentQueryService {
   }
 
   Stream<List<StudentModel>> watchAllStudents({bool includeArchived = false}) {
-    Query<Map<String, dynamic>> query = _studentsCollection
-        .orderBy('name')
-        ;
+    Query<Map<String, dynamic>> query = _studentsCollection.orderBy('name');
     if (!includeArchived) {
       query = query.where('isArchived', isEqualTo: false);
     }
@@ -385,8 +383,7 @@ class StudentQueryService {
   }) {
     Query<Map<String, dynamic>> query = _studentsCollection
         .where('classId', isEqualTo: classId)
-        .orderBy('name')
-        ;
+        .orderBy('name');
     if (!includeArchived) {
       query = query.where('isArchived', isEqualTo: false);
     }
@@ -417,7 +414,6 @@ class StudentQueryService {
           (chunk) => _studentsCollection
               .where('classId', whereIn: chunk)
               .orderBy('name')
-              
               .snapshots()
               .map(
                 (snapshot) => _applyArchivedFilter(
@@ -449,8 +445,7 @@ class StudentQueryService {
   }) {
     Query<Map<String, dynamic>> query = _studentsCollection
         .where('group', isEqualTo: groupName)
-        .orderBy('name')
-        ;
+        .orderBy('name');
     if (!includeArchived) {
       query = query.where('isArchived', isEqualTo: false);
     }

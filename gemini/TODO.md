@@ -1,0 +1,24 @@
+# PR #57 Fixes Todo List
+
+- [x] 1. Fix batch limit and atomicity in `closeSession` (`attendance_repository.dart`) - *Note: Needs further hardening for idempotency.*
+- [x] 2. Add missing `rethrow` in `provision_servant_with_auth_usecase.dart`
+- [x] 3. Restrict bulk session creation to admin (`attendance_session_create_screen.dart`)
+- [x] 4. Document manual Custom Claims sync (`admin_auth_client.dart`)
+- [x] 5. Fix insecure self-registration rules (`firestore.rules`) - *Note: Needs field allowlist added.*
+- [x] 6. Fix race condition in file cleanup (`data_export_service.dart`)
+- [x] 7. Fix fail-open error handling (`firebase_auth_provider.dart`)
+- [x] 8. Use allowlist for student mutations (`can_mutate_student_usecase.dart`)
+- [x] 9. Remove hardcoded `.limit(100)` from live streams (`student_query_service.dart`)
+- [x] 10. Make invitation claiming atomic (`auth_user_profile_store.dart`)
+- [ ] 11. Add field allowlist to `Users` create rule (`firestore.rules`)
+- [ ] 12. Enforce one-way one-time invitation claim (`firestore.rules`)
+- [ ] 13. Add ownership/role check to `setupProfile` (`student_profile_cubit.dart`)
+- [ ] 14. Sync full canonical claims in `set_custom_claims.js`
+- [ ] 15. Make `closeSession` final step idempotent using a transaction (`attendance_repository.dart`)
+- [ ] 16. Fix decimal truncation in `readInt` (`student_model.dart`)
+- [ ] 17. Use `AuthErrorMapper` in `refreshCurrentAppUser` (`firebase_auth_repository.dart`)
+- [ ] 18. Normalize `TeamDropdown` sentinel value to `null` (`team_dropdown.dart`)
+- [ ] 19. Preserve student list in `StudentDataLoading` state (`student_data_bloc.dart`)
+- [ ] 20. Implement and register `NoOpStudentAIService` for missing API key (`injection.dart`)
+- [ ] 21. Update `architecture.md` to reflect Firestore-cache reality
+- [ ] 22. Correct `tasks.md` to reflect client-side implementation status

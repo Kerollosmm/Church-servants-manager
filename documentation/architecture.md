@@ -25,12 +25,13 @@ Each feature contains:
 - **Data Layer**: Remote/Local Data Sources, Models, and Repository Implementations.
 - **Presentation Layer**: BLoC/Cubit state management, UI Widgets, and Pages.
 
-### Offline-First & Sync Engine
-CSMS uses a "Hive-First" or "Write-Behind" approach:
-1. **Reads**: Always prioritize reading from Hive to save Firestore read quota and provide instant UI rendering.
-2. **Writes**: All mutations are written to Hive immediately with a `syncStatus` of `"pending"`.
-3. **Sync**: A central `SyncService` listens for connectivity changes. When online, it batches pending writes and pushes them to Firestore, updating the local status to `"synced"`. If it fails, exponential backoff is applied.
-4. **Idempotency**: Firestore document IDs use deterministic formats (e.g., `studentId_servantId` for attendance marks) to prevent duplicate entries during sync retries.
+### Offline-First & Data Persistence
+CSMS currently uses a hybrid persistence strategy optimized for the Spark plan:
+1. **Firestore Local Persistence**: The primary mechanism for offline capabilities. Firestore is configured to persist data locally, enabling standard queries to work without an internet connection.
+2. **Cache-First Pattern**: Reads prioritize `Source.cache` (Firestore local cache) for instant UI rendering and to protect Firestore read quotas. Remote data is fetched to update the cache in the background or during explicit refreshes.
+3. **Write-Through**: Writes are sent to Firestore immediately. Firestore's client SDK handles the queuing and eventual sync when connectivity is restored.
+4. **Hive (Target Architecture)**: While Firestore persistence handles current needs, Hive is the designated target for future phases requiring complex multi-collection synchronization, manual conflict resolution, or highly optimized local-first data structures.
+5. **Idempotency**: Firestore document IDs use deterministic formats (e.g., `studentId_servantId` for attendance marks) to prevent duplicate entries during sync retries.
 
 ### Role-Based Access Control (RBAC)
 Roles (`admin`, `servant`, `teacher`, `viewer`) are enforced using **Firebase Custom Claims** embedded in the user's JWT. 

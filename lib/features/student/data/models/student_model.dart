@@ -70,7 +70,11 @@ class StudentModel with _$StudentModel {
     int? readInt(String key) {
       final value = data[key];
       if (value == null) return null;
-      if (value is num) return value.toInt();
+      if (value is num) {
+        // Only accept true integers or doubles with no fractional part
+        if (value % 1 == 0) return value.toInt();
+        return null;
+      }
       if (value is String) return int.tryParse(value);
       return null;
     }

@@ -394,6 +394,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
             allStudents: allStudents,
             query: previousQuery,
           ),
+          previousAllStudents: allStudents,
           isRefresh: allStudents.isNotEmpty,
           isSearch: true,
           includeArchived: nextIncludeArchived,

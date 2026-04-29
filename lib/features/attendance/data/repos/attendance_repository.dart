@@ -574,65 +574,68 @@ class AttendanceRepository implements IAttendanceRepository {
           2; // +1 for session, +1 for group
 
       if (totalOperations <= 500) {
-        // Atomic update for everything
-        final batch = _firestore.batch();
+        // Atomic update for everything via transaction (Idempotent)
+        await _firestore.runTransaction((transaction) async {
+          final sessionRef = _sessionDoc(teamId, sessionId);
+          final sessionDoc = await transaction.get(sessionRef);
 
-        // 1. Mark unmarked students as absent
-        for (final studentId in unmarkedStudents) {
-          final markRef = _markDoc(teamId, sessionId, studentId, 'system');
-          batch.set(markRef, {
-            'studentId': studentId,
-            'studentNameSnapshot':
-                session.studentNameSnapshots[studentId] ?? 'مخدوم',
-            'status': AttendanceMarkStatus.absent.name,
-            'markedByUserId': 'system',
-            'markedByName': 'النظام',
-            'markedAt': FieldValue.serverTimestamp(),
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
-        }
+          if (sessionDoc.exists && sessionDoc.data()?['isClosed'] == true) {
+            // Already closed, skip to avoid double-incrementing aggregates
+            return;
+          }
 
-        // 2. Update Student Aggregates
-        for (final studentId in presentStudentIds) {
-          final studentRef = _firestore
-              .collection(FirestoreCollections.students)
-              .doc(studentId);
-          batch.set(studentRef, {
-            'attendanceSummary': {
-              'totalPresent': FieldValue.increment(1),
-              'lastAttendanceDate': FieldValue.serverTimestamp(),
+          // 1. Mark unmarked students as absent
+          for (final studentId in unmarkedStudents) {
+            final markRef = _markDoc(teamId, sessionId, studentId, 'system');
+            transaction.set(markRef, {
+              'studentId': studentId,
+              'studentNameSnapshot':
+                  session.studentNameSnapshots[studentId] ?? 'مخدوم',
+              'status': AttendanceMarkStatus.absent.name,
+              'markedByUserId': 'system',
+              'markedByName': 'النظام',
+              'markedAt': FieldValue.serverTimestamp(),
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+          }
+
+          // 2. Update Student Aggregates
+          for (final studentId in presentStudentIds) {
+            final studentRef = _firestore
+                .collection(FirestoreCollections.students)
+                .doc(studentId);
+            transaction.set(studentRef, {
+              'attendanceSummary': {
+                'totalPresent': FieldValue.increment(1),
+                'lastAttendanceDate': FieldValue.serverTimestamp(),
+              },
+              'updatedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+          }
+
+          // 3. Update Group Aggregate
+          transaction.set(_teamDoc(teamId), {
+            'groupAttendanceSummary': {
+              'lastSessionDate': FieldValue.serverTimestamp(),
+              'lastSessionAttendanceCount': presentStudentIds.length,
+              'updatedAt': FieldValue.serverTimestamp(),
             },
             'updatedAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
-        }
 
-        // 3. Update Group Aggregate
-        final classRef = _firestore
-            .collection(FirestoreCollections.classes)
-            .doc(teamId);
-        batch.set(classRef, {
-          'groupAttendanceSummary': {
-            'lastSessionDate': FieldValue.serverTimestamp(),
-            'lastSessionAttendanceCount': presentStudentIds.length,
+          // 4. Update the session itself
+          transaction.update(sessionRef, {
+            'isClosed': true,
             'updatedAt': FieldValue.serverTimestamp(),
-          },
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-
-        // 4. Update the session itself
-        batch.update(_sessionDoc(teamId, sessionId), {
-          'isClosed': true,
-          'updatedAt': FieldValue.serverTimestamp(),
-          'presentCount': presentStudentIds.length,
-          'absentCount':
-              session.studentIdsSnapshot.length - presentStudentIds.length,
+            'presentCount': presentStudentIds.length,
+            'absentCount':
+                session.studentIdsSnapshot.length - presentStudentIds.length,
+          });
         });
-
-        await batch.commit();
       } else {
-        // Fallback for very large groups: multi-batch
+        // Fallback for very large groups: multi-batch (Not fully atomic, but idempotent)
         // We do ALL student updates first (present aggregates + absent marks),
-        // and the session status LAST to minimize partial close risk.
+        // and the session status LAST in a transaction.
 
         // 1. Mark unmarked as absent in chunks
         final unmarkedList = unmarkedStudents.toList();
@@ -673,27 +676,32 @@ class AttendanceRepository implements IAttendanceRepository {
           await batch.commit();
         }
 
-        // 3. Final batch for group aggregate and session status
-        final finalBatch = _firestore.batch();
+        // 3. Final IDEMPOTENT step for group aggregate and session status
+        await _firestore.runTransaction((transaction) async {
+          final sessionRef = _sessionDoc(teamId, sessionId);
+          final sessionDoc = await transaction.get(sessionRef);
 
-        finalBatch.set(_teamDoc(teamId), {
-          'groupAttendanceSummary': {
-            'lastSessionDate': FieldValue.serverTimestamp(),
-            'lastSessionAttendanceCount': presentStudentIds.length,
+          if (sessionDoc.exists && sessionDoc.data()?['isClosed'] == true) {
+            return;
+          }
+
+          transaction.set(_teamDoc(teamId), {
+            'groupAttendanceSummary': {
+              'lastSessionDate': FieldValue.serverTimestamp(),
+              'lastSessionAttendanceCount': presentStudentIds.length,
+              'updatedAt': FieldValue.serverTimestamp(),
+            },
             'updatedAt': FieldValue.serverTimestamp(),
-          },
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+          }, SetOptions(merge: true));
 
-        finalBatch.update(_sessionDoc(teamId, sessionId), {
-          'isClosed': true,
-          'updatedAt': FieldValue.serverTimestamp(),
-          'presentCount': presentStudentIds.length,
-          'absentCount':
-              session.studentIdsSnapshot.length - presentStudentIds.length,
+          transaction.update(sessionRef, {
+            'isClosed': true,
+            'updatedAt': FieldValue.serverTimestamp(),
+            'presentCount': presentStudentIds.length,
+            'absentCount':
+                session.studentIdsSnapshot.length - presentStudentIds.length,
+          });
         });
-
-        await finalBatch.commit();
       }
     } catch (error) {
       if (error is AttendanceFailure) rethrow;

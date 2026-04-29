@@ -50,6 +50,21 @@ class StudentProfileCubit extends Cubit<StudentProfileState> {
   Future<void> setupProfile(StudentModel newStudent, AuthUser actor) async {
     emit(const StudentProfileLoading());
     try {
+      // SECURITY GUARD: Ensure only a student can create their own profile.
+      if (actor.role != UserRole.student) {
+        emit(
+          const StudentProfileError(
+            'فقط المخدومين يمكنهم إنشاء ملفات شخصية مخدومة.',
+          ),
+        );
+        return;
+      }
+
+      if (newStudent.uid != actor.uid) {
+        emit(const StudentProfileError('لا يمكن إنشاء ملف شخصي لمستخدم آخر.'));
+        return;
+      }
+
       await _studentRepository.createStudent(newStudent);
       await loadProfile(actor);
     } catch (e) {

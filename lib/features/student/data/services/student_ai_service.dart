@@ -5,17 +5,32 @@ import 'package:church_management_system/core/constants/ai_constants.dart';
 import 'package:church_management_system/features/attendance/domain/repos/i_attendance_insight_repository.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 
-/// Service for client-side AI processing using Gemini.
-/// Replaces Cloud Functions for Spark plan compatibility.
-class StudentAIService {
+/// Interface for client-side AI processing.
+abstract class StudentAIService {
+  Future<AttendanceInsight> getGroupInsight({
+    required String groupName,
+    required Map<String, dynamic> groupSummary,
+    required String question,
+  });
+
+  Future<String> getStudentEncouragement({
+    required String studentName,
+    required Map<String, dynamic> summary,
+  });
+
+  Future<String> smartQuery(String query, {Map<String, dynamic>? contextData});
+}
+
+/// Gemini-backed implementation of [StudentAIService].
+class GeminiStudentAIService implements StudentAIService {
   final String _apiKey;
   late final GenerativeModel _model;
 
-  StudentAIService({required String apiKey}) : _apiKey = apiKey {
+  GeminiStudentAIService({required String apiKey}) : _apiKey = apiKey {
     _model = GenerativeModel(model: AIConstants.modelName, apiKey: _apiKey);
   }
 
-  /// US-01: Servant Get Trend Insight
+  @override
   Future<AttendanceInsight> getGroupInsight({
     required String groupName,
     required Map<String, dynamic> groupSummary,
@@ -55,7 +70,7 @@ class StudentAIService {
     }
   }
 
-  /// US-03: Student Get Encouragement
+  @override
   Future<String> getStudentEncouragement({
     required String studentName,
     required Map<String, dynamic> summary,
@@ -91,7 +106,7 @@ class StudentAIService {
     }
   }
 
-  /// US-02: Smart Query Assistant
+  @override
   Future<String> smartQuery(
     String query, {
     Map<String, dynamic>? contextData,
@@ -118,5 +133,36 @@ class StudentAIService {
       developer.log('Smart Query AI Error', error: e, name: 'StudentAIService');
       throw Exception('Failed to process smart query.');
     }
+  }
+}
+
+/// Fallback implementation for [StudentAIService] when no API key is available.
+class NoOpStudentAIService implements StudentAIService {
+  @override
+  Future<AttendanceInsight> getGroupInsight({
+    required String groupName,
+    required Map<String, dynamic> groupSummary,
+    required String question,
+  }) async {
+    return const AttendanceInsight(
+      insight: 'الخدمة الذكية غير متاحة حالياً بسبب نقص الإعدادات.',
+      actions: [],
+    );
+  }
+
+  @override
+  Future<String> getStudentEncouragement({
+    required String studentName,
+    required Map<String, dynamic> summary,
+  }) async {
+    return 'مرحباً بك في خدمتنا! نتطلع لرؤيتك دائماً.';
+  }
+
+  @override
+  Future<String> smartQuery(
+    String query, {
+    Map<String, dynamic>? contextData,
+  }) async {
+    return 'عذراً، المساعد الذكي غير متاح حالياً. يرجى التواصل مع المسؤول.';
   }
 }

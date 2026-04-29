@@ -30,18 +30,22 @@ class FirebaseAuthRepository implements AuthRepository {
   /// Get current user with full app data from Firestore
   @override
   Future<AuthUser?> getCurrentAppUser({bool forceRefresh = false}) async {
-    final firebaseUser = _provider.currentUser;
-    if (firebaseUser == null) {
-      _lastKnownAppUser = null;
-      return null;
-    }
+    try {
+      final firebaseUser = _provider.currentUser;
+      if (firebaseUser == null) {
+        _lastKnownAppUser = null;
+        return null;
+      }
 
-    final appUser = await _provider.getUserData(
-      firebaseUser.uid,
-      forceRefresh: forceRefresh,
-    );
-    _lastKnownAppUser = appUser;
-    return appUser;
+      final appUser = await _provider.getUserData(
+        firebaseUser.uid,
+        forceRefresh: forceRefresh,
+      );
+      _lastKnownAppUser = appUser;
+      return appUser;
+    } catch (e) {
+      throw AuthErrorMapper.mapException(e);
+    }
   }
 
   @override
@@ -114,22 +118,44 @@ class FirebaseAuthRepository implements AuthRepository {
   }
 
   /// Check if email is verified
-  Future<bool> isEmailVerified() => _provider.isEmailVerified();
+  Future<bool> isEmailVerified() async {
+    try {
+      return await _provider.isEmailVerified();
+    } catch (e) {
+      throw AuthErrorMapper.mapException(e);
+    }
+  }
 
   /// Reload user data
   @override
-  Future<void> reloadUser() => _provider.reloadUser();
+  Future<void> reloadUser() async {
+    try {
+      await _provider.reloadUser();
+    } catch (e) {
+      throw AuthErrorMapper.mapException(e);
+    }
+  }
 
   /// Reload Firebase auth user and fetch a fresh app profile snapshot.
   @override
   Future<AuthUser?> refreshCurrentAppUser() async {
-    await forceTokenRefresh();
-    await reloadUser();
-    return getCurrentAppUser(forceRefresh: true);
+    try {
+      await forceTokenRefresh();
+      await reloadUser();
+      return getCurrentAppUser(forceRefresh: true);
+    } catch (e) {
+      throw AuthErrorMapper.mapException(e);
+    }
   }
 
   /// Force a token refresh, e.g. when claims change
-  Future<void> forceTokenRefresh() => _provider.forceTokenRefresh();
+  Future<void> forceTokenRefresh() async {
+    try {
+      await _provider.forceTokenRefresh();
+    } catch (e) {
+      throw AuthErrorMapper.mapException(e);
+    }
+  }
 
   @override
   Future<void> updatePassword(String newPassword) async {

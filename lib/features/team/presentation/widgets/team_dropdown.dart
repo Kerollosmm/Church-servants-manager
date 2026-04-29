@@ -128,7 +128,13 @@ class TeamDropdown extends StatelessWidget {
       labelText: label ?? 'الفريق',
       prefixIcon: Icons.group,
       items: items,
-      onChanged: onChanged,
+      onChanged: (value) {
+        if (value == allTeamsSentinel) {
+          onChanged(null);
+        } else {
+          onChanged(value);
+        }
+      },
     );
   }
 }

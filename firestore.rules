@@ -106,7 +106,11 @@ service cloud.firestore {
     }
 
     function isStudentInClass(classId) {
-      return isStudent() && request.auth.token.get('assignedTeamId', '') == classId;
+      let token = request.auth.token;
+      return isStudent() && (
+        classId in token.get('assignedTeamIds', []) || 
+        token.get('assignedTeamId', '') == classId
+      );
     }
 
     function isStudentInSessionRoster(classId, sessionId, studentId) {
@@ -125,6 +129,7 @@ service cloud.firestore {
         isAdmin() || 
         (
           callerUid() == userId && 
+          request.resource.data.keys().hasOnly(['uid', 'email', 'name', 'role', 'phone', 'avatarUrl', 'createdAt', 'updatedAt', 'isEmailVerified', 'restorePendingPasswordReset']) &&
           (
             request.resource.data.role == 'student' ||
             (
@@ -153,6 +158,9 @@ service cloud.firestore {
         isAdmin() || 
         (
           email.lower() == request.auth.token.email.lower() &&
+          resource.data.status == 'pending' &&
+          request.resource.data.status == 'claimed' &&
+          request.resource.data.claimedByUid == callerUid() &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'claimedAt', 'claimedByUid'])
         )
       );
@@ -169,7 +177,15 @@ service cloud.firestore {
       );
 
       allow create: if isSignedIn() && (
-        isAdmin() || (isServant() && servantCanManageStudent(request.resource.data))
+        isAdmin() || 
+        (isServant() && servantCanManageStudent(request.resource.data)) ||
+        (
+          // Allow student self-bootstrap during onboarding
+          studentId == callerUid() &&
+          request.resource.data.uid == callerUid() &&
+          request.resource.data.role == 'student' &&
+          request.resource.data.keys().hasOnly(['uid', 'email', 'name', 'role', 'phone', 'birthDate', 'address', 'parentPhone', 'school', 'grade', 'gender', 'createdAt', 'updatedAt', 'isArchived'])
+        )
       );
 
       allow update: if isSignedIn() && (

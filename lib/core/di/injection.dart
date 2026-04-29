@@ -74,11 +74,10 @@ void configureDependencies() {
     ..registerLazySingleton<StudentAIService>(() {
       const apiKey = String.fromEnvironment('GEMINI_API_KEY');
       if (apiKey.isEmpty) {
-        throw ArgumentError(
-          'GEMINI_API_KEY must be provided via --dart-define',
-        );
+        // Fallback to NoOp service if API key is missing
+        return NoOpStudentAIService();
       }
-      return StudentAIService(apiKey: apiKey);
+      return GeminiStudentAIService(apiKey: apiKey);
     })
     // ---- Repositories ----
     ..registerLazySingleton<IStudentRepository>(
