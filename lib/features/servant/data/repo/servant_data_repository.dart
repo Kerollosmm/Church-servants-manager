@@ -1,18 +1,19 @@
+import 'dart:developer' as developer;
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/core/utils/list_extensions.dart';
+import 'package:church_management_system/core/utils/pagination_cursor.dart';
 import 'package:church_management_system/features/servant/data/models/servant_models.dart';
 import 'package:church_management_system/features/servant/domain/failures/servant_failures.dart';
 import 'package:church_management_system/features/servant/domain/repos/i_servant_repository.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 
 typedef _ServantDoc = QueryDocumentSnapshot<Map<String, dynamic>>;
 
 /// A paginated result of servant data from [ServantDataRepository].
 class ServantsPage {
   final List<ServantModel> servants;
-  final DocumentSnapshot<Map<String, dynamic>>? lastDocument;
+  final PaginationCursor? lastDocument;
   final bool hasMore;
 
   const ServantsPage({
@@ -27,8 +28,8 @@ class ServantsPage {
 class ServantDataRepository implements IServantRepository {
   final FirebaseFirestore _firestore;
 
-  ServantDataRepository({FirebaseFirestore? firestore})
-    : _firestore = firestore ?? FirebaseFirestore.instance;
+  ServantDataRepository({required FirebaseFirestore firestore})
+    : _firestore = firestore;
 
   /// Reference to Users collection (servants are users with role == servant)
   CollectionReference<Map<String, dynamic>> get _usersCollection =>
@@ -144,7 +145,9 @@ class ServantDataRepository implements IServantRepository {
           isFromCache: true,
         );
       }
-    } catch (_) {}
+    } catch (e) {
+      // Cache miss or other cache error is expected, fallback to server
+    }
 
     try {
       final serverSnapshot = await _usersCollection
@@ -163,7 +166,7 @@ class ServantDataRepository implements IServantRepository {
   @override
   Future<List<ServantModel>> getAllServants({
     int limit = 20,
-    DocumentSnapshot? lastDocument,
+    PaginationCursor? cursor,
     bool includeArchived = false,
   }) async {
     Query<Map<String, dynamic>> query = _sortedServantsQuery();
@@ -172,6 +175,7 @@ class ServantDataRepository implements IServantRepository {
       query = query.limit(limit);
     }
 
+    final lastDocument = cursor?.token as DocumentSnapshot?;
     if (lastDocument != null) {
       query = query.startAfterDocument(lastDocument);
     }
@@ -183,7 +187,9 @@ class ServantDataRepository implements IServantRepository {
       if (cacheSnapshot.docs.isNotEmpty) {
         return _servantsFromDocs(cacheSnapshot.docs, includeArchived);
       }
-    } catch (_) {}
+    } catch (e) {
+      // Cache miss or other cache error is expected, fallback to server
+    }
 
     try {
       final serverSnapshot = await query.get(
@@ -198,7 +204,7 @@ class ServantDataRepository implements IServantRepository {
   @override
   Future<ServantsPage> getServantsPage({
     int limit = 50,
-    DocumentSnapshot<Map<String, dynamic>>? lastDocument,
+    PaginationCursor? cursor,
     bool includeArchived = false,
   }) async {
     try {
@@ -206,6 +212,10 @@ class ServantDataRepository implements IServantRepository {
         limit + 1,
       );
 
+      final token = cursor?.token;
+      final lastDocument = token is DocumentSnapshot<Map<String, dynamic>>
+          ? token
+          : null;
       if (lastDocument != null) {
         query = query.startAfterDocument(lastDocument);
       }
@@ -215,9 +225,13 @@ class ServantDataRepository implements IServantRepository {
       final hasMore = docs.length > limit;
       final pageDocs = hasMore ? docs.take(limit).toList() : docs;
 
+      final nextDoc = pageDocs.isEmpty ? lastDocument : pageDocs.last;
+
       return ServantsPage(
         servants: _servantsFromDocs(pageDocs, includeArchived),
-        lastDocument: pageDocs.isEmpty ? lastDocument : pageDocs.last,
+        lastDocument: nextDoc != null
+            ? PaginationCursor.fromToken(nextDoc)
+            : null,
         hasMore: hasMore,
       );
     } catch (e) {
@@ -240,7 +254,9 @@ class ServantDataRepository implements IServantRepository {
         if (cacheSnapshot.docs.isNotEmpty) {
           return _servantsFromDocs(cacheSnapshot.docs, includeArchived);
         }
-      } catch (_) {}
+      } catch (e) {
+        // Cache miss or other cache error is expected, fallback to server
+      }
 
       final snapshot = await _usersCollection
           .where('role', isEqualTo: UserRole.servant.name)
@@ -435,12 +451,11 @@ class ServantDataRepository implements IServantRepository {
         await batch.commit();
       }
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint(
-          'ServantDataRepository: Failed to propagate servant name '
-          'to teams: $e',
-        );
-      }
+      developer.log(
+        'Failed to propagate servant name to teams',
+        error: e,
+        name: 'ServantDataRepository',
+      );
     }
   }
 }

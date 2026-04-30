@@ -1,5 +1,6 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
+import 'package:church_management_system/core/utils/list_extensions.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/team/data/models/team_model.dart';
@@ -71,12 +72,7 @@ class AdminTeamMembershipService {
     if (ids.isEmpty) return const <StudentModel>[];
 
     final result = <StudentModel>[];
-    final slices = <List<String>>[];
-
-    for (var i = 0; i < ids.length; i += 10) {
-      final end = (i + 10 > ids.length) ? ids.length : i + 10;
-      slices.add(ids.sublist(i, end));
-    }
+    final slices = ids.chunk(10);
 
     const concurrencyLimit = 5;
     for (var i = 0; i < slices.length; i += concurrencyLimit) {

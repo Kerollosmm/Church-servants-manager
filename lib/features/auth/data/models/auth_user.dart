@@ -1,5 +1,6 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/utils/json_converters.dart';
+import 'package:church_management_system/features/auth/domain/failures/auth_exceptions.dart';
 import 'package:firebase_auth/firebase_auth.dart' show User;
 import 'package:freezed_annotation/freezed_annotation.dart';
 
@@ -31,13 +32,62 @@ class AuthUser with _$AuthUser {
   }) = _AuthUser;
 
   /// Create AuthUser from Firebase User (basic info only)
-  factory AuthUser.fromFirebase(User user) => AuthUser(
-    uid: user.uid,
-    name: user.displayName ?? user.email?.split('@').first ?? 'User',
-    email: user.email ?? '',
-    role: UserRole.student,
-    isEmailVerified: user.emailVerified,
-  );
+  /// WARNING: This method assigns a temporary role of UserRole.student.
+  /// The role should be properly determined as soon as possible, preferably
+  /// by using AuthUser.fromFirebaseToken() with custom claims or by updating
+  /// the user object through the repository once Firestore data is available.
+  factory AuthUser.fromFirebase(User user) {
+    final email = user.email;
+    if (email == null || email.isEmpty) {
+      throw const GenericAuthException('AuthUser must have a valid email');
+    }
+    return AuthUser(
+      uid: user.uid,
+      name: user.displayName ?? email.split('@').first,
+      email: email,
+      // TEMPORARY DEFAULT: Role must be properly determined via custom claims
+      // or Firestore data as soon as available. Using student as safe default
+      // to avoid over-privileging users, but this should be updated immediately.
+      role: UserRole.student,
+      isEmailVerified: user.emailVerified,
+    );
+  }
+
+  /// Create AuthUser from Firebase User and custom claims
+  factory AuthUser.fromFirebaseToken(User user, Map<String, dynamic> claims) {
+    final email = user.email;
+    if (email == null || email.isEmpty) {
+      throw const GenericAuthException('AuthUser must have a valid email');
+    }
+
+    // Parse role from claims
+    final roleClaim = claims['role'];
+    final roleStr = roleClaim is String ? roleClaim : 'student';
+    final role = UserRole.values.firstWhere(
+      (e) => e.name == roleStr,
+      orElse: () => UserRole.student,
+    );
+
+    // Parse teams from claims
+    final teamsRaw = claims['assignedTeamIds'] ?? claims['teams'];
+    final List<String> assignedTeamIds = [];
+    if (teamsRaw is List) {
+      assignedTeamIds.addAll(teamsRaw.map((e) => e.toString()));
+    }
+
+    // Parse isArchived from claims
+    final isArchived = claims['isArchived'] as bool? ?? false;
+
+    return AuthUser(
+      uid: user.uid,
+      name: user.displayName ?? email.split('@').first,
+      email: email,
+      role: role,
+      isEmailVerified: user.emailVerified,
+      assignedTeamIds: assignedTeamIds,
+      isArchived: isArchived,
+    );
+  }
 
   factory AuthUser.fromJson(Map<String, dynamic> json) =>
       _$AuthUserFromJson(json);

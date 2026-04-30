@@ -74,6 +74,14 @@ mixin _$ServantModel {
   /// Multiple assigned team IDs (if applicable).
   List<String>? get assignedTeamIds => throw _privateConstructorUsedError;
 
+  /// Aggregated group attendance metrics (for US1 Trend Insights).
+  Map<String, dynamic>? get groupAttendanceSummary =>
+      throw _privateConstructorUsedError;
+
+  /// AI-generated insights and recommendations for the servant.
+  Map<String, dynamic>? get aiRecommendations =>
+      throw _privateConstructorUsedError;
+
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
   @JsonKey(ignore: true)
   $ServantModelCopyWith<ServantModel> get copyWith =>
@@ -108,6 +116,8 @@ abstract class $ServantModelCopyWith<$Res> {
     String? restoredByUserId,
     String? assignedTeamId,
     List<String>? assignedTeamIds,
+    Map<String, dynamic>? groupAttendanceSummary,
+    Map<String, dynamic>? aiRecommendations,
   });
 }
 
@@ -144,6 +154,8 @@ class _$ServantModelCopyWithImpl<$Res, $Val extends ServantModel>
     Object? restoredByUserId = freezed,
     Object? assignedTeamId = freezed,
     Object? assignedTeamIds = freezed,
+    Object? groupAttendanceSummary = freezed,
+    Object? aiRecommendations = freezed,
   }) {
     return _then(
       _value.copyWith(
@@ -227,6 +239,14 @@ class _$ServantModelCopyWithImpl<$Res, $Val extends ServantModel>
                 ? _value.assignedTeamIds
                 : assignedTeamIds // ignore: cast_nullable_to_non_nullable
                       as List<String>?,
+            groupAttendanceSummary: freezed == groupAttendanceSummary
+                ? _value.groupAttendanceSummary
+                : groupAttendanceSummary // ignore: cast_nullable_to_non_nullable
+                      as Map<String, dynamic>?,
+            aiRecommendations: freezed == aiRecommendations
+                ? _value.aiRecommendations
+                : aiRecommendations // ignore: cast_nullable_to_non_nullable
+                      as Map<String, dynamic>?,
           )
           as $Val,
     );
@@ -263,6 +283,8 @@ abstract class _$$ServantModelImplCopyWith<$Res>
     String? restoredByUserId,
     String? assignedTeamId,
     List<String>? assignedTeamIds,
+    Map<String, dynamic>? groupAttendanceSummary,
+    Map<String, dynamic>? aiRecommendations,
   });
 }
 
@@ -298,6 +320,8 @@ class __$$ServantModelImplCopyWithImpl<$Res>
     Object? restoredByUserId = freezed,
     Object? assignedTeamId = freezed,
     Object? assignedTeamIds = freezed,
+    Object? groupAttendanceSummary = freezed,
+    Object? aiRecommendations = freezed,
   }) {
     return _then(
       _$ServantModelImpl(
@@ -381,6 +405,14 @@ class __$$ServantModelImplCopyWithImpl<$Res>
             ? _value._assignedTeamIds
             : assignedTeamIds // ignore: cast_nullable_to_non_nullable
                   as List<String>?,
+        groupAttendanceSummary: freezed == groupAttendanceSummary
+            ? _value._groupAttendanceSummary
+            : groupAttendanceSummary // ignore: cast_nullable_to_non_nullable
+                  as Map<String, dynamic>?,
+        aiRecommendations: freezed == aiRecommendations
+            ? _value._aiRecommendations
+            : aiRecommendations // ignore: cast_nullable_to_non_nullable
+                  as Map<String, dynamic>?,
       ),
     );
   }
@@ -410,7 +442,11 @@ class _$ServantModelImpl extends _ServantModel {
     this.restoredByUserId,
     this.assignedTeamId,
     final List<String>? assignedTeamIds,
+    final Map<String, dynamic>? groupAttendanceSummary,
+    final Map<String, dynamic>? aiRecommendations,
   }) : _assignedTeamIds = assignedTeamIds,
+       _groupAttendanceSummary = groupAttendanceSummary,
+       _aiRecommendations = aiRecommendations,
        super._();
 
   factory _$ServantModelImpl.fromJson(Map<String, dynamic> json) =>
@@ -500,9 +536,37 @@ class _$ServantModelImpl extends _ServantModel {
     return EqualUnmodifiableListView(value);
   }
 
+  /// Aggregated group attendance metrics (for US1 Trend Insights).
+  final Map<String, dynamic>? _groupAttendanceSummary;
+
+  /// Aggregated group attendance metrics (for US1 Trend Insights).
+  @override
+  Map<String, dynamic>? get groupAttendanceSummary {
+    final value = _groupAttendanceSummary;
+    if (value == null) return null;
+    if (_groupAttendanceSummary is EqualUnmodifiableMapView)
+      return _groupAttendanceSummary;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableMapView(value);
+  }
+
+  /// AI-generated insights and recommendations for the servant.
+  final Map<String, dynamic>? _aiRecommendations;
+
+  /// AI-generated insights and recommendations for the servant.
+  @override
+  Map<String, dynamic>? get aiRecommendations {
+    final value = _aiRecommendations;
+    if (value == null) return null;
+    if (_aiRecommendations is EqualUnmodifiableMapView)
+      return _aiRecommendations;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableMapView(value);
+  }
+
   @override
   String toString() {
-    return 'ServantModel(uid: $uid, docID: $docID, name: $name, role: $role, email: $email, phone: $phone, imageUrl: $imageUrl, teamName: $teamName, isEmailVerified: $isEmailVerified, fatherOfConfession: $fatherOfConfession, birthdate: $birthdate, notes: $notes, isArchived: $isArchived, archivedAt: $archivedAt, archivedByUserId: $archivedByUserId, archiveReason: $archiveReason, restoredAt: $restoredAt, restoredByUserId: $restoredByUserId, assignedTeamId: $assignedTeamId, assignedTeamIds: $assignedTeamIds)';
+    return 'ServantModel(uid: $uid, docID: $docID, name: $name, role: $role, email: $email, phone: $phone, imageUrl: $imageUrl, teamName: $teamName, isEmailVerified: $isEmailVerified, fatherOfConfession: $fatherOfConfession, birthdate: $birthdate, notes: $notes, isArchived: $isArchived, archivedAt: $archivedAt, archivedByUserId: $archivedByUserId, archiveReason: $archiveReason, restoredAt: $restoredAt, restoredByUserId: $restoredByUserId, assignedTeamId: $assignedTeamId, assignedTeamIds: $assignedTeamIds, groupAttendanceSummary: $groupAttendanceSummary, aiRecommendations: $aiRecommendations)';
   }
 
   @override
@@ -544,6 +608,14 @@ class _$ServantModelImpl extends _ServantModel {
             const DeepCollectionEquality().equals(
               other._assignedTeamIds,
               _assignedTeamIds,
+            ) &&
+            const DeepCollectionEquality().equals(
+              other._groupAttendanceSummary,
+              _groupAttendanceSummary,
+            ) &&
+            const DeepCollectionEquality().equals(
+              other._aiRecommendations,
+              _aiRecommendations,
             ));
   }
 
@@ -571,6 +643,8 @@ class _$ServantModelImpl extends _ServantModel {
     restoredByUserId,
     assignedTeamId,
     const DeepCollectionEquality().hash(_assignedTeamIds),
+    const DeepCollectionEquality().hash(_groupAttendanceSummary),
+    const DeepCollectionEquality().hash(_aiRecommendations),
   ]);
 
   @JsonKey(ignore: true)
@@ -607,6 +681,8 @@ abstract class _ServantModel extends ServantModel {
     final String? restoredByUserId,
     final String? assignedTeamId,
     final List<String>? assignedTeamIds,
+    final Map<String, dynamic>? groupAttendanceSummary,
+    final Map<String, dynamic>? aiRecommendations,
   }) = _$ServantModelImpl;
   const _ServantModel._() : super._();
 
@@ -673,6 +749,12 @@ abstract class _ServantModel extends ServantModel {
   @override
   /// Multiple assigned team IDs (if applicable).
   List<String>? get assignedTeamIds;
+  @override
+  /// Aggregated group attendance metrics (for US1 Trend Insights).
+  Map<String, dynamic>? get groupAttendanceSummary;
+  @override
+  /// AI-generated insights and recommendations for the servant.
+  Map<String, dynamic>? get aiRecommendations;
   @override
   @JsonKey(ignore: true)
   _$$ServantModelImplCopyWith<_$ServantModelImpl> get copyWith =>

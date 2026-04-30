@@ -1,0 +1,59 @@
+# Third-party and environment
+.dart_tool/
+.venv/
+.opencode/
+node_modules/
+functions/node_modules/
+functions/lib/
+.idea/
+.vscode/
+.git/
+.worktrees/
+
+# Build artifacts
+build/
+android/build/
+android/.gradle/
+android/.kotlin/
+ios/Flutter/ephemeral/
+ios/Pods/
+
+# Large assets
+assets/fonts/
+
+# Platform-specific code (mostly boilerplate)
+android/
+ios/
+linux/
+macos/
+windows/
+
+# Generated files (Freezed/JsonSerializable)
+# While useful for context, they are huge. Agents should infer from source.
+*.g.dart
+*.freezed.dart
+
+# Project scratchpads and artifacts
+*.txt
+*.patch
+*.zip
+*.log
+*.orig
+nul
+todo.md
+coderabbitai_review.md
+analyzes/
+
+# Gemini/Agent internal storage
+.agent/
+.agents/
+.specify/
+.qwen/
+skills-lock.json
+
+web_entrypoint.dart
+# Sensitive files
+google-services.json
+GoogleService-Info.plist
+.env*
+firebase_options.dart

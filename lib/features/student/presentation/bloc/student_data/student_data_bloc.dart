@@ -1,15 +1,14 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
-import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
-import 'package:church_management_system/features/auth/domain/failures/auth_exceptions.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
 import 'package:church_management_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
 import 'package:church_management_system/features/student/domain/usecases/get_students_stream_usecase.dart';
-import 'package:collection/collection.dart';
-import 'package:flutter/foundation.dart';
+import 'package:church_management_system/features/student/domain/usecases/provision_student_with_auth_usecase.dart';
+import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 part 'student_data_event.dart';
@@ -23,26 +22,20 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
   final IStudentRepository _studentRepository;
   final GetStudentsStreamUseCase _getStudentsStream;
   final CanMutateStudentUseCase _canMutateStudent;
-  final AdminUserProvisioningService _adminUserProvisioningService;
+  final ProvisionStudentWithAuthUseCase _provisionUseCase;
 
   StreamSubscription<List<StudentModel>>? _studentsSubscription;
   Completer<void>? _pendingRefreshCompleter;
-  List<StudentModel> _allStudents = [];
-  Map<String, StudentModel> _studentsByDocId = {};
-  String? _lastFilterGroupId;
-  String? _lastFilterTeamId;
-  String? _lastQuery;
-  bool _includeArchived = false;
 
   StudentDataBloc({
     required IStudentRepository studentRepository,
     required GetStudentsStreamUseCase getStudentsStream,
     required CanMutateStudentUseCase canMutateStudent,
-    required AdminUserProvisioningService adminUserProvisioningService,
+    required ProvisionStudentWithAuthUseCase provisionUseCase,
   }) : _studentRepository = studentRepository,
        _getStudentsStream = getStudentsStream,
        _canMutateStudent = canMutateStudent,
-       _adminUserProvisioningService = adminUserProvisioningService,
+       _provisionUseCase = provisionUseCase,
        super(const StudentDataInitial()) {
     on<StudentsLoadRequested>(_onLoadStudents);
     on<StudentsSearchRequested>(_onSearchStudents);
@@ -70,8 +63,17 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
 
     final completer = Completer<void>();
     _pendingRefreshCompleter = completer;
+
+    bool includeArchived = false;
+    final currentState = state;
+    if (currentState is StudentDataLoaded) {
+      includeArchived = currentState.includeArchived;
+    } else if (currentState is StudentDataLoading) {
+      includeArchived = currentState.includeArchived;
+    }
+
     add(
-      StudentsRefreshRequested(actor: actor, includeArchived: _includeArchived),
+      StudentsRefreshRequested(actor: actor, includeArchived: includeArchived),
     );
     return completer.future.timeout(
       const Duration(seconds: 10),
@@ -118,9 +120,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
       },
       onError: (Object error) {
         if (isClosed) return;
-        if (kDebugMode) {
-          debugPrint('StudentDataBloc: Stream error (${error.runtimeType})');
-        }
+        developer.log('Stream error', error: error, name: 'StudentDataBloc');
         add(_StreamError('$error'));
       },
     );
@@ -133,23 +133,25 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
         .toList();
   }
 
-  void _setCurrentFilters({String? groupId, String? teamId, String? query}) {
-    _lastFilterGroupId = groupId;
-    _lastFilterTeamId = teamId;
-    _lastQuery = query;
-  }
-
-  List<StudentModel> _resolveVisibleStudents(String? query) {
+  List<StudentModel> _resolveVisibleStudents({
+    required List<StudentModel> allStudents,
+    String? query,
+  }) {
     if (query != null && query.isNotEmpty) {
-      return _filterByName(_allStudents, query);
+      return _filterByName(allStudents, query);
     }
-    return _allStudents;
+    return allStudents;
   }
 
   void _emitLoadedState(
     Emitter<StudentDataState> emit, {
     required List<StudentModel> students,
+    required List<StudentModel> allStudents,
+    required Map<String, StudentModel> studentsByDocId,
+    String? groupId,
+    String? teamId,
     String? query,
+    bool includeArchived = false,
     StudentMutationStatus mutationStatus = StudentMutationStatus.idle,
     StudentMutationOperation? mutationOperation,
     String? successMessage,
@@ -157,10 +159,12 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     emit(
       StudentDataLoaded(
         students: students,
-        currentFilterGroupId: _lastFilterGroupId,
-        currentFilterTeamId: _lastFilterTeamId,
+        allStudents: allStudents,
+        studentsByDocId: studentsByDocId,
+        currentFilterGroupId: groupId,
+        currentFilterTeamId: teamId,
         currentQuery: query,
-        includeArchived: _includeArchived,
+        includeArchived: includeArchived,
         mutationStatus: mutationStatus,
         mutationOperation: mutationOperation,
         successMessage: successMessage,
@@ -173,55 +177,60 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     String message, {
     StudentMutationOperation? mutationOperation,
   }) {
-    final students = _resolveVisibleStudents(_lastQuery);
+    final currentState = state;
+    List<StudentModel> allStudents = const [];
+    Map<String, StudentModel> studentsByDocId = const {};
+    String? groupId;
+    String? teamId;
+    String? query;
+    bool includeArchived = false;
+
+    if (currentState is StudentDataLoaded) {
+      allStudents = currentState.allStudents;
+      studentsByDocId = currentState.studentsByDocId;
+      groupId = currentState.currentFilterGroupId;
+      teamId = currentState.currentFilterTeamId;
+      query = currentState.currentQuery;
+      includeArchived = currentState.includeArchived;
+    } else if (currentState is StudentDataLoading) {
+      allStudents = currentState.previousStudents;
+      groupId = currentState.currentFilterGroupId;
+      teamId = currentState.currentFilterTeamId;
+      query = currentState.currentQuery;
+      includeArchived = currentState.includeArchived;
+      // Re-populate studentsByDocId from allStudents if available
+      if (allStudents.isNotEmpty) {
+        studentsByDocId = {for (final s in allStudents) s.docID: s};
+      }
+    }
+
+    final visibleStudents = _resolveVisibleStudents(
+      allStudents: allStudents,
+      query: query,
+    );
+
     _emitLoadedState(
       emit,
-      students: students,
-      query: _lastQuery,
+      students: visibleStudents,
+      allStudents: allStudents,
+      studentsByDocId: studentsByDocId,
+      groupId: groupId,
+      teamId: teamId,
+      query: query,
+      includeArchived: includeArchived,
       mutationStatus: StudentMutationStatus.success,
       mutationOperation: mutationOperation,
       successMessage: message,
     );
   }
 
-  bool _canCreateAuthAccount(StudentCreated event) {
-    return event.email != null &&
-        event.email!.isNotEmpty &&
-        event.password != null &&
-        event.password!.isNotEmpty;
-  }
-
-  Future<AuthUser?> _createLinkedAuthUser(StudentCreated event) async {
-    if (!_canCreateAuthAccount(event)) {
-      return null;
-    }
-
-    return _adminUserProvisioningService.createUser(
-      email: event.email!,
-      password: event.password!,
-      name: event.student.name,
-      role: event.student.role,
-    );
-  }
-
-  Future<void> _rollbackLinkedAuthUser(
-    StudentCreated event,
-    AuthUser authUser,
-  ) async {
-    if (!_canCreateAuthAccount(event)) {
-      return;
-    }
-
-    await _adminUserProvisioningService.rollbackCreatedUser(
-      uid: authUser.uid,
-      email: event.email!,
-      password: event.password!,
-    );
-  }
-
   Future<StudentModel?> _resolveExistingStudent(String docId) async {
-    return _getCachedStudentById(docId) ??
-        await _studentRepository.getStudentById(docId);
+    final currentState = state;
+    if (currentState is StudentDataLoaded) {
+      return currentState.studentsByDocId[docId] ??
+          await _studentRepository.getStudentById(docId);
+    }
+    return await _studentRepository.getStudentById(docId);
   }
 
   void _emitError(
@@ -229,9 +238,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     String message,
     Object error,
   ) {
-    if (kDebugMode) {
-      debugPrint('StudentDataBloc: $message (${error.runtimeType})');
-    }
+    developer.log(message, error: error, name: 'StudentDataBloc');
     emit(StudentDataError('$message. حاول مرة أخرى.'));
   }
 
@@ -262,23 +269,37 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     return updated.role == UserRole.servant && updated.uid.trim().isEmpty;
   }
 
-  StudentModel? _getCachedStudentById(String docId) {
-    return _studentsByDocId[docId];
-  }
-
   Future<void> _onLoadStudents(
     StudentsLoadRequested event,
     Emitter<StudentDataState> emit,
   ) async {
+    final currentState = state;
+    List<StudentModel> previousStudents = const [];
+    List<StudentModel> previousAllStudents = const [];
+    bool isRefresh = false;
+    String? currentQuery;
+
+    if (currentState is StudentDataLoaded) {
+      previousAllStudents = currentState.allStudents;
+      previousStudents = _resolveVisibleStudents(
+        allStudents: currentState.allStudents,
+        query: currentState.currentQuery,
+      );
+      isRefresh = currentState.allStudents.isNotEmpty;
+      currentQuery = currentState.currentQuery;
+    }
+
     emit(
       StudentDataLoading(
-        previousStudents: _resolveVisibleStudents(_lastQuery),
-        isRefresh: _allStudents.isNotEmpty,
+        previousStudents: previousStudents,
+        previousAllStudents: previousAllStudents,
+        isRefresh: isRefresh,
         includeArchived: event.includeArchived,
+        currentFilterGroupId: event.actor.groupId,
+        currentFilterTeamId: event.teamId,
+        currentQuery: currentQuery,
       ),
     );
-    _setCurrentFilters(groupId: event.actor.groupId, teamId: event.teamId);
-    _includeArchived = event.includeArchived;
 
     await _subscribeToStudents(
       actor: event.actor,
@@ -291,13 +312,44 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     _StudentsStreamUpdated event,
     Emitter<StudentDataState> emit,
   ) {
-    _allStudents = event.students
+    final allStudents = event.students
         .where((student) => student.role == UserRole.student)
         .toList(growable: false);
-    _studentsByDocId = {for (final s in _allStudents) s.docID: s};
-    final query = _lastQuery;
-    final students = _resolveVisibleStudents(query);
-    _emitLoadedState(emit, students: students, query: query);
+    final studentsByDocId = {for (final s in allStudents) s.docID: s};
+
+    final currentState = state;
+    String? query;
+    String? groupId;
+    String? teamId;
+    bool includeArchived = false;
+
+    if (currentState is StudentDataLoaded) {
+      query = currentState.currentQuery;
+      groupId = currentState.currentFilterGroupId;
+      teamId = currentState.currentFilterTeamId;
+      includeArchived = currentState.includeArchived;
+    } else if (currentState is StudentDataLoading) {
+      query = currentState.currentQuery;
+      groupId = currentState.currentFilterGroupId;
+      teamId = currentState.currentFilterTeamId;
+      includeArchived = currentState.includeArchived;
+    }
+
+    final visibleStudents = _resolveVisibleStudents(
+      allStudents: allStudents,
+      query: query,
+    );
+
+    _emitLoadedState(
+      emit,
+      students: visibleStudents,
+      allStudents: allStudents,
+      studentsByDocId: studentsByDocId,
+      groupId: groupId,
+      teamId: teamId,
+      query: query,
+      includeArchived: includeArchived,
+    );
     _completePendingRefresh();
   }
 
@@ -311,35 +363,81 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     Emitter<StudentDataState> emit,
   ) async {
     final query = event.query.trim();
-    final previousQuery = _lastQuery;
-    final previousTeamId = _lastFilterTeamId;
-    final previousIncludeArchived = _includeArchived;
+    final currentState = state;
+
+    String? previousQuery;
+    String? previousTeamId;
+    bool previousIncludeArchived = false;
+    List<StudentModel> allStudents = const [];
+    Map<String, StudentModel> studentsByDocId = const {};
+
+    if (currentState is StudentDataLoaded) {
+      previousQuery = currentState.currentQuery;
+      previousTeamId = currentState.currentFilterTeamId;
+      previousIncludeArchived = currentState.includeArchived;
+      allStudents = currentState.allStudents;
+      studentsByDocId = currentState.studentsByDocId;
+    } else if (currentState is StudentDataLoading) {
+      previousQuery = currentState.currentQuery;
+      previousTeamId = currentState.currentFilterTeamId;
+      previousIncludeArchived = currentState.includeArchived;
+    }
+
     final nextTeamId = event.teamId;
-    _includeArchived = event.includeArchived;
-    _setCurrentFilters(
-      groupId: event.actor.groupId,
-      teamId: nextTeamId,
-      query: query,
-    );
+    final nextIncludeArchived = event.includeArchived;
 
     if (query.isNotEmpty) {
       await _cancelStudentsSubscription();
       emit(
         StudentDataLoading(
-          previousStudents: _resolveVisibleStudents(previousQuery),
-          isRefresh: _allStudents.isNotEmpty,
-          includeArchived: event.includeArchived,
+          previousStudents: _resolveVisibleStudents(
+            allStudents: allStudents,
+            query: previousQuery,
+          ),
+          previousAllStudents: allStudents,
+          isRefresh: allStudents.isNotEmpty,
+          isSearch: true,
+          includeArchived: nextIncludeArchived,
+          currentFilterGroupId: event.actor.groupId,
+          currentFilterTeamId: nextTeamId,
+          currentQuery: query,
         ),
       );
       try {
+        // Determine scope for search
+        String? searchGroupId;
+        String? searchClassId;
+
+        if (event.actor.role == UserRole.servant) {
+          if (nextTeamId != null && nextTeamId.isNotEmpty) {
+            searchClassId = nextTeamId;
+          } else {
+            searchGroupId = event.actor.groupId;
+          }
+        } else if (event.actor.role == UserRole.admin) {
+          searchClassId = nextTeamId;
+        }
+
         final students = await _studentRepository.searchStudents(
           query,
           limit: 20,
+          groupId: searchGroupId,
+          classId: searchClassId,
         );
         final filtered = nextTeamId != null && nextTeamId.isNotEmpty
             ? students.where((s) => s.classId == nextTeamId).toList()
             : students;
-        _emitLoadedState(emit, students: filtered, query: query);
+
+        _emitLoadedState(
+          emit,
+          students: filtered,
+          allStudents: allStudents,
+          studentsByDocId: studentsByDocId,
+          groupId: event.actor.groupId,
+          teamId: nextTeamId,
+          query: query,
+          includeArchived: nextIncludeArchived,
+        );
       } catch (e) {
         _emitError(emit, 'تعذر البحث عن المخدومين', e);
       }
@@ -347,12 +445,19 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     }
 
     if (previousTeamId != nextTeamId ||
-        previousIncludeArchived != event.includeArchived) {
+        previousIncludeArchived != nextIncludeArchived) {
       emit(
         StudentDataLoading(
-          previousStudents: _resolveVisibleStudents(previousQuery),
-          isRefresh: _allStudents.isNotEmpty,
-          includeArchived: event.includeArchived,
+          previousStudents: _resolveVisibleStudents(
+            allStudents: allStudents,
+            query: previousQuery,
+          ),
+          previousAllStudents: allStudents,
+          isRefresh: allStudents.isNotEmpty,
+          includeArchived: nextIncludeArchived,
+          currentFilterGroupId: event.actor.groupId,
+          currentFilterTeamId: nextTeamId,
+          currentQuery: query,
         ),
       );
       if (event.actor.role == UserRole.admin &&
@@ -361,16 +466,27 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
         try {
           final students = await _studentRepository.getAllStudents(
             limit: 50,
-            includeArchived: event.includeArchived,
+            includeArchived: nextIncludeArchived,
           );
-          _allStudents = students
+          final nextAllStudents = students
               .where((student) => student.role == UserRole.student)
               .toList(growable: false);
-          _studentsByDocId = {for (final s in _allStudents) s.docID: s};
+          final nextStudentsByDocId = {
+            for (final s in nextAllStudents) s.docID: s,
+          };
+
           _emitLoadedState(
             emit,
-            students: _resolveVisibleStudents(query),
+            students: _resolveVisibleStudents(
+              allStudents: nextAllStudents,
+              query: query,
+            ),
+            allStudents: nextAllStudents,
+            studentsByDocId: nextStudentsByDocId,
+            groupId: event.actor.groupId,
+            teamId: nextTeamId,
             query: query,
+            includeArchived: nextIncludeArchived,
           );
         } catch (e) {
           _emitError(emit, 'تعذر تحميل بيانات المخدومين', e);
@@ -379,50 +495,46 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
         await _subscribeToStudents(
           actor: event.actor,
           teamId: nextTeamId,
-          includeArchived: event.includeArchived,
+          includeArchived: nextIncludeArchived,
         );
       }
       return;
     }
 
-    final students = _resolveVisibleStudents(query);
-    _emitLoadedState(emit, students: students, query: query);
+    final visibleStudents = _resolveVisibleStudents(
+      allStudents: allStudents,
+      query: query,
+    );
+    _emitLoadedState(
+      emit,
+      students: visibleStudents,
+      allStudents: allStudents,
+      studentsByDocId: studentsByDocId,
+      groupId: event.actor.groupId,
+      teamId: nextTeamId,
+      query: query,
+      includeArchived: nextIncludeArchived,
+    );
   }
 
   Future<void> _onCreateStudent(
     StudentCreated event,
     Emitter<StudentDataState> emit,
   ) async {
-    AuthUser? createdAuthUser;
     try {
       if (!_canMutateStudent(event.actor, event.student)) {
         _emitNotAllowed(emit);
         return;
       }
 
-      createdAuthUser = await _createLinkedAuthUser(event);
-      final studentToCreate = createdAuthUser == null
-          ? event.student
-          : event.student.copyWith(
-              uid: createdAuthUser.uid,
-              docID: createdAuthUser.uid,
-            );
+      await _provisionUseCase(
+        student: event.student,
+        email: event.email,
+        password: event.password,
+      );
 
-      await _studentRepository.createStudent(studentToCreate);
       _emitSuccessWithData(emit, 'تم إنشاء المخدوم بنجاح');
     } catch (e) {
-      if (createdAuthUser != null) {
-        try {
-          await _rollbackLinkedAuthUser(event, createdAuthUser);
-        } catch (rollbackError) {
-          _emitError(
-            emit,
-            'تعذر إنشاء المخدوم، كما فشلت إعادة التراجع عن الحساب المرتبط',
-            rollbackError,
-          );
-          return;
-        }
-      }
       _emitError(emit, 'تعذر إنشاء المخدوم', e);
     }
   }
@@ -494,44 +606,13 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
         _emitNotAllowed(emit);
         return;
       }
-      // 1. Archive student doc first (local)
-      await _studentRepository.archiveStudent(
-        event.docId,
+
+      await _provisionUseCase.archive(
+        docId: event.docId,
         performedByUid: event.actor.uid,
+        linkedUid: existing.uid,
       );
 
-      // 2. Archive Auth user (remote)
-      if (existing.uid.trim().isNotEmpty) {
-        try {
-          await _adminUserProvisioningService.archiveUser(
-            uid: existing.uid.trim(),
-          );
-        } catch (authError) {
-          // If Auth archive fails, attempt to rollback Firestore archive
-          try {
-            await _studentRepository.restoreStudent(
-              event.docId,
-              performedByUid: event.actor.uid,
-            );
-          } catch (rollbackError) {
-            // CRITICAL: Both primary action and rollback failed
-            if (kDebugMode) {
-              debugPrint(
-                'CRITICAL [StudentDataBloc]: FAILED to archive Auth user '
-                'AND FAILED to rollback Firestore archive. '
-                'UID: ${existing.uid}, '
-                'StudentDocId: ${event.docId}. '
-                'Primary Error: $authError, '
-                'Rollback Error: $rollbackError',
-              );
-            }
-            throw GenericAuthException(
-              'خطأ فادح: النظام في حالة غير مستقرة. تعذر أرشفة الحساب وتعذر التراجع عن العملية (UID: ${existing.uid}).',
-            );
-          }
-          rethrow; // Rethrow the original authError if rollback succeeded
-        }
-      }
       _emitSuccessWithData(
         emit,
         'تمت أرشفة المخدوم بنجاح',
@@ -560,44 +641,12 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
         return;
       }
 
-      // 1. Restore student doc first (local)
-      await _studentRepository.restoreStudent(
-        event.docId,
+      await _provisionUseCase.restore(
+        docId: event.docId,
         performedByUid: event.actor.uid,
+        linkedUid: existing.uid,
       );
 
-      // 2. Restore Auth user (remote)
-      if (existing.uid.trim().isNotEmpty) {
-        try {
-          await _adminUserProvisioningService.restoreUser(
-            uid: existing.uid.trim(),
-          );
-        } catch (authError) {
-          // If Auth restore fails, attempt to rollback Firestore restore
-          try {
-            await _studentRepository.archiveStudent(
-              event.docId,
-              performedByUid: event.actor.uid,
-            );
-          } catch (rollbackError) {
-            // CRITICAL: Both primary action and rollback failed
-            if (kDebugMode) {
-              debugPrint(
-                'CRITICAL [StudentDataBloc]: FAILED to restore Auth user '
-                'AND FAILED to rollback Firestore restore. '
-                'UID: ${existing.uid}, '
-                'StudentDocId: ${event.docId}. '
-                'Primary Error: $authError, '
-                'Rollback Error: $rollbackError',
-              );
-            }
-            throw GenericAuthException(
-              'خطأ فادح: النظام في حالة غير مستقرة. تعذر استعادة الحساب وتعذر التراجع عن العملية (UID: ${existing.uid}).',
-            );
-          }
-          rethrow; // Rethrow the original authError if rollback succeeded
-        }
-      }
       _emitSuccessWithData(
         emit,
         'تمت استعادة المخدوم بنجاح',
@@ -612,22 +661,44 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     StudentsRefreshRequested event,
     Emitter<StudentDataState> emit,
   ) async {
+    final currentState = state;
+    List<StudentModel> previousStudents = const [];
+    bool isRefresh = false;
+    String? teamId;
+    String? query;
+    String? groupId;
+
+    if (currentState is StudentDataLoaded) {
+      previousStudents = _resolveVisibleStudents(
+        allStudents: currentState.allStudents,
+        query: currentState.currentQuery,
+      );
+      isRefresh = currentState.allStudents.isNotEmpty;
+      teamId = currentState.currentFilterTeamId;
+      query = currentState.currentQuery;
+      groupId = currentState.currentFilterGroupId;
+    } else if (currentState is StudentDataLoading) {
+      previousStudents = currentState.previousStudents;
+      isRefresh = currentState.isRefresh;
+      teamId = currentState.currentFilterTeamId;
+      query = currentState.currentQuery;
+      groupId = currentState.currentFilterGroupId;
+    }
+
     emit(
       StudentDataLoading(
-        previousStudents: _resolveVisibleStudents(_lastQuery),
-        isRefresh: _allStudents.isNotEmpty,
+        previousStudents: previousStudents,
+        isRefresh: isRefresh,
         includeArchived: event.includeArchived,
+        currentFilterGroupId: groupId ?? event.actor.groupId,
+        currentFilterTeamId: teamId,
+        currentQuery: query,
       ),
     );
-    _setCurrentFilters(
-      groupId: event.actor.groupId,
-      teamId: _lastFilterTeamId,
-      query: _lastQuery,
-    );
-    _includeArchived = event.includeArchived;
+
     await _subscribeToStudents(
       actor: event.actor,
-      teamId: _lastFilterTeamId,
+      teamId: teamId,
       includeArchived: event.includeArchived,
     );
   }
@@ -637,9 +708,6 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     Emitter<StudentDataState> emit,
   ) async {
     await _cancelStudentsSubscription();
-    _allStudents = const [];
-    _setCurrentFilters();
-    _includeArchived = false;
     emit(const StudentDataInitial());
     _completePendingRefresh();
   }

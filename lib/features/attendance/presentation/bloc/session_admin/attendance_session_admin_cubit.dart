@@ -1,8 +1,8 @@
+import 'dart:developer' as developer;
 import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
 import 'package:church_management_system/features/attendance/domain/failures/attendance_failures.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/session_admin/attendance_session_admin_state.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class AttendanceSessionAdminCubit extends Cubit<AttendanceSessionAdminState> {
@@ -55,13 +55,76 @@ class AttendanceSessionAdminCubit extends Cubit<AttendanceSessionAdminState> {
         ),
       );
     } catch (error, stackTrace) {
-      if (kDebugMode) {
-        debugPrint(
-          'AttendanceSessionAdminCubit: createSession failed '
-          '(${error.runtimeType})',
+      developer.log(
+        'createSession failed',
+        error: error,
+        stackTrace: stackTrace,
+        name: 'AttendanceSessionAdminCubit',
+      );
+      final failure = mapExceptionToAttendanceFailure(error);
+      emit(AttendanceSessionAdminError(failure.message));
+    }
+  }
+
+  Future<void> createSessionsBulk({
+    required AuthUser actor,
+    required Map<String, String> teamIdsAndNames,
+    required DateTime startsAt,
+    required int durationMinutes,
+    String? title,
+  }) async {
+    if (teamIdsAndNames.isEmpty) {
+      emit(const AttendanceSessionAdminError('لا توجد فرق مختارة.'));
+      return;
+    }
+    if (durationMinutes <= 0 || durationMinutes > 480) {
+      emit(
+        const AttendanceSessionAdminError(
+          'مدة الجلسة يجب أن تكون بين دقيقة واحدة و 480 دقيقة.',
+        ),
+      );
+      return;
+    }
+
+    emit(const AttendanceSessionAdminLoading());
+    try {
+      final result = await _repository.createSessionsBulk(
+        teamIdsAndNames: teamIdsAndNames,
+        startsAt: startsAt,
+        durationMinutes: durationMinutes,
+        createdBy: actor,
+        title: title,
+      );
+
+      if (result.isCompleteSuccess) {
+        emit(
+          AttendanceSessionAdminBulkSuccess(
+            message: 'تم إنشاء جلسات الحضور لجميع الفرق بنجاح.',
+            result: result,
+          ),
         );
-        debugPrintStack(stackTrace: stackTrace);
+      } else if (result.isCompleteFailure) {
+        emit(
+          const AttendanceSessionAdminError(
+            'فشلت عملية إنشاء جلسات الحضور لجميع الفرق.',
+          ),
+        );
+      } else {
+        emit(
+          AttendanceSessionAdminBulkSuccess(
+            message:
+                'تم إنشاء بعض الجلسات بنجاح، وفشل البعض الآخر (${result.failedItems.length} فشل).',
+            result: result,
+          ),
+        );
       }
+    } catch (error, stackTrace) {
+      developer.log(
+        'createSessionsBulk failed',
+        error: error,
+        stackTrace: stackTrace,
+        name: 'AttendanceSessionAdminCubit',
+      );
       final failure = mapExceptionToAttendanceFailure(error);
       emit(AttendanceSessionAdminError(failure.message));
     }
@@ -99,13 +162,12 @@ class AttendanceSessionAdminCubit extends Cubit<AttendanceSessionAdminState> {
         ),
       );
     } catch (error, stackTrace) {
-      if (kDebugMode) {
-        debugPrint(
-          'AttendanceSessionAdminCubit: closeSession failed '
-          '(${error.runtimeType})',
-        );
-        debugPrintStack(stackTrace: stackTrace);
-      }
+      developer.log(
+        'closeSession failed',
+        error: error,
+        stackTrace: stackTrace,
+        name: 'AttendanceSessionAdminCubit',
+      );
       final failure = mapExceptionToAttendanceFailure(error);
       emit(AttendanceSessionAdminError(failure.message));
     }

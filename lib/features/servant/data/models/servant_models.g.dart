@@ -33,6 +33,9 @@ _$ServantModelImpl _$$ServantModelImplFromJson(
   assignedTeamIds: (json['assignedTeamIds'] as List<dynamic>?)
       ?.map((e) => e as String)
       .toList(),
+  groupAttendanceSummary:
+      json['groupAttendanceSummary'] as Map<String, dynamic>?,
+  aiRecommendations: json['aiRecommendations'] as Map<String, dynamic>?,
 );
 
 Map<String, dynamic> _$$ServantModelImplToJson(
@@ -58,4 +61,6 @@ Map<String, dynamic> _$$ServantModelImplToJson(
   'restoredByUserId': instance.restoredByUserId,
   'assignedTeamId': instance.assignedTeamId,
   'assignedTeamIds': instance.assignedTeamIds,
+  'groupAttendanceSummary': instance.groupAttendanceSummary,
+  'aiRecommendations': instance.aiRecommendations,
 };

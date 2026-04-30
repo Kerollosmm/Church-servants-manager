@@ -1,22 +1,24 @@
 import 'dart:async';
-import 'package:church_management_system/core/constants/enums.dart';
+import 'dart:developer' as developer;
+
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
-import 'package:church_management_system/features/auth/data/services/auth_service.dart';
 import 'package:church_management_system/features/auth/domain/failures/auth_failures.dart';
+import 'package:church_management_system/features/auth/domain/repos/auth_repository.dart';
+import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 part 'auth_event.dart';
 part 'auth_state.dart';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
-  final AuthService _authService;
+  final AuthRepository _authService;
   static const _degradedPermissionsMessage =
       'Unable to refresh account data. Showing last synced permissions.';
   static const _archivedMessage =
       'تم إيقاف هذا الحساب. تواصل مع الإدارة لاستعادته.';
   late final StreamSubscription<AuthUser?> _authStateSubscription;
 
-  AuthBloc({required AuthService authService})
+  AuthBloc({required AuthRepository authService})
     : _authService = authService,
       super(const AuthInitial()) {
     on<AuthEventCheckStatus>(_onCheckStatus);
@@ -30,12 +32,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<_AuthEventSessionChanged>(_onSessionChanged);
     on<_AuthEventSessionError>(_onSessionError);
 
-    _authStateSubscription = _authService.authStateChanges
-        .skip(1)
-        .listen(
-          (user) => add(_AuthEventSessionChanged(user)),
-          onError: (error, stackTrace) => add(const _AuthEventSessionError()),
-        );
+    _authStateSubscription = _authService.authStateChanges.listen((user) {
+      // Only react to session changes after initial status check completes.
+      // AuthEventCheckStatus handles the cold-start case; the stream
+      // handles subsequent tab-switches, token refreshes, and remote sign-outs.
+      if (state is! AuthLoading && state is! AuthInitial) {
+        add(_AuthEventSessionChanged(user));
+      }
+    }, onError: (error, stackTrace) => add(const _AuthEventSessionError()));
   }
 
   Future<void> _emitResolvedState(
@@ -84,7 +88,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       }
     } on AuthFailure catch (e) {
       emit(AuthError(e.message));
-    } catch (_) {
+    } catch (e, stackTrace) {
+      developer.log(
+        'AuthBloc: Unexpected error',
+        error: e,
+        stackTrace: stackTrace,
+        name: 'AuthBloc',
+      );
       emit(const AuthError('Something went wrong. Please try again.'));
     }
   }
@@ -95,10 +105,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(const AuthLoading());
     try {
+      // Give the auth stream 5 seconds before falling back to cached user
       final initialUser =
           _authService.currentUser ??
           await _authService.authStateChanges.first.timeout(
-            const Duration(seconds: 2),
+            const Duration(seconds: 5),
             onTimeout: () => null,
           );
 
@@ -145,7 +156,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         email: event.email,
         password: event.password,
         name: event.name,
-        role: event.role,
         grade: event.grade,
       );
 
@@ -158,10 +168,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthEventSignOut event,
     Emitter<AuthState> emit,
   ) async {
-    await _runAuthAction(emit, () async {
+    emit(const AuthSigningOut()); // explicit transition
+    try {
       await _authService.signOut();
       emit(const AuthUnauthenticated());
-    }, emitLoading: true);
+    } on AuthFailure catch (e) {
+      emit(AuthError(e.message));
+    } catch (_) {
+      emit(const AuthError('Sign out failed. Please try again.'));
+    }
   }
 
   Future<void> _onSendVerification(
@@ -203,6 +218,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     _AuthEventSessionChanged event,
     Emitter<AuthState> emit,
   ) async {
+    // Don't process session changes while actively signing out
+    if (state is AuthSigningOut) return;
     await _emitResolvedState(emit, event.user);
   }
 

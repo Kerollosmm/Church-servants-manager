@@ -2,13 +2,13 @@ import 'dart:async';
 
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
-import 'package:church_management_system/features/auth/data/services/auth_service.dart';
+import 'package:church_management_system/features/auth/data/repos/firebase_auth_repository.dart';
 import 'package:church_management_system/features/auth/domain/failures/auth_failures.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
-class MockAuthService extends Mock implements AuthService {}
+class MockAuthService extends Mock implements FirebaseAuthRepository {}
 
 void main() {
   late MockAuthService authService;
@@ -266,9 +266,20 @@ void main() {
       () => authService.authStateChanges,
     ).thenAnswer((_) => controller.stream);
     when(() => authService.currentUser).thenReturn(null);
+    when(
+      () => authService.getCurrentAppUser(
+        forceRefresh: any(named: 'forceRefresh'),
+      ),
+    ).thenAnswer((_) async => null);
 
     final bloc = AuthBloc(authService: authService);
+
+    // Bootstrap the bloc
+    bloc.add(const AuthEventCheckStatus());
+    await Future<void>.delayed(Duration.zero);
     controller.add(null);
+    await Future<void>.delayed(Duration.zero);
+
     final expectation = expectLater(
       bloc.stream,
       emitsInOrder([

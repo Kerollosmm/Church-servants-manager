@@ -12,8 +12,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class TeamRepository implements ITeamRepository {
   final FirebaseFirestore _firestore;
 
-  TeamRepository({FirebaseFirestore? firestore})
-    : _firestore = firestore ?? FirebaseFirestore.instance;
+  TeamRepository({required FirebaseFirestore firestore})
+    : _firestore = firestore;
 
   CollectionReference<Map<String, dynamic>> get _classesCollection =>
       _firestore.collection(FirestoreCollections.classes);
@@ -125,7 +125,9 @@ class TeamRepository implements ITeamRepository {
           teams.sort((a, b) => a.name.compareTo(b.name));
           return teams;
         }
-      } catch (_) {}
+      } catch (e) {
+        // Cache miss or other cache error is expected, fallback to server
+      }
 
       final snapshot = await _classesCollection
           .where('groupId', isEqualTo: groupId)
@@ -165,27 +167,8 @@ class TeamRepository implements ITeamRepository {
       final baseQuery = includeArchived
           ? _classesCollection
           : _classesCollection.where('isArchived', isEqualTo: false);
-      try {
-        final cacheSnapshot = await baseQuery.get(
-          const GetOptions(source: Source.cache),
-        );
-        if (cacheSnapshot.docs.isNotEmpty) {
-          final teams = _teamsFromDocs(
-            cacheSnapshot.docs,
-            includeArchived: includeArchived,
-          );
-          teams.sort((a, b) {
-            final groupCompare = a.groupId.compareTo(b.groupId);
-            if (groupCompare != 0) return groupCompare;
-            return a.name.compareTo(b.name);
-          });
-          return teams;
-        }
-      } catch (_) {}
 
-      final snapshot = await baseQuery.get(
-        const GetOptions(source: Source.server),
-      );
+      final snapshot = await baseQuery.get();
 
       final teams = _teamsFromDocs(
         snapshot.docs,
@@ -224,10 +207,20 @@ class TeamRepository implements ITeamRepository {
   }
 
   @override
-  Stream<List<TeamModel>> watchAllTeams({bool includeArchived = false}) {
-    final query = includeArchived
-        ? _classesCollection
-        : _classesCollection.where('isArchived', isEqualTo: false);
+  Stream<List<TeamModel>> watchAllTeams({
+    bool includeArchived = false,
+    String? groupId,
+  }) {
+    Query<Map<String, dynamic>> query = _classesCollection;
+
+    if (!includeArchived) {
+      query = query.where('isArchived', isEqualTo: false);
+    }
+
+    if (groupId != null && groupId.isNotEmpty) {
+      query = query.where('groupId', isEqualTo: groupId);
+    }
+
     return query.orderBy('groupId').orderBy('name').snapshots().map((snapshot) {
       return _teamsFromDocs(snapshot.docs, includeArchived: includeArchived);
     });
@@ -256,7 +249,8 @@ class TeamRepository implements ITeamRepository {
   @override
   Future<String> createTeam(TeamModel team) async {
     try {
-      final registryId = '${team.groupId}_${team.name}';
+      final registryId =
+          '${team.groupId.toLowerCase().trim()}_${team.name.toLowerCase().trim()}';
       final registryRef = _registryCollection.doc(registryId);
 
       final docRef = await _firestore.runTransaction((transaction) async {
@@ -313,9 +307,10 @@ class TeamRepository implements ITeamRepository {
         // If name or group changed, handle uniqueness registry
         if (freshExisting.name != team.name ||
             freshExisting.groupId != team.groupId) {
-          final newRegistryId = '${team.groupId}_${team.name}';
+          final newRegistryId =
+              '${team.groupId.toLowerCase().trim()}_${team.name.toLowerCase().trim()}';
           final oldRegistryId =
-              '${freshExisting.groupId}_${freshExisting.name}';
+              '${freshExisting.groupId.toLowerCase().trim()}_${freshExisting.name.toLowerCase().trim()}';
 
           final newRegDoc = await transaction.get(
             _registryCollection.doc(newRegistryId),
@@ -329,7 +324,9 @@ class TeamRepository implements ITeamRepository {
           }
 
           // Release old registry and claim new one
-          transaction.delete(_registryCollection.doc(oldRegistryId));
+          if (oldRegistryId != newRegistryId) {
+            transaction.delete(_registryCollection.doc(oldRegistryId));
+          }
           transaction.set(_registryCollection.doc(newRegistryId), {
             'teamId': team.id,
             'groupId': team.groupId,

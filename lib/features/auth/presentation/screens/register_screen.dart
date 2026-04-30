@@ -1,4 +1,3 @@
-import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
 import 'package:church_management_system/core/utils/validators.dart';
 import 'package:church_management_system/core/widgets/dialogs/error_dialog.dart';
@@ -43,7 +42,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text,
         name: _nameController.text.trim(),
-        role: UserRole.student,
       ),
     );
   }

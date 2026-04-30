@@ -84,11 +84,10 @@ class AttendanceMark with _$AttendanceMark {
   }
 
   Map<String, dynamic> toMap() {
-    final map = toJson();
-    map.remove('studentId');
-    // Remove serverUpdatedAt from client writes — Firestore sets it.
-    map.remove('serverUpdatedAt');
-    return map;
+    return toJson()
+      ..remove('studentId')
+      // Remove serverUpdatedAt from client writes — Firestore sets it.
+      ..remove('serverUpdatedAt');
   }
 }
 
@@ -101,6 +100,8 @@ class AttendanceMarkStatusJsonConverter
     switch (json?.trim().toLowerCase()) {
       case 'late':
         return AttendanceMarkStatus.late;
+      case 'absent':
+        return AttendanceMarkStatus.absent;
       case 'present':
       default:
         return AttendanceMarkStatus.present;

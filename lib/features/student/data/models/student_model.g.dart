@@ -33,6 +33,8 @@ _$StudentModelImpl _$$StudentModelImplFromJson(
   restoredAt: const FirestoreTimestampConverter().fromJson(json['restoredAt']),
   restoredByUserId: json['restoredByUserId'] as String?,
   classId: json['classId'] as String?,
+  attendanceSummary: json['attendanceSummary'] as Map<String, dynamic>?,
+  aiRecommendations: json['aiRecommendations'] as Map<String, dynamic>?,
 );
 
 Map<String, dynamic> _$$StudentModelImplToJson(
@@ -62,6 +64,8 @@ Map<String, dynamic> _$$StudentModelImplToJson(
   'restoredAt': const FirestoreTimestampConverter().toJson(instance.restoredAt),
   'restoredByUserId': instance.restoredByUserId,
   'classId': instance.classId,
+  'attendanceSummary': instance.attendanceSummary,
+  'aiRecommendations': instance.aiRecommendations,
 };
 
 const _$UserRoleEnumMap = {

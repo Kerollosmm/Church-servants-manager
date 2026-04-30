@@ -1,3 +1,4 @@
+import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/routing/route_args.dart';
 import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
@@ -27,8 +28,8 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
     super.initState();
     final team = widget.args.team;
     _cubit = TeamMembersCubit(
-      studentRepository: context.read<StudentDataRepository>(),
-      adminTeamService: context.read<AdminTeamService>(),
+      studentRepository: getIt<StudentDataRepository>(),
+      adminTeamService: getIt<AdminTeamService>(),
     )..load(groupId: team.groupId, teamId: team.id);
   }
 
