@@ -32,6 +32,10 @@ class AuthUser with _$AuthUser {
   }) = _AuthUser;
 
   /// Create AuthUser from Firebase User (basic info only)
+  /// WARNING: This method assigns a temporary role of UserRole.student.
+  /// The role should be properly determined as soon as possible, preferably
+  /// by using AuthUser.fromFirebaseToken() with custom claims or by updating
+  /// the user object through the repository once Firestore data is available.
   factory AuthUser.fromFirebase(User user) {
     final email = user.email;
     if (email == null || email.isEmpty) {
@@ -41,6 +45,9 @@ class AuthUser with _$AuthUser {
       uid: user.uid,
       name: user.displayName ?? email.split('@').first,
       email: email,
+      // TEMPORARY DEFAULT: Role must be properly determined via custom claims
+      // or Firestore data as soon as available. Using student as safe default
+      // to avoid over-privileging users, but this should be updated immediately.
       role: UserRole.student,
       isEmailVerified: user.emailVerified,
     );
@@ -54,18 +61,22 @@ class AuthUser with _$AuthUser {
     }
 
     // Parse role from claims
-    final roleStr = claims['role'] as String? ?? 'student';
+    final roleClaim = claims['role'];
+    final roleStr = roleClaim is String ? roleClaim : 'student';
     final role = UserRole.values.firstWhere(
       (e) => e.name == roleStr,
       orElse: () => UserRole.student,
     );
 
     // Parse teams from claims
-    final teamsRaw = claims['teams'];
+    final teamsRaw = claims['assignedTeamIds'] ?? claims['teams'];
     final List<String> assignedTeamIds = [];
     if (teamsRaw is List) {
       assignedTeamIds.addAll(teamsRaw.map((e) => e.toString()));
     }
+
+    // Parse isArchived from claims
+    final isArchived = claims['isArchived'] as bool? ?? false;
 
     return AuthUser(
       uid: user.uid,
@@ -74,6 +85,7 @@ class AuthUser with _$AuthUser {
       role: role,
       isEmailVerified: user.emailVerified,
       assignedTeamIds: assignedTeamIds,
+      isArchived: isArchived,
     );
   }
 

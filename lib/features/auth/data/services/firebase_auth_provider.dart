@@ -74,7 +74,22 @@ class FirebaseAuthProvider implements AuthProvider {
               // Document doesn't exist yet, emit basic user info
               return AuthUser.fromFirebase(user);
             }
-          });
+          })
+          .transform(
+            StreamTransformer.fromHandlers(
+              handleError: (error, stackTrace, sink) {
+                developer.log(
+                  'Error in Firestore snapshots stream',
+                  error: error,
+                  stackTrace: stackTrace,
+                  name: 'FirebaseAuthProvider',
+                );
+                // SIGNAL ERROR: Don't emit a default user with student role.
+                // This allows the Bloc/UI to handle the error properly (e.g., AuthError or AuthDegraded).
+                sink.addError(error, stackTrace);
+              },
+            ),
+          );
     });
   }
 
@@ -271,7 +286,8 @@ class FirebaseAuthProvider implements AuthProvider {
     try {
       await _auth.sendPasswordResetEmail(email: toEmail);
     } on FirebaseAuthException catch (e) {
-      if (e.code == 'user-not-found' || e.code == 'firebase_auth/user-not-found') {
+      if (e.code == 'user-not-found' ||
+          e.code == 'firebase_auth/user-not-found') {
         // Swallow user-not-found to prevent account enumeration
         return;
       }

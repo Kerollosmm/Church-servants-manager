@@ -42,7 +42,10 @@ class AttendanceInsightCard extends StatelessWidget {
                 ),
               ),
               if (onRetry != null)
-                TextButton(onPressed: onRetry, child: const Text('Retry')),
+                TextButton(
+                  onPressed: onRetry,
+                  child: const Text('إعادة المحاولة'),
+                ),
             ],
           ),
         ),
@@ -69,7 +72,7 @@ class AttendanceInsightCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  'AI Attendance Insight',
+                  'رؤى الحضور الذكية',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -83,7 +86,7 @@ class AttendanceInsightCard extends StatelessWidget {
               const Divider(),
               const SizedBox(height: 8),
               Text(
-                'Suggested Actions',
+                'إجراءات مقترحة',
                 style: Theme.of(context).textTheme.labelLarge?.copyWith(
                   color: Theme.of(context).colorScheme.secondary,
                   fontWeight: FontWeight.bold,

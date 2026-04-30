@@ -1,4 +1,3 @@
-import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/data/services/firebase_auth_provider.dart';
 import 'package:church_management_system/features/auth/data/utils/auth_error_mapper.dart';
@@ -18,30 +17,38 @@ class FirebaseAuthRepository implements AuthRepository {
        _freshnessPolicy = freshnessPolicy;
 
   /// Get the current Firebase user (basic info)
+  @override
   AuthUser? get currentUser => _provider.currentUser;
 
   /// Get stream of auth state changes
+  @override
   Stream<AuthUser?> get authStateChanges => _provider.authStateChanges;
 
   @override
   Future<AuthUser?> getCurrentUser() async => getCurrentAppUser();
 
   /// Get current user with full app data from Firestore
+  @override
   Future<AuthUser?> getCurrentAppUser({bool forceRefresh = false}) async {
-    final firebaseUser = _provider.currentUser;
-    if (firebaseUser == null) {
-      _lastKnownAppUser = null;
-      return null;
-    }
+    try {
+      final firebaseUser = _provider.currentUser;
+      if (firebaseUser == null) {
+        _lastKnownAppUser = null;
+        return null;
+      }
 
-    final appUser = await _provider.getUserData(
-      firebaseUser.uid,
-      forceRefresh: forceRefresh,
-    );
-    _lastKnownAppUser = appUser;
-    return appUser;
+      final appUser = await _provider.getUserData(
+        firebaseUser.uid,
+        forceRefresh: forceRefresh,
+      );
+      _lastKnownAppUser = appUser;
+      return appUser;
+    } catch (e) {
+      throw AuthErrorMapper.mapException(e);
+    }
   }
 
+  @override
   AuthUser? get lastKnownAppUser => _lastKnownAppUser;
 
   @override
@@ -61,7 +68,6 @@ class FirebaseAuthRepository implements AuthRepository {
     required String email,
     required String password,
     required String name,
-    UserRole role = UserRole.student,
     String? grade,
   }) async {
     try {
@@ -69,7 +75,6 @@ class FirebaseAuthRepository implements AuthRepository {
         email: email,
         password: password,
         name: name,
-        role: role,
         grade: grade,
       );
     } catch (e) {
@@ -89,6 +94,7 @@ class FirebaseAuthRepository implements AuthRepository {
   }
 
   /// Send email verification
+  @override
   Future<void> sendEmailVerification() async {
     try {
       await _provider.sendEmailVerification();
@@ -103,25 +109,53 @@ class FirebaseAuthRepository implements AuthRepository {
     try {
       await _provider.sendPasswordReset(toEmail: email);
     } catch (e) {
+      if (e is UserNotFoundAuthException) {
+        // Swallow exception to prevent account enumeration
+        return;
+      }
       throw AuthErrorMapper.mapException(e);
     }
   }
 
   /// Check if email is verified
-  Future<bool> isEmailVerified() => _provider.isEmailVerified();
+  Future<bool> isEmailVerified() async {
+    try {
+      return await _provider.isEmailVerified();
+    } catch (e) {
+      throw AuthErrorMapper.mapException(e);
+    }
+  }
 
   /// Reload user data
-  Future<void> reloadUser() => _provider.reloadUser();
+  @override
+  Future<void> reloadUser() async {
+    try {
+      await _provider.reloadUser();
+    } catch (e) {
+      throw AuthErrorMapper.mapException(e);
+    }
+  }
 
   /// Reload Firebase auth user and fetch a fresh app profile snapshot.
+  @override
   Future<AuthUser?> refreshCurrentAppUser() async {
-    await forceTokenRefresh();
-    await reloadUser();
-    return getCurrentAppUser(forceRefresh: true);
+    try {
+      await forceTokenRefresh();
+      await reloadUser();
+      return getCurrentAppUser(forceRefresh: true);
+    } catch (e) {
+      throw AuthErrorMapper.mapException(e);
+    }
   }
 
   /// Force a token refresh, e.g. when claims change
-  Future<void> forceTokenRefresh() => _provider.forceTokenRefresh();
+  Future<void> forceTokenRefresh() async {
+    try {
+      await _provider.forceTokenRefresh();
+    } catch (e) {
+      throw AuthErrorMapper.mapException(e);
+    }
+  }
 
   @override
   Future<void> updatePassword(String newPassword) async {

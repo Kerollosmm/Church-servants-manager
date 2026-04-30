@@ -96,6 +96,7 @@ class ProvisionServantWithAuthUseCase {
           error: rollbackError,
           name: 'ProvisionServantWithAuthUseCase',
         );
+        rethrow;
       }
       rethrow;
     }
@@ -127,6 +128,7 @@ class ProvisionServantWithAuthUseCase {
           error: rollbackError,
           name: 'ProvisionServantWithAuthUseCase',
         );
+        rethrow;
       }
       rethrow;
     }

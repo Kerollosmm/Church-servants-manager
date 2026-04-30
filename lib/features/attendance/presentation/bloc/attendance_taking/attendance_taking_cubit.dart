@@ -28,16 +28,34 @@ class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
 
   StreamSubscription<AttendanceTakingState>? _sessionSubscription;
 
+  bool _permissionGranted = false;
+  String? _cachedTeamId;
+  String? _cachedSessionId;
+
+  /// Whether the user permission for this session is already cached.
+  bool get isPermissionCached =>
+      _permissionGranted && _cachedTeamId != null && _cachedSessionId != null;
+
+  /// Whether there are local marks waiting to be submitted.
+  bool get hasPendingMarks {
+    final cs = state;
+    return cs is AttendanceTakingLoaded && cs.pendingLocalMarks.isNotEmpty;
+  }
+
   /// Number of students without any mark in the current roster.
   int get unmarkedCount {
     final currentState = state;
     if (currentState is! AttendanceTakingLoaded) return 0;
     return currentState.roster
-        .where((s) => !currentState.marksMap.containsKey(s.studentId))
+        .where((s) => !currentState.effectiveMarksMap.containsKey(s.studentId))
         .length;
   }
 
-  void initialize({required String teamId, required String sessionId}) {
+  void initialize({
+    required String teamId,
+    required String sessionId,
+    AuthUser? actor,
+  }) {
     emit(const AttendanceTakingLoading());
     _sessionSubscription?.cancel();
 
@@ -65,6 +83,29 @@ class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
             );
           },
         );
+
+    if (actor != null) {
+      unawaited(
+        _preloadPermission(actor: actor, teamId: teamId, sessionId: sessionId),
+      );
+    }
+  }
+
+  Future<void> _preloadPermission({
+    required AuthUser actor,
+    required String teamId,
+    required String sessionId,
+  }) async {
+    try {
+      _permissionGranted = await _repository.canUserManageAttendance(
+        user: actor,
+        teamId: teamId,
+      );
+      _cachedTeamId = teamId;
+      _cachedSessionId = sessionId;
+    } catch (_) {
+      _permissionGranted = false;
+    }
   }
 
   AttendanceTakingState _mapSnapshotToState(
@@ -81,10 +122,15 @@ class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
         ? currentState.mutationStatus
         : MutationStatus.idle;
 
+    final currentPending = currentState is AttendanceTakingLoaded
+        ? currentState.pendingLocalMarks
+        : const <String, AttendanceMarkStatus>{};
+
     return AttendanceTakingLoaded(
       session: snapshot.session,
       roster: snapshot.roster,
       marksMap: marksMap,
+      pendingLocalMarks: currentPending,
       mutationStatus: currentMutationStatus,
       isSessionOpen:
           status != SessionStatus.closed &&
@@ -101,7 +147,7 @@ class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
   ) {
     final currentState = state;
     if (currentState is! AttendanceTakingLoaded) return true;
-    return currentState.marksMap[studentId] == targetStatus;
+    return currentState.effectiveMarksMap[studentId] == targetStatus;
   }
 
   Future<void> markPresent({
@@ -112,15 +158,13 @@ class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
       return;
     }
 
-    await _runMutation(
-      action: () => _repository.markStudentPresent(
-        teamId: item.teamId,
-        sessionId: item.sessionId,
-        studentId: item.studentId,
-        studentNameSnapshot: item.studentName,
-        markedBy: actor,
-      ),
-    );
+    final cs = state;
+    if (cs is! AttendanceTakingLoaded) return;
+    if (!cs.isSessionOpen) {
+      emit(cs.copyWith(errorMessage: 'انتهى وقت تسجيل الحضور لهذه الجلسة.'));
+      return;
+    }
+    emit(cs.withPendingMark(item.studentId, AttendanceMarkStatus.present));
   }
 
   Future<void> markLate({
@@ -129,15 +173,13 @@ class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
   }) async {
     if (_shouldSkipMutation(item.studentId, AttendanceMarkStatus.late)) return;
 
-    await _runMutation(
-      action: () => _repository.markStudentLate(
-        teamId: item.teamId,
-        sessionId: item.sessionId,
-        studentId: item.studentId,
-        studentNameSnapshot: item.studentName,
-        markedBy: actor,
-      ),
-    );
+    final cs = state;
+    if (cs is! AttendanceTakingLoaded) return;
+    if (!cs.isSessionOpen) {
+      emit(cs.copyWith(errorMessage: 'انتهى وقت تسجيل الحضور لهذه الجلسة.'));
+      return;
+    }
+    emit(cs.withPendingMark(item.studentId, AttendanceMarkStatus.late));
   }
 
   Future<void> clearMark({
@@ -160,6 +202,33 @@ class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
     );
   }
 
+  Future<void> submitAllPendingMarks({required AuthUser actor}) async {
+    final cs = state;
+    if (cs is! AttendanceTakingLoaded) return;
+    if (cs.pendingLocalMarks.isEmpty) return;
+
+    final pendingSnapshot = Map<String, AttendanceMarkStatus>.from(
+      cs.pendingLocalMarks,
+    );
+
+    await _runMutation(
+      action: () => _repository.batchWriteMarks(
+        teamId: cs.session.teamId,
+        sessionId: cs.session.id,
+        marks: pendingSnapshot,
+        markedBy: actor,
+        cachedPermission:
+            _permissionGranted && _cachedTeamId == cs.session.teamId,
+      ),
+    );
+
+    // On success: clear all pending marks from state
+    final afterState = state;
+    if (afterState is AttendanceTakingLoaded) {
+      emit(afterState.copyWith(pendingLocalMarks: const {}));
+    }
+  }
+
   Future<void> markAllRemainingPresent({required AuthUser actor}) async {
     final currentState = state;
     if (currentState is! AttendanceTakingLoaded) return;
@@ -176,7 +245,6 @@ class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
   Future<void> _runMutation({required Future<void> Function() action}) async {
     final currentState = state;
     if (currentState is! AttendanceTakingLoaded) return;
-    if (currentState.mutationStatus == MutationStatus.inProgress) return;
 
     if (!currentState.isSessionOpen) {
       emit(
@@ -197,6 +265,7 @@ class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
     try {
       await action();
       if (isClosed) return;
+      if (state is! AttendanceTakingLoaded) return;
 
       final loadedState = state as AttendanceTakingLoaded;
       emit(loadedState.copyWith(mutationStatus: MutationStatus.success));
@@ -210,6 +279,7 @@ class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
         name: 'AttendanceTakingCubit',
       );
       if (isClosed) return;
+      if (state is! AttendanceTakingLoaded) return;
 
       final loadedState = state as AttendanceTakingLoaded;
       emit(
@@ -234,6 +304,9 @@ class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
 
   @override
   Future<void> close() async {
+    _permissionGranted = false;
+    _cachedTeamId = null;
+    _cachedSessionId = null;
     await _sessionSubscription?.cancel();
     return super.close();
   }

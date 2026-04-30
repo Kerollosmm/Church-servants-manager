@@ -5,6 +5,9 @@ service cloud.firestore {
     // ──────────────────────────────────────────────────────────────────
     // CANONICAL PERMISSION MATRIX ENFORCEMENT (Zero-Cost RBAC)
     // ──────────────────────────────────────────────────────────────────
+    // SPARK PLAN OPTIMIZATION: Using Custom Claims via request.auth.token
+    // to eliminate getUserData() document reads.
+    // ──────────────────────────────────────────────────────────────────
 
     // ─── Helper Functions ──────────────────────────────────────────
 
@@ -16,30 +19,17 @@ service cloud.firestore {
       return request.auth.uid;
     }
 
-    // Get user document from Firestore (Source of Truth)
-    function getUserData() {
-      return get(/databases/$(database)/documents/Users/$(callerUid())).data;
-    }
-
+    // Role-based checks using Custom Claims (Zero Cost)
     function isAdmin() {
-      let user = getUserData();
-      return isSignedIn() && 
-             user.get('isArchived', false) == false && 
-             user.get('role', 'none') == 'admin';
+      return isSignedIn() && request.auth.token.role == 'admin';
     }
 
     function isServant() {
-      let user = getUserData();
-      return isSignedIn() && 
-             user.get('isArchived', false) == false && 
-             user.get('role', 'none') == 'servant';
+      return isSignedIn() && (request.auth.token.role == 'servant' || request.auth.token.role == 'admin');
     }
 
     function isStudent() {
-      let user = getUserData();
-      return isSignedIn() && 
-             user.get('isArchived', false) == false && 
-             user.get('role', 'none') == 'student';
+      return isSignedIn() && request.auth.token.role == 'student';
     }
 
     // ─── Collection/Team Helpers ──────────────────────────────────
@@ -49,19 +39,19 @@ service cloud.firestore {
     }
 
     function servantCanManageTeam(classId) {
-      let user = getUserData();
+      // Use Custom Claims for assignment checks if available
       return isServant() && (
-        user.get('assignedTeamId', null) == classId || 
-        classId in user.get('assignedTeamIds', []) ||
-        (user.get('groupId', null) != null && getClassData(classId).get('groupId', null) == user.get('groupId', null))
+        request.auth.token.get('assignedTeamId', null) == classId || 
+        classId in request.auth.token.get('assignedTeamIds', []) ||
+        (request.auth.token.get('groupId', null) != null && getClassData(classId).get('groupId', null) == request.auth.token.get('groupId', null))
       );
     }
 
     // ─── Student Helpers ──────────────────────────────────────────
 
     function servantCanReadStudent(studentData) {
-      let user = getUserData();
-      let assignedTeams = user.get('assignedTeamIds', []) + (user.get('assignedTeamId', null) != null ? [user.get('assignedTeamId', null)] : []);
+      let token = request.auth.token;
+      let assignedTeams = token.get('assignedTeamIds', []) + (token.get('assignedTeamId', null) != null ? [token.get('assignedTeamId', null)] : []);
       return isServant() && studentData != null && (
         (
           assignedTeams.size() > 0 && 
@@ -69,11 +59,12 @@ service cloud.firestore {
           studentData.get('classId', null) in assignedTeams
         ) ||
         (
-          user.get('groupId', null) != null && 
-          studentData.get('group', null) == user.get('groupId', null)
+          token.get('groupId', null) != null && 
+          studentData.get('group', null) == token.get('groupId', null)
         )
       );
     }
+
 
     function servantCanManageStudent(studentData) {
       return isServant() && studentData != null && 
@@ -115,12 +106,29 @@ service cloud.firestore {
     }
 
     function isStudentInClass(classId) {
-      return isStudent() && getUserData().get('assignedTeamId', '') == classId;
+      let token = request.auth.token;
+      return isStudent() && (
+        classId in token.get('assignedTeamIds', []) || 
+        token.get('assignedTeamId', '') == classId
+      );
     }
 
     function isStudentInSessionRoster(classId, sessionId, studentId) {
       let session = get(/databases/$(database)/documents/Classes/$(classId)/attendance_sessions/$(sessionId)).data;
       return studentId in session.get('studentIdsSnapshot', []);
+    }
+
+    function noteIsUnchanged() {
+      // If the existing document has a note, the incoming write must keep it identical
+      return !('note' in resource.data) ||
+             ('note' in request.resource.data && request.resource.data.note == resource.data.note);
+    }
+
+    function markBelongsToCallerOrSystem(studentDocId) {
+      // Document ID format: studentId_servantId
+      // Allow if servantId part == callerUid OR == 'system' (for closeSession auto-marks)
+      let parts = studentDocId.split('_');
+      return parts.size() >= 2 && (parts[1] == callerUid() || parts[1] == 'system');
     }
 
     // ─── Users Collection ─────────────────────────────────────────
@@ -131,7 +139,18 @@ service cloud.firestore {
       );
 
       allow create: if isSignedIn() && (
-        isAdmin() || (callerUid() == userId && request.resource.data.role == 'student')
+        isAdmin() || 
+        (
+          callerUid() == userId && 
+          request.resource.data.keys().hasOnly(['uid', 'email', 'name', 'role', 'phone', 'avatarUrl', 'createdAt', 'updatedAt', 'isEmailVerified', 'restorePendingPasswordReset']) &&
+          (
+            request.resource.data.role == 'student' ||
+            (
+              exists(/databases/$(database)/documents/Invitations/$(request.auth.token.email.lower())) &&
+              request.resource.data.role == get(/databases/$(database)/documents/Invitations/$(request.auth.token.email.lower())).data.role
+            )
+          )
+        )
       );
 
       allow update: if isSignedIn() && (
@@ -139,6 +158,27 @@ service cloud.firestore {
       );
 
       allow delete: if isAdmin();
+    }
+
+    // ─── Invitations Collection ───────────────────────────────────
+    match /Invitations/{email} {
+      allow read: if isSignedIn() && (
+        isAdmin() || 
+        (email.lower() == request.auth.token.email.lower())
+      );
+      
+      allow update: if isSignedIn() && (
+        isAdmin() || 
+        (
+          email.lower() == request.auth.token.email.lower() &&
+          resource.data.status == 'pending' &&
+          request.resource.data.status == 'claimed' &&
+          request.resource.data.claimedByUid == callerUid() &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'claimedAt', 'claimedByUid'])
+        )
+      );
+
+      allow create, delete: if isAdmin();
     }
 
     // ─── Students Collection ──────────────────────────────────────
@@ -150,7 +190,15 @@ service cloud.firestore {
       );
 
       allow create: if isSignedIn() && (
-        isAdmin() || (isServant() && servantCanManageStudent(request.resource.data))
+        isAdmin() || 
+        (isServant() && servantCanManageStudent(request.resource.data)) ||
+        (
+          // Allow student self-bootstrap during onboarding
+          studentId == callerUid() &&
+          request.resource.data.uid == callerUid() &&
+          request.resource.data.role == 'student' &&
+          request.resource.data.keys().hasOnly(['uid', 'email', 'name', 'role', 'phone', 'birthDate', 'address', 'parentPhone', 'school', 'grade', 'gender', 'createdAt', 'updatedAt', 'isArchived'])
+        )
       );
 
       allow update: if isSignedIn() && (
@@ -158,7 +206,6 @@ service cloud.firestore {
           isServant() && 
           servantCanManageStudent(resource.data) && 
           !isPrivilegedFieldUpdate() &&
-          // Constrain servant updates to non-sensitive student fields
           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'name', 'phone', 'birthDate', 'address', 'parentPhone', 'avatarUrl', 'notes', 'grade'
           ])
@@ -189,11 +236,26 @@ service cloud.firestore {
         match /marks/{studentDocId} {
           allow read: if isSignedIn() && (isAdmin() || servantCanManageTeam(classId));
 
-          allow create, update: if isSignedIn() && (
+          allow create: if isSignedIn() && (
             isAdmin() || 
             (
               servantCanManageTeam(classId) && 
-              isStudentInSessionRoster(classId, sessionId, studentDocId) &&
+              markBelongsToCallerOrSystem(studentDocId) &&
+              isStudentInSessionRoster(classId, sessionId, studentDocId.split('_')[0]) &&
+              (
+                sessionAcceptsLiveMarks(get(/databases/$(database)/documents/Classes/$(classId)/attendance_sessions/$(sessionId)).data) ||
+                sessionAcceptsAdminCorrection(get(/databases/$(database)/documents/Classes/$(classId)/attendance_sessions/$(sessionId)).data)
+              )
+            )
+          );
+
+          allow update: if isSignedIn() && (
+            isAdmin() || 
+            (
+              servantCanManageTeam(classId) && 
+              markBelongsToCallerOrSystem(studentDocId) &&
+              isStudentInSessionRoster(classId, sessionId, studentDocId.split('_')[0]) &&
+              noteIsUnchanged() &&
               (
                 sessionAcceptsLiveMarks(get(/databases/$(database)/documents/Classes/$(classId)/attendance_sessions/$(sessionId)).data) ||
                 sessionAcceptsAdminCorrection(get(/databases/$(database)/documents/Classes/$(classId)/attendance_sessions/$(sessionId)).data)

@@ -28,7 +28,7 @@ class StudentProfileCubit extends Cubit<StudentProfileState> {
       if (profile == null) {
         emit(
           const StudentProfileMissingProfile(
-            'Your student profile has not been set up yet. Please contact an admin/teacher.',
+            'Your student profile has not been set up yet. Please complete your profile below.',
           ),
         );
         return;
@@ -43,6 +43,38 @@ class StudentProfileCubit extends Cubit<StudentProfileState> {
       );
       emit(
         const StudentProfileError('Unable to load profile. Please try again.'),
+      );
+    }
+  }
+
+  Future<void> setupProfile(StudentModel newStudent, AuthUser actor) async {
+    emit(const StudentProfileLoading());
+    try {
+      // SECURITY GUARD: Ensure only a student can create their own profile.
+      if (actor.role != UserRole.student) {
+        emit(
+          const StudentProfileError(
+            'فقط المخدومين يمكنهم إنشاء ملفات شخصية مخدومة.',
+          ),
+        );
+        return;
+      }
+
+      if (newStudent.uid != actor.uid) {
+        emit(const StudentProfileError('لا يمكن إنشاء ملف شخصي لمستخدم آخر.'));
+        return;
+      }
+
+      await _studentRepository.createStudent(newStudent);
+      await loadProfile(actor);
+    } catch (e) {
+      developer.log(
+        'Unable to setup profile',
+        error: e,
+        name: 'StudentProfileCubit',
+      );
+      emit(
+        const StudentProfileError('Unable to setup profile. Please try again.'),
       );
     }
   }

@@ -27,7 +27,9 @@ class EncouragementHeader extends StatelessWidget {
         gradient: LinearGradient(
           colors: [
             Theme.of(context).colorScheme.primaryContainer,
-            Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.5),
+            Theme.of(
+              context,
+            ).colorScheme.secondaryContainer.withValues(alpha: 0.5),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -35,7 +37,7 @@ class EncouragementHeader extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -53,7 +55,7 @@ class EncouragementHeader extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                'A message for you',
+                'رسالة لك',
                 style: Theme.of(context).textTheme.labelLarge?.copyWith(
                   color: Theme.of(context).colorScheme.primary,
                   fontWeight: FontWeight.bold,

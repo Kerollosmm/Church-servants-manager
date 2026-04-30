@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
+import 'package:church_management_system/core/utils/bulk_operation_result.dart';
 import 'package:church_management_system/core/utils/list_extensions.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_mark.dart';
@@ -495,6 +496,46 @@ class AttendanceRepository implements IAttendanceRepository {
   }
 
   @override
+  Future<BulkOperationResult<String>> createSessionsBulk({
+    required Map<String, String> teamIdsAndNames,
+    required DateTime startsAt,
+    required int durationMinutes,
+    required AuthUser createdBy,
+    String? title,
+  }) async {
+    final successfulItems = <String>[];
+    final failedItems = <String>[];
+
+    final futures = teamIdsAndNames.entries.map((entry) async {
+      try {
+        await createSession(
+          teamId: entry.key,
+          teamNameSnapshot: entry.value,
+          startsAt: startsAt,
+          durationMinutes: durationMinutes,
+          createdBy: createdBy,
+          title: title,
+        );
+        successfulItems.add(entry.key);
+      } catch (error) {
+        developer.log(
+          'Bulk session creation failed for team ${entry.key}',
+          error: error,
+          name: 'AttendanceRepository',
+        );
+        failedItems.add(entry.key);
+      }
+    });
+
+    await Future.wait(futures);
+
+    return BulkOperationResult(
+      successfulItems: successfulItems,
+      failedItems: failedItems,
+    );
+  }
+
+  @override
   Future<void> closeSession({
     required String teamId,
     required String sessionId,
@@ -510,57 +551,158 @@ class AttendanceRepository implements IAttendanceRepository {
         return;
       }
 
-      final sessionRef = _sessionDoc(teamId, sessionId);
-      await _firestore.runTransaction((transaction) async {
-        final sessionDoc = await transaction.get(sessionRef);
-        final sessionData = sessionDoc.data();
-        if (!sessionDoc.exists || sessionData == null) {
-          throw const AttendanceSessionNotFoundFailure();
+      final marksSnapshot = await _marksCol(teamId, sessionId).get();
+      final markedStudentIds = <String>{};
+      final presentStudentIds = <String>{};
+
+      for (final doc in marksSnapshot.docs) {
+        final studentId = doc.id.split('_').first;
+        markedStudentIds.add(studentId);
+        final status = doc.data()['status'];
+        if (status == 'present' || status == 'late') {
+          presentStudentIds.add(studentId);
         }
-        final currentSession = AttendanceSession.fromMap(
-          sessionData,
-          sessionDoc.id,
-        );
-        if (currentSession.isClosed) {
-          return;
-        }
+      }
 
-        final marksSnapshot = await _marksCol(teamId, sessionId).get();
-        final markedStudentIds = marksSnapshot.docs
-            .map((d) => d.id.split('_').first)
-            .toSet();
+      final unmarkedStudents = session.studentIdsSnapshot
+          .where((id) => !markedStudentIds.contains(id))
+          .toList(growable: false);
 
-        final unmarkedStudents = currentSession.studentIdsSnapshot
-            .where((id) => !markedStudentIds.contains(id))
-            .toList(growable: false);
+      final totalOperations =
+          unmarkedStudents.length +
+          presentStudentIds.length +
+          2; // +1 for session, +1 for group
 
-        final batch = _firestore.batch();
-        for (final studentId in unmarkedStudents) {
-          // Use 'system' as servantId for automated marks
-          final markRef = _markDoc(teamId, sessionId, studentId, 'system');
-          final studentName =
-              currentSession.studentNameSnapshots[studentId] ?? 'مخدوم';
-          batch.set(markRef, {
-            'studentId': studentId,
-            'studentNameSnapshot': studentName,
-            'status':
-                AttendanceMarkStatus.absent.name, // Fixed: absent if unmarked
-            'markedByUserId': 'system',
-            'markedByName': 'النظام',
-            'markedAt': FieldValue.serverTimestamp(),
+      if (totalOperations <= 500) {
+        // Atomic update for everything via transaction (Idempotent)
+        await _firestore.runTransaction((transaction) async {
+          final sessionRef = _sessionDoc(teamId, sessionId);
+          final sessionDoc = await transaction.get(sessionRef);
+
+          if (sessionDoc.exists && sessionDoc.data()?['isClosed'] == true) {
+            // Already closed, skip to avoid double-incrementing aggregates
+            return;
+          }
+
+          // 1. Mark unmarked students as absent
+          for (final studentId in unmarkedStudents) {
+            final markRef = _markDoc(teamId, sessionId, studentId, 'system');
+            transaction.set(markRef, {
+              'studentId': studentId,
+              'studentNameSnapshot':
+                  session.studentNameSnapshots[studentId] ?? 'مخدوم',
+              'status': AttendanceMarkStatus.absent.name,
+              'markedByUserId': 'system',
+              'markedByName': 'النظام',
+              'markedAt': FieldValue.serverTimestamp(),
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+          }
+
+          // 2. Update Student Aggregates
+          for (final studentId in presentStudentIds) {
+            final studentRef = _firestore
+                .collection(FirestoreCollections.students)
+                .doc(studentId);
+            transaction.set(studentRef, {
+              'attendanceSummary': {
+                'totalPresent': FieldValue.increment(1),
+                'lastAttendanceDate': FieldValue.serverTimestamp(),
+              },
+              'updatedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+          }
+
+          // 3. Update Group Aggregate
+          transaction.set(_teamDoc(teamId), {
+            'groupAttendanceSummary': {
+              'lastSessionDate': FieldValue.serverTimestamp(),
+              'lastSessionAttendanceCount': presentStudentIds.length,
+              'updatedAt': FieldValue.serverTimestamp(),
+            },
             'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+
+          // 4. Update the session itself
+          transaction.update(sessionRef, {
+            'isClosed': true,
+            'updatedAt': FieldValue.serverTimestamp(),
+            'presentCount': presentStudentIds.length,
+            'absentCount':
+                session.studentIdsSnapshot.length - presentStudentIds.length,
           });
-        }
-
-        transaction.update(sessionRef, {
-          'isClosed': true,
-          'updatedAt': FieldValue.serverTimestamp(),
         });
+      } else {
+        // Fallback for very large groups: multi-batch (Not fully atomic, but idempotent)
+        // We do ALL student updates first (present aggregates + absent marks),
+        // and the session status LAST in a transaction.
 
-        if (unmarkedStudents.isNotEmpty) {
+        // 1. Mark unmarked as absent in chunks
+        final unmarkedList = unmarkedStudents.toList();
+        for (final chunk in unmarkedList.chunk(450)) {
+          final batch = _firestore.batch();
+          for (final studentId in chunk) {
+            final markRef = _markDoc(teamId, sessionId, studentId, 'system');
+            batch.set(markRef, {
+              'studentId': studentId,
+              'studentNameSnapshot':
+                  session.studentNameSnapshots[studentId] ?? 'مخدوم',
+              'status': AttendanceMarkStatus.absent.name,
+              'markedByUserId': 'system',
+              'markedByName': 'النظام',
+              'markedAt': FieldValue.serverTimestamp(),
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+          }
           await batch.commit();
         }
-      });
+
+        // 2. Student Aggregates (Batched)
+        final studentIdsList = presentStudentIds.toList();
+        for (final chunk in studentIdsList.chunk(450)) {
+          final batch = _firestore.batch();
+          for (final studentId in chunk) {
+            final studentRef = _firestore
+                .collection(FirestoreCollections.students)
+                .doc(studentId);
+            batch.set(studentRef, {
+              'attendanceSummary': {
+                'totalPresent': FieldValue.increment(1),
+                'lastAttendanceDate': FieldValue.serverTimestamp(),
+              },
+              'updatedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+          }
+          await batch.commit();
+        }
+
+        // 3. Final IDEMPOTENT step for group aggregate and session status
+        await _firestore.runTransaction((transaction) async {
+          final sessionRef = _sessionDoc(teamId, sessionId);
+          final sessionDoc = await transaction.get(sessionRef);
+
+          if (sessionDoc.exists && sessionDoc.data()?['isClosed'] == true) {
+            return;
+          }
+
+          transaction.set(_teamDoc(teamId), {
+            'groupAttendanceSummary': {
+              'lastSessionDate': FieldValue.serverTimestamp(),
+              'lastSessionAttendanceCount': presentStudentIds.length,
+              'updatedAt': FieldValue.serverTimestamp(),
+            },
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+
+          transaction.update(sessionRef, {
+            'isClosed': true,
+            'updatedAt': FieldValue.serverTimestamp(),
+            'presentCount': presentStudentIds.length,
+            'absentCount':
+                session.studentIdsSnapshot.length - presentStudentIds.length,
+          });
+        });
+      }
     } catch (error) {
       if (error is AttendanceFailure) rethrow;
       throw mapExceptionToAttendanceFailure(error);
@@ -571,6 +713,7 @@ class AttendanceRepository implements IAttendanceRepository {
   Stream<List<AttendanceSession>> watchSessionsForTeam(String teamId) {
     return _sessionsCol(teamId)
         .orderBy('startsAt', descending: true)
+        .limit(50)
         .snapshots()
         .map(_mapSessionsSnapshot);
   }
@@ -661,6 +804,67 @@ class AttendanceRepository implements IAttendanceRepository {
       status: AttendanceMarkStatus.late,
       note: note,
     );
+  }
+
+  Future<void> batchWriteMarks({
+    required String teamId,
+    required String sessionId,
+    required Map<String, AttendanceMarkStatus> marks,
+    required AuthUser markedBy,
+    bool cachedPermission = false,
+  }) async {
+    try {
+      // Step 1: Validate ONCE (skip if cached from cubit)
+      if (!cachedPermission) {
+        final canManage = await canUserManageAttendance(
+          user: markedBy,
+          teamId: teamId,
+        );
+        if (!canManage) throw const AttendancePermissionDeniedFailure();
+      }
+
+      // Step 2: Fetch session ONCE
+      final session = await getSessionById(
+        teamId: teamId,
+        sessionId: sessionId,
+      );
+      if (session == null) throw const AttendanceSessionNotFoundFailure();
+      _assertSessionWritable(session, _nowProvider());
+
+      // Step 3: Validate all studentIds are in session roster
+      for (final studentId in marks.keys) {
+        _assertStudentInSession(session, studentId);
+      }
+
+      // Step 4: Write all marks in batches of 400
+      final entries = marks.entries.toList(growable: false);
+      for (var i = 0; i < entries.length; i += 400) {
+        final chunk = entries.sublist(
+          i,
+          i + 400 > entries.length ? entries.length : i + 400,
+        );
+        final batch = _firestore.batch();
+        for (final entry in chunk) {
+          final studentId = entry.key;
+          final status = entry.value;
+          final markRef = _markDoc(teamId, sessionId, studentId, markedBy.uid);
+          final studentName =
+              session.studentNameSnapshots[studentId] ?? 'مخدوم';
+          batch.set(markRef, {
+            'studentId': studentId,
+            'studentNameSnapshot': studentName,
+            'status': status.name,
+            'markedByUserId': markedBy.uid,
+            'markedByName': markedBy.name,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        }
+        await batch.commit();
+      }
+    } catch (error) {
+      if (error is AttendanceFailure) rethrow;
+      throw mapExceptionToAttendanceFailure(error);
+    }
   }
 
   @override
@@ -812,10 +1016,12 @@ class AttendanceRepository implements IAttendanceRepository {
   Future<List<StudentAttendanceHistoryItem>> getStudentAttendanceHistory({
     required String studentId,
     String? teamId,
+    DateTimeRange? range,
   }) async {
     final sessions = await _loadStudentSessions(
       studentId: studentId,
       teamId: teamId,
+      range: range,
     );
 
     if (sessions.isEmpty) {
@@ -889,62 +1095,11 @@ class AttendanceRepository implements IAttendanceRepository {
     DateTimeRange? range,
   }) async {
     try {
-      final sessions = await _loadStudentSessions(
+      final history = await getStudentAttendanceHistory(
         studentId: studentId,
         teamId: teamId,
         range: range,
       );
-      final now = _nowProvider();
-
-      // Optimize: fetch all marks for this student across all sessions in one query
-      final marksSnapshot = await _firestore
-          .collectionGroup(FirestoreCollections.attendanceMarks)
-          .where('studentId', isEqualTo: studentId)
-          .get();
-
-      // Group marks by sessionId
-      final marksBySession = <String, List<AttendanceMark>>{};
-      for (final doc in marksSnapshot.docs) {
-        try {
-          final sessionId = doc.reference.parent.parent!.id;
-          final mark = AttendanceMark.fromMap(doc.data(), studentId);
-          if (!marksBySession.containsKey(sessionId)) {
-            marksBySession[sessionId] = [];
-          }
-          marksBySession[sessionId]!.add(mark);
-        } catch (error) {
-          developer.log('failed to map mark in group query', error: error);
-        }
-      }
-
-      final history = sessions
-          .map((session) {
-            final sessionMarks = marksBySession[session.id] ?? [];
-            AttendanceMark? mark;
-            if (sessionMarks.isNotEmpty) {
-              sessionMarks.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-              mark = sessionMarks.first;
-            }
-
-            return StudentAttendanceHistoryItem(
-              sessionId: session.id,
-              teamId: session.teamId,
-              teamNameSnapshot: session.teamNameSnapshot,
-              title: session.title,
-              dateKey: session.dateKey,
-              sessionStartsAt: session.startsAt,
-              sessionEndsAt: session.endsAt,
-              effectiveStatus: AttendanceRosterItem.resolveEffectiveStatus(
-                manualStatus: mark?.status,
-                session: session,
-                now: now,
-              ),
-              isSessionClosed: session.isEffectivelyClosedAt(now),
-              markedAt: mark?.markedAt,
-              markedByName: mark?.markedByName,
-            );
-          })
-          .toList(growable: false);
 
       return StudentAttendanceStats.fromHistory(
         studentId: studentId,

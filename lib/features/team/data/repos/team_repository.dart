@@ -125,7 +125,9 @@ class TeamRepository implements ITeamRepository {
           teams.sort((a, b) => a.name.compareTo(b.name));
           return teams;
         }
-      } catch (_) {}
+      } catch (e) {
+        // Cache miss or other cache error is expected, fallback to server
+      }
 
       final snapshot = await _classesCollection
           .where('groupId', isEqualTo: groupId)

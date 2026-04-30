@@ -15,7 +15,30 @@ class CanMutateStudentUseCase {
   /// Checks if [actor] can UPDATE [existing] to [updated].
   bool canUpdate(AuthUser actor, StudentModel existing, StudentModel updated) {
     if (actor.role == UserRole.admin) return true;
-    if (actor.role == UserRole.servant) return true;
+    if (actor.role == UserRole.servant) {
+      final inScope =
+          actor.effectiveAssignedTeamIds.contains(existing.classId) ||
+          actor.effectiveAssignedTeamIds.contains(existing.teamName) ||
+          actor.groupId == existing.group.name;
+      if (!inScope) return false;
+
+      // STRICT ALLOWLIST: Servants can only mutate basic contact/profile info.
+      // Any attempt to change role, team, group, or system aggregates will fail.
+      final allowedMutation = existing.copyWith(
+        name: updated.name,
+        mobile: updated.mobile,
+        motherPhone: updated.motherPhone,
+        fatherPhone: updated.fatherPhone,
+        school: updated.school,
+        address: updated.address,
+        birthdate: updated.birthdate,
+        fatherOfConfession: updated.fatherOfConfession,
+        notes: updated.notes,
+        imageUrl: updated.imageUrl,
+      );
+
+      return updated == allowedMutation;
+    }
     return false;
   }
 

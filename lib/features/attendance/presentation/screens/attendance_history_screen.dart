@@ -321,14 +321,18 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                                     );
                                   }
 
-                                  final historySessions = sessions
-                                      .where(
-                                        (session) =>
-                                            activeSession == null ||
-                                            session.id != activeSession.id,
-                                      )
-                                      .toList(growable: false);
-
+                                  final historySessions =
+                                      sessions
+                                          .where(
+                                            (session) =>
+                                                activeSession == null ||
+                                                session.id != activeSession.id,
+                                          )
+                                          .toList()
+                                        ..sort(
+                                          (a, b) =>
+                                              b.startsAt.compareTo(a.startsAt),
+                                        );
                                   return ListView.builder(
                                     padding: const EdgeInsets.all(
                                       AppSpacing.md,

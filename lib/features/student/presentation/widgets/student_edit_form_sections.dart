@@ -93,7 +93,7 @@ class StudentBasicsSection extends StatelessWidget {
           AppSpacing.gapMd,
           AppDropdownField<UserRole>(
             fieldKey: const Key('student_role_field'),
-            initialValue: selectedRole,
+            value: selectedRole,
             labelText: 'الدور',
             prefixIcon: Icons.security_outlined,
             items: const [
@@ -139,7 +139,7 @@ class StudentBasicsSection extends StatelessWidget {
         ],
         AppDropdownField<String>(
           fieldKey: const Key('student_team_field'),
-          initialValue: teamsState.selectedTeamId,
+          value: teamsState.selectedTeamId,
           labelText: 'الفريق',
           prefixIcon: Icons.group_outlined,
           items: teamsState.teams

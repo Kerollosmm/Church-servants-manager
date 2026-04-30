@@ -1,11 +1,18 @@
+import 'dart:developer' as developer;
+import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/features/attendance/domain/repos/i_attendance_insight_repository.dart';
-import 'package:cloud_functions/cloud_functions.dart';
+import 'package:church_management_system/features/student/data/services/student_ai_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AttendanceInsightRepository implements IAttendanceInsightRepository {
-  final FirebaseFunctions _functions;
+  final StudentAIService _aiService;
+  final FirebaseFirestore _db;
 
-  AttendanceInsightRepository({FirebaseFunctions? functions})
-    : _functions = functions ?? FirebaseFunctions.instance;
+  AttendanceInsightRepository({
+    required StudentAIService aiService,
+    FirebaseFirestore? firestore,
+  }) : _aiService = aiService,
+       _db = firestore ?? FirebaseFirestore.instance;
 
   @override
   Future<AttendanceInsight> getGroupInsight({
@@ -13,30 +20,79 @@ class AttendanceInsightRepository implements IAttendanceInsightRepository {
     required String question,
   }) async {
     try {
-      final result = await _functions
-          .httpsCallable('getAttendanceInsight')
-          .call({'groupId': groupId, 'question': question});
+      // 1. Fetch group data for context
+      final groupDoc = await _db
+          .collection(FirestoreCollections.classes)
+          .doc(groupId)
+          .get();
+      if (!groupDoc.exists) {
+        throw Exception('Group not found.');
+      }
 
-      return AttendanceInsight.fromJson(
-        Map<String, dynamic>.from(result.data as Map),
+      final groupData = groupDoc.data()!;
+      final groupName = groupData['name'] ?? groupId;
+      final groupSummary = Map<String, dynamic>.from(
+        groupData['groupAttendanceSummary'] ?? {},
+      );
+
+      // 2. Call local AI service
+      return await _aiService.getGroupInsight(
+        groupName: groupName,
+        groupSummary: groupSummary,
+        question: question,
       );
     } catch (e) {
-      // TODO: Map to domain failure per P13
-      throw Exception('Failed to fetch group insight: $e');
+      throw Exception('Failed to fetch group insight locally: $e');
     }
   }
 
   @override
   Future<String?> getStudentEncouragement({required String studentId}) async {
     try {
-      // US-03 implementation (Phase 5)
-      final result = await _functions
-          .httpsCallable('getStudentEncouragement')
-          .call({'studentId': studentId});
+      // 1. Fetch student data
+      final studentDoc = await _db
+          .collection(FirestoreCollections.students)
+          .doc(studentId)
+          .get();
+      if (!studentDoc.exists) return null;
 
-      return result.data['encouragement'] as String?;
-    } catch (e) {
-      return null;
+      final studentData = studentDoc.data()!;
+      final studentName = studentData['name'] ?? 'Student';
+      final summary = Map<String, dynamic>.from(
+        studentData['attendanceSummary'] ?? {},
+      );
+
+      // 2. Call local AI service
+      return await _aiService.getStudentEncouragement(
+        studentName: studentName,
+        summary: summary,
+      );
+    } catch (e, stack) {
+      developer.log(
+        'AttendanceInsightRepository.generateMessage error:',
+        error: e,
+        stackTrace: stack,
+        name: 'AttendanceInsightRepository',
+      );
+      return 'We are so glad to have you in our community! See you next time.';
+    }
+  }
+
+  @override
+  Future<String> smartQuery(
+    String query, {
+    Map<String, dynamic>? contextData,
+  }) async {
+    try {
+      return await _aiService.smartQuery(query, contextData: contextData);
+    } catch (e, stack) {
+      developer.log(
+        'AttendanceInsightRepository.smartQuery error:',
+        error: e,
+        stackTrace: stack,
+        name: 'AttendanceInsightRepository',
+      );
+      throw Exception('Failed to process smart query locally: $e');
     }
   }
 }

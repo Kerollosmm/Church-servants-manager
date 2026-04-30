@@ -84,7 +84,8 @@ class StudentDataRepository implements IStudentRepository {
     PaginationCursor? cursor,
     bool includeArchived = false,
   }) async {
-    final lastDoc = cursor?.token as DocumentSnapshot?;
+    final token = cursor?.token;
+    final lastDoc = token is DocumentSnapshot ? token : null;
     return _queryService.getAllStudents(
       limit: limit,
       lastDocument: lastDoc,
@@ -143,16 +144,17 @@ class StudentDataRepository implements IStudentRepository {
     int limit = 20,
     String? groupId,
     String? classId,
+    bool includeArchived = false,
   }) async {
     try {
       if (query.isEmpty) {
         if (classId != null && classId.isNotEmpty) {
-          return getStudentsByClass(classId);
+          return getStudentsByClass(classId, includeArchived: includeArchived);
         }
         if (groupId != null && groupId.isNotEmpty) {
-          return getStudentsByGroup(groupId);
+          return getStudentsByGroup(groupId, includeArchived: includeArchived);
         }
-        return getAllStudents(limit: limit);
+        return getAllStudents(limit: limit, includeArchived: includeArchived);
       }
 
       Query<Map<String, dynamic>> firestoreQuery = _studentsCollection.orderBy(
@@ -165,6 +167,10 @@ class StudentDataRepository implements IStudentRepository {
         firestoreQuery = firestoreQuery.where('group', isEqualTo: groupId);
       }
 
+      if (!includeArchived) {
+        firestoreQuery = firestoreQuery.where('isArchived', isEqualTo: false);
+      }
+
       final snapshot = await firestoreQuery
           .startAt([query])
           .endAt(['$query\uf8ff'])
@@ -174,7 +180,6 @@ class StudentDataRepository implements IStudentRepository {
       return _queryService
           .mapStudentDocs(snapshot.docs)
           .students
-          .where((s) => !s.isArchived)
           .take(limit)
           .toList();
     } catch (e) {

@@ -275,10 +275,12 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
   ) async {
     final currentState = state;
     List<StudentModel> previousStudents = const [];
+    List<StudentModel> previousAllStudents = const [];
     bool isRefresh = false;
     String? currentQuery;
 
     if (currentState is StudentDataLoaded) {
+      previousAllStudents = currentState.allStudents;
       previousStudents = _resolveVisibleStudents(
         allStudents: currentState.allStudents,
         query: currentState.currentQuery,
@@ -290,6 +292,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     emit(
       StudentDataLoading(
         previousStudents: previousStudents,
+        previousAllStudents: previousAllStudents,
         isRefresh: isRefresh,
         includeArchived: event.includeArchived,
         currentFilterGroupId: event.actor.groupId,
@@ -391,6 +394,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
             allStudents: allStudents,
             query: previousQuery,
           ),
+          previousAllStudents: allStudents,
           isRefresh: allStudents.isNotEmpty,
           isSearch: true,
           includeArchived: nextIncludeArchived,
@@ -448,6 +452,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
             allStudents: allStudents,
             query: previousQuery,
           ),
+          previousAllStudents: allStudents,
           isRefresh: allStudents.isNotEmpty,
           includeArchived: nextIncludeArchived,
           currentFilterGroupId: event.actor.groupId,

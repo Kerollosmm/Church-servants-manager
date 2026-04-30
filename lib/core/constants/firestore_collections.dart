@@ -5,5 +5,6 @@ class FirestoreCollections {
   static const classes = 'Classes';
   static const attendanceSessions = 'attendance_sessions';
   static const attendanceMarks = 'marks';
+  static const invitations = 'Invitations';
   // Servants are stored in Users collection with role == 'servant'
 }
