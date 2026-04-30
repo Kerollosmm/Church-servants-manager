@@ -48,6 +48,7 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
                 ..initialize(
                   teamId: widget.args.teamId,
                   sessionId: widget.args.sessionId,
+                  actor: widget.args.actor,
                 ),
         ),
         BlocProvider<AttendanceSessionAdminCubit>(
@@ -70,9 +71,18 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
                   current is AttendanceTakingError;
             },
             listener: (context, state) {
-              if (state is AttendanceTakingLoaded &&
-                  state.errorMessage != null) {
-                AppSnackbars.showError(context, state.errorMessage!);
+              if (state is AttendanceTakingLoaded) {
+                if (state.errorMessage != null) {
+                  AppSnackbars.showError(context, state.errorMessage!);
+                }
+                if (state.mutationStatus == MutationStatus.success &&
+                    state.pendingLocalMarks.isEmpty) {
+                  AppSnackbars.showSuccess(
+                    context,
+                    'تم تسجيل الحضور بنجاح ✓',
+                    backgroundColor: AppColors.secondary,
+                  );
+                }
               }
               if (state is AttendanceTakingError) {
                 AppSnackbars.showError(context, state.message);
@@ -110,7 +120,29 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
 
             return Scaffold(
               appBar: AppBar(
-                title: Text(title),
+                title: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title),
+                    if (loadedState != null &&
+                        loadedState.pendingLocalMarks.isNotEmpty)
+                      Text(
+                        '${loadedState.pendingLocalMarks.length} في الانتظار',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                  ],
+                ),
+                bottom:
+                    loadedState != null &&
+                        loadedState.mutationStatus == MutationStatus.inProgress
+                    ? const PreferredSize(
+                        preferredSize: Size.fromHeight(4),
+                        child: LinearProgressIndicator(),
+                      )
+                    : null,
                 actions: [
                   if (loadedState != null && loadedState.isSessionOpen)
                     IconButton(
@@ -140,6 +172,40 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
                     ),
                 ],
               ),
+              bottomNavigationBar:
+                  loadedState != null &&
+                      loadedState.pendingLocalMarks.isNotEmpty
+                  ? SafeArea(
+                      child: Padding(
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        child: FilledButton.icon(
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size.fromHeight(56),
+                            backgroundColor: Theme.of(
+                              context,
+                            ).colorScheme.primary,
+                          ),
+                          onPressed:
+                              loadedState.mutationStatus ==
+                                  MutationStatus.inProgress
+                              ? null
+                              : () => context
+                                    .read<AttendanceTakingCubit>()
+                                    .submitAllPendingMarks(
+                                      actor: widget.args.actor,
+                                    ),
+                          icon: const Icon(Icons.check_circle_outline),
+                          label: Text(
+                            'تأكيد الحضور (${loadedState.pendingLocalMarks.length})',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                  : null,
               body: switch (state) {
                 AttendanceTakingLoading() => const Center(
                   child: CircularProgressIndicator(),
@@ -195,6 +261,8 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
                                           loaded.mutationStatus ==
                                           MutationStatus.inProgress,
                                       isSessionOpen: loaded.isSessionOpen,
+                                      effectivePendingMark: loaded
+                                          .effectiveMarksMap[item.studentId],
                                     );
                                   },
                                   separatorBuilder: (_, _) => AppSpacing.gapSm,
@@ -220,12 +288,14 @@ class _RosterItemCard extends StatelessWidget {
   final AuthUser actor;
   final bool isMutationInProgress;
   final bool isSessionOpen;
+  final AttendanceMarkStatus? effectivePendingMark;
 
   const _RosterItemCard({
     required this.item,
     required this.actor,
     required this.isMutationInProgress,
     required this.isSessionOpen,
+    this.effectivePendingMark,
   });
 
   Color _statusColor(AttendanceEffectiveStatus status) {
@@ -256,6 +326,10 @@ class _RosterItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isPending =
+        effectivePendingMark != null &&
+        item.manualStatus != effectivePendingMark;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -272,6 +346,14 @@ class _RosterItemCard extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (isPending) ...[
+                  const SizedBox(
+                    width: 12,
+                    height: 12,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  AppSpacing.gapSm,
+                ],
                 Chip(
                   label: Text(_statusLabel(item.effectiveStatus)),
                   backgroundColor: _statusColor(
@@ -297,7 +379,10 @@ class _RosterItemCard extends StatelessWidget {
               runSpacing: AppSpacing.sm,
               children: [
                 OutlinedButton.icon(
-                  onPressed: !isSessionOpen || isMutationInProgress
+                  onPressed:
+                      !isSessionOpen ||
+                          isMutationInProgress ||
+                          effectivePendingMark == AttendanceMarkStatus.present
                       ? null
                       : () => context.read<AttendanceTakingCubit>().markPresent(
                           actor: actor,
@@ -307,7 +392,10 @@ class _RosterItemCard extends StatelessWidget {
                   label: const Text('حاضر'),
                 ),
                 OutlinedButton.icon(
-                  onPressed: !isSessionOpen || isMutationInProgress
+                  onPressed:
+                      !isSessionOpen ||
+                          isMutationInProgress ||
+                          effectivePendingMark == AttendanceMarkStatus.late
                       ? null
                       : () => context.read<AttendanceTakingCubit>().markLate(
                           actor: actor,
@@ -316,7 +404,7 @@ class _RosterItemCard extends StatelessWidget {
                   icon: const Icon(Icons.alarm_on_outlined),
                   label: const Text('متأخر'),
                 ),
-                if (item.isMarked)
+                if (item.isMarked || effectivePendingMark != null)
                   TextButton.icon(
                     onPressed: !isSessionOpen || isMutationInProgress
                         ? null

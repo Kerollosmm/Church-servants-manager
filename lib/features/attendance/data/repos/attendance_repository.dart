@@ -806,6 +806,67 @@ class AttendanceRepository implements IAttendanceRepository {
     );
   }
 
+  Future<void> batchWriteMarks({
+    required String teamId,
+    required String sessionId,
+    required Map<String, AttendanceMarkStatus> marks,
+    required AuthUser markedBy,
+    bool cachedPermission = false,
+  }) async {
+    try {
+      // Step 1: Validate ONCE (skip if cached from cubit)
+      if (!cachedPermission) {
+        final canManage = await canUserManageAttendance(
+          user: markedBy,
+          teamId: teamId,
+        );
+        if (!canManage) throw const AttendancePermissionDeniedFailure();
+      }
+
+      // Step 2: Fetch session ONCE
+      final session = await getSessionById(
+        teamId: teamId,
+        sessionId: sessionId,
+      );
+      if (session == null) throw const AttendanceSessionNotFoundFailure();
+      _assertSessionWritable(session, _nowProvider());
+
+      // Step 3: Validate all studentIds are in session roster
+      for (final studentId in marks.keys) {
+        _assertStudentInSession(session, studentId);
+      }
+
+      // Step 4: Write all marks in batches of 400
+      final entries = marks.entries.toList(growable: false);
+      for (var i = 0; i < entries.length; i += 400) {
+        final chunk = entries.sublist(
+          i,
+          i + 400 > entries.length ? entries.length : i + 400,
+        );
+        final batch = _firestore.batch();
+        for (final entry in chunk) {
+          final studentId = entry.key;
+          final status = entry.value;
+          final markRef = _markDoc(teamId, sessionId, studentId, markedBy.uid);
+          final studentName =
+              session.studentNameSnapshots[studentId] ?? 'مخدوم';
+          batch.set(markRef, {
+            'studentId': studentId,
+            'studentNameSnapshot': studentName,
+            'status': status.name,
+            'markedByUserId': markedBy.uid,
+            'markedByName': markedBy.name,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        }
+        await batch.commit();
+      }
+    } catch (error) {
+      if (error is AttendanceFailure) rethrow;
+      throw mapExceptionToAttendanceFailure(error);
+    }
+  }
+
   @override
   Future<void> clearStudentMark({
     required String teamId,

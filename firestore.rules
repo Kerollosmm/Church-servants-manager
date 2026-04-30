@@ -118,6 +118,19 @@ service cloud.firestore {
       return studentId in session.get('studentIdsSnapshot', []);
     }
 
+    function noteIsUnchanged() {
+      // If the existing document has a note, the incoming write must keep it identical
+      return !('note' in resource.data) ||
+             ('note' in request.resource.data && request.resource.data.note == resource.data.note);
+    }
+
+    function markBelongsToCallerOrSystem(studentDocId) {
+      // Document ID format: studentId_servantId
+      // Allow if servantId part == callerUid OR == 'system' (for closeSession auto-marks)
+      let parts = studentDocId.split('_');
+      return parts.size() >= 2 && (parts[1] == callerUid() || parts[1] == 'system');
+    }
+
     // ─── Users Collection ─────────────────────────────────────────
     match /Users/{userId} {
       allow read: if isSignedIn() && (
@@ -223,11 +236,26 @@ service cloud.firestore {
         match /marks/{studentDocId} {
           allow read: if isSignedIn() && (isAdmin() || servantCanManageTeam(classId));
 
-          allow create, update: if isSignedIn() && (
+          allow create: if isSignedIn() && (
             isAdmin() || 
             (
               servantCanManageTeam(classId) && 
-              isStudentInSessionRoster(classId, sessionId, studentDocId) &&
+              markBelongsToCallerOrSystem(studentDocId) &&
+              isStudentInSessionRoster(classId, sessionId, studentDocId.split('_')[0]) &&
+              (
+                sessionAcceptsLiveMarks(get(/databases/$(database)/documents/Classes/$(classId)/attendance_sessions/$(sessionId)).data) ||
+                sessionAcceptsAdminCorrection(get(/databases/$(database)/documents/Classes/$(classId)/attendance_sessions/$(sessionId)).data)
+              )
+            )
+          );
+
+          allow update: if isSignedIn() && (
+            isAdmin() || 
+            (
+              servantCanManageTeam(classId) && 
+              markBelongsToCallerOrSystem(studentDocId) &&
+              isStudentInSessionRoster(classId, sessionId, studentDocId.split('_')[0]) &&
+              noteIsUnchanged() &&
               (
                 sessionAcceptsLiveMarks(get(/databases/$(database)/documents/Classes/$(classId)/attendance_sessions/$(sessionId)).data) ||
                 sessionAcceptsAdminCorrection(get(/databases/$(database)/documents/Classes/$(classId)/attendance_sessions/$(sessionId)).data)
