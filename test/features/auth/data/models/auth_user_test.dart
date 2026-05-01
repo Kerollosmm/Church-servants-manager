@@ -67,6 +67,33 @@ void main() {
       expect(authUser.role, UserRole.student);
     });
 
+    test('parses legacy singular assignedTeamId claim', () {
+      final mockUser = MockUser();
+      final claims = {'role': 'servant', 'assignedTeamId': 'legacy-team-1'};
+      final authUser = AuthUser.fromFirebaseToken(mockUser, claims);
+      expect(authUser.assignedTeamId, 'legacy-team-1');
+      expect(authUser.effectiveAssignedTeamIds, ['legacy-team-1']);
+    });
+
+    test(
+      'prefers assignedTeamIds but still includes assignedTeamId in effective list',
+      () {
+        final mockUser = MockUser();
+        final claims = {
+          'role': 'servant',
+          'assignedTeamIds': ['new-team-1'],
+          'assignedTeamId': 'legacy-team-1',
+        };
+        final authUser = AuthUser.fromFirebaseToken(mockUser, claims);
+        expect(authUser.assignedTeamIds, contains('new-team-1'));
+        expect(authUser.assignedTeamId, 'legacy-team-1');
+        expect(
+          authUser.effectiveAssignedTeamIds,
+          containsAll(['new-team-1', 'legacy-team-1']),
+        );
+      },
+    );
+
     test('handles missing or null teams claim', () {
       final mockUser = MockUser();
       final authUser = AuthUser.fromFirebaseToken(mockUser, {});
@@ -98,7 +125,7 @@ void main() {
   group('AuthUser.fromFirebase', () {
     test('creates AuthUser with temporary student role', () {
       final mockUser = MockUser();
-      final authUser = AuthUser.fromFirebase(mockUser);
+      final authUser = AuthUser.fromFirebaseUnsafe(mockUser);
 
       expect(authUser.uid, '123');
       expect(authUser.email, 'test@example.com');

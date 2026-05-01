@@ -76,7 +76,6 @@ class ServantDataRepository implements IServantRepository {
     if (servant.role != UserRole.servant) {
       // Clear servant-only scoping fields when user is no longer a servant.
       data['groupId'] = FieldValue.delete();
-      data['assignedTeamId'] = FieldValue.delete();
       data['assignedTeamIds'] = FieldValue.delete();
     }
 
@@ -379,7 +378,6 @@ class ServantDataRepository implements IServantRepository {
             ? 'system'
             : performedByUid,
         'restorePendingPasswordReset': false,
-        'assignedTeamId': FieldValue.delete(),
         'assignedTeamIds': FieldValue.delete(),
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));

@@ -11,7 +11,8 @@ import 'package:church_management_system/features/attendance/domain/repos/i_atte
 import 'package:church_management_system/features/auth/data/repos/firebase_auth_repository.dart';
 import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
 import 'package:church_management_system/features/auth/data/services/auth_user_profile_store.dart';
-import 'package:church_management_system/features/auth/data/services/firebase_auth_provider.dart';
+import 'package:church_management_system/features/auth/data/services/firebase_identity_provider.dart';
+import 'package:church_management_system/features/auth/data/services/firestore_profile_provider.dart';
 import 'package:church_management_system/features/auth/domain/auth_freshness_policy.dart';
 import 'package:church_management_system/features/auth/domain/repos/auth_repository.dart';
 import 'package:church_management_system/features/servant/data/repo/servant_data_repository.dart';
@@ -42,13 +43,17 @@ void configureDependencies() {
     ..registerLazySingleton<AuthUserProfileStore>(
       () => AuthUserProfileStore(firestore: getIt()),
     )
-    ..registerLazySingleton<FirebaseAuthProvider>(
-      () =>
-          FirebaseAuthProvider(userProfileStore: getIt<AuthUserProfileStore>()),
+    ..registerLazySingleton<FirebaseIdentityProvider>(
+      FirebaseIdentityProvider.new,
+    )
+    ..registerLazySingleton<FirestoreProfileProvider>(
+      () => FirestoreProfileProvider(store: getIt<AuthUserProfileStore>()),
     )
     ..registerLazySingleton<AuthRepository>(
       () => FirebaseAuthRepository(
-        provider: getIt<FirebaseAuthProvider>(),
+        identityProvider: getIt<FirebaseIdentityProvider>(),
+        profileProvider: getIt<FirestoreProfileProvider>(),
+        userProfileStore: getIt<AuthUserProfileStore>(),
         freshnessPolicy: getIt<AuthFreshnessPolicy>(),
       ),
     )

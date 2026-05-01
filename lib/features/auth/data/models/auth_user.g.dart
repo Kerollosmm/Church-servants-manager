@@ -22,6 +22,7 @@ _$AuthUserImpl _$$AuthUserImplFromJson(
   restoredByUserId: json['restoredByUserId'] as String?,
   restorePendingPasswordReset:
       json['restorePendingPasswordReset'] as bool? ?? false,
+  requiresTokenRefresh: json['requiresTokenRefresh'] as bool? ?? false,
   groupId: json['groupId'] as String?,
   assignedTeamIds:
       (json['assignedTeamIds'] as List<dynamic>?)
@@ -46,6 +47,7 @@ Map<String, dynamic> _$$AuthUserImplToJson(
   'restoredAt': const FirestoreTimestampConverter().toJson(instance.restoredAt),
   'restoredByUserId': instance.restoredByUserId,
   'restorePendingPasswordReset': instance.restorePendingPasswordReset,
+  'requiresTokenRefresh': instance.requiresTokenRefresh,
   'groupId': instance.groupId,
   'assignedTeamIds': instance.assignedTeamIds,
   'assignedTeamId': instance.assignedTeamId,

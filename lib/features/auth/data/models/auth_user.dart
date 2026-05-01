@@ -26,17 +26,19 @@ class AuthUser with _$AuthUser {
     @_TimestampConverter() DateTime? restoredAt,
     String? restoredByUserId,
     @Default(false) bool restorePendingPasswordReset,
+    @Default(false) bool requiresTokenRefresh,
     String? groupId,
     @Default(<String>[]) List<String> assignedTeamIds,
+    @Deprecated('Use effectiveAssignedTeamIds or assignedTeamIds instead')
     String? assignedTeamId,
   }) = _AuthUser;
 
   /// Create AuthUser from Firebase User (basic info only)
   /// WARNING: This method assigns a temporary role of UserRole.student.
-  /// The role should be properly determined as soon as possible, preferably
-  /// by using AuthUser.fromFirebaseToken() with custom claims or by updating
-  /// the user object through the repository once Firestore data is available.
-  factory AuthUser.fromFirebase(User user) {
+  /// This is UNSAFE for production authorization checks.
+  /// Use AuthUser.fromFirebaseToken() instead whenever possible.
+  @visibleForTesting
+  factory AuthUser.fromFirebaseUnsafe(User user) {
     final email = user.email;
     if (email == null || email.isEmpty) {
       throw const GenericAuthException('AuthUser must have a valid email');
@@ -45,9 +47,6 @@ class AuthUser with _$AuthUser {
       uid: user.uid,
       name: user.displayName ?? email.split('@').first,
       email: email,
-      // TEMPORARY DEFAULT: Role must be properly determined via custom claims
-      // or Firestore data as soon as available. Using student as safe default
-      // to avoid over-privileging users, but this should be updated immediately.
       role: UserRole.student,
       isEmailVerified: user.emailVerified,
     );
@@ -75,6 +74,9 @@ class AuthUser with _$AuthUser {
       assignedTeamIds.addAll(teamsRaw.map((e) => e.toString()));
     }
 
+    // Pick up legacy singular ID if present
+    final legacyTeamId = claims['assignedTeamId'] as String?;
+
     // Parse isArchived from claims
     final isArchived = claims['isArchived'] as bool? ?? false;
 
@@ -85,6 +87,7 @@ class AuthUser with _$AuthUser {
       role: role,
       isEmailVerified: user.emailVerified,
       assignedTeamIds: assignedTeamIds,
+      assignedTeamId: legacyTeamId,
       isArchived: isArchived,
     );
   }

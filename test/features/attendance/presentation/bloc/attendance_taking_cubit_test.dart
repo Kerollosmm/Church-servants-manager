@@ -14,10 +14,16 @@ import 'package:mocktail/mocktail.dart';
 
 class MockAttendanceRepository extends Mock implements AttendanceRepository {}
 
+class AuthUserFake extends Fake implements AuthUser {}
+
 void main() {
   late MockAttendanceRepository repository;
   late StreamController<AttendanceRosterSnapshot> rosterController;
   late StreamController<SessionStatus> statusController;
+
+  setUpAll(() {
+    registerFallbackValue(AuthUserFake());
+  });
 
   final servant = const AuthUser(
     uid: 'servant-1',
@@ -26,7 +32,6 @@ void main() {
     role: UserRole.servant,
     isEmailVerified: true,
     assignedTeamIds: ['team-1'],
-    assignedTeamId: 'team-1',
   );
 
   AttendanceSession buildSession({required bool isClosed}) {
@@ -83,16 +88,22 @@ void main() {
     statusController = StreamController<SessionStatus>.broadcast();
     when(
       () => repository.watchSessionRosterSnapshot(
-        teamId: 'team-1',
-        sessionId: 'session-1',
+        teamId: any(named: 'teamId'),
+        sessionId: any(named: 'sessionId'),
       ),
     ).thenAnswer((_) => rosterController.stream);
     when(
       () => repository.watchSessionStatus(
-        teamId: 'team-1',
-        sessionId: 'session-1',
+        teamId: any(named: 'teamId'),
+        sessionId: any(named: 'sessionId'),
       ),
     ).thenAnswer((_) => statusController.stream);
+    when(
+      () => repository.canUserManageAttendance(
+        user: any(named: 'user'),
+        teamId: any(named: 'teamId'),
+      ),
+    ).thenAnswer((_) async => true);
   });
 
   tearDown(() async {
@@ -180,20 +191,22 @@ void main() {
         ),
       );
 
+      await cubit.submitAllPendingMarks(actor: servant);
+
       verify(
-        () => repository.markStudentPresent(
+        () => repository.batchWriteMarks(
           teamId: 'team-1',
           sessionId: 'session-1',
-          studentId: 'student-1',
-          studentNameSnapshot: 'Mina',
+          marks: {'student-1': AttendanceMarkStatus.present},
           markedBy: servant,
+          cachedPermission: any(named: 'cachedPermission'),
         ),
       ).called(1);
       await cubit.close();
     });
 
     test(
-      'duplicate mark (same status) does NOT call repository — idempotency',
+      'duplicate mark (same status) does NOT update local state or call repository',
       () async {
         final openSession = buildSession(isClosed: false);
 
@@ -228,13 +241,16 @@ void main() {
           ),
         );
 
+        expect(cubit.hasPendingMarks, isFalse);
+
+        await cubit.submitAllPendingMarks(actor: servant);
+
         verifyNever(
-          () => repository.markStudentPresent(
-            teamId: 'team-1',
-            sessionId: 'session-1',
-            studentId: 'student-1',
-            studentNameSnapshot: 'Mina',
-            markedBy: servant,
+          () => repository.batchWriteMarks(
+            teamId: any(named: 'teamId'),
+            sessionId: any(named: 'sessionId'),
+            marks: any(named: 'marks'),
+            markedBy: any(named: 'markedBy'),
           ),
         );
         await cubit.close();

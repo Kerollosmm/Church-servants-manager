@@ -32,9 +32,7 @@ void main() {
     role: UserRole.servant,
     isEmailVerified: true,
     assignedTeamIds: ['team-1'],
-    assignedTeamId: 'team-1',
   );
-
   StudentModel student({required String id, required String name}) {
     return StudentModel(
       uid: id,

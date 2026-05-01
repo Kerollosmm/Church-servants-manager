@@ -16,7 +16,7 @@ class AttendanceInsight {
   final String insight;
   final List<String> actions;
 
-  AttendanceInsight({required this.insight, required this.actions});
+  const AttendanceInsight({required this.insight, required this.actions});
 
   factory AttendanceInsight.fromJson(Map<String, dynamic> json) {
     return AttendanceInsight(

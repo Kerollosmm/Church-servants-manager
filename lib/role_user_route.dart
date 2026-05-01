@@ -67,11 +67,23 @@ class RoleUserRoute extends StatelessWidget {
             }
           },
         ),
+        BlocListener<AuthBloc, AuthState>(
+          listener: (context, state) {
+            if (state is AuthRoleUpdated) {
+              AppSnackbars.showSuccess(
+                context,
+                'تم تحديث صلاحيات الحساب بنجاح.',
+              );
+            }
+          },
+        ),
       ],
       child: BlocBuilder<AuthBloc, AuthState>(
         builder: (context, state) {
           // Loading state
-          if (state is AuthLoading || state is AuthSigningOut) {
+          if (state is AuthLoading ||
+              state is AuthSigningOut ||
+              state is AuthRoleRefreshing) {
             return const Scaffold(
               body: Center(child: CircularProgressIndicator()),
             );
@@ -117,7 +129,7 @@ class _AdminRefreshRequiredScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('تم إيقاف صلاحيات المسؤول مؤقتا')),
+      appBar: AppBar(title: const Text('تحديث الوصول للمسؤول')),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -127,7 +139,7 @@ class _AdminRefreshRequiredScreen extends StatelessWidget {
               const Icon(Icons.admin_panel_settings_outlined, size: 56),
               const SizedBox(height: 12),
               const Text(
-                'إجراءات المسؤول متوقفة مؤقتا حتى يتم تحديث بيانات الحساب.',
+                'يرجى مزامنة البيانات للحصول على كامل صلاحيات المسؤول.',
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
@@ -137,8 +149,8 @@ class _AdminRefreshRequiredScreen extends StatelessWidget {
                 onPressed: () {
                   context.read<AuthBloc>().add(const AuthEventRefreshUser());
                 },
-                icon: const Icon(Icons.refresh),
-                label: const Text('تحديث الصلاحيات'),
+                icon: const Icon(Icons.sync),
+                label: const Text('مزامنة الوصول'),
               ),
               const SizedBox(height: 8),
               TextButton(
@@ -164,7 +176,7 @@ class _ArchivedAccountScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('تم إيقاف الحساب')),
+      appBar: AppBar(title: const Text('الحساب غير متاح')),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -174,7 +186,7 @@ class _ArchivedAccountScreen extends StatelessWidget {
               const Icon(Icons.lock_person_outlined, size: 56),
               const SizedBox(height: 12),
               const Text(
-                'هذا الحساب غير متاح حاليا',
+                'عذراً، الوصول لهذا الحساب متوقف حالياً.',
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),

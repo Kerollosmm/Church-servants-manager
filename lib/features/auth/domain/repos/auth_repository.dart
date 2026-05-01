@@ -2,7 +2,7 @@ import 'package:church_management_system/features/auth/data/models/auth_user.dar
 
 abstract class AuthRepository {
   /// Get stream of auth state changes
-  Stream<AuthUser?> get authStateChanges;
+  Stream<AuthUser?> get userStream;
 
   /// Get the current Firebase user (basic info)
   AuthUser? get currentUser;

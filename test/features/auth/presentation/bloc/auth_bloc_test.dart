@@ -5,13 +5,17 @@ import 'package:church_management_system/features/auth/data/models/auth_user.dar
 import 'package:church_management_system/features/auth/data/repos/firebase_auth_repository.dart';
 import 'package:church_management_system/features/auth/domain/failures/auth_failures.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockAuthService extends Mock implements FirebaseAuthRepository {}
 
+class MockConnectivity extends Mock implements Connectivity {}
+
 void main() {
   late MockAuthService authService;
+  late MockConnectivity connectivity;
 
   AuthUser testUser({bool isEmailVerified = true}) {
     return AuthUser(
@@ -25,8 +29,10 @@ void main() {
 
   setUp(() {
     authService = MockAuthService();
+    connectivity = MockConnectivity();
+    when(() => authService.userStream).thenAnswer((_) => const Stream.empty());
     when(
-      () => authService.authStateChanges,
+      () => connectivity.onConnectivityChanged,
     ).thenAnswer((_) => const Stream.empty());
   });
 
@@ -35,7 +41,7 @@ void main() {
       () => authService.signIn(email: 'user@example.com', password: 'password'),
     ).thenAnswer((_) async => testUser());
 
-    final bloc = AuthBloc(authService: authService);
+    final bloc = AuthBloc(authService: authService, connectivity: connectivity);
     final expectation = expectLater(
       bloc.stream,
       emitsInOrder([
@@ -58,7 +64,7 @@ void main() {
         () => authService.signIn(email: 'user@example.com', password: 'pw'),
       ).thenThrow(const EmailNotVerifiedFailure());
 
-      final bloc = AuthBloc(authService: authService);
+      final bloc = AuthBloc(authService: authService, connectivity: connectivity);
       final expectation = expectLater(
         bloc.stream,
         emitsInOrder([isA<AuthLoading>(), isA<AuthNeedsVerification>()]),
@@ -73,12 +79,10 @@ void main() {
   );
 
   test('emits unauthenticated when check status has no user', () async {
-    when(
-      () => authService.authStateChanges,
-    ).thenAnswer((_) => Stream.value(null));
+    when(() => authService.userStream).thenAnswer((_) => Stream.value(null));
     when(() => authService.currentUser).thenReturn(null);
 
-    final bloc = AuthBloc(authService: authService);
+    final bloc = AuthBloc(authService: authService, connectivity: connectivity);
     final expectation = expectLater(
       bloc.stream,
       emitsInOrder([isA<AuthLoading>(), isA<AuthUnauthenticated>()]),
@@ -100,7 +104,7 @@ void main() {
     final fullUser = testUser();
 
     when(
-      () => authService.authStateChanges,
+      () => authService.userStream,
     ).thenAnswer((_) => Stream.value(currentUser));
     when(() => authService.reloadUser()).thenAnswer((_) async {});
     when(() => authService.currentUser).thenReturn(currentUser);
@@ -108,7 +112,7 @@ void main() {
       () => authService.getCurrentAppUser(forceRefresh: true),
     ).thenAnswer((_) async => fullUser);
 
-    final bloc = AuthBloc(authService: authService);
+    final bloc = AuthBloc(authService: authService, connectivity: connectivity);
     final expectation = expectLater(
       bloc.stream,
       emitsInOrder([
@@ -138,7 +142,7 @@ void main() {
       );
 
       when(
-        () => authService.authStateChanges,
+        () => authService.userStream,
       ).thenAnswer((_) => Stream.value(adminUser));
       when(
         () => authService.reloadUser(),
@@ -146,7 +150,7 @@ void main() {
       when(() => authService.currentUser).thenReturn(adminUser);
       when(() => authService.lastKnownAppUser).thenReturn(adminUser);
 
-      final bloc = AuthBloc(authService: authService);
+      final bloc = AuthBloc(authService: authService, connectivity: connectivity);
       final expectation = expectLater(
         bloc.stream,
         emitsInOrder([
@@ -182,7 +186,7 @@ void main() {
       when(() => authService.currentUser).thenReturn(adminUser);
       when(() => authService.lastKnownAppUser).thenReturn(adminUser);
 
-      final bloc = AuthBloc(authService: authService);
+      final bloc = AuthBloc(authService: authService, connectivity: connectivity);
       final expectation = expectLater(
         bloc.stream,
         emitsInOrder([
@@ -209,7 +213,7 @@ void main() {
       () => authService.refreshCurrentAppUser(),
     ).thenAnswer((_) async => refreshedUser);
 
-    final bloc = AuthBloc(authService: authService);
+    final bloc = AuthBloc(authService: authService, connectivity: connectivity);
     final expectation = expectLater(
       bloc.stream,
       emitsInOrder([
@@ -242,7 +246,7 @@ void main() {
       () => authService.getCurrentAppUser(forceRefresh: true),
     ).thenAnswer((_) async => archivedUser);
 
-    final bloc = AuthBloc(authService: authService);
+    final bloc = AuthBloc(authService: authService, connectivity: connectivity);
     final expectation = expectLater(
       bloc.stream,
       emitsInOrder([
@@ -262,9 +266,7 @@ void main() {
 
   test('reacts to live auth session stream updates after bootstrap', () async {
     final controller = StreamController<AuthUser?>.broadcast();
-    when(
-      () => authService.authStateChanges,
-    ).thenAnswer((_) => controller.stream);
+    when(() => authService.userStream).thenAnswer((_) => controller.stream);
     when(() => authService.currentUser).thenReturn(null);
     when(
       () => authService.getCurrentAppUser(
@@ -272,7 +274,7 @@ void main() {
       ),
     ).thenAnswer((_) async => null);
 
-    final bloc = AuthBloc(authService: authService);
+    final bloc = AuthBloc(authService: authService, connectivity: connectivity);
 
     // Bootstrap the bloc
     bloc.add(const AuthEventCheckStatus());

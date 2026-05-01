@@ -78,3 +78,15 @@ class AuthPasswordResetSuccess extends AuthState {
 class AuthSigningOut extends AuthState {
   const AuthSigningOut();
 }
+
+class AuthRoleRefreshing extends AuthState {
+  const AuthRoleRefreshing();
+}
+
+class AuthRoleUpdated extends AuthState {
+  final AuthUser user;
+  const AuthRoleUpdated(this.user);
+
+  @override
+  List<Object?> get props => [user];
+}

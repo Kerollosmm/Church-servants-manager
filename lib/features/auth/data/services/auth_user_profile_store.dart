@@ -10,20 +10,27 @@ class AuthUserProfileStore {
 
   final FirebaseFirestore _db;
 
-  Future<AuthUser> fetchUser(String uid) async {
+  Future<AuthUser> fetchUser(String uid, {bool sourceCacheOnly = false}) async {
     try {
       DocumentSnapshot<Map<String, dynamic>> doc;
-      try {
-        doc = await _db
-            .collection(FirestoreCollections.users)
-            .doc(uid)
-            .get()
-            .timeout(const Duration(seconds: 12));
-      } catch (_) {
+      if (sourceCacheOnly) {
         doc = await _db
             .collection(FirestoreCollections.users)
             .doc(uid)
             .get(const GetOptions(source: Source.cache));
+      } else {
+        try {
+          doc = await _db
+              .collection(FirestoreCollections.users)
+              .doc(uid)
+              .get()
+              .timeout(const Duration(seconds: 12));
+        } catch (_) {
+          doc = await _db
+              .collection(FirestoreCollections.users)
+              .doc(uid)
+              .get(const GetOptions(source: Source.cache));
+        }
       }
 
       if (!doc.exists || doc.data() == null) {

@@ -1,55 +1,55 @@
-# P0: Hive-First Sync & Cost Optimization Plan
+# MODIFICATION IMPLEMENTATION: Auth Architectural Fixes (P0 + P1)
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+This plan outlines the phased implementation of architectural and security improvements to the Authentication feature.
 
-**Goal:** Transform the app into a true offline-first system and eliminate "Quota Killer" Firestore/AI patterns.
+## Phase 1: Preparation and Verification
+- [x] Run all tests to ensure the project is in a good state before starting modifications.
+- [x] Verify the current state of `AuthFreshnessPolicy` and `AuthUserProfileStore` to ensure baseline functionality.
 
----
+## Phase 2: Provider Refactoring (P1)
+- [x] Create `FirebaseIdentityProvider` in `lib/features/auth/data/services/` (extracted from `FirebaseAuthProvider`).
+- [x] Create `FirestoreProfileProvider` in `lib/features/auth/data/services/` (extracted from `FirebaseAuthProvider`).
+- [x] Implement 1-hour TTL logic in `FirestoreProfileProvider` as a secondary safety mechanism.
+- [x] Update `AuthUserProfileStore` to expose detailed metadata (e.g., `lastFetchedAt`) for TTL checks.
+- [x] Remove/Deprecate the original `FirebaseAuthProvider`.
 
-### Phase 1: Global Data Modeling
-- [ ] **Task 1.1: Add SyncStatus Enum**
-- [ ] **Task 1.2: Update Models** (Attendance, Team, Student, Servant) with `syncStatus` and `updatedAt`.
-- [ ] **Task 1.3: Create AI Cache Model**
-Create `AiCacheEntry` with `queryHash`, `response`, and `expiry` for Hive.
-- [ ] **Task 1.4: Generate Adapters**
+## Phase 3: Reactive Repository & Stream Merging (P1)
+- [x] Update `AuthRepository` interface in `lib/features/auth/domain/repos/` to include `userStream`.
+- [x] Implement `userStream` in `FirebaseAuthRepository` using `switchMap` to merge identity and profile snapshots.
+- [x] Update `FirebaseAuthRepository` to coordinate between `FirebaseIdentityProvider`, `FirestoreProfileProvider`, and `AuthUserProfileStore`.
+- [x] Implement the "Offline Session Restore" logic in the repository, checking `AuthFreshnessPolicy` and local cache.
 
----
+## Phase 4: BLoC Integration & Security Gates (P0)
+- [x] Update `AuthBloc` to listen to the new repository `userStream`.
+- [x] Wire `AuthFreshnessPolicy` into `AuthEventCheckStatus` as a hard security gate.
+- [x] Implement `AuthEventRefreshUser` to trigger explicit `forceRefresh` in the repository/provider.
+- [x] Ensure `AuthBloc` emits `AuthUnauthenticated` if the freshness policy is violated (offline > 24h).
 
-### Phase 2: Hive & Quota Foundation
-- [ ] **Task 2.1: Initialize Hive Boxes**
-Open: `marks`, `sessions`, `teams`, `students`, `servants`, `ai_cache`.
-- [ ] **Task 2.2: Implement LocalSources**
-- [ ] **Task 2.3: Implement AI Caching Logic**
-Update `StudentAIService` to check `ai_cache` box before calling Gemini.
+## Phase 5: Finalization & Documentation
+- [x] Update any README.md file for the package with relevant information from the modification.
+- [x] Update any GEMINI.md file in the project directory to reflect the new auth architecture.
+- [x] Run final verification tools (`dart_fix`, `analyze_files`, `tests`, `dart_format`).
+- [x] Ask the user to inspect the package and confirm satisfaction.
 
----
-
-### Phase 3: Repository Refactor (The Cost Fix)
-- [ ] **Task 3.1: AttendanceRepository: Bounding & Consolidation**
-    - Apply `.limit(50)` to `watchSessionsForTeam`.
-    - Delegate `getStudentAttendanceStats` to `getStudentAttendanceHistory` to save 1 `collectionGroup` read.
-- [ ] **Task 3.2: AttendanceRepository: Validation Optimization**
-    - Refactor `_writeMark` to remove the 2 Firestore reads per mark. Write to Hive immediately.
-- [ ] **Task 3.3: StudentQueryService: Cache-First**
-    - Ensure `getStudentsByClass` uses `Source.serverAndCache`.
-
----
-
-### Phase 4: Sync Engine & Admin Fixes
-- [ ] **Task 4.1: SyncService Worker**
-    - Batch push (400) + Exponential backoff.
-- [ ] **Task 4.2: Servant Archiving**
-    - Refactor `AdminAuthClient` to use client-side `isActive` flag updates.
-
----
-
-### Phase 5: Verification & Stress Testing
-- [ ] **Task 5.1: Quota Audit**
-Verify Firestore usage for 30 marks = 1 batch write (instead of 60 reads).
-- [ ] **Task 5.2: Offline Marking Test**
-- [ ] **Task 5.3: AI TTL Verification**
-
----
+## Post-Phase Checklist (to be run after each phase)
+- [x] Create/modify unit tests for testing the code added or modified in this phase, if relevant.
+- [x] Run the `dart_fix` tool to clean up the code.
+- [x] Run the `analyze_files` tool one more time and fix any issues.
+- [x] Run any tests to make sure they all pass.
+- [x] Run `dart_format` to make sure that the formatting is correct.
+- [x] Re-read the `MODIFICATION_IMPLEMENTATION.md` file to see what, if anything, has changed in the implementation plan.
+- [x] Update the `MODIFICATION_IMPLEMENTATION.md` file with the current state in the Journal.
+- [x] Use `git diff` to verify changes and propose a commit message to the user.
+- [x] Wait for approval before committing and moving to the next phase.
+- [x] After committing, use `hot_reload` if an app is running.
 
 ## Journal
-- **2026-04-28:** Integrated CodeRabbit Cost Optimization report. Added tasks for stream bounding, AI caching, and query consolidation.
+- **Initial State:** Research completed, design approved. Branch `feature/auth-architectural-fixes` created.
+- **Phase 1 Log:** Ran tests. Fixed `AttendanceTakingCubit` bugs, mocktail matching errors, and `AttendanceInsight` const constructors to stabilize baseline. Tests passed.
+- **Phase 2 Log:** Split `FirebaseAuthProvider` into `FirebaseIdentityProvider` and `FirestoreProfileProvider` implementing hybrid cache with TTL. Updated `AuthUserProfileStore` to support cache-only fetching.
+- **Phase 3 Log:** Refactored `FirebaseAuthRepository` to expose a reactive `userStream` merging identity and profile data using `switchMap`. Implemented offline fallback block based on `AuthFreshnessPolicy`.
+- **Phase 4 Log:** Updated `AuthBloc` to listen to `userStream`. Removed old `FirebaseAuthProvider` and cleaned up dependency injection (DI). Fixed all related test compilation errors. Tests passing.
+- **Phase 5 Log:** Verified final changes. Updated implementation log and prepared commit. Code formatting and static analysis are complete.
+
+---
+*Note: After completing a task, if you added any TODOs to the code or didn't fully implement anything, make sure to add new tasks so that you can come back and complete them later.*

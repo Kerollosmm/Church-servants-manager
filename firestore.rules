@@ -94,14 +94,16 @@ service cloud.firestore {
         request.resource.data.uid == resource.data.uid &&
         request.resource.data.role == resource.data.role &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'name', 'email', 'isEmailVerified', 'updatedAt', 'phone', 'avatarUrl'
+          'name', 'email', 'isEmailVerified', 'updatedAt', 'phone', 'avatarUrl', 'requiresTokenRefresh'
         ]);
     }
 
     function isPrivilegedFieldUpdate() {
       let affected = request.resource.data.diff(resource.data).affectedKeys();
       return affected.hasAny([
-        'role', 'isArchived', 'attendanceSummary', 'groupAttendanceSummary', 'aiRecommendations'
+        'role', 'isArchived', 'assignedTeamIds', 'assignedTeamId', 
+        'requiresTokenRefresh', 'attendanceSummary', 
+        'groupAttendanceSummary', 'aiRecommendations'
       ]);
     }
 

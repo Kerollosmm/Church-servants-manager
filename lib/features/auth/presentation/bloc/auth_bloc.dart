@@ -4,6 +4,7 @@ import 'dart:developer' as developer;
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/domain/failures/auth_failures.dart';
 import 'package:church_management_system/features/auth/domain/repos/auth_repository.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -12,14 +13,18 @@ part 'auth_state.dart';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final AuthRepository _authService;
+  final Connectivity _connectivity;
   static const _degradedPermissionsMessage =
-      'Unable to refresh account data. Showing last synced permissions.';
-  static const _archivedMessage =
-      'تم إيقاف هذا الحساب. تواصل مع الإدارة لاستعادته.';
+      'جاري تحديث صلاحيات الحساب... (استخدام البيانات المحفوظة حالياً)';
+  static const _inactiveMessage =
+      'هذا الحساب غير نشط حالياً. يرجى التواصل مع مسؤول النظام لتنشيطه.';
   late final StreamSubscription<AuthUser?> _authStateSubscription;
+  late final StreamSubscription<List<ConnectivityResult>>
+  _connectivitySubscription;
 
-  AuthBloc({required AuthRepository authService})
+  AuthBloc({required AuthRepository authService, Connectivity? connectivity})
     : _authService = authService,
+      _connectivity = connectivity ?? Connectivity(),
       super(const AuthInitial()) {
     on<AuthEventCheckStatus>(_onCheckStatus);
     on<AuthEventSignIn>(_onSignIn);
@@ -32,7 +37,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<_AuthEventSessionChanged>(_onSessionChanged);
     on<_AuthEventSessionError>(_onSessionError);
 
-    _authStateSubscription = _authService.authStateChanges.listen((user) {
+    _authStateSubscription = _authService.userStream.listen((user) {
       // Only react to session changes after initial status check completes.
       // AuthEventCheckStatus handles the cold-start case; the stream
       // handles subsequent tab-switches, token refreshes, and remote sign-outs.
@@ -40,6 +45,16 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         add(_AuthEventSessionChanged(user));
       }
     }, onError: (error, stackTrace) => add(const _AuthEventSessionError()));
+
+    // AUTO-SYNC ON RECONNECT: Trigger a refresh when the device goes back online.
+    _connectivitySubscription = _connectivity.onConnectivityChanged.listen((
+      results,
+    ) {
+      final isOnline = !results.contains(ConnectivityResult.none);
+      if (isOnline && (state is AuthDegraded || state is AuthAuthenticated)) {
+        add(const AuthEventRefreshUser());
+      }
+    });
   }
 
   Future<void> _emitResolvedState(
@@ -52,7 +67,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
 
     if (user.isArchived) {
-      emit(AuthArchived(message: _archivedMessage, email: user.email));
+      emit(AuthArchived(message: _inactiveMessage, email: user.email));
       return;
     }
 
@@ -108,7 +123,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       // Give the auth stream 5 seconds before falling back to cached user
       final initialUser =
           _authService.currentUser ??
-          await _authService.authStateChanges.first.timeout(
+          await _authService.userStream.first.timeout(
             const Duration(seconds: 5),
             onTimeout: () => null,
           );
@@ -218,9 +233,42 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     _AuthEventSessionChanged event,
     Emitter<AuthState> emit,
   ) async {
-    // Don't process session changes while actively signing out
-    if (state is AuthSigningOut) return;
-    await _emitResolvedState(emit, event.user);
+    try {
+      // Don't process session changes while actively signing out
+      if (state is AuthSigningOut) return;
+
+      final newUser = event.user;
+      final currentState = state;
+
+      // Detection logic for reactive role refresh
+      if (currentState is AuthAuthenticated && newUser != null) {
+        if (newUser.requiresTokenRefresh) {
+          emit(const AuthRoleRefreshing());
+          return; // The refresh will trigger another session change event
+        }
+
+        // Detect if role actually changed after a refresh
+        if (currentState.user.role != newUser.role) {
+          emit(AuthRoleUpdated(newUser));
+          // Transition to normal authenticated state immediately so UI can route
+          emit(AuthAuthenticated(newUser));
+          return;
+        }
+      }
+
+      await _emitResolvedState(emit, newUser);
+    } catch (e, stackTrace) {
+      developer.log(
+        'AuthBloc: Error in session change logic',
+        error: e,
+        stackTrace: stackTrace,
+        name: 'AuthBloc',
+      );
+      _emitDegradedOrError(
+        emit,
+        fallbackErrorMessage: 'An error occurred during session sync.',
+      );
+    }
   }
 
   void _onSessionError(_AuthEventSessionError event, Emitter<AuthState> emit) {
@@ -285,7 +333,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         cached != null &&
         cached.uid == firebaseUser.uid) {
       if (cached.isArchived) {
-        emit(AuthArchived(message: _archivedMessage, email: cached.email));
+        emit(AuthArchived(message: _inactiveMessage, email: cached.email));
         return;
       }
       emit(_buildDegradedState(cached));
@@ -302,6 +350,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   @override
   Future<void> close() async {
     await _authStateSubscription.cancel();
+    await _connectivitySubscription.cancel();
     return super.close();
   }
 }

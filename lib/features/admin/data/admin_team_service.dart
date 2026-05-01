@@ -87,14 +87,6 @@ class AdminTeamService {
       }
     }
 
-    final assignedTeamId = data['assignedTeamId'];
-    if (assignedTeamId is String) {
-      final id = assignedTeamId.trim();
-      if (id.isNotEmpty && !ids.contains(id)) {
-        ids.add(id);
-      }
-    }
-
     return ids;
   }
 
@@ -102,14 +94,15 @@ class AdminTeamService {
     if (teamIds.isEmpty) {
       return {
         'assignedTeamIds': FieldValue.delete(),
-        'assignedTeamId': FieldValue.delete(),
+        'assignedTeamId': FieldValue.delete(), // Cleanup legacy field
+        'requiresTokenRefresh': true, // Trigger reactive sync
         'updatedAt': FieldValue.serverTimestamp(),
       };
     }
     return {
       'assignedTeamIds': teamIds,
-      // Keep legacy field for backward compatibility.
-      'assignedTeamId': teamIds.first,
+      'assignedTeamId': FieldValue.delete(), // Cleanup legacy field
+      'requiresTokenRefresh': true, // Trigger reactive sync
       'updatedAt': FieldValue.serverTimestamp(),
     };
   }
