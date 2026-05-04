@@ -1,9 +1,9 @@
+import 'dart:developer' as developer;
 import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
 import 'package:church_management_system/features/attendance/domain/failures/attendance_failures.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 
 /// Repository responsible for attendance session CRUD operations.
 /// Handles session creation, closing, reopening, and querying within a team.
@@ -34,12 +34,11 @@ class AttendanceSessionRepository {
       try {
         sessions.add(AttendanceSession.fromMap(doc.data(), doc.id));
       } catch (error) {
-        if (kDebugMode) {
-          debugPrint(
-            'AttendanceSessionRepository: skipped malformed session '
-            '${doc.reference.path} (${error.runtimeType})',
-          );
-        }
+        developer.log(
+          'skipped malformed session ${doc.reference.path}',
+          error: error,
+          name: 'AttendanceSessionRepository',
+        );
       }
     }
     sessions.sort((a, b) => b.startsAt.compareTo(a.startsAt));
@@ -167,23 +166,26 @@ class AttendanceSessionRepository {
         }
       }
 
+      final updatedOpenIds =
+          openSessionIds.where((id) => !clashingIds.contains(id)).toList()
+            ..add(sessionId);
+
+      if (updatedOpenIds.length > 10) {
+        updatedOpenIds.removeRange(0, updatedOpenIds.length - 10);
+      }
+
       // 3. Perform atomic creation and index update.
-      transaction.set(docRef, {
-        ...session.toMap(),
-        'teamIsActive': true,
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      final updatedOpenIds = openSessionIds
-          .where((id) => !clashingIds.contains(id))
-          .toList();
-      updatedOpenIds.add(sessionId);
-
-      transaction.update(teamDoc.reference, {
-        'openSessionIds': updatedOpenIds,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      transaction
+        ..set(docRef, {
+          ...session.toMap(),
+          'teamIsActive': true,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        })
+        ..update(teamDoc.reference, {
+          'openSessionIds': updatedOpenIds,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
     });
 
     // Read back the written document to return server timestamps.
@@ -204,15 +206,15 @@ class AttendanceSessionRepository {
       final sessionRef = _sessionDoc(teamId, sessionId);
       final teamRef = _classesCollection.doc(teamId);
 
-      transaction.update(sessionRef, {
-        'isClosed': true,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      transaction.update(teamRef, {
-        'openSessionIds': FieldValue.arrayRemove([sessionId]),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      transaction
+        ..update(sessionRef, {
+          'isClosed': true,
+          'updatedAt': FieldValue.serverTimestamp(),
+        })
+        ..update(teamRef, {
+          'openSessionIds': FieldValue.arrayRemove([sessionId]),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
     });
   }
 

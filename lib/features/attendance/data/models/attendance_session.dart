@@ -137,8 +137,6 @@ class AttendanceSession with _$AttendanceSession {
   }
 
   Map<String, dynamic> toMap() {
-    final map = toJson();
-    map.remove('id');
-    return map;
+    return toJson()..remove('id');
   }
 }

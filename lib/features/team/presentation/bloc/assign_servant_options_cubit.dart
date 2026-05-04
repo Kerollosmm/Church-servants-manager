@@ -1,6 +1,6 @@
+import 'dart:developer' as developer;
 import 'package:church_management_system/features/servant/data/models/servant_models.dart';
 import 'package:church_management_system/features/servant/data/repo/servant_data_repository.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class AssignServantOptionsState {
@@ -37,12 +37,11 @@ class AssignServantOptionsCubit extends Cubit<AssignServantOptionsState> {
         ),
       );
     } catch (error) {
-      if (kDebugMode) {
-        debugPrint(
-          'AssignServantOptionsCubit: failed to load servants '
-          '(${error.runtimeType})',
-        );
-      }
+      developer.log(
+        'failed to load servants',
+        error: error,
+        name: 'AssignServantOptionsCubit',
+      );
       emit(
         const AssignServantOptionsState(
           errorMessage: 'فشل تحميل الخدام. حاول مرة أخرى.',

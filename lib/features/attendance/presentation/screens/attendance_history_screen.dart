@@ -1,9 +1,11 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/routes.dart';
+import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/routing/route_args.dart';
 import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
 import 'package:church_management_system/core/widgets/app_empty_state.dart';
+import 'package:church_management_system/core/widgets/app_error_state.dart';
 import 'package:church_management_system/core/widgets/common/app_info_banner.dart';
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
@@ -17,7 +19,7 @@ import 'package:church_management_system/features/auth/data/models/auth_user.dar
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_management_system/features/team/data/models/team_model.dart';
 import 'package:church_management_system/features/team/data/repos/team_repository.dart';
-import 'package:church_management_system/features/team/presentation/bloc/team_cubit.dart';
+import 'package:church_management_system/features/team/presentation/bloc/team_bloc.dart';
 import 'package:church_management_system/features/team/presentation/widgets/team_dropdown.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -26,7 +28,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 ///
 /// Shows team dropdown, active session card, and history cards.
 /// Uses [AttendanceHistoryCubit], [AttendanceSessionAdminCubit],
-/// and [TeamCubit].
+/// and [TeamBloc].
 class AttendanceHistoryScreen extends StatefulWidget {
   const AttendanceHistoryScreen({super.key});
 
@@ -119,14 +121,13 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<AuthBloc, AuthState>(
-      builder: (context, authState) {
-        final actor = switch (authState) {
-          AuthAuthenticated() => authState.user,
-          AuthDegraded() => authState.user,
-          _ => null,
-        };
-
+    return BlocSelector<AuthBloc, AuthState, AuthUser?>(
+      selector: (state) => switch (state) {
+        AuthAuthenticated() => state.user,
+        AuthDegraded() => state.user,
+        _ => null,
+      },
+      builder: (context, actor) {
         if (actor == null) {
           return const Scaffold(
             body: Center(child: Text('لم يتم تسجيل الدخول.')),
@@ -135,23 +136,26 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
 
         return MultiBlocProvider(
           providers: [
-            BlocProvider<TeamCubit>(
+            BlocProvider<TeamBloc>(
               create: (context) {
-                final teamCubit = TeamCubit(
-                  teamRepository: context.read<TeamRepository>(),
-                  adminTeamService: context.read<AdminTeamService>(),
+                final teamCubit = TeamBloc(
+                  teamRepository: getIt<TeamRepository>(),
+                  adminTeamService: getIt<AdminTeamService>(),
                 );
 
                 if (actor.role == UserRole.admin) {
-                  teamCubit.loadAllTeams();
+                  teamCubit.add(const TeamLoadAllRequested());
                 } else {
                   final groupId = actor.groupId;
                   if (groupId != null && groupId.isNotEmpty) {
-                    teamCubit.loadTeamsByGroup(
-                      groupId,
-                      defaultTeamId: actor.effectiveAssignedTeamIds.length == 1
-                          ? actor.effectiveAssignedTeamIds.first
-                          : null,
+                    teamCubit.add(
+                      TeamLoadRequested(
+                        groupId,
+                        defaultTeamId:
+                            actor.effectiveAssignedTeamIds.length == 1
+                            ? actor.effectiveAssignedTeamIds.first
+                            : null,
+                      ),
                     );
                   }
                 }
@@ -161,7 +165,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
             BlocProvider<AttendanceHistoryCubit>(
               create: (context) {
                 final cubit = AttendanceHistoryCubit(
-                  repository: context.read<AttendanceRepository>(),
+                  repository: getIt<AttendanceRepository>(),
                 );
                 if (_selectedTeamId != null) {
                   cubit.loadForTeam(_selectedTeamId!);
@@ -171,7 +175,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
             ),
             BlocProvider<AttendanceSessionAdminCubit>(
               create: (context) => AttendanceSessionAdminCubit(
-                repository: context.read<AttendanceRepository>(),
+                repository: getIt<AttendanceRepository>(),
               ),
             ),
           ],
@@ -224,7 +228,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                         label: const Text('جلسة جديدة'),
                       )
                     : null,
-                body: BlocBuilder<TeamCubit, TeamState>(
+                body: BlocBuilder<TeamBloc, TeamState>(
                   builder: (context, teamState) {
                     final teams = teamState is TeamLoaded
                         ? teamState.teams
@@ -293,27 +297,12 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                                   }
 
                                   if (state is AttendanceHistoryError) {
-                                    return Center(
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(
-                                          AppSpacing.lg,
-                                        ),
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            const Icon(
-                                              Icons.error_outline,
-                                              size: 48,
-                                              color: AppColors.error,
-                                            ),
-                                            AppSpacing.gapMd,
-                                            Text(
-                                              state.message,
-                                              textAlign: TextAlign.center,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
+                                    return AppErrorState(
+                                      message: state.message,
+                                      title: 'تعذر تحميل الحضور',
+                                      onRetry: () => innerContext
+                                          .read<AttendanceHistoryCubit>()
+                                          .loadForTeam(_selectedTeamId!),
                                     );
                                   }
 
@@ -335,14 +324,18 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                                     );
                                   }
 
-                                  final historySessions = sessions
-                                      .where(
-                                        (session) =>
-                                            activeSession == null ||
-                                            session.id != activeSession.id,
-                                      )
-                                      .toList(growable: false);
-
+                                  final historySessions =
+                                      sessions
+                                          .where(
+                                            (session) =>
+                                                activeSession == null ||
+                                                session.id != activeSession.id,
+                                          )
+                                          .toList()
+                                        ..sort(
+                                          (a, b) =>
+                                              b.startsAt.compareTo(a.startsAt),
+                                        );
                                   return ListView.builder(
                                     padding: const EdgeInsets.all(
                                       AppSpacing.md,

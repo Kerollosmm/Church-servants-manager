@@ -35,8 +35,10 @@ mixin _$AuthUser {
   DateTime? get restoredAt => throw _privateConstructorUsedError;
   String? get restoredByUserId => throw _privateConstructorUsedError;
   bool get restorePendingPasswordReset => throw _privateConstructorUsedError;
+  bool get requiresTokenRefresh => throw _privateConstructorUsedError;
   String? get groupId => throw _privateConstructorUsedError;
   List<String> get assignedTeamIds => throw _privateConstructorUsedError;
+  @Deprecated('Use effectiveAssignedTeamIds or assignedTeamIds instead')
   String? get assignedTeamId => throw _privateConstructorUsedError;
 
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -63,8 +65,10 @@ abstract class $AuthUserCopyWith<$Res> {
     @_TimestampConverter() DateTime? restoredAt,
     String? restoredByUserId,
     bool restorePendingPasswordReset,
+    bool requiresTokenRefresh,
     String? groupId,
     List<String> assignedTeamIds,
+    @Deprecated('Use effectiveAssignedTeamIds or assignedTeamIds instead')
     String? assignedTeamId,
   });
 }
@@ -94,6 +98,7 @@ class _$AuthUserCopyWithImpl<$Res, $Val extends AuthUser>
     Object? restoredAt = freezed,
     Object? restoredByUserId = freezed,
     Object? restorePendingPasswordReset = null,
+    Object? requiresTokenRefresh = null,
     Object? groupId = freezed,
     Object? assignedTeamIds = null,
     Object? assignedTeamId = freezed,
@@ -148,6 +153,10 @@ class _$AuthUserCopyWithImpl<$Res, $Val extends AuthUser>
                 ? _value.restorePendingPasswordReset
                 : restorePendingPasswordReset // ignore: cast_nullable_to_non_nullable
                       as bool,
+            requiresTokenRefresh: null == requiresTokenRefresh
+                ? _value.requiresTokenRefresh
+                : requiresTokenRefresh // ignore: cast_nullable_to_non_nullable
+                      as bool,
             groupId: freezed == groupId
                 ? _value.groupId
                 : groupId // ignore: cast_nullable_to_non_nullable
@@ -188,8 +197,10 @@ abstract class _$$AuthUserImplCopyWith<$Res>
     @_TimestampConverter() DateTime? restoredAt,
     String? restoredByUserId,
     bool restorePendingPasswordReset,
+    bool requiresTokenRefresh,
     String? groupId,
     List<String> assignedTeamIds,
+    @Deprecated('Use effectiveAssignedTeamIds or assignedTeamIds instead')
     String? assignedTeamId,
   });
 }
@@ -218,6 +229,7 @@ class __$$AuthUserImplCopyWithImpl<$Res>
     Object? restoredAt = freezed,
     Object? restoredByUserId = freezed,
     Object? restorePendingPasswordReset = null,
+    Object? requiresTokenRefresh = null,
     Object? groupId = freezed,
     Object? assignedTeamIds = null,
     Object? assignedTeamId = freezed,
@@ -272,6 +284,10 @@ class __$$AuthUserImplCopyWithImpl<$Res>
             ? _value.restorePendingPasswordReset
             : restorePendingPasswordReset // ignore: cast_nullable_to_non_nullable
                   as bool,
+        requiresTokenRefresh: null == requiresTokenRefresh
+            ? _value.requiresTokenRefresh
+            : requiresTokenRefresh // ignore: cast_nullable_to_non_nullable
+                  as bool,
         groupId: freezed == groupId
             ? _value.groupId
             : groupId // ignore: cast_nullable_to_non_nullable
@@ -305,8 +321,10 @@ class _$AuthUserImpl extends _AuthUser {
     @_TimestampConverter() this.restoredAt,
     this.restoredByUserId,
     this.restorePendingPasswordReset = false,
+    this.requiresTokenRefresh = false,
     this.groupId,
     final List<String> assignedTeamIds = const <String>[],
+    @Deprecated('Use effectiveAssignedTeamIds or assignedTeamIds instead')
     this.assignedTeamId,
   }) : _assignedTeamIds = assignedTeamIds,
        super._();
@@ -344,6 +362,9 @@ class _$AuthUserImpl extends _AuthUser {
   @JsonKey()
   final bool restorePendingPasswordReset;
   @override
+  @JsonKey()
+  final bool requiresTokenRefresh;
+  @override
   final String? groupId;
   final List<String> _assignedTeamIds;
   @override
@@ -355,11 +376,12 @@ class _$AuthUserImpl extends _AuthUser {
   }
 
   @override
+  @Deprecated('Use effectiveAssignedTeamIds or assignedTeamIds instead')
   final String? assignedTeamId;
 
   @override
   String toString() {
-    return 'AuthUser(uid: $uid, email: $email, name: $name, role: $role, isEmailVerified: $isEmailVerified, isArchived: $isArchived, archivedAt: $archivedAt, archivedByUserId: $archivedByUserId, archiveReason: $archiveReason, restoredAt: $restoredAt, restoredByUserId: $restoredByUserId, restorePendingPasswordReset: $restorePendingPasswordReset, groupId: $groupId, assignedTeamIds: $assignedTeamIds, assignedTeamId: $assignedTeamId)';
+    return 'AuthUser(uid: $uid, email: $email, name: $name, role: $role, isEmailVerified: $isEmailVerified, isArchived: $isArchived, archivedAt: $archivedAt, archivedByUserId: $archivedByUserId, archiveReason: $archiveReason, restoredAt: $restoredAt, restoredByUserId: $restoredByUserId, restorePendingPasswordReset: $restorePendingPasswordReset, requiresTokenRefresh: $requiresTokenRefresh, groupId: $groupId, assignedTeamIds: $assignedTeamIds, assignedTeamId: $assignedTeamId)';
   }
 
   @override
@@ -391,6 +413,8 @@ class _$AuthUserImpl extends _AuthUser {
                 ) ||
                 other.restorePendingPasswordReset ==
                     restorePendingPasswordReset) &&
+            (identical(other.requiresTokenRefresh, requiresTokenRefresh) ||
+                other.requiresTokenRefresh == requiresTokenRefresh) &&
             (identical(other.groupId, groupId) || other.groupId == groupId) &&
             const DeepCollectionEquality().equals(
               other._assignedTeamIds,
@@ -416,6 +440,7 @@ class _$AuthUserImpl extends _AuthUser {
     restoredAt,
     restoredByUserId,
     restorePendingPasswordReset,
+    requiresTokenRefresh,
     groupId,
     const DeepCollectionEquality().hash(_assignedTeamIds),
     assignedTeamId,
@@ -447,8 +472,10 @@ abstract class _AuthUser extends AuthUser {
     @_TimestampConverter() final DateTime? restoredAt,
     final String? restoredByUserId,
     final bool restorePendingPasswordReset,
+    final bool requiresTokenRefresh,
     final String? groupId,
     final List<String> assignedTeamIds,
+    @Deprecated('Use effectiveAssignedTeamIds or assignedTeamIds instead')
     final String? assignedTeamId,
   }) = _$AuthUserImpl;
   const _AuthUser._() : super._();
@@ -483,10 +510,13 @@ abstract class _AuthUser extends AuthUser {
   @override
   bool get restorePendingPasswordReset;
   @override
+  bool get requiresTokenRefresh;
+  @override
   String? get groupId;
   @override
   List<String> get assignedTeamIds;
   @override
+  @Deprecated('Use effectiveAssignedTeamIds or assignedTeamIds instead')
   String? get assignedTeamId;
   @override
   @JsonKey(ignore: true)

@@ -1,8 +1,8 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
+import 'package:church_management_system/features/auth/data/repos/firebase_auth_repository.dart';
 import 'package:church_management_system/features/auth/data/services/admin_auth_client.dart';
 import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
-import 'package:church_management_system/features/auth/data/services/auth_service.dart';
 import 'package:church_management_system/features/auth/data/services/auth_user_profile_store.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -11,7 +11,7 @@ class MockAdminAuthClient extends Mock implements AdminAuthClient {}
 
 class MockAuthUserProfileStore extends Mock implements AuthUserProfileStore {}
 
-class MockAuthService extends Mock implements AuthService {}
+class MockAuthService extends Mock implements FirebaseAuthRepository {}
 
 void main() {
   late MockAdminAuthClient adminAuthClient;
@@ -82,19 +82,17 @@ void main() {
     verify(() => adminAuthClient.rollbackCreatedUser(uid: 'u1')).called(1);
   });
 
-  test('archiveUser archives linked user through backend client', () async {
+  test('archiveUser archives user through admin client', () async {
     when(() => adminAuthClient.archiveUser(uid: 'u1')).thenAnswer((_) async {});
-    when(
-      () => userProfileStore.updateUserFields('u1', any()),
-    ).thenAnswer((_) async {});
 
     await service.archiveUser(uid: 'u1');
 
     verify(() => adminAuthClient.archiveUser(uid: 'u1')).called(1);
-    verify(() => userProfileStore.updateUserFields('u1', any())).called(1);
+    // userProfileStore.updateUserFields is no longer called by the service directly
+    verifyNever(() => userProfileStore.updateUserFields('u1', any()));
   });
 
-  test('restoreUser restores auth account and sends reset email', () async {
+  test('restoreUser restores user and sends reset email', () async {
     final restoredUser = AuthUser(
       uid: 'u1',
       email: 'restored@example.com',
@@ -109,18 +107,28 @@ void main() {
     ).thenAnswer((_) async => restoredUser);
     when(() => adminAuthClient.restoreUser(uid: 'u1')).thenAnswer((_) async {});
     when(
-      () => userProfileStore.updateUserFields('u1', any()),
-    ).thenAnswer((_) async {});
-    when(
       () => authService.sendPasswordResetEmail('restored@example.com'),
     ).thenAnswer((_) async {});
 
     await service.restoreUser(uid: 'u1');
 
     verify(() => adminAuthClient.restoreUser(uid: 'u1')).called(1);
-    verify(() => userProfileStore.updateUserFields('u1', any())).called(1);
     verify(
       () => authService.sendPasswordResetEmail('restored@example.com'),
+    ).called(1);
+    // userProfileStore.updateUserFields is no longer called by the service directly
+    verifyNever(() => userProfileStore.updateUserFields('u1', any()));
+  });
+
+  test('changeUserRole updates role through admin client', () async {
+    when(
+      () => adminAuthClient.changeUserRole(uid: 'u1', role: UserRole.admin),
+    ).thenAnswer((_) async {});
+
+    await service.changeUserRole(uid: 'u1', role: UserRole.admin);
+
+    verify(
+      () => adminAuthClient.changeUserRole(uid: 'u1', role: UserRole.admin),
     ).called(1);
   });
 }

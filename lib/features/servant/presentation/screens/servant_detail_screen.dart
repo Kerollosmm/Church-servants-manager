@@ -8,7 +8,7 @@ import 'package:church_management_system/core/widgets/common/app_key_value_row.d
 import 'package:church_management_system/core/widgets/common/app_profile_header_card.dart';
 import 'package:church_management_system/core/widgets/dialogs/generic_dialog.dart';
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
-import 'package:church_management_system/features/servant/presentation/bloc/servant_data/servant_data_cubit.dart';
+import 'package:church_management_system/features/servant/presentation/bloc/servant_data/servant_data_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -31,7 +31,7 @@ class ServantDetailScreen extends StatelessWidget {
     final canArchive = canEdit && !servant.isArchived;
     final canRestore = canEdit && servant.isArchived;
 
-    return BlocListener<ServantDataCubit, ServantDataState>(
+    return BlocListener<ServantDataBloc, ServantDataState>(
       listener: (context, state) {
         if (state is ServantDataLoaded) {
           if (state.mutationStatus == ServantMutationStatus.success) {
@@ -79,10 +79,9 @@ class ServantDetailScreen extends StatelessWidget {
                   );
                   if (shouldArchive != true || !context.mounted) return;
 
-                  final cubit = context.read<ServantDataCubit>();
-                  await cubit.deleteServant(
-                    actor: args.actor,
-                    docId: servant.docID,
+                  final cubit = context.read<ServantDataBloc>();
+                  cubit.add(
+                    ServantDeleted(actor: args.actor, docId: servant.docID),
                   );
                 },
               ),
@@ -100,10 +99,9 @@ class ServantDetailScreen extends StatelessWidget {
                   );
                   if (shouldRestore != true || !context.mounted) return;
 
-                  final cubit = context.read<ServantDataCubit>();
-                  await cubit.restoreServant(
-                    actor: args.actor,
-                    docId: servant.docID,
+                  final cubit = context.read<ServantDataBloc>();
+                  cubit.add(
+                    ServantRestored(actor: args.actor, docId: servant.docID),
                   );
                 },
               ),

@@ -63,10 +63,13 @@ class ServantModel with _$ServantModel {
     String? restoredByUserId,
 
     /// Assigned team/class ID within the servant's group.
-    String? assignedTeamId,
+    @Deprecated('Use assignedTeamIds instead') String? assignedTeamId,
 
     /// Multiple assigned team IDs (if applicable).
-    List<String>? assignedTeamIds,
+    @Default(<String>[]) List<String> assignedTeamIds,
+
+    /// Aggregated group attendance metrics (for US1 Trend Insights).
+    Map<String, dynamic>? groupAttendanceSummary,
   }) = _ServantModel;
 
   /// Creates a ServantModel from JSON.
@@ -118,6 +121,23 @@ class ServantModel with _$ServantModel {
 
   /// Converts to Firestore-compatible map.
   Map<String, dynamic> toMap() => toJson();
+
+  List<String> get effectiveAssignedTeamIds {
+    final ids = <String>{};
+    // Ensure we handle potential null list from legacy data sources
+    final list = assignedTeamIds;
+    for (final id in list) {
+      final trimmed = id.trim();
+      if (trimmed.isNotEmpty) {
+        ids.add(trimmed);
+      }
+    }
+    final legacyId = assignedTeamId?.trim();
+    if (legacyId != null && legacyId.isNotEmpty) {
+      ids.add(legacyId);
+    }
+    return ids.toList(growable: false);
+  }
 
   bool get isActive => !isArchived;
 }

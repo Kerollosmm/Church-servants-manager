@@ -1,11 +1,11 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 
 import 'package:church_management_system/features/attendance/data/models/attendance_stats.dart';
 import 'package:church_management_system/features/attendance/data/models/student_attendance_history_item.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
 import 'package:church_management_system/features/attendance/domain/failures/attendance_failures.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/student_attendance/student_attendance_state.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class StudentAttendanceCubit extends Cubit<StudentAttendanceState> {
@@ -37,13 +37,12 @@ class StudentAttendanceCubit extends Cubit<StudentAttendanceState> {
       );
       _onHistoryLoaded(history);
     } catch (error, stackTrace) {
-      if (kDebugMode) {
-        debugPrint(
-          'StudentAttendanceCubit: failed to load history '
-          '(${error.runtimeType})',
-        );
-        debugPrintStack(stackTrace: stackTrace);
-      }
+      developer.log(
+        'failed to load history',
+        error: error,
+        stackTrace: stackTrace,
+        name: 'StudentAttendanceCubit',
+      );
       final failure = mapExceptionToAttendanceFailure(error);
       emit(StudentAttendanceError(failure.message));
     }

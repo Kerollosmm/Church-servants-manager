@@ -1,0 +1,12 @@
+- [ ] Phase 1: Hardening & Bug Fixes
+    - [ ] Fix `updateUserFields` prefix in `FirebaseAuthRepository`
+    - [ ] Add debounce/cooldown to `_handleForcedRefresh`
+    - [ ] Add `try-catch` guards to `userStream` and `AuthBloc._onSessionChanged`
+- [ ] Phase 2: Technical Debt Cleanup
+    - [ ] Deprecate `assignedTeamId` in `AuthUser` and make it computed
+    - [ ] Rename `AuthUser.fromFirebase` to `AuthUser.fromFirebaseUnsafe()`
+    - [ ] Update `AdminTeamService` to only write `assignedTeamIds`
+- [ ] Phase 3: UX Humanization
+    - [ ] Rename `AuthArchived` and `AuthDegraded` labels/messages
+    - [ ] Update "Refresh Permissions" button to "Sync Access"
+    - [ ] Implement auto-sync on reconnect in `AuthBloc`

@@ -1,11 +1,21 @@
 import 'package:church_management_system/core/constants/enums.dart';
+import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
 import 'package:church_management_system/features/admin/presentation/screens/admin_dashboard_screen.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_management_system/features/auth/presentation/screens/forced_password_reset_screen.dart';
 import 'package:church_management_system/features/auth/presentation/screens/login_screen.dart';
 import 'package:church_management_system/features/auth/presentation/screens/verify_email_screen.dart';
+import 'package:church_management_system/features/servant/domain/repos/i_servant_repository.dart';
+import 'package:church_management_system/features/servant/domain/usecases/provision_servant_with_auth_usecase.dart';
+import 'package:church_management_system/features/servant/presentation/bloc/servant_data/servant_data_bloc.dart';
 import 'package:church_management_system/features/servant/presentation/screens/servant_dashboard_screen.dart';
+import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
+import 'package:church_management_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
+import 'package:church_management_system/features/student/domain/usecases/get_students_list_usecase.dart';
+import 'package:church_management_system/features/student/domain/usecases/provision_student_with_auth_usecase.dart';
+import 'package:church_management_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
+import 'package:church_management_system/features/student/presentation/bloc/student_profile/student_profile_cubit.dart';
 import 'package:church_management_system/features/student/presentation/screens/student_profile_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -22,19 +32,49 @@ class RoleUserRoute extends StatelessWidget {
         ? state.user
         : (state as AuthDegraded).user;
 
+    Widget child;
     switch (role) {
       case UserRole.servant:
-        return ServantDashboardScreen(user: user);
+        child = MultiBlocProvider(
+          providers: [
+            BlocProvider(
+              create: (context) => StudentDataBloc(
+                studentRepository: getIt<IStudentRepository>(),
+                getStudentsList: getIt<GetStudentsListUseCase>(),
+                canMutateStudent: getIt<CanMutateStudentUseCase>(),
+                provisionUseCase: getIt<ProvisionStudentWithAuthUseCase>(),
+              ),
+            ),
+            BlocProvider(
+              create: (context) => ServantDataBloc(
+                repository: getIt<IServantRepository>(),
+                provisionUseCase: getIt<ProvisionServantWithAuthUseCase>(),
+              ),
+            ),
+          ],
+          child: ServantDashboardScreen(user: user),
+        );
+        break;
       case UserRole.student:
-        return StudentProfileScreen(user: user);
+        child = BlocProvider(
+          create: (context) => StudentProfileCubit(
+            studentRepository: getIt<IStudentRepository>(),
+          ),
+          child: StudentProfileScreen(user: user),
+        );
+        break;
       case UserRole.admin:
         if (state is AuthAuthenticated) {
-          return AdminDashboardScreen();
+          child = const AdminDashboardScreen();
+        } else {
+          child = _AdminRefreshRequiredScreen(
+            message: (state as AuthDegraded).message,
+          );
         }
-        return _AdminRefreshRequiredScreen(
-          message: (state as AuthDegraded).message,
-        );
+        break;
     }
+
+    return child;
   }
 
   @override
@@ -67,11 +107,23 @@ class RoleUserRoute extends StatelessWidget {
             }
           },
         ),
+        BlocListener<AuthBloc, AuthState>(
+          listener: (context, state) {
+            if (state is AuthRoleUpdated) {
+              AppSnackbars.showSuccess(
+                context,
+                'تم تحديث صلاحيات الحساب بنجاح.',
+              );
+            }
+          },
+        ),
       ],
       child: BlocBuilder<AuthBloc, AuthState>(
         builder: (context, state) {
           // Loading state
-          if (state is AuthLoading) {
+          if (state is AuthLoading ||
+              state is AuthSigningOut ||
+              state is AuthRoleRefreshing) {
             return const Scaffold(
               body: Center(child: CircularProgressIndicator()),
             );
@@ -117,7 +169,7 @@ class _AdminRefreshRequiredScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('تم إيقاف صلاحيات المسؤول مؤقتا')),
+      appBar: AppBar(title: const Text('تحديث الوصول للمسؤول')),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -127,7 +179,7 @@ class _AdminRefreshRequiredScreen extends StatelessWidget {
               const Icon(Icons.admin_panel_settings_outlined, size: 56),
               const SizedBox(height: 12),
               const Text(
-                'إجراءات المسؤول متوقفة مؤقتا حتى يتم تحديث بيانات الحساب.',
+                'يرجى مزامنة البيانات للحصول على كامل صلاحيات المسؤول.',
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
@@ -137,8 +189,8 @@ class _AdminRefreshRequiredScreen extends StatelessWidget {
                 onPressed: () {
                   context.read<AuthBloc>().add(const AuthEventRefreshUser());
                 },
-                icon: const Icon(Icons.refresh),
-                label: const Text('تحديث الصلاحيات'),
+                icon: const Icon(Icons.sync),
+                label: const Text('مزامنة الوصول'),
               ),
               const SizedBox(height: 8),
               TextButton(
@@ -164,7 +216,7 @@ class _ArchivedAccountScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('تم إيقاف الحساب')),
+      appBar: AppBar(title: const Text('الحساب غير متاح')),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -174,7 +226,7 @@ class _ArchivedAccountScreen extends StatelessWidget {
               const Icon(Icons.lock_person_outlined, size: 56),
               const SizedBox(height: 12),
               const Text(
-                'هذا الحساب غير متاح حاليا',
+                'عذراً، الوصول لهذا الحساب متوقف حالياً.',
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),

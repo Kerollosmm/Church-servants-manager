@@ -57,6 +57,10 @@ mixin _$StudentModel {
   /// Class ID for efficient querying - enables single query instead of N+1.
   String? get classId => throw _privateConstructorUsedError;
 
+  /// Aggregated attendance metrics (totalPresent, streak, etc.) updated on session close.
+  Map<String, dynamic>? get attendanceSummary =>
+      throw _privateConstructorUsedError;
+
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
   @JsonKey(ignore: true)
   $StudentModelCopyWith<StudentModel> get copyWith =>
@@ -95,6 +99,7 @@ abstract class $StudentModelCopyWith<$Res> {
     @_TimestampConverter() DateTime? restoredAt,
     String? restoredByUserId,
     String? classId,
+    Map<String, dynamic>? attendanceSummary,
   });
 }
 
@@ -135,6 +140,7 @@ class _$StudentModelCopyWithImpl<$Res, $Val extends StudentModel>
     Object? restoredAt = freezed,
     Object? restoredByUserId = freezed,
     Object? classId = freezed,
+    Object? attendanceSummary = freezed,
   }) {
     return _then(
       _value.copyWith(
@@ -234,6 +240,10 @@ class _$StudentModelCopyWithImpl<$Res, $Val extends StudentModel>
                 ? _value.classId
                 : classId // ignore: cast_nullable_to_non_nullable
                       as String?,
+            attendanceSummary: freezed == attendanceSummary
+                ? _value.attendanceSummary
+                : attendanceSummary // ignore: cast_nullable_to_non_nullable
+                      as Map<String, dynamic>?,
           )
           as $Val,
     );
@@ -274,6 +284,7 @@ abstract class _$$StudentModelImplCopyWith<$Res>
     @_TimestampConverter() DateTime? restoredAt,
     String? restoredByUserId,
     String? classId,
+    Map<String, dynamic>? attendanceSummary,
   });
 }
 
@@ -313,6 +324,7 @@ class __$$StudentModelImplCopyWithImpl<$Res>
     Object? restoredAt = freezed,
     Object? restoredByUserId = freezed,
     Object? classId = freezed,
+    Object? attendanceSummary = freezed,
   }) {
     return _then(
       _$StudentModelImpl(
@@ -412,6 +424,10 @@ class __$$StudentModelImplCopyWithImpl<$Res>
             ? _value.classId
             : classId // ignore: cast_nullable_to_non_nullable
                   as String?,
+        attendanceSummary: freezed == attendanceSummary
+            ? _value._attendanceSummary
+            : attendanceSummary // ignore: cast_nullable_to_non_nullable
+                  as Map<String, dynamic>?,
       ),
     );
   }
@@ -445,7 +461,9 @@ class _$StudentModelImpl extends _StudentModel {
     @_TimestampConverter() this.restoredAt,
     this.restoredByUserId,
     this.classId,
-  }) : super._();
+    final Map<String, dynamic>? attendanceSummary,
+  }) : _attendanceSummary = attendanceSummary,
+       super._();
 
   factory _$StudentModelImpl.fromJson(Map<String, dynamic> json) =>
       _$$StudentModelImplFromJson(json);
@@ -511,9 +529,23 @@ class _$StudentModelImpl extends _StudentModel {
   @override
   final String? classId;
 
+  /// Aggregated attendance metrics (totalPresent, streak, etc.) updated on session close.
+  final Map<String, dynamic>? _attendanceSummary;
+
+  /// Aggregated attendance metrics (totalPresent, streak, etc.) updated on session close.
+  @override
+  Map<String, dynamic>? get attendanceSummary {
+    final value = _attendanceSummary;
+    if (value == null) return null;
+    if (_attendanceSummary is EqualUnmodifiableMapView)
+      return _attendanceSummary;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableMapView(value);
+  }
+
   @override
   String toString() {
-    return 'StudentModel(uid: $uid, docID: $docID, name: $name, imageUrl: $imageUrl, role: $role, mobile: $mobile, group: $group, teamName: $teamName, motherPhone: $motherPhone, fatherPhone: $fatherPhone, grade: $grade, educationStage: $educationStage, school: $school, address: $address, birthdate: $birthdate, fatherOfConfession: $fatherOfConfession, notes: $notes, isArchived: $isArchived, archivedAt: $archivedAt, archivedByUserId: $archivedByUserId, archiveReason: $archiveReason, restoredAt: $restoredAt, restoredByUserId: $restoredByUserId, classId: $classId)';
+    return 'StudentModel(uid: $uid, docID: $docID, name: $name, imageUrl: $imageUrl, role: $role, mobile: $mobile, group: $group, teamName: $teamName, motherPhone: $motherPhone, fatherPhone: $fatherPhone, grade: $grade, educationStage: $educationStage, school: $school, address: $address, birthdate: $birthdate, fatherOfConfession: $fatherOfConfession, notes: $notes, isArchived: $isArchived, archivedAt: $archivedAt, archivedByUserId: $archivedByUserId, archiveReason: $archiveReason, restoredAt: $restoredAt, restoredByUserId: $restoredByUserId, classId: $classId, attendanceSummary: $attendanceSummary)';
   }
 
   @override
@@ -557,7 +589,11 @@ class _$StudentModelImpl extends _StudentModel {
                 other.restoredAt == restoredAt) &&
             (identical(other.restoredByUserId, restoredByUserId) ||
                 other.restoredByUserId == restoredByUserId) &&
-            (identical(other.classId, classId) || other.classId == classId));
+            (identical(other.classId, classId) || other.classId == classId) &&
+            const DeepCollectionEquality().equals(
+              other._attendanceSummary,
+              _attendanceSummary,
+            ));
   }
 
   @JsonKey(ignore: true)
@@ -588,6 +624,7 @@ class _$StudentModelImpl extends _StudentModel {
     restoredAt,
     restoredByUserId,
     classId,
+    const DeepCollectionEquality().hash(_attendanceSummary),
   ]);
 
   @JsonKey(ignore: true)
@@ -630,6 +667,7 @@ abstract class _StudentModel extends StudentModel {
     @_TimestampConverter() final DateTime? restoredAt,
     final String? restoredByUserId,
     final String? classId,
+    final Map<String, dynamic>? attendanceSummary,
   }) = _$StudentModelImpl;
   const _StudentModel._() : super._();
 
@@ -694,6 +732,9 @@ abstract class _StudentModel extends StudentModel {
   @override
   /// Class ID for efficient querying - enables single query instead of N+1.
   String? get classId;
+  @override
+  /// Aggregated attendance metrics (totalPresent, streak, etc.) updated on session close.
+  Map<String, dynamic>? get attendanceSummary;
   @override
   @JsonKey(ignore: true)
   _$$StudentModelImplCopyWith<_$StudentModelImpl> get copyWith =>

@@ -16,13 +16,6 @@ abstract class ITeamRepository {
     bool includeArchived,
   });
 
-  Stream<List<TeamModel>> watchTeamsByGroup(
-    String groupId, {
-    bool includeArchived,
-  });
-
-  Stream<List<TeamModel>> watchAllTeams({bool includeArchived});
-
   Future<TeamModel?> getTeamById(String docId);
 
   Future<String> createTeam(TeamModel team);

@@ -1,5 +1,6 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
+import 'package:church_management_system/core/utils/pagination_cursor.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/student/data/services/student_linked_user_sync_service.dart';
 import 'package:church_management_system/features/student/data/services/student_query_service.dart';
@@ -17,10 +18,10 @@ class StudentDataRepository implements IStudentRepository {
   final StudentLinkedUserSyncService _linkedUserSyncService;
 
   StudentDataRepository({
-    FirebaseFirestore? firestore,
+    required FirebaseFirestore firestore,
     StudentQueryService? queryService,
     StudentLinkedUserSyncService? linkedUserSyncService,
-  }) : _firestore = firestore ?? FirebaseFirestore.instance,
+  }) : _firestore = firestore,
        _queryService =
            queryService ?? StudentQueryService(firestore: firestore),
        _linkedUserSyncService =
@@ -80,12 +81,14 @@ class StudentDataRepository implements IStudentRepository {
   @override
   Future<List<StudentModel>> getAllStudents({
     int limit = 10,
-    DocumentSnapshot? lastDocument,
+    PaginationCursor? cursor,
     bool includeArchived = false,
   }) async {
+    final token = cursor?.token;
+    final lastDoc = token is DocumentSnapshot ? token : null;
     return _queryService.getAllStudents(
       limit: limit,
-      lastDocument: lastDocument,
+      lastDocument: lastDoc,
       includeArchived: includeArchived,
     );
   }
@@ -97,6 +100,17 @@ class StudentDataRepository implements IStudentRepository {
   }) async {
     return _queryService.getStudentsByClass(
       classId,
+      includeArchived: includeArchived,
+    );
+  }
+
+  @override
+  Future<List<StudentModel>> getStudentsByClasses(
+    List<String> classIds, {
+    bool includeArchived = false,
+  }) async {
+    return _queryService.getStudentsByClassesList(
+      classIds,
       includeArchived: includeArchived,
     );
   }
@@ -139,19 +153,49 @@ class StudentDataRepository implements IStudentRepository {
   Future<List<StudentModel>> searchStudents(
     String query, {
     int limit = 20,
+    String? groupId,
+    String? classId,
+    bool includeArchived = false,
   }) async {
-    if (query.isEmpty) return getAllStudents(limit: limit);
-    final snapshot = await _studentsCollection
-        .orderBy('name')
-        .startAt([query])
-        .endAt(['$query\uf8ff'])
-        .limit(limit * 2)
-        .get();
-    return _queryService
-        .mapStudentDocs(snapshot.docs)
-        .where((s) => !s.isArchived)
-        .take(limit)
-        .toList();
+    try {
+      if (query.isEmpty) {
+        if (classId != null && classId.isNotEmpty) {
+          return getStudentsByClass(classId, includeArchived: includeArchived);
+        }
+        if (groupId != null && groupId.isNotEmpty) {
+          return getStudentsByGroup(groupId, includeArchived: includeArchived);
+        }
+        return getAllStudents(limit: limit, includeArchived: includeArchived);
+      }
+
+      Query<Map<String, dynamic>> firestoreQuery = _studentsCollection.orderBy(
+        'name',
+      );
+
+      if (classId != null && classId.isNotEmpty) {
+        firestoreQuery = firestoreQuery.where('classId', isEqualTo: classId);
+      } else if (groupId != null && groupId.isNotEmpty) {
+        firestoreQuery = firestoreQuery.where('group', isEqualTo: groupId);
+      }
+
+      if (!includeArchived) {
+        firestoreQuery = firestoreQuery.where('isArchived', isEqualTo: false);
+      }
+
+      final snapshot = await firestoreQuery
+          .startAt([query])
+          .endAt(['$query\uf8ff'])
+          .limit(limit * 2)
+          .get();
+
+      return _queryService
+          .mapStudentDocs(snapshot.docs)
+          .students
+          .take(limit)
+          .toList();
+    } catch (e) {
+      throw mapExceptionToStudentFailure(e);
+    }
   }
 
   @override
@@ -161,7 +205,15 @@ class StudentDataRepository implements IStudentRepository {
           ? _studentsCollection.doc(student.docID)
           : _studentsCollection.doc();
       final finalStudent = student.copyWith(docID: docRef.id);
-      await docRef.set(finalStudent.toMap());
+
+      final batch = _firestore.batch()
+        ..set(docRef, {
+          ...finalStudent.toMap(),
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      await batch.commit();
+
       return docRef.id;
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
@@ -172,7 +224,10 @@ class StudentDataRepository implements IStudentRepository {
   Future<void> updateStudent(StudentModel student) async {
     try {
       final docRef = _studentsCollection.doc(student.docID);
-      await docRef.update(student.toMap());
+      await docRef.update({
+        ...student.toMap(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
     }
@@ -182,7 +237,10 @@ class StudentDataRepository implements IStudentRepository {
   Future<void> upsertStudent(StudentModel student) async {
     try {
       final docRef = _studentsCollection.doc(student.docID);
-      await docRef.set(student.toMap(), SetOptions(merge: true));
+      await docRef.set({
+        ...student.toMap(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
     }
@@ -201,15 +259,14 @@ class StudentDataRepository implements IStudentRepository {
       }
 
       final student = StudentModel.fromMap(data, doc.id);
-      final batch = _firestore.batch();
-
-      batch.set(doc.reference, {
-        'isArchived': true,
-        'archivedAt': FieldValue.serverTimestamp(),
-        'archivedByUserId': performedByUid,
-        'restoredAt': FieldValue.delete(),
-        'restoredByUserId': FieldValue.delete(),
-      }, SetOptions(merge: true));
+      final batch = _firestore.batch()
+        ..set(doc.reference, {
+          'isArchived': true,
+          'archivedAt': FieldValue.serverTimestamp(),
+          'archivedByUserId': performedByUid,
+          'restoredAt': FieldValue.delete(),
+          'restoredByUserId': FieldValue.delete(),
+        }, SetOptions(merge: true));
 
       final normalizedUid = student.uid.trim();
       if (normalizedUid.isNotEmpty) {
@@ -240,14 +297,13 @@ class StudentDataRepository implements IStudentRepository {
       }
 
       final student = StudentModel.fromMap(data, doc.id);
-      final batch = _firestore.batch();
-
-      batch.set(doc.reference, {
-        'isArchived': false,
-        'restoredAt': FieldValue.serverTimestamp(),
-        'restoredByUserId': performedByUid,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      final batch = _firestore.batch()
+        ..set(doc.reference, {
+          'isArchived': false,
+          'restoredAt': FieldValue.serverTimestamp(),
+          'restoredByUserId': performedByUid,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
 
       final normalizedUid = student.uid.trim();
       if (normalizedUid.isNotEmpty) {
@@ -271,43 +327,5 @@ class StudentDataRepository implements IStudentRepository {
     return _queryService.getStudentIdsByClasses(classIds);
   }
 
-  // Stream-based queries (real-time)
-
-  @override
-  Stream<List<StudentModel>> watchAllStudents({bool includeArchived = false}) {
-    return _queryService.watchAllStudents(includeArchived: includeArchived);
-  }
-
-  @override
-  Stream<List<StudentModel>> watchStudentsByClass(
-    String classId, {
-    bool includeArchived = false,
-  }) {
-    return _queryService.watchStudentsByClass(
-      classId,
-      includeArchived: includeArchived,
-    );
-  }
-
-  @override
-  Stream<List<StudentModel>> watchStudentsByClasses(
-    List<String> classIds, {
-    bool includeArchived = false,
-  }) {
-    return _queryService.watchStudentsByClasses(
-      classIds,
-      includeArchived: includeArchived,
-    );
-  }
-
-  @override
-  Stream<List<StudentModel>> watchStudentsByGroup(
-    String groupName, {
-    bool includeArchived = false,
-  }) {
-    return _queryService.watchStudentsByGroup(
-      groupName,
-      includeArchived: includeArchived,
-    );
-  }
+  // Stream-based queries removed (real-time)
 }

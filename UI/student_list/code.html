@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+
+<html dir="rtl" lang="ar"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>قائمة الطلاب - نظام إدارة الكنيسة</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#a58255",
+                        "background-light": "#fefae9",
+                        "background-dark": "#1c1916",
+                    },
+                    fontFamily: {
+                        "display": ["Work Sans", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Work Sans', sans-serif;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .student-card-shadow {
+            box-shadow: 0 4px 20px -2px rgba(165, 130, 85, 0.1);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 transition-colors duration-300">
+<div class="max-w-md mx-auto min-h-screen flex flex-col relative pb-24">
+<!-- Header -->
+<header class="sticky top-0 z-20 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md px-4 pt-6 pb-2">
+<div class="flex items-center justify-between mb-6">
+<div class="flex items-center gap-3">
+<div class="bg-primary/10 p-2 rounded-xl">
+<span class="material-symbols-outlined text-primary text-2xl">church</span>
+</div>
+<div>
+<h1 class="text-xl font-bold tracking-tight">قائمة الطلاب</h1>
+<p class="text-xs text-primary font-medium">خدمة مدارس الأحد</p>
+</div>
+</div>
+<button class="size-10 flex items-center justify-center rounded-full bg-slate-200/50 dark:bg-slate-800/50">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+</div>
+<!-- Search & Filter Row -->
+<div class="space-y-3">
+<div class="relative group">
+<div class="absolute inset-y-0 right-3 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-primary/60 group-focus-within:text-primary">search</span>
+</div>
+<input class="w-full h-12 pr-11 pl-4 bg-white dark:bg-slate-900 border-none rounded-xl focus:ring-2 focus:ring-primary/40 student-card-shadow text-sm" placeholder="بحث عن طالب بالاسم أو الكود..." type="text"/>
+</div>
+<div class="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+<button class="flex items-center gap-1.5 px-4 py-2 bg-primary text-white rounded-full text-xs font-medium whitespace-nowrap shadow-sm">
+<span class="material-symbols-outlined text-[18px]">grid_view</span>
+                        الكل
+                    </button>
+<button class="flex items-center gap-1.5 px-4 py-2 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 rounded-full text-xs font-medium whitespace-nowrap border border-primary/10">
+<span class="material-symbols-outlined text-[18px]">group</span>
+                        فريق الشمامسة
+                    </button>
+<button class="flex items-center gap-1.5 px-4 py-2 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 rounded-full text-xs font-medium whitespace-nowrap border border-primary/10">
+<span class="material-symbols-outlined text-[18px]">music_note</span>
+                        فريق الكورال
+                    </button>
+<button class="flex items-center gap-1.5 px-4 py-2 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 rounded-full text-xs font-medium whitespace-nowrap border border-primary/10">
+<span class="material-symbols-outlined text-[18px]">explore</span>
+                        الكشافة
+                    </button>
+</div>
+</div>
+</header>
+<!-- Archive Toggle -->
+<div class="px-4 py-2">
+<div class="bg-primary/5 dark:bg-primary/10 rounded-xl p-3 flex items-center justify-between border border-primary/10">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">archive</span>
+<div>
+<p class="text-sm font-semibold">تفعيل الأرشيف</p>
+<p class="text-[10px] text-slate-500">عرض الطلاب غير النشطين</p>
+</div>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input class="sr-only peer" type="checkbox"/>
+<div class="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:-translate-x-full rtl:peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
+</label>
+</div>
+</div>
+<!-- Student List Container -->
+<main class="flex-1 px-4 py-2 space-y-3">
+<!-- Student Card 1 -->
+<div class="bg-white dark:bg-slate-900 p-4 rounded-2xl student-card-shadow border border-primary/5 flex items-center gap-4 relative overflow-hidden group">
+<div class="absolute top-0 right-0 w-1.5 h-full bg-primary/20 group-hover:bg-primary transition-colors"></div>
+<div class="relative">
+<img class="size-16 rounded-xl object-cover border-2 border-primary/10" data-alt="صورة شخصية لطالب شاب مبتسم" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDyUPIb4Wkp8uNiqlGKBlc5HnHDXKX62nxNdSTzEX2wQp5zj-J-F3_JDUpxstIId4f65UTvtx4b12BxJis0XloF0MxNImHD10e_18FwAKCdSMM2755n4VVxHLgsbPb1_cDn7yIYZstsWN4ov-xoVcIu96V6HuRJeq2rerTiByQKCP8Jvxrqhk3bo7puK4U-BsGx-1JbI18mHlvkESovQUTAuTJC9N4qM8930lmQglzMPLmbBw920RBVDIyn5aLtWeUofsdLhs1NWWnK"/>
+<div class="absolute -bottom-1 -right-1 size-5 bg-green-500 border-2 border-white dark:border-slate-900 rounded-full"></div>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<h3 class="font-bold text-slate-800 dark:text-slate-100">بيتر عادل كمال</h3>
+<span class="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded">ID: 4022</span>
+</div>
+<div class="flex flex-wrap gap-y-1 mt-1">
+<div class="flex items-center gap-1 ml-4 text-[11px] text-slate-500">
+<span class="material-symbols-outlined text-[14px]">school</span>
+                            الصف الثاني الإعدادي
+                        </div>
+<div class="flex items-center gap-1 text-[11px] text-slate-500">
+<span class="material-symbols-outlined text-[14px]">diversity_3</span>
+                            فريق الشمامسة
+                        </div>
+</div>
+<div class="mt-2 flex items-center justify-between">
+<div class="flex -space-x-1.5 rtl:space-x-reverse">
+<div class="size-6 rounded-full bg-primary/10 flex items-center justify-center border border-white dark:border-slate-900">
+<span class="material-symbols-outlined text-[14px] text-primary">verified</span>
+</div>
+<div class="size-6 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center border border-white dark:border-slate-900">
+<span class="material-symbols-outlined text-[14px] text-slate-500">history</span>
+</div>
+</div>
+<button class="text-xs font-bold text-primary flex items-center gap-0.5">
+                            التفاصيل
+                            <span class="material-symbols-outlined text-[16px]">chevron_left</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Student Card 2 -->
+<div class="bg-white dark:bg-slate-900 p-4 rounded-2xl student-card-shadow border border-primary/5 flex items-center gap-4 relative overflow-hidden group">
+<div class="absolute top-0 right-0 w-1.5 h-full bg-primary/20 group-hover:bg-primary transition-colors"></div>
+<div class="relative">
+<img class="size-16 rounded-xl object-cover border-2 border-primary/10" data-alt="صورة شخصية لفتاة شابة مبتسمة" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAnt2MHZsK6ON6mYLiirsz-5prwNiN9L9GotlaHPHbB1djicZmqefJsnvDDjBzjhs3b-7UQJ0MRLuKqbHGnam3WDOyqrbyowHZpgWyJoXt30Liwrr1UqPrTq2Wo_cqn_dQ9BaTRDFmiv_z_GUUNtvl5rZazvZggQKAPW-YPIgkjlo7tF_lIsJQ7UngRH4VO6Powp2lsTcopu-myXVa2GAeq6kpjna7WyA-xVcXA7SBFa5O7njOvyP0ZLRIctGVu_tTKJkAU85i8kDh9"/>
+<div class="absolute -bottom-1 -right-1 size-5 bg-green-500 border-2 border-white dark:border-slate-900 rounded-full"></div>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<h3 class="font-bold text-slate-800 dark:text-slate-100">مارينا سامي فوزي</h3>
+<span class="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded">ID: 4051</span>
+</div>
+<div class="flex flex-wrap gap-y-1 mt-1">
+<div class="flex items-center gap-1 ml-4 text-[11px] text-slate-500">
+<span class="material-symbols-outlined text-[14px]">school</span>
+                            الصف الثالث الابتدائي
+                        </div>
+<div class="flex items-center gap-1 text-[11px] text-slate-500">
+<span class="material-symbols-outlined text-[14px]">music_note</span>
+                            فريق الكورال
+                        </div>
+</div>
+<div class="mt-2 flex items-center justify-between">
+<div class="flex -space-x-1.5 rtl:space-x-reverse">
+<div class="size-6 rounded-full bg-primary/10 flex items-center justify-center border border-white dark:border-slate-900">
+<span class="material-symbols-outlined text-[14px] text-primary">verified</span>
+</div>
+</div>
+<button class="text-xs font-bold text-primary flex items-center gap-0.5">
+                            التفاصيل
+                            <span class="material-symbols-outlined text-[16px]">chevron_left</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Student Card 3 -->
+<div class="bg-white dark:bg-slate-900 p-4 rounded-2xl student-card-shadow border border-primary/5 flex items-center gap-4 relative overflow-hidden group">
+<div class="absolute top-0 right-0 w-1.5 h-full bg-primary/20 group-hover:bg-primary transition-colors"></div>
+<div class="relative">
+<img class="size-16 rounded-xl object-cover border-2 border-primary/10" data-alt="صورة شخصية لفتى صغير" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDmdKQpo8r0Ci38yU72A0hEiKAnobgCidM4eq1SNL_3GsdgcZdb5NSVIcnhdgeWwbZsAG3ZVlHv3q66XCADHS6aAHtvsSpgB02gvT2lZMaeRNIe1LpF-lrgIRS4BPiQWgHZv2hwzoaewmytSzkVfRCrbwJ91QSCk3vLgPs0iH_8dhbUZdrzeqxu98EG-TW3ANWmgyy6beZSAOvH6iy6rYz5dFWlk2c5US0WHs5ct-MnnxzBlSnS6Iy0gA0fL-0ltbWOYQF_iPOrfyzy"/>
+<div class="absolute -bottom-1 -right-1 size-5 bg-slate-400 border-2 border-white dark:border-slate-900 rounded-full"></div>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<h3 class="font-bold text-slate-800 dark:text-slate-100">كيرلس يوحنا رمزي</h3>
+<span class="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded">ID: 4088</span>
+</div>
+<div class="flex flex-wrap gap-y-1 mt-1">
+<div class="flex items-center gap-1 ml-4 text-[11px] text-slate-500">
+<span class="material-symbols-outlined text-[14px]">school</span>
+                            الصف الأول الثانوي
+                        </div>
+<div class="flex items-center gap-1 text-[11px] text-slate-500">
+<span class="material-symbols-outlined text-[14px]">explore</span>
+                            الكشافة
+                        </div>
+</div>
+<div class="mt-2 flex items-center justify-between">
+<div class="flex -space-x-1.5 rtl:space-x-reverse">
+<div class="size-6 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center border border-white dark:border-slate-900">
+<span class="material-symbols-outlined text-[14px] text-slate-500">history</span>
+</div>
+</div>
+<button class="text-xs font-bold text-primary flex items-center gap-0.5">
+                            التفاصيل
+                            <span class="material-symbols-outlined text-[16px]">chevron_left</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+<!-- Floating Action Button -->
+<button class="fixed bottom-24 left-6 size-14 bg-primary text-white rounded-2xl shadow-lg shadow-primary/40 flex items-center justify-center z-30 active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-3xl">person_add</span>
+</button>
+<!-- Bottom Navigation Bar -->
+<nav class="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-slate-950/90 backdrop-blur-lg border-t border-primary/10 px-6 py-3 flex justify-between items-center z-40 max-w-md mx-auto">
+<a class="flex flex-col items-center gap-1 text-primary" href="#">
+<span class="material-symbols-outlined font-variation-settings-fill-1">group</span>
+<span class="text-[10px] font-bold">الطلاب</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400" href="#">
+<span class="material-symbols-outlined">calendar_month</span>
+<span class="text-[10px] font-medium">الفعاليات</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="text-[10px] font-medium">الرئيسية</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400" href="#">
+<span class="material-symbols-outlined">analytics</span>
+<span class="text-[10px] font-medium">التقارير</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="text-[10px] font-medium">الإعدادات</span>
+</a>
+</nav>
+</div>
+</body></html>

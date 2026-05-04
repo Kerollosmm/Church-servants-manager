@@ -1,16 +1,18 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/routes.dart';
+import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/routing/route_args.dart';
 import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
-import 'package:church_management_system/core/widgets/common/app_state_message.dart';
+import 'package:church_management_system/core/widgets/app_empty_state.dart';
+import 'package:church_management_system/core/widgets/app_error_state.dart';
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_management_system/features/team/data/models/team_model.dart';
 import 'package:church_management_system/features/team/data/repos/team_repository.dart';
-import 'package:church_management_system/features/team/presentation/bloc/team_cubit.dart';
+import 'package:church_management_system/features/team/presentation/bloc/team_bloc.dart';
 import 'package:church_management_system/features/team/presentation/widgets/assign_servant_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -24,14 +26,14 @@ class TeamManagementScreen extends StatefulWidget {
 }
 
 class _TeamManagementScreenState extends State<TeamManagementScreen> {
-  late TeamCubit _cubit;
+  late TeamBloc _cubit;
 
   @override
   void initState() {
     super.initState();
-    _cubit = TeamCubit(
-      teamRepository: context.read<TeamRepository>(),
-      adminTeamService: context.read<AdminTeamService>(),
+    _cubit = TeamBloc(
+      teamRepository: getIt<TeamRepository>(),
+      adminTeamService: getIt<AdminTeamService>(),
     );
   }
 
@@ -43,7 +45,7 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider<TeamCubit>.value(
+    return BlocProvider<TeamBloc>.value(
       value: _cubit,
       child: const _TeamManagementView(),
     );
@@ -60,7 +62,7 @@ class _TeamManagementView extends StatefulWidget {
 class _TeamManagementViewState extends State<_TeamManagementView>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
-  late final TeamCubit _teamCubit;
+  late final TeamBloc _teamCubit;
   final _groups = Group.values;
   bool _showArchived = false;
 
@@ -73,9 +75,9 @@ class _TeamManagementViewState extends State<_TeamManagementView>
   @override
   void initState() {
     super.initState();
-    _teamCubit = context.read<TeamCubit>();
-    _tabController = TabController(length: _groups.length, vsync: this);
-    _tabController.addListener(_onTabChanged);
+    _teamCubit = context.read<TeamBloc>();
+    _tabController = TabController(length: _groups.length, vsync: this)
+      ..addListener(_onTabChanged);
     // Load teams for the first tab
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _loadTeamsForCurrentTab();
@@ -95,9 +97,9 @@ class _TeamManagementViewState extends State<_TeamManagementView>
     }
   }
 
-  Future<void> _loadTeamsForCurrentTab() {
+  Future<void> _loadTeamsForCurrentTab() async {
     final groupId = _groups[_tabController.index].name;
-    return _teamCubit.loadTeamsByGroup(groupId, includeArchived: _showArchived);
+    _teamCubit.add(TeamLoadRequested(groupId, includeArchived: _showArchived));
   }
 
   String _groupLabel(Group group) {
@@ -118,7 +120,9 @@ class _TeamManagementViewState extends State<_TeamManagementView>
       actionLabel: 'إنشاء',
       hintText: 'مثال: فريق مارمرقس',
       onSave: (name) {
-        _teamCubit.createTeam(TeamModel(id: '', name: name, groupId: groupId));
+        _teamCubit.add(
+          TeamCreateRequested(TeamModel(id: '', name: name, groupId: groupId)),
+        );
       },
     );
   }
@@ -129,7 +133,7 @@ class _TeamManagementViewState extends State<_TeamManagementView>
       actionLabel: 'حفظ',
       initialName: team.name,
       onSave: (name) {
-        _teamCubit.updateTeam(team.copyWith(name: name));
+        _teamCubit.add(TeamUpdateRequested(team.copyWith(name: name)));
       },
     );
   }
@@ -169,7 +173,7 @@ class _TeamManagementViewState extends State<_TeamManagementView>
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () {
-              _teamCubit.deleteTeam(team.id, team.groupId);
+              _teamCubit.add(TeamDeleteRequested(team.id, team.groupId));
               Navigator.pop(dialogContext);
             },
             child: const Text('أرشفة'),
@@ -180,7 +184,7 @@ class _TeamManagementViewState extends State<_TeamManagementView>
   }
 
   void _restoreTeam(TeamModel team) {
-    _teamCubit.restoreTeam(team.id, team.groupId);
+    _teamCubit.add(TeamRestoreRequested(team.id, team.groupId));
   }
 
   void _openManageMembers(TeamModel team) {
@@ -205,7 +209,7 @@ class _TeamManagementViewState extends State<_TeamManagementView>
 
     showDialog(
       context: context,
-      builder: (_) => BlocProvider<TeamCubit>.value(
+      builder: (_) => BlocProvider<TeamBloc>.value(
         value: _teamCubit,
         child: AssignServantDialog(actor: actor, team: team),
       ),
@@ -244,7 +248,7 @@ class _TeamManagementViewState extends State<_TeamManagementView>
         icon: const Icon(Icons.add),
         label: const Text('إضافة فريق'),
       ),
-      body: BlocConsumer<TeamCubit, TeamState>(
+      body: BlocConsumer<TeamBloc, TeamState>(
         listener: (context, state) {
           if (state is TeamError) {
             AppSnackbars.showError(context, state.message);
@@ -272,15 +276,17 @@ class _TeamManagementViewState extends State<_TeamManagementView>
           if (state is TeamLoaded) {
             final teams = state.teams;
             if (teams.isEmpty) {
-              return AppStateMessage(
+              return AppEmptyState(
                 icon: _showArchived
                     ? Icons.archive_outlined
                     : Icons.group_work_outlined,
                 title: _showArchived ? 'لا توجد فرق مؤرشفة' : 'لا توجد فرق بعد',
-                message: _showArchived
+                subtitle: _showArchived
                     ? 'عند أرشفة فريق سيظهر هنا.'
-                    : 'اضغط + لإنشاء فريق لهذه السنة.',
-                onRetry: _loadTeamsForCurrentTab,
+                    : 'اضغط لإضافة فريق لهذه السنة.',
+                onAction: _showAddTeamDialog,
+                actionLabel: 'إضافة فريق',
+                onRefresh: _loadTeamsForCurrentTab,
               );
             }
 
@@ -306,11 +312,9 @@ class _TeamManagementViewState extends State<_TeamManagementView>
           }
 
           if (state is TeamError) {
-            return AppStateMessage(
-              icon: Icons.error_outline,
-              iconColor: AppColors.error,
-              title: 'تعذر تحميل الفرق',
+            return AppErrorState(
               message: state.message,
+              title: 'تعذر تحميل الفرق',
               onRetry: _loadTeamsForCurrentTab,
             );
           }

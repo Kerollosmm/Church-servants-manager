@@ -43,6 +43,8 @@ mixin _$TeamModel {
   @_TimestampConverter()
   DateTime? get restoredAt => throw _privateConstructorUsedError;
   String? get restoredByUserId => throw _privateConstructorUsedError;
+  @HiveField(10)
+  SyncStatus get syncStatus => throw _privateConstructorUsedError;
 
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
   @JsonKey(ignore: true)
@@ -67,6 +69,7 @@ abstract class $TeamModelCopyWith<$Res> {
     String? archiveReason,
     @_TimestampConverter() DateTime? restoredAt,
     String? restoredByUserId,
+    @HiveField(10) SyncStatus syncStatus,
   });
 }
 
@@ -94,6 +97,7 @@ class _$TeamModelCopyWithImpl<$Res, $Val extends TeamModel>
     Object? archiveReason = freezed,
     Object? restoredAt = freezed,
     Object? restoredByUserId = freezed,
+    Object? syncStatus = null,
   }) {
     return _then(
       _value.copyWith(
@@ -141,6 +145,10 @@ class _$TeamModelCopyWithImpl<$Res, $Val extends TeamModel>
                 ? _value.restoredByUserId
                 : restoredByUserId // ignore: cast_nullable_to_non_nullable
                       as String?,
+            syncStatus: null == syncStatus
+                ? _value.syncStatus
+                : syncStatus // ignore: cast_nullable_to_non_nullable
+                      as SyncStatus,
           )
           as $Val,
     );
@@ -168,6 +176,7 @@ abstract class _$$TeamModelImplCopyWith<$Res>
     String? archiveReason,
     @_TimestampConverter() DateTime? restoredAt,
     String? restoredByUserId,
+    @HiveField(10) SyncStatus syncStatus,
   });
 }
 
@@ -194,6 +203,7 @@ class __$$TeamModelImplCopyWithImpl<$Res>
     Object? archiveReason = freezed,
     Object? restoredAt = freezed,
     Object? restoredByUserId = freezed,
+    Object? syncStatus = null,
   }) {
     return _then(
       _$TeamModelImpl(
@@ -241,6 +251,10 @@ class __$$TeamModelImplCopyWithImpl<$Res>
             ? _value.restoredByUserId
             : restoredByUserId // ignore: cast_nullable_to_non_nullable
                   as String?,
+        syncStatus: null == syncStatus
+            ? _value.syncStatus
+            : syncStatus // ignore: cast_nullable_to_non_nullable
+                  as SyncStatus,
       ),
     );
   }
@@ -261,6 +275,7 @@ class _$TeamModelImpl extends _TeamModel {
     this.archiveReason,
     @_TimestampConverter() this.restoredAt,
     this.restoredByUserId,
+    @HiveField(10) this.syncStatus = SyncStatus.synced,
   }) : super._();
 
   factory _$TeamModelImpl.fromJson(Map<String, dynamic> json) =>
@@ -300,10 +315,14 @@ class _$TeamModelImpl extends _TeamModel {
   final DateTime? restoredAt;
   @override
   final String? restoredByUserId;
+  @override
+  @JsonKey()
+  @HiveField(10)
+  final SyncStatus syncStatus;
 
   @override
   String toString() {
-    return 'TeamModel(id: $id, name: $name, groupId: $groupId, assignedServantId: $assignedServantId, assignedServantName: $assignedServantName, isArchived: $isArchived, archivedAt: $archivedAt, archivedByUserId: $archivedByUserId, archiveReason: $archiveReason, restoredAt: $restoredAt, restoredByUserId: $restoredByUserId)';
+    return 'TeamModel(id: $id, name: $name, groupId: $groupId, assignedServantId: $assignedServantId, assignedServantName: $assignedServantName, isArchived: $isArchived, archivedAt: $archivedAt, archivedByUserId: $archivedByUserId, archiveReason: $archiveReason, restoredAt: $restoredAt, restoredByUserId: $restoredByUserId, syncStatus: $syncStatus)';
   }
 
   @override
@@ -329,7 +348,9 @@ class _$TeamModelImpl extends _TeamModel {
             (identical(other.restoredAt, restoredAt) ||
                 other.restoredAt == restoredAt) &&
             (identical(other.restoredByUserId, restoredByUserId) ||
-                other.restoredByUserId == restoredByUserId));
+                other.restoredByUserId == restoredByUserId) &&
+            (identical(other.syncStatus, syncStatus) ||
+                other.syncStatus == syncStatus));
   }
 
   @JsonKey(ignore: true)
@@ -347,6 +368,7 @@ class _$TeamModelImpl extends _TeamModel {
     archiveReason,
     restoredAt,
     restoredByUserId,
+    syncStatus,
   );
 
   @JsonKey(ignore: true)
@@ -374,6 +396,7 @@ abstract class _TeamModel extends TeamModel {
     final String? archiveReason,
     @_TimestampConverter() final DateTime? restoredAt,
     final String? restoredByUserId,
+    @HiveField(10) final SyncStatus syncStatus,
   }) = _$TeamModelImpl;
   const _TeamModel._() : super._();
 
@@ -409,6 +432,9 @@ abstract class _TeamModel extends TeamModel {
   DateTime? get restoredAt;
   @override
   String? get restoredByUserId;
+  @override
+  @HiveField(10)
+  SyncStatus get syncStatus;
   @override
   @JsonKey(ignore: true)
   _$$TeamModelImplCopyWith<_$TeamModelImpl> get copyWith =>

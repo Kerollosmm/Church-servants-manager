@@ -42,6 +42,9 @@ class StudentModel with _$StudentModel {
 
     /// Class ID for efficient querying - enables single query instead of N+1.
     String? classId,
+
+    /// Aggregated attendance metrics (totalPresent, streak, etc.) updated on session close.
+    Map<String, dynamic>? attendanceSummary,
   }) = _StudentModel;
 
   /// Creates a StudentModel from JSON.
@@ -61,6 +64,18 @@ class StudentModel with _$StudentModel {
       return value.toString();
     }
 
+    int? readInt(String key) {
+      final value = data[key];
+      if (value == null) return null;
+      if (value is num) {
+        // Only accept true integers or doubles with no fractional part
+        if (value % 1 == 0) return value.toInt();
+        return null;
+      }
+      if (value is String) return int.tryParse(value);
+      return null;
+    }
+
     return StudentModel.fromJson({
       ...data,
       'uid': readString('uid') ?? '',
@@ -76,6 +91,10 @@ class StudentModel with _$StudentModel {
       'notes': readString('notes'),
       'classId': readString('classId'),
       'imageUrl': readString('imageUrl'),
+      'grade': readInt('grade') ?? 1,
+      'role': readString('role') ?? 'student',
+      'group': readString('group') ?? 'year1',
+      'education_stage': readString('education_stage') ?? 'highSchool',
     });
   }
 
@@ -83,4 +102,14 @@ class StudentModel with _$StudentModel {
   Map<String, dynamic> toMap() => toJson();
 
   bool get isActive => !isArchived;
+
+  /// Returns true if all required fields are filled.
+  bool get isProfileComplete {
+    return name.trim().isNotEmpty &&
+        mobile.trim().isNotEmpty &&
+        motherPhone.trim().isNotEmpty &&
+        fatherPhone.trim().isNotEmpty &&
+        fatherOfConfession.trim().isNotEmpty &&
+        (classId?.trim().isNotEmpty ?? false);
+  }
 }

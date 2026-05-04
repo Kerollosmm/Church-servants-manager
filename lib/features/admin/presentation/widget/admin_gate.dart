@@ -57,7 +57,7 @@ class _AdminRequiresFreshSession extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Admin access paused'),
+        title: const Text('تأكيد الوصول للمسؤول'),
         backgroundColor: AppColors.primary,
         foregroundColor: AppColors.white,
       ),
@@ -67,14 +67,10 @@ class _AdminRequiresFreshSession extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.sync_problem_outlined,
-                size: 64,
-                color: AppColors.outline,
-              ),
+              Icon(Icons.sync_outlined, size: 64, color: AppColors.outline),
               AppSpacing.gapMd,
               Text(
-                'Revalidate your account to continue.',
+                'يرجى مزامنة بيانات الحساب للمتابعة',
                 style: Theme.of(context).textTheme.titleLarge,
                 textAlign: TextAlign.center,
               ),
@@ -91,8 +87,8 @@ class _AdminRequiresFreshSession extends StatelessWidget {
                 onPressed: () {
                   context.read<AuthBloc>().add(const AuthEventRefreshUser());
                 },
-                icon: const Icon(Icons.refresh),
-                label: const Text('Refresh permissions'),
+                icon: const Icon(Icons.sync),
+                label: const Text('مزامنة الوصول'),
               ),
             ],
           ),
@@ -109,7 +105,7 @@ class _AdminAccessDeniedScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Access denied'),
+        title: const Text('وصول غير مسموح'),
         backgroundColor: AppColors.primary,
         foregroundColor: AppColors.white,
       ),
@@ -122,22 +118,19 @@ class _AdminAccessDeniedScreen extends StatelessWidget {
               Icon(Icons.lock_outline, size: 64, color: AppColors.outline),
               AppSpacing.gapMd,
               Text(
-                'Admin access required',
+                'مطلوب صلاحيات مسؤول',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               AppSpacing.gapSm,
-              Text(
-                'You don\'t have permission to open this screen.',
+              const Text(
+                'ليس لديك الصلاحيات الكافية لفتح هذه الشاشة.',
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
               ),
               AppSpacing.gapLg,
               FilledButton.icon(
                 onPressed: () => Navigator.of(context).maybePop(),
                 icon: const Icon(Icons.arrow_back),
-                label: const Text('Back'),
+                label: const Text('رجوع'),
               ),
             ],
           ),

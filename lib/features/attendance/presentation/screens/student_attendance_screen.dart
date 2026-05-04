@@ -1,3 +1,4 @@
+import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/routing/route_args.dart';
 import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
@@ -24,12 +25,11 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen> {
   @override
   void initState() {
     super.initState();
-    _cubit =
-        StudentAttendanceCubit(repository: context.read<AttendanceRepository>())
-          ..loadForStudent(
-            studentId: widget.args.studentId,
-            teamId: widget.args.filterTeamId,
-          );
+    _cubit = StudentAttendanceCubit(repository: getIt<AttendanceRepository>())
+      ..loadForStudent(
+        studentId: widget.args.studentId,
+        teamId: widget.args.filterTeamId,
+      );
   }
 
   @override
@@ -82,89 +82,91 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen> {
                   child: Text(state.message, textAlign: TextAlign.center),
                 ),
               ),
-              StudentAttendanceLoaded() => ListView(
+              StudentAttendanceLoaded() => ListView.builder(
                 padding: const EdgeInsets.all(AppSpacing.md),
-                children: [
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'إحصاءات الجلسات المكتملة',
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w700),
-                          ),
-                          AppSpacing.gapMd,
-                          Wrap(
-                            spacing: AppSpacing.md,
-                            runSpacing: AppSpacing.md,
+                itemCount: state.history.length + 1, // +1 for the stats card
+                itemBuilder: (context, index) {
+                  if (index == 0) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                      child: Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _StatTile(
-                                label: 'نسبة الحضور',
-                                value:
-                                    '${state.stats.attendancePercentage.toStringAsFixed(1)}%',
+                              Text(
+                                'إحصاءات الجلسات المكتملة',
+                                style: Theme.of(context).textTheme.titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.w700),
                               ),
-                              _StatTile(
-                                label: 'حاضر',
-                                value: '${state.stats.presentCount}',
-                              ),
-                              _StatTile(
-                                label: 'متأخر',
-                                value: '${state.stats.lateCount}',
-                              ),
-                              _StatTile(
-                                label: 'غائب',
-                                value: '${state.stats.absentCount}',
+                              AppSpacing.gapMd,
+                              Wrap(
+                                spacing: AppSpacing.md,
+                                runSpacing: AppSpacing.md,
+                                children: [
+                                  _StatTile(
+                                    label: 'نسبة الحضور',
+                                    value:
+                                        '${state.stats.attendancePercentage.toStringAsFixed(1)}%',
+                                  ),
+                                  _StatTile(
+                                    label: 'حاضر',
+                                    value: '${state.stats.presentCount}',
+                                  ),
+                                  _StatTile(
+                                    label: 'متأخر',
+                                    value: '${state.stats.lateCount}',
+                                  ),
+                                  _StatTile(
+                                    label: 'غائب',
+                                    value: '${state.stats.absentCount}',
+                                  ),
+                                ],
                               ),
                             ],
                           ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
-                  AppSpacing.gapMd,
-                  if (state.history.isEmpty)
-                    const Center(child: Text('لا يوجد سجل حضور لهذا المخدوم.'))
-                  else
-                    ...state.history.map(
-                      (item) => Padding(
-                        padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                        child: Card(
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: _statusColor(
-                                item.effectiveStatus,
-                              ).withValues(alpha: 0.14),
-                              child: Icon(
-                                Icons.history,
-                                color: _statusColor(item.effectiveStatus),
-                              ),
-                            ),
-                            title: Text(
-                              item.title?.isNotEmpty == true
-                                  ? item.title!
-                                  : (item.teamNameSnapshot ?? 'جلسة حضور'),
-                            ),
-                            subtitle: Text(
-                              '${_formatDate(item.sessionStartsAt)} • ${item.markedByName ?? 'بدون تسجيل يدوي'}',
-                            ),
-                            trailing: Chip(
-                              label: Text(_statusLabel(item.effectiveStatus)),
-                              backgroundColor: _statusColor(
-                                item.effectiveStatus,
-                              ).withValues(alpha: 0.14),
-                              labelStyle: TextStyle(
-                                color: _statusColor(item.effectiveStatus),
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
+                    );
+                  }
+
+                  final item = state.history[index - 1];
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                    child: Card(
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: _statusColor(
+                            item.effectiveStatus,
+                          ).withValues(alpha: 0.14),
+                          child: Icon(
+                            Icons.history,
+                            color: _statusColor(item.effectiveStatus),
+                          ),
+                        ),
+                        title: Text(
+                          item.title?.isNotEmpty == true
+                              ? item.title!
+                              : (item.teamNameSnapshot ?? 'جلسة حضور'),
+                        ),
+                        subtitle: Text(
+                          '${_formatDate(item.sessionStartsAt)} • ${item.markedByName ?? 'بدون تسجيل يدوي'}',
+                        ),
+                        trailing: Chip(
+                          label: Text(_statusLabel(item.effectiveStatus)),
+                          backgroundColor: _statusColor(
+                            item.effectiveStatus,
+                          ).withValues(alpha: 0.14),
+                          labelStyle: TextStyle(
+                            color: _statusColor(item.effectiveStatus),
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
                     ),
-                ],
+                  );
+                },
               ),
               _ => const SizedBox.shrink(),
             };

@@ -93,7 +93,7 @@ class StudentBasicsSection extends StatelessWidget {
           AppSpacing.gapMd,
           AppDropdownField<UserRole>(
             fieldKey: const Key('student_role_field'),
-            initialValue: selectedRole,
+            value: selectedRole,
             labelText: 'الدور',
             prefixIcon: Icons.security_outlined,
             items: const [
@@ -139,7 +139,7 @@ class StudentBasicsSection extends StatelessWidget {
         ],
         AppDropdownField<String>(
           fieldKey: const Key('student_team_field'),
-          initialValue: teamsState.selectedTeamId,
+          value: teamsState.selectedTeamId,
           labelText: 'الفريق',
           prefixIcon: Icons.group_outlined,
           items: teamsState.teams
@@ -155,7 +155,7 @@ class StudentBasicsSection extends StatelessWidget {
               : onTeamChanged,
           validator: (value) {
             if (teamsState.isLoading) {
-              return 'الرجاء الانتظار حتى اكتمال تحميل الفرق';
+              return null; // Don't validate while loading to avoid premature error messages
             }
             if (teamsState.teams.isEmpty) {
               return 'لا توجد فرق متاحة لهذه المجموعة';

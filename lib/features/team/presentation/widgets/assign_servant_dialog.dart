@@ -1,3 +1,4 @@
+import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
 import 'package:church_management_system/core/widgets/common/app_info_banner.dart';
 import 'package:church_management_system/core/widgets/form/app_dropdown_field.dart';
@@ -6,7 +7,7 @@ import 'package:church_management_system/features/servant/data/models/servant_mo
 import 'package:church_management_system/features/servant/data/repo/servant_data_repository.dart';
 import 'package:church_management_system/features/team/data/models/team_model.dart';
 import 'package:church_management_system/features/team/presentation/bloc/assign_servant_options_cubit.dart';
-import 'package:church_management_system/features/team/presentation/bloc/team_cubit.dart';
+import 'package:church_management_system/features/team/presentation/bloc/team_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -33,7 +34,7 @@ class _AssignServantDialogState extends State<AssignServantDialog> {
   void initState() {
     super.initState();
     _cubit = AssignServantOptionsCubit(
-      servantRepository: context.read<ServantDataRepository>(),
+      servantRepository: getIt<ServantDataRepository>(),
     )..load(widget.team.groupId);
   }
 
@@ -81,12 +82,21 @@ class _AssignServantDialogState extends State<AssignServantDialog> {
 
           final uniqueServants = _uniqueServants(state.servants);
 
-          if (!_selectionInitialized) {
-            _selectedId = _normalizeToServantDocId(
-              widget.team.assignedServantId,
-              uniqueServants,
-            );
+          // Re-normalize and validate selected value whenever servants refresh
+          final normalized = _normalizeToServantDocId(
+            _selectionInitialized ? _selectedId : widget.team.assignedServantId,
+            uniqueServants,
+          );
+
+          if (!_selectionInitialized || _selectedId != normalized) {
+            _selectedId = normalized;
             _selectionInitialized = true;
+
+            // Update state safely to avoid DropdownButton assertions
+            // and keep widget state in sync with effective selection.
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) setState(() {});
+            });
           }
 
           final items = <DropdownMenuItem<String?>>[
@@ -116,7 +126,7 @@ class _AssignServantDialogState extends State<AssignServantDialog> {
                     ),
                   ),
                 AppDropdownField<String?>(
-                  initialValue: _selectedId,
+                  value: _selectedId,
                   isExpanded: true,
                   labelText: 'الخادم المسؤول',
                   prefixIcon: Icons.person_outline,
@@ -137,15 +147,19 @@ class _AssignServantDialogState extends State<AssignServantDialog> {
                     _selectedId,
                   );
                   if (selectedServant == null) {
-                    context.read<TeamCubit>().unassignServant(
-                      actor: widget.actor,
-                      team: widget.team,
+                    context.read<TeamBloc>().add(
+                      ServantUnassignedFromTeam(
+                        actor: widget.actor,
+                        team: widget.team,
+                      ),
                     );
                   } else {
-                    context.read<TeamCubit>().assignServant(
-                      actor: widget.actor,
-                      team: widget.team,
-                      servant: selectedServant,
+                    context.read<TeamBloc>().add(
+                      ServantAssignedToTeam(
+                        actor: widget.actor,
+                        team: widget.team,
+                        servant: selectedServant,
+                      ),
                     );
                   }
                   Navigator.pop(context);

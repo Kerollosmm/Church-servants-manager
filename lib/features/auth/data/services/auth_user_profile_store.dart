@@ -1,100 +1,117 @@
+import 'dart:developer' as developer;
 import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
+import 'package:church_management_system/features/auth/data/services/auth_user_local_store.dart';
 import 'package:church_management_system/features/auth/domain/failures/auth_exceptions.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AuthUserProfileStore {
-  AuthUserProfileStore({FirebaseFirestore? firestore})
-    : _db = firestore ?? FirebaseFirestore.instance;
+  AuthUserProfileStore({
+    FirebaseFirestore? firestore,
+    required AuthUserLocalStore localStore,
+  }) : _db = firestore ?? FirebaseFirestore.instance,
+       _localStore = localStore;
 
   final FirebaseFirestore _db;
+  final AuthUserLocalStore _localStore;
 
   Future<AuthUser> fetchUser(String uid) async {
     try {
-      DocumentSnapshot<Map<String, dynamic>> doc;
-      try {
-        doc = await _db
-            .collection(FirestoreCollections.users)
-            .doc(uid)
-            .get()
-            .timeout(const Duration(seconds: 12));
-      } catch (_) {
-        doc = await _db
-            .collection(FirestoreCollections.users)
-            .doc(uid)
-            .get(const GetOptions(source: Source.cache));
+      // Mandate: Check Hive before Firestore
+      final cached = _localStore.getUser();
+      if (cached != null && cached.uid == uid) {
+        return cached;
       }
+
+      // Mandatory Check: One-time get with Source.serverAndCache
+      final doc = await _db
+          .collection(FirestoreCollections.users)
+          .doc(uid)
+          .get(const GetOptions());
 
       if (!doc.exists || doc.data() == null) {
         throw UserNotFoundAuthException();
       }
 
-      return AuthUser.fromJson(doc.data()!);
+      final user = AuthUser.fromJson(doc.data()!);
+      // Persist to Hive immediately
+      await _localStore.saveUser(user);
+      return user;
     } catch (e) {
       if (e is UserNotFoundAuthException) rethrow;
       throw GenericAuthException('Failed to fetch user data: $e');
     }
   }
 
-  Future<void> saveUser(AuthUser appUser) async {
+  Future<void> saveUser(AuthUser appUser, {String? initialRole}) async {
     try {
+      // DRIVE-01: Stop client-side write-backs of authorization fields.
+      // role, isArchived, and team assignments are now exclusively driven
+      // by administrative Firestore writes to prevent stale data revert.
+      final userRef = _db
+          .collection(FirestoreCollections.users)
+          .doc(appUser.uid);
       final payload = <String, dynamic>{
         'uid': appUser.uid,
         'name': appUser.name,
         'email': appUser.email,
-        'role': appUser.role.name,
         'isEmailVerified': appUser.isEmailVerified,
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
-      if (appUser.isArchived) {
-        payload['isArchived'] = true;
-      }
-      if (appUser.archivedAt != null) {
-        payload['archivedAt'] = appUser.archivedAt;
-      }
-      if (appUser.archivedByUserId != null &&
-          appUser.archivedByUserId!.isNotEmpty) {
-        payload['archivedByUserId'] = appUser.archivedByUserId;
-      } else {
-        payload['archivedByUserId'] = FieldValue.delete();
-      }
-      if (appUser.archiveReason != null && appUser.archiveReason!.isNotEmpty) {
-        payload['archiveReason'] = appUser.archiveReason;
-      } else {
-        payload['archiveReason'] = FieldValue.delete();
-      }
-      if (appUser.restoredAt != null) {
-        payload['restoredAt'] = appUser.restoredAt;
-      } else {
-        payload['restoredAt'] = FieldValue.delete();
-      }
-      if (appUser.restoredByUserId != null &&
-          appUser.restoredByUserId!.isNotEmpty) {
-        payload['restoredByUserId'] = appUser.restoredByUserId;
-      } else {
-        payload['restoredByUserId'] = FieldValue.delete();
-      }
+      // These fields are strictly READ-ONLY for the client saveUser operation
+      // We only allow updating non-sensitive metadata here.
       if (appUser.restorePendingPasswordReset) {
         payload['restorePendingPasswordReset'] = true;
       }
-      if (appUser.groupId != null && appUser.groupId!.isNotEmpty) {
-        payload['groupId'] = appUser.groupId;
-      }
-      if (appUser.assignedTeamIds.isNotEmpty) {
-        payload['assignedTeamIds'] = appUser.assignedTeamIds;
-      }
-      if (appUser.assignedTeamId != null &&
-          appUser.assignedTeamId!.isNotEmpty) {
-        payload['assignedTeamId'] = appUser.assignedTeamId;
-      } else {
-        payload['assignedTeamId'] = FieldValue.delete();
+
+      // Only set role if it's an initial creation (e.g., self-registration)
+      if (initialRole != null) {
+        // SPARK PLAN FIX: Check if there is an invitation for this user
+        try {
+          final inviteRef = _db
+              .collection(FirestoreCollections.invitations)
+              .doc(appUser.email.toLowerCase().trim());
+
+          await _db.runTransaction((transaction) async {
+            final inviteDoc = await transaction.get(inviteRef);
+            if (inviteDoc.exists) {
+              final inviteData = inviteDoc.data();
+              if (inviteData != null &&
+                  inviteData['status'] != 'claimed' &&
+                  inviteData['role'] != null) {
+                payload['role'] = inviteData['role'];
+                // Mark invitation as claimed
+                transaction.update(inviteRef, {
+                  'status': 'claimed',
+                  'claimedAt': FieldValue.serverTimestamp(),
+                  'claimedByUid': appUser.uid,
+                });
+              } else {
+                payload['role'] = initialRole;
+              }
+            } else {
+              payload['role'] = initialRole;
+            }
+
+            // ATOMIC FIX: Write user document INSIDE the transaction
+            // to ensure invitation is only claimed if user doc is created.
+            transaction.set(userRef, payload, SetOptions(merge: true));
+          });
+          return;
+        } catch (e, stack) {
+          developer.log(
+            'Invitation transaction failed',
+            error: e,
+            stackTrace: stack,
+            name: 'AuthUserProfileStore',
+          );
+          // Fallback to default initial role if invitation check fails
+          payload['role'] = initialRole;
+        }
       }
 
-      await _db
-          .collection(FirestoreCollections.users)
-          .doc(appUser.uid)
-          .set(payload, SetOptions(merge: true));
+      await userRef.set(payload, SetOptions(merge: true));
     } catch (e) {
       throw GenericAuthException('Failed to save user data: $e');
     }

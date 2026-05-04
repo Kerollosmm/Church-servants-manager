@@ -1,3 +1,4 @@
+import 'package:church_management_system/core/utils/bulk_operation_result.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_roster_item.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_roster_snapshot.dart';
@@ -17,20 +18,23 @@ abstract class IAttendanceRepository {
     String? title,
   });
 
+  Future<BulkOperationResult<String>> createSessionsBulk({
+    required Map<String, String> teamIdsAndNames,
+    required DateTime startsAt,
+    required int durationMinutes,
+    required AuthUser createdBy,
+    String? title,
+  });
+
   Future<void> closeSession({
     required String teamId,
     required String sessionId,
     required AuthUser closedBy,
   });
 
-  Stream<List<AttendanceSession>> watchSessionsForTeam(String teamId);
+  Future<List<AttendanceSession>> getSessionsForTeam(String teamId);
 
-  Stream<AttendanceSession?> watchActiveSessionForTeam(String teamId);
-
-  Stream<AttendanceSession?> watchSessionById({
-    required String teamId,
-    required String sessionId,
-  });
+  Future<AttendanceSession?> getActiveSessionForTeam(String teamId);
 
   Future<AttendanceSession?> getSessionById({
     required String teamId,
@@ -68,18 +72,17 @@ abstract class IAttendanceRepository {
     required AuthUser markedBy,
   });
 
-  /// Watches session status as a live stream for real-time open/closed state.
-  Stream<SessionStatus> watchSessionStatus({
+  Future<SessionStatus> getSessionStatus({
     required String teamId,
     required String sessionId,
   });
 
-  Stream<List<AttendanceRosterItem>> watchSessionRoster({
+  Future<List<AttendanceRosterItem>> getSessionRoster({
     required String teamId,
     required String sessionId,
   });
 
-  Stream<AttendanceRosterSnapshot> watchSessionRosterSnapshot({
+  Future<AttendanceRosterSnapshot> getSessionRosterSnapshot({
     required String teamId,
     required String sessionId,
   });
@@ -87,6 +90,7 @@ abstract class IAttendanceRepository {
   Future<List<StudentAttendanceHistoryItem>> getStudentAttendanceHistory({
     required String studentId,
     String? teamId,
+    DateTimeRange? range,
   });
 
   Future<StudentAttendanceStats> getStudentAttendanceStats({
