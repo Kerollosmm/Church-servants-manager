@@ -166,27 +166,26 @@ class AttendanceSessionRepository {
         }
       }
 
-      // 3. Perform atomic creation and index update.
-      transaction.set(docRef, {
-        ...session.toMap(),
-        'teamIsActive': true,
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      final updatedOpenIds = openSessionIds
-          .where((id) => !clashingIds.contains(id))
-          .toList();
-      updatedOpenIds.add(sessionId);
+      final updatedOpenIds =
+          openSessionIds.where((id) => !clashingIds.contains(id)).toList()
+            ..add(sessionId);
 
       if (updatedOpenIds.length > 10) {
         updatedOpenIds.removeRange(0, updatedOpenIds.length - 10);
       }
 
-      transaction.update(teamDoc.reference, {
-        'openSessionIds': updatedOpenIds,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      // 3. Perform atomic creation and index update.
+      transaction
+        ..set(docRef, {
+          ...session.toMap(),
+          'teamIsActive': true,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        })
+        ..update(teamDoc.reference, {
+          'openSessionIds': updatedOpenIds,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
     });
 
     // Read back the written document to return server timestamps.
@@ -207,15 +206,15 @@ class AttendanceSessionRepository {
       final sessionRef = _sessionDoc(teamId, sessionId);
       final teamRef = _classesCollection.doc(teamId);
 
-      transaction.update(sessionRef, {
-        'isClosed': true,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      transaction.update(teamRef, {
-        'openSessionIds': FieldValue.arrayRemove([sessionId]),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      transaction
+        ..update(sessionRef, {
+          'isClosed': true,
+          'updatedAt': FieldValue.serverTimestamp(),
+        })
+        ..update(teamRef, {
+          'openSessionIds': FieldValue.arrayRemove([sessionId]),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
     });
   }
 

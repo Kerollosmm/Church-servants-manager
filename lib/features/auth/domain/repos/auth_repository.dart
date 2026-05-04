@@ -4,6 +4,9 @@ abstract class AuthRepository {
   /// Get stream of auth state changes
   Stream<AuthUser?> get userStream;
 
+  /// Forces a token refresh to update custom claims.
+  Future<void> forceRoleRefresh();
+
   /// Get the current Firebase user (basic info)
   AuthUser? get currentUser;
 

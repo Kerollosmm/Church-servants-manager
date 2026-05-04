@@ -129,15 +129,13 @@ class ServantModel with _$ServantModel {
     final ids = <String>{};
     // Ensure we handle potential null list from legacy data sources
     final list = assignedTeamIds;
-    if (list != null) {
-      for (final id in list) {
-        final trimmed = id.trim();
-        if (trimmed.isNotEmpty) {
-          ids.add(trimmed);
-        }
+    for (final id in list) {
+      final trimmed = id.trim();
+      if (trimmed.isNotEmpty) {
+        ids.add(trimmed);
       }
     }
-    final legacyId = assignedTeamId?.trim();
+      final legacyId = assignedTeamId?.trim();
     if (legacyId != null && legacyId.isNotEmpty) {
       ids.add(legacyId);
     }

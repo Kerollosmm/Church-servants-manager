@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -13,7 +14,7 @@ void main() async {
   await Firebase.initializeApp();
   final firestore = FirebaseFirestore.instance;
 
-  print('🚀 Starting marks studentId migration...');
+  developer.log('🚀 Starting marks studentId migration...', name: 'Migration');
 
   int migrated = 0;
   int skipped = 0;
@@ -50,7 +51,10 @@ void main() async {
       final parts = doc.id.split('_');
       if (parts.isEmpty || parts.first.isEmpty) {
         errors++;
-        print('❌ Error: Could not infer studentId from doc ID: ${doc.id}');
+        developer.log(
+          '❌ Error: Could not infer studentId from doc ID: ${doc.id}',
+          name: 'Migration',
+        );
         continue;
       }
 
@@ -60,12 +64,15 @@ void main() async {
       batchCount++;
 
       if (batchCount >= 400) {
-        print('📦 Committing batch of $batchCount updates...');
+        developer.log(
+          '📦 Committing batch of $batchCount updates...',
+          name: 'Migration',
+        );
         try {
           await batch.commit();
           migrated += batchCount;
         } catch (e) {
-          print('❌ Error committing batch: $e');
+          developer.log('❌ Error committing batch: $e', name: 'Migration');
           errors += batchCount;
         }
         batch = firestore.batch();
@@ -75,22 +82,25 @@ void main() async {
   }
 
   if (batchCount > 0) {
-    print('📦 Committing final batch of $batchCount updates...');
+    developer.log(
+      '📦 Committing final batch of $batchCount updates...',
+      name: 'Migration',
+    );
     try {
       await batch.commit();
       migrated += batchCount;
     } catch (e) {
-      print('❌ Error committing final batch: $e');
+      developer.log('❌ Error committing final batch: $e', name: 'Migration');
       errors += batchCount;
     }
   }
 
-  print('🎉 Migration complete!');
-  print('   ✅ Migrated: $migrated marks');
-  print('   ⏭️  Skipped:  $skipped marks');
-  print('   ❌ Errors:   $errors marks');
+  developer.log('🎉 Migration complete!', name: 'Migration');
+  developer.log('   ✅ Migrated: $migrated marks', name: 'Migration');
+  developer.log('   ⏭️  Skipped:  $skipped marks', name: 'Migration');
+  developer.log('   ❌ Errors:   $errors marks', name: 'Migration');
 
-  print('Shutting down Firebase connections...');
+  developer.log('Shutting down Firebase connections...', name: 'Migration');
   await FirebaseFirestore.instance.terminate();
   await Firebase.app().delete();
   exit(0);

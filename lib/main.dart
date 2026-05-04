@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:developer' as developer;
+import 'dart:io' show Platform;
 import 'dart:ui';
 
 import 'package:church_management_system/church_app.dart';
@@ -12,11 +13,12 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 Future<void> _initializeFirebase() async {
-  try {
+  if (kIsWeb || Platform.isAndroid || Platform.isIOS || Platform.isMacOS) {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-  } on UnsupportedError {
+  } else {
+    // For unsupported platforms like Windows/Linux in standard Firebase setup
     await Firebase.initializeApp();
   }
 }

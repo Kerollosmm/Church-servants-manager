@@ -6,6 +6,7 @@ import 'package:church_management_system/features/auth/domain/failures/auth_fail
 import 'package:church_management_system/features/auth/domain/repos/auth_repository.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:equatable/equatable.dart';
+import 'package:firebase_auth/firebase_auth.dart' show FirebaseAuth;
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 part 'auth_event.dart';
@@ -34,19 +35,16 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthEventForgotPassword>(_onForgotPassword);
     on<AuthEventForcePasswordReset>(_onForcePasswordReset);
     on<AuthEventRefreshUser>(_onRefreshUser);
+    on<AuthEventForceRefresh>(_onForceRefresh);
     on<_AuthEventSessionChanged>(_onSessionChanged);
     on<_AuthEventSessionError>(_onSessionError);
 
     _authStateSubscription = _authService.userStream.listen((user) {
-      // Only react to session changes after initial status check completes.
-      // AuthEventCheckStatus handles the cold-start case; the stream
-      // handles subsequent tab-switches, token refreshes, and remote sign-outs.
       if (state is! AuthLoading && state is! AuthInitial) {
         add(_AuthEventSessionChanged(user));
       }
     }, onError: (error, stackTrace) => add(const _AuthEventSessionError()));
 
-    // AUTO-SYNC ON RECONNECT: Trigger a refresh when the device goes back online.
     _connectivitySubscription = _connectivity.onConnectivityChanged.listen((
       results,
     ) {
@@ -57,50 +55,140 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     });
   }
 
-  Future<void> _emitResolvedState(
+  Future<void> _onCheckStatus(
+    AuthEventCheckStatus event,
     Emitter<AuthState> emit,
-    AuthUser? user,
   ) async {
-    if (user == null) {
-      emit(const AuthUnauthenticated());
-      return;
-    }
+    emit(const AuthLoading());
+    try {
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      if (firebaseUser == null) {
+        emit(const AuthUnauthenticated());
+        return;
+      }
 
-    if (user.isArchived) {
-      emit(AuthArchived(message: _inactiveMessage, email: user.email));
-      return;
-    }
+      final user = await _authService.getCurrentAppUser(forceRefresh: true);
 
-    if (user.restorePendingPasswordReset) {
-      emit(const AuthNeedsPasswordReset());
-      return;
+      if (user == null) {
+        emit(const AuthUnauthenticated());
+      } else if (user.isArchived) {
+        emit(AuthArchived(message: _inactiveMessage, email: user.email));
+      } else if (user.restorePendingPasswordReset) {
+        emit(const AuthNeedsPasswordReset());
+      } else if (!user.isEmailVerified) {
+        emit(const AuthNeedsVerification());
+      } else {
+        emit(AuthAuthenticated(user));
+      }
+    } catch (e) {
+      final cached = _authService.lastKnownAppUser;
+      if (cached != null) {
+        if (cached.isArchived) {
+          emit(AuthArchived(message: _inactiveMessage, email: cached.email));
+        } else {
+          emit(
+            AuthDegraded(user: cached, message: _degradedPermissionsMessage),
+          );
+        }
+      } else {
+        emit(
+          const AuthError(
+            'Unable to load account data. Please check your connection.',
+          ),
+        );
+      }
     }
-
-    if (!user.isEmailVerified) {
-      emit(const AuthNeedsVerification());
-      return;
-    }
-
-    emit(AuthAuthenticated(user));
   }
 
-  Future<void> _runAuthAction(
+  Future<void> _onSessionChanged(
+    _AuthEventSessionChanged event,
     Emitter<AuthState> emit,
-    Future<void> Function() action, {
-    bool emitLoading = false,
-    void Function()? onEmailNotVerified,
-  }) async {
-    if (emitLoading) {
-      emit(const AuthLoading());
-    }
+  ) async {
     try {
-      await action();
-    } on EmailNotVerifiedFailure catch (e) {
-      if (onEmailNotVerified != null) {
-        onEmailNotVerified();
-      } else {
-        emit(AuthError(e.message));
+      if (state is AuthSigningOut) return;
+
+      final newUser = event.user;
+      final currentState = state;
+
+      if (currentState is AuthAuthenticated && newUser != null) {
+        if (newUser.requiresTokenRefresh) {
+          emit(const AuthRoleRefreshing());
+          return;
+        }
+        if (currentState.user.role != newUser.role) {
+          emit(AuthRoleUpdated(newUser));
+          emit(AuthAuthenticated(newUser));
+          return;
+        }
       }
+
+      if (newUser == null) {
+        emit(const AuthUnauthenticated());
+      } else if (newUser.isArchived) {
+        emit(AuthArchived(message: _inactiveMessage, email: newUser.email));
+      } else if (newUser.restorePendingPasswordReset) {
+        emit(const AuthNeedsPasswordReset());
+      } else if (!newUser.isEmailVerified) {
+        emit(const AuthNeedsVerification());
+      } else {
+        emit(AuthAuthenticated(newUser));
+      }
+    } catch (e, stackTrace) {
+      developer.log(
+        'AuthBloc: Error in session change logic',
+        error: e,
+        stackTrace: stackTrace,
+        name: 'AuthBloc',
+      );
+      final cached = _authService.lastKnownAppUser;
+      if (cached != null) {
+        if (cached.isArchived) {
+          emit(AuthArchived(message: _inactiveMessage, email: cached.email));
+        } else {
+          emit(
+            AuthDegraded(user: cached, message: _degradedPermissionsMessage),
+          );
+        }
+      } else {
+        emit(const AuthError('An error occurred during session sync.'));
+      }
+    }
+  }
+
+  void _onSessionError(_AuthEventSessionError event, Emitter<AuthState> emit) {
+    final cached = _authService.lastKnownAppUser;
+    if (cached != null) {
+      if (cached.isArchived) {
+        emit(AuthArchived(message: _inactiveMessage, email: cached.email));
+      } else {
+        emit(AuthDegraded(user: cached, message: _degradedPermissionsMessage));
+      }
+    } else {
+      emit(
+        const AuthError('Unable to refresh account data. Please try again.'),
+      );
+    }
+  }
+
+  Future<void> _onSignIn(AuthEventSignIn event, Emitter<AuthState> emit) async {
+    emit(const AuthLoading());
+    try {
+      final user = await _authService.signIn(
+        email: event.email,
+        password: event.password,
+      );
+
+      if (user.isArchived) {
+        emit(AuthArchived(message: _inactiveMessage, email: user.email));
+      } else if (user.restorePendingPasswordReset) {
+        emit(const AuthNeedsPasswordReset());
+      } else if (!user.isEmailVerified) {
+        emit(const AuthNeedsVerification());
+      } else {
+        emit(AuthAuthenticated(user));
+      }
+    } on EmailNotVerifiedFailure catch (_) {
+      emit(const AuthNeedsVerification());
     } on AuthFailure catch (e) {
       emit(AuthError(e.message));
     } catch (e, stackTrace) {
@@ -114,76 +202,36 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
   }
 
-  Future<void> _onCheckStatus(
-    AuthEventCheckStatus event,
-    Emitter<AuthState> emit,
-  ) async {
+  Future<void> _onSignUp(AuthEventSignUp event, Emitter<AuthState> emit) async {
     emit(const AuthLoading());
     try {
-      // Give the auth stream 5 seconds before falling back to cached user
-      final initialUser =
-          _authService.currentUser ??
-          await _authService.userStream.first.timeout(
-            const Duration(seconds: 5),
-            onTimeout: () => null,
-          );
-
-      if (initialUser != null) {
-        await _authService.reloadUser();
-      }
-
-      final firebaseUser = _authService.currentUser;
-      if (_emitUnauthenticatedIfNoFirebaseUser(emit, firebaseUser)) {
-        return;
-      }
-
-      final user = await _authService.getCurrentAppUser(
-        forceRefresh: initialUser != null,
-      );
-      await _emitResolvedState(emit, user);
-    } catch (_) {
-      _emitDegradedOrError(
-        emit,
-        fallbackErrorMessage: 'Unable to load account data. Please try again.',
-      );
-    }
-  }
-
-  Future<void> _onSignIn(AuthEventSignIn event, Emitter<AuthState> emit) async {
-    await _runAuthAction(
-      emit,
-      () async {
-        final user = await _authService.signIn(
-          email: event.email,
-          password: event.password,
-        );
-
-        await _emitResolvedState(emit, user);
-      },
-      emitLoading: true,
-      onEmailNotVerified: () => emit(const AuthNeedsVerification()),
-    );
-  }
-
-  Future<void> _onSignUp(AuthEventSignUp event, Emitter<AuthState> emit) async {
-    await _runAuthAction(emit, () async {
       await _authService.signUp(
         email: event.email,
         password: event.password,
         name: event.name,
         grade: event.grade,
       );
-
-      // After registration, user needs to verify email
       emit(const AuthNeedsVerification());
-    }, emitLoading: true);
+    } on EmailNotVerifiedFailure catch (_) {
+      emit(const AuthNeedsVerification());
+    } on AuthFailure catch (e) {
+      emit(AuthError(e.message));
+    } catch (e, stackTrace) {
+      developer.log(
+        'AuthBloc: Unexpected error',
+        error: e,
+        stackTrace: stackTrace,
+        name: 'AuthBloc',
+      );
+      emit(const AuthError('Something went wrong. Please try again.'));
+    }
   }
 
   Future<void> _onSignOut(
     AuthEventSignOut event,
     Emitter<AuthState> emit,
   ) async {
-    emit(const AuthSigningOut()); // explicit transition
+    emit(const AuthSigningOut());
     try {
       await _authService.signOut();
       emit(const AuthUnauthenticated());
@@ -198,20 +246,41 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthEventSendVerification event,
     Emitter<AuthState> emit,
   ) async {
-    await _runAuthAction(emit, () async {
+    try {
       await _authService.sendEmailVerification();
       emit(const AuthVerificationSent());
-    });
+    } on AuthFailure catch (e) {
+      emit(AuthError(e.message));
+    } catch (e, stackTrace) {
+      developer.log(
+        'AuthBloc: Unexpected error',
+        error: e,
+        stackTrace: stackTrace,
+        name: 'AuthBloc',
+      );
+      emit(const AuthError('Something went wrong. Please try again.'));
+    }
   }
 
   Future<void> _onForgotPassword(
     AuthEventForgotPassword event,
     Emitter<AuthState> emit,
   ) async {
-    await _runAuthAction(emit, () async {
+    emit(const AuthLoading());
+    try {
       await _authService.sendPasswordResetEmail(event.email);
       emit(const AuthPasswordResetSent());
-    }, emitLoading: true);
+    } on AuthFailure catch (e) {
+      emit(AuthError(e.message));
+    } catch (e, stackTrace) {
+      developer.log(
+        'AuthBloc: Unexpected error',
+        error: e,
+        stackTrace: stackTrace,
+        name: 'AuthBloc',
+      );
+      emit(const AuthError('Something went wrong. Please try again.'));
+    }
   }
 
   Future<void> _onRefreshUser(
@@ -220,62 +289,52 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     try {
       final user = await _authService.refreshCurrentAppUser();
-      await _emitResolvedState(emit, user);
+      if (user == null) {
+        emit(const AuthUnauthenticated());
+      } else if (user.isArchived) {
+        emit(AuthArchived(message: _inactiveMessage, email: user.email));
+      } else if (user.restorePendingPasswordReset) {
+        emit(const AuthNeedsPasswordReset());
+      } else if (!user.isEmailVerified) {
+        emit(const AuthNeedsVerification());
+      } else {
+        emit(AuthAuthenticated(user));
+      }
     } catch (e) {
-      _emitDegradedOrError(
-        emit,
-        fallbackErrorMessage: 'Something went wrong. Please try again.',
-      );
+      final cached = _authService.lastKnownAppUser;
+      if (cached != null) {
+        if (cached.isArchived) {
+          emit(AuthArchived(message: _inactiveMessage, email: cached.email));
+        } else {
+          emit(
+            AuthDegraded(user: cached, message: _degradedPermissionsMessage),
+          );
+        }
+      } else {
+        emit(const AuthError('Something went wrong. Please try again.'));
+      }
     }
   }
 
-  Future<void> _onSessionChanged(
-    _AuthEventSessionChanged event,
+  Future<void> _onForceRefresh(
+    AuthEventForceRefresh event,
     Emitter<AuthState> emit,
   ) async {
     try {
-      // Don't process session changes while actively signing out
-      if (state is AuthSigningOut) return;
-
-      final newUser = event.user;
-      final currentState = state;
-
-      // Detection logic for reactive role refresh
-      if (currentState is AuthAuthenticated && newUser != null) {
-        if (newUser.requiresTokenRefresh) {
-          emit(const AuthRoleRefreshing());
-          return; // The refresh will trigger another session change event
-        }
-
-        // Detect if role actually changed after a refresh
-        if (currentState.user.role != newUser.role) {
-          emit(AuthRoleUpdated(newUser));
-          // Transition to normal authenticated state immediately so UI can route
-          emit(AuthAuthenticated(newUser));
-          return;
-        }
-      }
-
-      await _emitResolvedState(emit, newUser);
+      await FirebaseAuth.instance.currentUser?.getIdToken(true);
     } catch (e, stackTrace) {
       developer.log(
-        'AuthBloc: Error in session change logic',
+        'AuthBloc: Error during forced token refresh',
         error: e,
         stackTrace: stackTrace,
         name: 'AuthBloc',
       );
-      _emitDegradedOrError(
-        emit,
-        fallbackErrorMessage: 'An error occurred during session sync.',
+      emit(
+        const AuthError(
+          'فشل تحديث البيانات. يرجى التأكد من الاتصال بالإنترنت والمحاولة مجدداً.',
+        ),
       );
     }
-  }
-
-  void _onSessionError(_AuthEventSessionError event, Emitter<AuthState> emit) {
-    _emitDegradedOrError(
-      emit,
-      fallbackErrorMessage: 'Unable to refresh account data. Please try again.',
-    );
   }
 
   Future<void> _onForcePasswordReset(
@@ -291,60 +350,18 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       }
       await _authService.updatePassword(event.newPassword);
 
-      // Clear flag as non-fatal while still authenticated
       try {
         await _authService.clearRestorePendingPasswordReset(user.uid);
-      } catch (e) {
-        // Log error but don't fail the password reset success
-      }
+      } catch (e) {}
 
-      // Finalize session
       try {
         await _authService.signOut();
-      } catch (_) {
-        // Sign out failure should not block the success emission
-      }
+      } catch (_) {}
 
       emit(const AuthPasswordResetSuccess());
     } catch (e) {
-      emit(AuthError('فشل في تغيير كلمة المرور. حاول مرة أخرى.'));
+      emit(const AuthError('فشل في تغيير كلمة المرور. حاول مرة أخرى.'));
     }
-  }
-
-  bool _emitUnauthenticatedIfNoFirebaseUser(
-    Emitter<AuthState> emit,
-    AuthUser? firebaseUser,
-  ) {
-    if (firebaseUser != null) {
-      return false;
-    }
-    emit(const AuthUnauthenticated());
-    return true;
-  }
-
-  void _emitDegradedOrError(
-    Emitter<AuthState> emit, {
-    required String fallbackErrorMessage,
-  }) {
-    final firebaseUser = _authService.currentUser;
-    final cached = _authService.lastKnownAppUser;
-
-    if (firebaseUser != null &&
-        cached != null &&
-        cached.uid == firebaseUser.uid) {
-      if (cached.isArchived) {
-        emit(AuthArchived(message: _inactiveMessage, email: cached.email));
-        return;
-      }
-      emit(_buildDegradedState(cached));
-      return;
-    }
-
-    emit(AuthError(fallbackErrorMessage));
-  }
-
-  AuthDegraded _buildDegradedState(AuthUser cachedUser) {
-    return AuthDegraded(user: cachedUser, message: _degradedPermissionsMessage);
   }
 
   @override

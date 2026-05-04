@@ -5,134 +5,85 @@ import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/data/services/auth_user_profile_store.dart';
 import 'package:church_management_system/features/auth/data/services/firebase_identity_provider.dart';
-import 'package:church_management_system/features/auth/data/services/firestore_profile_provider.dart';
 import 'package:church_management_system/features/auth/data/utils/auth_error_mapper.dart';
-import 'package:church_management_system/features/auth/domain/auth_freshness_policy.dart';
 import 'package:church_management_system/features/auth/domain/failures/auth_exceptions.dart';
 import 'package:church_management_system/features/auth/domain/repos/auth_repository.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:firebase_auth/firebase_auth.dart' show IdTokenResult;
-import 'package:rxdart/rxdart.dart';
 
 class FirebaseAuthRepository implements AuthRepository {
   final FirebaseIdentityProvider _identityProvider;
-  final FirestoreProfileProvider _profileProvider;
   final AuthUserProfileStore _userProfileStore;
-  final AuthFreshnessPolicy _freshnessPolicy;
-  final Connectivity _connectivity;
 
   AuthUser? _lastKnownAppUser;
-  DateTime? _lastForcedRefreshTime;
 
   FirebaseAuthRepository({
     required FirebaseIdentityProvider identityProvider,
-    required FirestoreProfileProvider profileProvider,
     required AuthUserProfileStore userProfileStore,
-    required AuthFreshnessPolicy freshnessPolicy,
-    Connectivity? connectivity,
+    Connectivity?
+    connectivity, // Kept for constructor compatibility if injected elsewhere
   }) : _identityProvider = identityProvider,
-       _profileProvider = profileProvider,
-       _userProfileStore = userProfileStore,
-       _freshnessPolicy = freshnessPolicy,
-       _connectivity = connectivity ?? Connectivity();
+       _userProfileStore = userProfileStore;
 
   @override
   AuthUser? get currentUser {
     final user = _identityProvider.currentUser;
     if (user == null) return null;
-    // Return the last known user if it matches the current UID,
-    // as it contains resolved claims.
     if (_lastKnownAppUser != null && _lastKnownAppUser!.uid == user.uid) {
       return _lastKnownAppUser;
     }
-    // DO NOT fallback to AuthUser.fromFirebaseUnsafe(user) as it lacks claims.
-    // Return null to signal that the full app user is not yet resolved.
     return null;
   }
 
   @override
   Stream<AuthUser?> get userStream {
-    return _identityProvider.authStateChanges.switchMap((firebaseUser) {
+    return _identityProvider.idTokenChanges.asyncMap((claims) async {
+      final firebaseUser = _identityProvider.currentUser;
       if (firebaseUser == null) {
         _lastKnownAppUser = null;
-        _profileProvider.clearAllCache();
-        return Stream.value(null);
+        return null;
       }
 
-      // Combine Firebase identity changes with Firestore profile updates
-      return Rx.combineLatest2<Map<String, dynamic>, AuthUser?, AuthUser?>(
-        _identityProvider.idTokenChanges,
-        _profileProvider.watchProfile(firebaseUser.uid),
-        (claims, profile) {
-          try {
-            // Resolve role from token (SSOT for permissions)
-            final tokenUser = AuthUser.fromFirebaseToken(firebaseUser, claims);
+      try {
+        // Single fetch using serverAndCache
+        final profile = await _userProfileStore.fetchUser(firebaseUser.uid);
 
-            if (profile == null) {
-              _lastKnownAppUser = tokenUser;
-              return tokenUser;
-            }
+        final mergedUser = profile.copyWith(
+          uid: firebaseUser.uid,
+          email: firebaseUser.email ?? profile.email,
+          name: firebaseUser.displayName?.trim().isNotEmpty == true
+              ? firebaseUser.displayName!.trim()
+              : profile.name,
+          isEmailVerified: firebaseUser.emailVerified,
+          // We rely exclusively on the Firestore profile for the role
+          role: profile.role,
+          isArchived: profile.isArchived,
+          assignedTeamIds: profile.assignedTeamIds,
+        );
 
-            // Reactive Token Refresh logic:
-            if (profile.requiresTokenRefresh) {
-              _handleForcedRefresh(firebaseUser.uid);
-            }
-
-            // Merge profile data while keeping tokenUser as authority for roles/archive status
-            final mergedUser = profile.copyWith(
-              uid: tokenUser.uid,
-              email: tokenUser.email,
-              role: tokenUser.role, // Claims are authority
-              isEmailVerified: tokenUser.isEmailVerified,
-              isArchived: tokenUser.isArchived, // Claims are authority
-              assignedTeamIds:
-                  tokenUser.assignedTeamIds, // Claims are authority
-              name: firebaseUser.displayName?.trim().isNotEmpty == true
-                  ? firebaseUser.displayName!.trim()
-                  : profile.name,
-            );
-
-            _lastKnownAppUser = mergedUser;
-            return mergedUser;
-          } catch (e, s) {
-            developer.log(
-              'Error merging auth stream data',
-              error: e,
-              stackTrace: s,
-              name: 'FirebaseAuthRepository',
-            );
-            // Return last known good state or tokenUser as fallback
-            return _lastKnownAppUser;
-          }
-        },
-      ).distinct();
+        _lastKnownAppUser = mergedUser;
+        return mergedUser;
+      } catch (e, s) {
+        developer.log(
+          'Error fetching user profile stream',
+          error: e,
+          stackTrace: s,
+          name: 'FirebaseAuthRepository',
+        );
+        // If offline and cache is empty, we throw or return last known
+        if (_lastKnownAppUser != null) {
+          return _lastKnownAppUser;
+        }
+        return null; // Signals unauthenticated/error to BLoC
+      }
     });
   }
 
-  bool _isRefreshing = false;
-  Future<void> _handleForcedRefresh(String uid) async {
-    if (_isRefreshing) return;
-
-    // SPARK PLAN HARDENING: 1-minute debounce for forced refreshes.
-    // Prevents redundant Auth/Firestore calls if the watch stream triggers
-    // multiple times before the 'requiresTokenRefresh' flag is cleared server-side.
-    final now = DateTime.now();
-    if (_lastForcedRefreshTime != null &&
-        now.difference(_lastForcedRefreshTime!) < const Duration(minutes: 1)) {
-      return;
-    }
-
-    _isRefreshing = true;
-    _lastForcedRefreshTime = now;
-
-    try {
-      await _identityProvider.forceTokenRefresh();
-      // FIX: Added missing _userProfileStore prefix to correct bug
-      await _userProfileStore.updateUserFields(uid, {
-        'requiresTokenRefresh': false,
-      });
-    } finally {
-      _isRefreshing = false;
+  @override
+  Future<void> forceRoleRefresh() async {
+    final user = _identityProvider.currentUser;
+    if (user != null) {
+      await user.getIdToken(true);
     }
   }
 
@@ -148,44 +99,19 @@ class FirebaseAuthRepository implements AuthRepository {
         return null;
       }
 
-      // Offline Session Restore logic
-      final connectivityResult = await _connectivity.checkConnectivity();
-      final isOffline = connectivityResult.contains(ConnectivityResult.none);
-
-      if (isOffline) {
-        if (!_freshnessPolicy.canPerformWrites) {
-          // Policy is invalid, and we are offline. Block access.
-          return null; // Returning null will trigger AuthUnauthenticated
-        }
-      }
-
-      // Fetch claims and profile in parallel
-      final results = await Future.wait([
-        firebaseUser.getIdTokenResult(forceRefresh),
-        _profileProvider.getProfile(
-          firebaseUser.uid,
-          forceRefresh: forceRefresh,
-        ),
-      ]);
-
-      final tokenResult = results[0] as IdTokenResult;
-      final profile = results[1] as AuthUser;
-
-      final tokenUser = AuthUser.fromFirebaseToken(
-        firebaseUser,
-        tokenResult.claims ?? {},
-      );
+      // Fetch profile using serverAndCache natively
+      final profile = await _userProfileStore.fetchUser(firebaseUser.uid);
 
       final mergedUser = profile.copyWith(
-        uid: tokenUser.uid,
-        email: tokenUser.email,
-        role: tokenUser.role, // Authority
-        isEmailVerified: tokenUser.isEmailVerified,
-        isArchived: tokenUser.isArchived, // Authority
-        assignedTeamIds: tokenUser.assignedTeamIds, // Authority
+        uid: firebaseUser.uid,
+        email: firebaseUser.email ?? profile.email,
         name: firebaseUser.displayName?.trim().isNotEmpty == true
             ? firebaseUser.displayName!.trim()
             : profile.name,
+        isEmailVerified: firebaseUser.emailVerified,
+        role: profile.role,
+        isArchived: profile.isArchived,
+        assignedTeamIds: profile.assignedTeamIds,
       );
 
       _lastKnownAppUser = mergedUser;
@@ -295,9 +221,9 @@ class FirebaseAuthRepository implements AuthRepository {
   Future<void> signOut() async {
     try {
       await _identityProvider.signOut();
-      await _freshnessPolicy.reset();
-      _profileProvider.clearAllCache();
       _lastKnownAppUser = null;
+      // Security Fix: Wipe offline cache to prevent data leaks on shared devices
+      await FirebaseFirestore.instance.clearPersistence();
     } catch (e) {
       throw AuthErrorMapper.mapException(e);
     }

@@ -15,7 +15,12 @@ class AppTheme {
     return baseTheme.copyWith(
       scaffoldBackgroundColor: AppColors.background,
       textTheme: textTheme,
-      appBarTheme: AppComponentThemes.appBar(textTheme),
+      appBarTheme: AppComponentThemes.appBar(textTheme).copyWith(
+        backgroundColor: AppColors.background,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+      ),
       cardTheme: AppComponentThemes.card(),
       inputDecorationTheme: AppComponentThemes.inputDecoration(textTheme),
       filledButtonTheme: AppComponentThemes.filledButton(textTheme),

@@ -137,8 +137,7 @@ class TeamRepository implements ITeamRepository {
         snapshot.docs,
         includeArchived: includeArchived,
       );
-      teams.sort((a, b) => a.name.compareTo(b.name));
-      return teams;
+      return teams..sort((a, b) => a.name.compareTo(b.name));
     } catch (e) {
       throw mapExceptionToTeamFailure(e);
     }
@@ -174,12 +173,11 @@ class TeamRepository implements ITeamRepository {
         snapshot.docs,
         includeArchived: includeArchived,
       );
-      teams.sort((a, b) {
+      return teams..sort((a, b) {
         final groupCompare = a.groupId.compareTo(b.groupId);
         if (groupCompare != 0) return groupCompare;
         return a.name.compareTo(b.name);
       });
-      return teams;
     } catch (e) {
       throw mapExceptionToTeamFailure(e);
     }
@@ -260,17 +258,17 @@ class TeamRepository implements ITeamRepository {
         }
 
         final newDocRef = _classesCollection.doc();
-        transaction.set(newDocRef, {
-          ...team.toMap(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-
-        transaction.set(registryRef, {
-          'teamId': newDocRef.id,
-          'groupId': team.groupId,
-          'teamName': team.name,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
+        transaction
+          ..set(newDocRef, {
+            ...team.toMap(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          })
+          ..set(registryRef, {
+            'teamId': newDocRef.id,
+            'groupId': team.groupId,
+            'teamName': team.name,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
 
         return newDocRef;
       });
@@ -409,17 +407,16 @@ class TeamRepository implements ITeamRepository {
 
         // Cleanup registry
         final registryId = '${team.groupId}_${team.name}';
-        transaction.delete(_registryCollection.doc(registryId));
-
-        // Archive team
-        transaction.set(teamRef, {
-          'isArchived': true,
-          'archivedAt': FieldValue.serverTimestamp(),
-          'archiveReason': 'Archived from app',
-          'assignedServantId': FieldValue.delete(),
-          'assignedServantName': FieldValue.delete(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+        transaction
+          ..delete(_registryCollection.doc(registryId))
+          ..set(teamRef, {
+            'isArchived': true,
+            'archivedAt': FieldValue.serverTimestamp(),
+            'archiveReason': 'Archived from app',
+            'assignedServantId': FieldValue.delete(),
+            'assignedServantName': FieldValue.delete(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
       });
     } catch (e) {
       if (e is TeamFailure) rethrow;

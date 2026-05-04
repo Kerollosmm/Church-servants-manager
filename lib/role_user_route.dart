@@ -1,11 +1,21 @@
 import 'package:church_management_system/core/constants/enums.dart';
+import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
 import 'package:church_management_system/features/admin/presentation/screens/admin_dashboard_screen.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_management_system/features/auth/presentation/screens/forced_password_reset_screen.dart';
 import 'package:church_management_system/features/auth/presentation/screens/login_screen.dart';
 import 'package:church_management_system/features/auth/presentation/screens/verify_email_screen.dart';
+import 'package:church_management_system/features/servant/domain/repos/i_servant_repository.dart';
+import 'package:church_management_system/features/servant/domain/usecases/provision_servant_with_auth_usecase.dart';
+import 'package:church_management_system/features/servant/presentation/bloc/servant_data/servant_data_cubit.dart';
 import 'package:church_management_system/features/servant/presentation/screens/servant_dashboard_screen.dart';
+import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
+import 'package:church_management_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
+import 'package:church_management_system/features/student/domain/usecases/get_students_stream_usecase.dart';
+import 'package:church_management_system/features/student/domain/usecases/provision_student_with_auth_usecase.dart';
+import 'package:church_management_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
+import 'package:church_management_system/features/student/presentation/bloc/student_profile/student_profile_cubit.dart';
 import 'package:church_management_system/features/student/presentation/screens/student_profile_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -22,19 +32,49 @@ class RoleUserRoute extends StatelessWidget {
         ? state.user
         : (state as AuthDegraded).user;
 
+    Widget child;
     switch (role) {
       case UserRole.servant:
-        return ServantDashboardScreen(user: user);
+        child = MultiBlocProvider(
+          providers: [
+            BlocProvider(
+              create: (context) => StudentDataBloc(
+                studentRepository: getIt<IStudentRepository>(),
+                getStudentsStream: getIt<GetStudentsStreamUseCase>(),
+                canMutateStudent: getIt<CanMutateStudentUseCase>(),
+                provisionUseCase: getIt<ProvisionStudentWithAuthUseCase>(),
+              ),
+            ),
+            BlocProvider(
+              create: (context) => ServantDataCubit(
+                repository: getIt<IServantRepository>(),
+                provisionUseCase: getIt<ProvisionServantWithAuthUseCase>(),
+              ),
+            ),
+          ],
+          child: ServantDashboardScreen(user: user),
+        );
+        break;
       case UserRole.student:
-        return StudentProfileScreen(user: user);
+        child = BlocProvider(
+          create: (context) => StudentProfileCubit(
+            studentRepository: getIt<IStudentRepository>(),
+          ),
+          child: StudentProfileScreen(user: user),
+        );
+        break;
       case UserRole.admin:
         if (state is AuthAuthenticated) {
-          return AdminDashboardScreen();
+          child = const AdminDashboardScreen();
+        } else {
+          child = _AdminRefreshRequiredScreen(
+            message: (state as AuthDegraded).message,
+          );
         }
-        return _AdminRefreshRequiredScreen(
-          message: (state as AuthDegraded).message,
-        );
+        break;
     }
+
+    return child;
   }
 
   @override

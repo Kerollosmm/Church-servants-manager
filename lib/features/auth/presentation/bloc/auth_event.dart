@@ -51,6 +51,10 @@ class AuthEventRefreshUser extends AuthEvent {
   const AuthEventRefreshUser();
 }
 
+class AuthEventForceRefresh extends AuthEvent {
+  const AuthEventForceRefresh();
+}
+
 class _AuthEventSessionChanged extends AuthEvent {
   final AuthUser? user;
 

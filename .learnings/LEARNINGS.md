@@ -296,3 +296,72 @@ Include all related cross-collection writes inside the `runTransaction` callback
 - Source: code_review
 - Related Files: lib/features/auth/data/services/auth_user_profile_store.dart
 - Tags: firestore, transactions, atomicity, invitation-flow
+
+---
+
+## [LRN-20260503-001] best_practice
+
+**Logged**: 2026-05-03T12:00:00Z
+**Priority**: high
+**Status**: pending
+**Area**: architecture
+
+### Summary
+Proper dependency injection scoping and manual `getIt` registration requirements.
+
+### Details
+When replacing a global `Provider` (e.g., inside `main.dart` or `church_app.dart`) with a route-scoped provider (e.g., inside `app_router.dart`), you must ensure that all widgets in that route are wrapped by the new `BlocProvider`. Additionally, when using `getIt` for manual dependency injection (if `build_runner` generation is absent or failing), any new BLoC or Repository (e.g., `AdminDashboardBloc`, `ITeamRepository`) MUST be manually registered in the `configureDependencies` function in `injection.dart`. Failing to do so causes a fatal `GetIt` exception at startup (`Object/factory with type X is not registered`).
+
+### Suggested Action
+After removing a global provider, immediately trace the route hierarchy to add a scoped provider. Always double-check `injection.dart` for manual registrations if `build_runner` is not being actively used. Run `dart analyze` and tests to verify dependency graphs before committing.
+
+### Metadata
+- Source: error
+- Related Files: lib/core/routing/app_router.dart, lib/core/di/injection.dart, lib/main.dart
+- Tags: dependency-injection, getIt, provider, scoping, architecture
+
+---
+
+## [LRN-20260503-002] best_practice
+
+**Logged**: 2026-05-03T12:05:00Z
+**Priority**: high
+**Status**: pending
+**Area**: tooling
+
+### Summary
+Avoid parallel file replacements on the same file to prevent race conditions.
+
+### Details
+When using the Gemini/Claude replace tool, dispatching multiple concurrent replacements on the exact same file path can cause a race condition (file editing collision). This results in only one of the edits succeeding, while the others are dropped or overwritten, leading to persistent compilation errors.
+
+### Suggested Action
+Always execute file replacements sequentially when targeting the same file. Alternatively, read the file, apply all changes to the content string, and use the `write_file` tool to overwrite the file in a single operation.
+
+### Metadata
+- Source: error
+- Related Files: N/A
+- Tags: tooling, concurrency, file-io, race-condition
+
+---
+
+## [LRN-20260503-003] best_practice
+
+**Logged**: 2026-05-03T12:10:00Z
+**Priority**: critical
+**Status**: pending
+**Area**: behavior
+
+### Summary
+Always invoke `memory-management` and `self-improvement` skills proactively on any task.
+
+### Details
+The user explicitly mandated that the `memory-management` and `self-improvement` (or `self-improving-agent`) skills must ALWAYS be invoked on any similar tasks and in any section later. This ensures context is decoded properly using internal language and that learnings, errors, and feature requests are continuously logged and promoted to prevent recurring issues.
+
+### Suggested Action
+At the beginning of any task or when starting a new conversation, explicitly activate the `memory-management` and `self-improvement` skills alongside other domain-specific skills (like `using-superpowers`).
+
+### Metadata
+- Source: user_feedback
+- Related Files: N/A
+- Tags: workflow, memory, self-improvement, continuous-learning

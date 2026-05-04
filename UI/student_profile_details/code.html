@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+
+<html dir="rtl" lang="ar"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;500;600;700&amp;family=Noto+Sans+Arabic:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#a58255",
+                        "background-light": "#f7f7f6",
+                        "background-dark": "#1c1916",
+                    },
+                    fontFamily: {
+                        "display": ["Noto Sans Arabic", "Work Sans", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: "Noto Sans Arabic", "Work Sans", sans-serif;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen pb-24">
+<!-- Header Navigation -->
+<header class="sticky top-0 z-50 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md border-b border-primary/10 px-4 py-3 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<button class="p-2 hover:bg-primary/10 rounded-full transition-colors">
+<span class="material-symbols-outlined text-slate-900 dark:text-slate-100">arrow_forward</span>
+</button>
+<h1 class="text-lg font-bold">تفاصيل المخدوم</h1>
+</div>
+<div class="flex items-center gap-1">
+<button class="p-2 hover:bg-primary/10 rounded-full transition-colors text-primary">
+<span class="material-symbols-outlined">edit</span>
+</button>
+<button class="p-2 hover:bg-primary/10 rounded-full transition-colors text-slate-500">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+</header>
+<main class="max-w-2xl mx-auto p-4 space-y-6">
+<!-- Profile Header Card -->
+<section class="flex flex-col items-center bg-white dark:bg-slate-800/50 p-6 rounded-xl shadow-sm border border-primary/5">
+<div class="relative group">
+<div class="size-32 rounded-full border-4 border-primary/20 p-1 overflow-hidden bg-background-light">
+<img alt="صورة مارينا أمير" class="w-full h-full object-cover rounded-full" data-alt="A portrait of a young girl smiling" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAseooW6_9-RrBsVGxU7_FEB4ZmwHnX2X2YjvjqnUIElBdCTFyv3GUVKaX0t2hMnA6sxbhxgu6z8JSKJakkg5gLGdxJwa8CLoEuQL7PsNm7tfDRdsy8GtTQ_3pvxB94yt5AdSRFfGfKarrwvv7BiEcf-x6RA2HXLkdkiGGUMy972bNjzZawbqzwoIwrkC5rBtAHxk8i8gYVWYuMYNFP-EV_ivX5FTIn64M9fPW__NNKr1TY0iz_d8Q4Ejjc1sJ4FFHlrtnFYxH-8hzG"/>
+</div>
+<div class="absolute bottom-1 right-1 bg-primary text-white size-8 rounded-full flex items-center justify-center border-2 border-white dark:border-slate-800">
+<span class="material-symbols-outlined text-sm">photo_camera</span>
+</div>
+</div>
+<div class="text-center mt-4">
+<h2 class="text-2xl font-bold text-slate-900 dark:text-white leading-tight">مارينا أمير بكير</h2>
+<div class="flex items-center justify-center gap-2 mt-1 text-primary">
+<span class="material-symbols-outlined text-sm">school</span>
+<span class="text-sm font-medium">الصف السادس الابتدائي</span>
+</div>
+</div>
+<div class="flex gap-3 mt-6 w-full">
+<button class="flex-1 bg-primary text-white py-2.5 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-primary/90 transition-all">
+<span class="material-symbols-outlined text-lg">archive</span>
+                    أرشفة الملف
+                </button>
+<button class="flex-1 bg-primary/10 text-primary py-2.5 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-primary/20 transition-all">
+<span class="material-symbols-outlined text-lg">share</span>
+                    مشاركة
+                </button>
+</div>
+</section>
+<!-- Attendance Summary Card -->
+<section class="bg-white dark:bg-slate-800/50 p-5 rounded-xl border border-primary/10 shadow-sm">
+<div class="flex items-center justify-between mb-4">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">event_available</span>
+<h3 class="font-bold text-lg">ملخص الحضور</h3>
+</div>
+<span class="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold">السنة الحالية</span>
+</div>
+<div class="flex items-center gap-6">
+<div class="relative size-20 shrink-0">
+<svg class="size-20 -rotate-90">
+<circle class="text-primary/10" cx="40" cy="40" fill="transparent" r="34" stroke="currentColor" stroke-width="8"></circle>
+<circle class="text-primary" cx="40" cy="40" fill="transparent" r="34" stroke="currentColor" stroke-dasharray="213.6" stroke-dashoffset="32.04" stroke-width="8"></circle>
+</svg>
+<div class="absolute inset-0 flex items-center justify-center font-bold text-sm">85%</div>
+</div>
+<div class="flex-1 space-y-1">
+<p class="text-slate-500 dark:text-slate-400 text-sm">حضر <span class="text-slate-900 dark:text-white font-bold">34</span> من أصل <span class="text-slate-900 dark:text-white font-bold">40</span> اجتماع</p>
+<div class="h-1.5 w-full bg-primary/10 rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[85%] rounded-full"></div>
+</div>
+</div>
+</div>
+<button class="w-full mt-5 py-2 border border-primary/20 text-primary rounded-lg text-sm font-bold hover:bg-primary/5 transition-colors">
+                عرض سجل الحضور كاملاً
+            </button>
+</section>
+<!-- Basic Information -->
+<section class="space-y-3">
+<h3 class="text-slate-500 dark:text-slate-400 text-sm font-bold px-1">المعلومات الأساسية</h3>
+<div class="bg-white dark:bg-slate-800/50 rounded-xl divide-y divide-primary/5 border border-primary/5">
+<div class="p-4 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary/60">groups</span>
+<span class="text-slate-600 dark:text-slate-300">المجموعة</span>
+</div>
+<span class="font-bold">القديس مارمرقس</span>
+</div>
+<div class="p-4 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary/60">diversity_3</span>
+<span class="text-slate-600 dark:text-slate-300">الفريق</span>
+</div>
+<span class="font-bold">فريق الألحان</span>
+</div>
+<div class="p-4 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary/60">calendar_month</span>
+<span class="text-slate-600 dark:text-slate-300">تاريخ الميلاد</span>
+</div>
+<span class="font-bold">12 مايو 2012</span>
+</div>
+</div>
+</section>
+<!-- Spiritual Information -->
+<section class="space-y-3">
+<h3 class="text-slate-500 dark:text-slate-400 text-sm font-bold px-1">المعلومات الروحية</h3>
+<div class="bg-white dark:bg-slate-800/50 rounded-xl border border-primary/5">
+<div class="p-4 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary/60">church</span>
+<span class="text-slate-600 dark:text-slate-300">أب الاعتراف</span>
+</div>
+<div class="text-left">
+<p class="font-bold">القمص إبراهيم القمص</p>
+<p class="text-xs text-slate-400">كنيسة الملاك ميخائيل</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Family Information -->
+<section class="space-y-3">
+<h3 class="text-slate-500 dark:text-slate-400 text-sm font-bold px-1">معلومات العائلة</h3>
+<div class="bg-white dark:bg-slate-800/50 rounded-xl divide-y divide-primary/5 border border-primary/5">
+<div class="p-4 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary/60">person_3</span>
+<span class="text-slate-600 dark:text-slate-300">رقم هاتف الأم</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="font-bold tracking-wider">0123 456 7890</span>
+<a class="size-8 rounded-full bg-green-100 dark:bg-green-900/30 text-green-600 flex items-center justify-center" href="tel:01234567890">
+<span class="material-symbols-outlined text-lg">call</span>
+</a>
+</div>
+</div>
+<div class="p-4 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary/60">person_4</span>
+<span class="text-slate-600 dark:text-slate-300">رقم هاتف الأب</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="font-bold tracking-wider">0123 987 6543</span>
+<a class="size-8 rounded-full bg-green-100 dark:bg-green-900/30 text-green-600 flex items-center justify-center" href="tel:01239876543">
+<span class="material-symbols-outlined text-lg">call</span>
+</a>
+</div>
+</div>
+<div class="p-4 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary/60">home</span>
+<span class="text-slate-600 dark:text-slate-300">العنوان</span>
+</div>
+<span class="font-bold text-left text-sm max-w-[180px]">شارع الكنيسة، حي المعادي، القاهرة</span>
+</div>
+</div>
+</section>
+</main>
+<!-- Bottom Navigation Bar -->
+<nav class="fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg border-t border-primary/10 px-6 py-2 pb-6 flex justify-between items-center z-50">
+<a class="flex flex-col items-center gap-1 text-slate-400 transition-colors" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="text-[10px] font-medium">الرئيسية</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-primary transition-colors" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1">group</span>
+<span class="text-[10px] font-bold">المخدومين</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400 transition-colors" href="#">
+<span class="material-symbols-outlined">event</span>
+<span class="text-[10px] font-medium">الاجتماعات</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400 transition-colors" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="text-[10px] font-medium">الإعدادات</span>
+</a>
+</nav>
+</body></html>

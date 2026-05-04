@@ -4,12 +4,13 @@ import 'package:church_management_system/core/theme/app_spacing.dart';
 import 'package:church_management_system/core/utils/validators.dart';
 import 'package:church_management_system/core/widgets/app_logo.dart';
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
-import 'package:church_management_system/core/widgets/gradient_border_container.dart';
 
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:church_management_system/features/auth/presentation/widgets/auth_submit_button.dart';
-import 'package:church_management_system/features/auth/presentation/widgets/auth_text_field.dart';
 import 'package:church_management_system/features/auth/presentation/widgets/email_verification_dialog.dart';
+import 'package:church_management_system/features/auth/presentation/widgets/ochre_auth_card.dart';
+import 'package:church_management_system/features/auth/presentation/widgets/ochre_background.dart';
+import 'package:church_management_system/features/auth/presentation/widgets/ochre_button.dart';
+import 'package:church_management_system/features/auth/presentation/widgets/ochre_text_field.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -25,12 +26,17 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  bool _obscurePassword = true;
+
+  // Use ValueNotifiers for localized rebuilds (performance optimization)
+  final _obscurePassword = ValueNotifier<bool>(true);
+  final _rememberMe = ValueNotifier<bool>(false);
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _obscurePassword.dispose();
+    _rememberMe.dispose();
     super.dispose();
   }
 
@@ -48,7 +54,6 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
       body: BlocListener<AuthBloc, AuthState>(
         listenWhen: (previous, current) =>
             current is AuthError ||
@@ -56,7 +61,6 @@ class _LoginScreenState extends State<LoginScreen> {
             current is AuthVerificationSent,
         listener: (context, state) {
           if (state is AuthError) {
-            // Clear password for security — never keep a wrong password in the field.
             _passwordController.clear();
             AppSnackbars.showError(
               context,
@@ -74,119 +78,176 @@ class _LoginScreenState extends State<LoginScreen> {
             );
           }
         },
-        child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.screenHorizontal,
-              ),
-              child: Column(
-                children: [
-                  // Logo
-                  const AppLogo(size: 150),
-                  AppSpacing.gapMd,
-
-                  // App Title
-                  Text(
-                    'CSMS',
-                    style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                      color: AppColors.tertiary,
-                      fontWeight: FontWeight.bold,
+        child: OchreBackground(
+          child: SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.screenHorizontal,
+                ),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 450),
+                  child: OchreAuthCard(
+                    header: Column(
+                      children: [
+                        const AppLogo(size: 130),
+                        AppSpacing.gapMd,
+                        Text(
+                          'نظام إدارة الكنيسة',
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.textPrimary,
+                              ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'مرحباً بك مجدداً، يرجى تسجيل الدخول',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: AppColors.textSecondary),
+                        ),
+                      ],
                     ),
-                  ),
-                  AppSpacing.gapXl,
-
-                  // Form inside gradient container
-                  GradientBorderContainer(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    child: Form(
+                    body: Form(
                       key: _formKey,
                       child: Column(
-                        mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Text(
-                            'مرحبا بعودتك',
-                            style: Theme.of(context).textTheme.headlineMedium
-                                ?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.tertiary,
-                                ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'سجّل الدخول للمتابعة',
-                            style: Theme.of(context).textTheme.bodyMedium
-                                ?.copyWith(color: AppColors.textSecondary),
-                            textAlign: TextAlign.center,
-                          ),
-                          AppSpacing.gapXl,
-
                           // Email
-                          AuthTextField(
+                          OchreTextField(
                             controller: _emailController,
                             label: 'البريد الإلكتروني',
-                            prefixIcon: Icons.email_outlined,
+                            placeholder: 'example@church.com',
+                            prefixIcon: Icons.mail_outline,
                             keyboardType: TextInputType.emailAddress,
                             validator: Validators.validateEmailArabic,
                           ),
-                          AppSpacing.gapMd,
+                          AppSpacing.gapLg,
 
                           // Password
-                          AuthTextField(
-                            controller: _passwordController,
-                            label: 'كلمة المرور',
-                            prefixIcon: Icons.lock_outline,
-                            obscureText: _obscurePassword,
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _obscurePassword
-                                    ? Icons.visibility_off
-                                    : Icons.visibility,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _obscurePassword = !_obscurePassword;
-                                });
-                              },
-                            ),
-                            validator: Validators.validatePasswordArabic,
+                          ValueListenableBuilder<bool>(
+                            valueListenable: _obscurePassword,
+                            builder: (context, isObscured, _) {
+                              return OchreTextField(
+                                controller: _passwordController,
+                                label: 'كلمة المرور',
+                                placeholder: '••••••••',
+                                prefixIcon: Icons.lock_outline,
+                                obscureText: isObscured,
+                                validator: Validators.validatePasswordArabic,
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    isObscured
+                                        ? Icons.visibility_off_outlined
+                                        : Icons.visibility_outlined,
+                                    color: AppColors.textTertiary,
+                                    size: 20,
+                                  ),
+                                  onPressed: () =>
+                                      _obscurePassword.value = !isObscured,
+                                ),
+                              );
+                            },
                           ),
-                          AppSpacing.gapSm,
 
-                          // Forgot Password
+                          // Forgot Password link (positioned as per design)
                           Align(
-                            alignment: Alignment.centerRight,
+                            alignment: Alignment.centerLeft,
                             child: TextButton(
                               onPressed: () {
                                 Navigator.pushNamed(context, forgotPassword);
                               },
-                              child: const Text('هل نسيت كلمة المرور؟'),
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: const Size(0, 30),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: const Text(
+                                'نسيت كلمة المرور؟',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.primary,
+                                ),
+                              ),
                             ),
                           ),
                           AppSpacing.gapMd,
 
-                          // Submit
-                          AuthSubmitButton(
-                            text: 'تسجيل الدخول',
-                            onPressed: _submit,
-                          ),
-                          AppSpacing.gapLg,
-
-                          // Navigate to Register
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                          // Remember Me
+                          Wrap(
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
-                              Text(
+                              ValueListenableBuilder<bool>(
+                                valueListenable: _rememberMe,
+                                builder: (context, value, _) {
+                                  return SizedBox(
+                                    height: 24,
+                                    width: 24,
+                                    child: Checkbox(
+                                      value: value,
+                                      onChanged: (v) =>
+                                          _rememberMe.value = v ?? false,
+                                      activeColor: AppColors.primary,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      side: const BorderSide(
+                                        color: AppColors.outlineVariant,
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'تذكرني على هذا الجهاز',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                          AppSpacing.gapXl,
+
+                          // Submit Button
+                          BlocBuilder<AuthBloc, AuthState>(
+                            builder: (context, state) {
+                              return OchreButton(
+                                text: 'تسجيل الدخول',
+                                icon: Icons.login,
+                                isLoading: state is AuthLoading,
+                                onPressed: _submit,
+                              );
+                            },
+                          ),
+                          AppSpacing.gapXl,
+
+                          // Register Link
+                          Wrap(
+                            alignment: WrapAlignment.center,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              const Text(
                                 'ليس لديك حساب؟',
-                                style: Theme.of(context).textTheme.bodyMedium,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: AppColors.textSecondary,
+                                ),
                               ),
                               TextButton(
                                 onPressed: () {
                                   Navigator.pushNamed(context, register);
                                 },
-                                child: const Text('إنشاء حساب'),
+                                child: const Text(
+                                  'إنشاء حساب جديد',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
                               ),
                             ],
                           ),
@@ -194,7 +255,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                   ),
-                ],
+                ),
               ),
             ),
           ),

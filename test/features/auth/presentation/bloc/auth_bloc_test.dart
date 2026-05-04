@@ -64,7 +64,10 @@ void main() {
         () => authService.signIn(email: 'user@example.com', password: 'pw'),
       ).thenThrow(const EmailNotVerifiedFailure());
 
-      final bloc = AuthBloc(authService: authService, connectivity: connectivity);
+      final bloc = AuthBloc(
+        authService: authService,
+        connectivity: connectivity,
+      );
       final expectation = expectLater(
         bloc.stream,
         emitsInOrder([isA<AuthLoading>(), isA<AuthNeedsVerification>()]),
@@ -150,7 +153,10 @@ void main() {
       when(() => authService.currentUser).thenReturn(adminUser);
       when(() => authService.lastKnownAppUser).thenReturn(adminUser);
 
-      final bloc = AuthBloc(authService: authService, connectivity: connectivity);
+      final bloc = AuthBloc(
+        authService: authService,
+        connectivity: connectivity,
+      );
       final expectation = expectLater(
         bloc.stream,
         emitsInOrder([
@@ -186,7 +192,10 @@ void main() {
       when(() => authService.currentUser).thenReturn(adminUser);
       when(() => authService.lastKnownAppUser).thenReturn(adminUser);
 
-      final bloc = AuthBloc(authService: authService, connectivity: connectivity);
+      final bloc = AuthBloc(
+        authService: authService,
+        connectivity: connectivity,
+      );
       final expectation = expectLater(
         bloc.stream,
         emitsInOrder([

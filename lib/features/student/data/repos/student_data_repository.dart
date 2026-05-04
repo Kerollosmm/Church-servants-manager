@@ -195,12 +195,12 @@ class StudentDataRepository implements IStudentRepository {
           : _studentsCollection.doc();
       final finalStudent = student.copyWith(docID: docRef.id);
 
-      final batch = _firestore.batch();
-      batch.set(docRef, {
-        ...finalStudent.toMap(),
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      final batch = _firestore.batch()
+        ..set(docRef, {
+          ...finalStudent.toMap(),
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
       await batch.commit();
 
       return docRef.id;
@@ -248,15 +248,14 @@ class StudentDataRepository implements IStudentRepository {
       }
 
       final student = StudentModel.fromMap(data, doc.id);
-      final batch = _firestore.batch();
-
-      batch.set(doc.reference, {
-        'isArchived': true,
-        'archivedAt': FieldValue.serverTimestamp(),
-        'archivedByUserId': performedByUid,
-        'restoredAt': FieldValue.delete(),
-        'restoredByUserId': FieldValue.delete(),
-      }, SetOptions(merge: true));
+      final batch = _firestore.batch()
+        ..set(doc.reference, {
+          'isArchived': true,
+          'archivedAt': FieldValue.serverTimestamp(),
+          'archivedByUserId': performedByUid,
+          'restoredAt': FieldValue.delete(),
+          'restoredByUserId': FieldValue.delete(),
+        }, SetOptions(merge: true));
 
       final normalizedUid = student.uid.trim();
       if (normalizedUid.isNotEmpty) {
@@ -287,14 +286,13 @@ class StudentDataRepository implements IStudentRepository {
       }
 
       final student = StudentModel.fromMap(data, doc.id);
-      final batch = _firestore.batch();
-
-      batch.set(doc.reference, {
-        'isArchived': false,
-        'restoredAt': FieldValue.serverTimestamp(),
-        'restoredByUserId': performedByUid,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      final batch = _firestore.batch()
+        ..set(doc.reference, {
+          'isArchived': false,
+          'restoredAt': FieldValue.serverTimestamp(),
+          'restoredByUserId': performedByUid,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
 
       final normalizedUid = student.uid.trim();
       if (normalizedUid.isNotEmpty) {

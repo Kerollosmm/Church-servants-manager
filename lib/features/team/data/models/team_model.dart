@@ -70,9 +70,7 @@ class TeamModel with _$TeamModel {
 
   /// Converts to Firestore-compatible map (excludes the doc ID).
   Map<String, dynamic> toMap() {
-    final map = toJson();
-    map.remove('id');
-    return map;
+    return toJson()..remove('id');
   }
 
   bool get isActive => !isArchived;

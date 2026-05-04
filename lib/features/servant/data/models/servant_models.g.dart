@@ -30,9 +30,11 @@ _$ServantModelImpl _$$ServantModelImplFromJson(
   restoredAt: const FirestoreTimestampConverter().fromJson(json['restoredAt']),
   restoredByUserId: json['restoredByUserId'] as String?,
   assignedTeamId: json['assignedTeamId'] as String?,
-  assignedTeamIds: (json['assignedTeamIds'] as List<dynamic>?)
-      ?.map((e) => e as String)
-      .toList(),
+  assignedTeamIds:
+      (json['assignedTeamIds'] as List<dynamic>?)
+          ?.map((e) => e as String)
+          .toList() ??
+      const <String>[],
   groupAttendanceSummary:
       json['groupAttendanceSummary'] as Map<String, dynamic>?,
   aiRecommendations: json['aiRecommendations'] as Map<String, dynamic>?,

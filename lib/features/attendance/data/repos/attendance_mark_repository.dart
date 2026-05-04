@@ -121,11 +121,11 @@ class AttendanceMarkRepository {
       data['note'] = normalizedNote;
     }
 
-    final batch = _firestore.batch();
-    batch.set(markRef, data, SetOptions(merge: true));
-    batch.set(sessionRef, {
-      '${status.name}Count': FieldValue.increment(1),
-    }, SetOptions(merge: true));
+    final batch = _firestore.batch()
+      ..set(markRef, data, SetOptions(merge: true))
+      ..set(sessionRef, {
+        '${status.name}Count': FieldValue.increment(1),
+      }, SetOptions(merge: true));
     await batch.commit();
   }
 

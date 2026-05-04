@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+
+<html dir="rtl" lang="ar"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;500;600;700&amp;family=Noto+Sans+Arabic:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#a58255",
+                        "background-light": "#f7f7f6",
+                        "background-dark": "#1c1916",
+                    },
+                    fontFamily: {
+                        "display": ["Noto Sans Arabic", "Work Sans", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Noto Sans Arabic', 'Work Sans', sans-serif;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen pb-20">
+<!-- Header Section -->
+<header class="sticky top-0 z-10 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md border-b border-primary/10">
+<div class="flex items-center justify-between p-4">
+<button class="flex items-center justify-center size-10 rounded-full hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-primary">arrow_forward</span>
+</button>
+<h1 class="text-xl font-bold text-slate-900 dark:text-slate-100">سجل حضور الخادم</h1>
+<button class="flex items-center justify-center size-10 rounded-full hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-primary">search</span>
+</button>
+</div>
+</header>
+<!-- Student Profile Mini Card -->
+<div class="p-4">
+<div class="relative overflow-hidden rounded-xl bg-white dark:bg-slate-800 p-6 shadow-sm border border-primary/10">
+<div class="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16"></div>
+<div class="flex items-center gap-4 relative z-10">
+<div class="size-16 rounded-full border-2 border-primary overflow-hidden bg-primary/10">
+<img alt="صورة الطالب" class="w-full h-full object-cover" data-alt="Portrait of a young middle eastern man smiling" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCAx4K_rgvgLaz81ieuxT3bVsNOzNTMtna8fjCY1-ajfRj_4ZrD6LsOoTzX1TWBd2zpbzF3bZU-zJY6F8TMOWFKekfjMxFDiaQCQjpILo5S2QabzjuXuEePC3Q2CpS-Xsa7BPrL9Qh53QEQlR-GJSawHdPokcE0ddM-0_WMtr1SW08JsZNb8pB3F75xzOX2hE499DoMpiFeWy12Pc8_Cne8qQ8t1UO8I1K9mXlgJcRwKmqInwc5rMy6BVBnFMiETmPy8sPL-d67kIIZ"/>
+</div>
+<div>
+<h2 class="text-lg font-bold">مينا إبراهيم فوزي</h2>
+<p class="text-sm text-slate-500 dark:text-slate-400">إعداد خدام - المستوى الثاني</p>
+</div>
+</div>
+</div>
+</div>
+<!-- KPI Cards Grid -->
+<div class="px-4 pb-6">
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+<div class="flex flex-col gap-2 rounded-xl p-4 bg-primary/10 border border-primary/20">
+<div class="flex justify-between items-start">
+<span class="material-symbols-outlined text-primary">analytics</span>
+<span class="text-xs font-bold text-green-600 dark:text-green-400">+2%</span>
+</div>
+<p class="text-slate-500 dark:text-slate-400 text-xs font-medium">نسبة الحضور</p>
+<p class="text-2xl font-bold text-primary">94%</p>
+</div>
+<div class="flex flex-col gap-2 rounded-xl p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+<div class="flex justify-between items-start">
+<span class="material-symbols-outlined text-green-600">check_circle</span>
+</div>
+<p class="text-slate-500 dark:text-slate-400 text-xs font-medium">أيام الحضور</p>
+<p class="text-2xl font-bold">28</p>
+</div>
+<div class="flex flex-col gap-2 rounded-xl p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+<div class="flex justify-between items-start">
+<span class="material-symbols-outlined text-amber-500">schedule</span>
+</div>
+<p class="text-slate-500 dark:text-slate-400 text-xs font-medium">تأخير</p>
+<p class="text-2xl font-bold">3</p>
+</div>
+<div class="flex flex-col gap-2 rounded-xl p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+<div class="flex justify-between items-start">
+<span class="material-symbols-outlined text-red-500">cancel</span>
+</div>
+<p class="text-slate-500 dark:text-slate-400 text-xs font-medium">غياب</p>
+<p class="text-2xl font-bold text-red-500">1</p>
+</div>
+</div>
+</div>
+<!-- Sessions List -->
+<div class="px-4">
+<div class="flex items-center justify-between mb-4">
+<h3 class="text-lg font-bold text-slate-900 dark:text-slate-100">سجل الجلسات والأنشطة</h3>
+<button class="text-primary text-sm font-semibold">تصفية</button>
+</div>
+<div class="space-y-3">
+<!-- Present Item -->
+<div class="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 flex items-center justify-between">
+<div class="flex items-start gap-4">
+<div class="size-12 rounded-lg bg-green-50 dark:bg-green-900/20 flex items-center justify-center text-green-600">
+<span class="material-symbols-outlined">menu_book</span>
+</div>
+<div class="flex flex-col">
+<p class="font-bold text-slate-900 dark:text-slate-100">تفسير إنجيل يوحنا</p>
+<p class="text-xs text-slate-500">فريق التعليم الروحي • ٢٨ أكتوبر ٢٠٢٣</p>
+<p class="text-xs text-primary mt-1">بواسطة: الشماس أنطونيوس كمال</p>
+</div>
+</div>
+<div class="flex flex-col items-end gap-2">
+<span class="px-3 py-1 rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 text-[10px] font-bold uppercase tracking-wider">حاضر</span>
+<span class="text-[10px] text-slate-400">٠٦:٣٠ م</span>
+</div>
+</div>
+<!-- Late Item -->
+<div class="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 flex items-center justify-between">
+<div class="flex items-start gap-4">
+<div class="size-12 rounded-lg bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-amber-600">
+<span class="material-symbols-outlined">diversity_3</span>
+</div>
+<div class="flex flex-col">
+<p class="font-bold text-slate-900 dark:text-slate-100">اجتماع الخدمة العام</p>
+<p class="text-xs text-slate-500">فريق الخدمة المجتمعية • ٢١ أكتوبر ٢٠٢٣</p>
+<p class="text-xs text-primary mt-1">بواسطة: الأستاذ مايكل عاطف</p>
+</div>
+</div>
+<div class="flex flex-col items-end gap-2">
+<span class="px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-[10px] font-bold uppercase tracking-wider">متأخر</span>
+<span class="text-[10px] text-slate-400">٠٧:١٥ م</span>
+</div>
+</div>
+<!-- Absent Item -->
+<div class="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 flex items-center justify-between">
+<div class="flex items-start gap-4">
+<div class="size-12 rounded-lg bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-red-600">
+<span class="material-symbols-outlined">church</span>
+</div>
+<div class="flex flex-col">
+<p class="font-bold text-slate-900 dark:text-slate-100">ورشة عمل طقوس الكنيسة</p>
+<p class="text-xs text-slate-500">اللجنة الطقسية • ١٤ أكتوبر ٢٠٢٣</p>
+<p class="text-xs text-primary mt-1">بواسطة: د. نبيل مرقس</p>
+</div>
+</div>
+<div class="flex flex-col items-end gap-2">
+<span class="px-3 py-1 rounded-full bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 text-[10px] font-bold uppercase tracking-wider">غائب</span>
+<span class="text-[10px] text-slate-400">--:--</span>
+</div>
+</div>
+<!-- Present Item -->
+<div class="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 flex items-center justify-between">
+<div class="flex items-start gap-4">
+<div class="size-12 rounded-lg bg-green-50 dark:bg-green-900/20 flex items-center justify-center text-green-600">
+<span class="material-symbols-outlined">psychology</span>
+</div>
+<div class="flex flex-col">
+<p class="font-bold text-slate-900 dark:text-slate-100">علم النفس المسيحي</p>
+<p class="text-xs text-slate-500">فريق الإرشاد • ٧ أكتوبر ٢٠٢٣</p>
+<p class="text-xs text-primary mt-1">بواسطة: الخادم وسيم عادل</p>
+</div>
+</div>
+<div class="flex flex-col items-end gap-2">
+<span class="px-3 py-1 rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 text-[10px] font-bold uppercase tracking-wider">حاضر</span>
+<span class="text-[10px] text-slate-400">٠٦:٢٥ م</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom Navigation Bar -->
+<nav class="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur-lg border-t border-slate-200 dark:border-slate-800 px-6 py-2 z-20">
+<div class="flex justify-between items-center max-w-lg mx-auto">
+<a class="flex flex-col items-center gap-1 text-slate-400 hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="text-[10px] font-medium">الرئيسية</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-primary" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">calendar_month</span>
+<span class="text-[10px] font-medium">حضوري</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400 hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">event_note</span>
+<span class="text-[10px] font-medium">الجدول</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400 hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">person</span>
+<span class="text-[10px] font-medium">الملف</span>
+</a>
+</div>
+</nav>
+</body></html>

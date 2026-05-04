@@ -76,8 +76,8 @@ class _TeamManagementViewState extends State<_TeamManagementView>
   void initState() {
     super.initState();
     _teamCubit = context.read<TeamCubit>();
-    _tabController = TabController(length: _groups.length, vsync: this);
-    _tabController.addListener(_onTabChanged);
+    _tabController = TabController(length: _groups.length, vsync: this)
+      ..addListener(_onTabChanged);
     // Load teams for the first tab
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _loadTeamsForCurrentTab();

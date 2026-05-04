@@ -94,14 +94,14 @@ class AttendanceRepository implements IAttendanceRepository {
           .startWith(_nowProvider());
     }
 
-    final controller = StreamController<DateTime>();
-    controller.add(_nowProvider());
+    final controller = StreamController<DateTime>()..add(_nowProvider());
     final now = _nowProvider();
     if (session.endsAt.isAfter(now)) {
       Future.delayed(session.endsAt.difference(now)).then((_) {
         if (!controller.isClosed) {
-          controller.add(_nowProvider());
-          controller.close();
+          controller
+            ..add(_nowProvider())
+            ..close();
         }
       });
     } else {
@@ -614,23 +614,22 @@ class AttendanceRepository implements IAttendanceRepository {
           }
 
           // 3. Update Group Aggregate
-          transaction.set(_teamDoc(teamId), {
-            'groupAttendanceSummary': {
-              'lastSessionDate': FieldValue.serverTimestamp(),
-              'lastSessionAttendanceCount': presentStudentIds.length,
+          transaction
+            ..set(_teamDoc(teamId), {
+              'groupAttendanceSummary': {
+                'lastSessionDate': FieldValue.serverTimestamp(),
+                'lastSessionAttendanceCount': presentStudentIds.length,
+                'updatedAt': FieldValue.serverTimestamp(),
+              },
               'updatedAt': FieldValue.serverTimestamp(),
-            },
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
-
-          // 4. Update the session itself
-          transaction.update(sessionRef, {
-            'isClosed': true,
-            'updatedAt': FieldValue.serverTimestamp(),
-            'presentCount': presentStudentIds.length,
-            'absentCount':
-                session.studentIdsSnapshot.length - presentStudentIds.length,
-          });
+            }, SetOptions(merge: true))
+            ..update(sessionRef, {
+              'isClosed': true,
+              'updatedAt': FieldValue.serverTimestamp(),
+              'presentCount': presentStudentIds.length,
+              'absentCount':
+                  session.studentIdsSnapshot.length - presentStudentIds.length,
+            });
         });
       } else {
         // Fallback for very large groups: multi-batch (Not fully atomic, but idempotent)
@@ -685,22 +684,22 @@ class AttendanceRepository implements IAttendanceRepository {
             return;
           }
 
-          transaction.set(_teamDoc(teamId), {
-            'groupAttendanceSummary': {
-              'lastSessionDate': FieldValue.serverTimestamp(),
-              'lastSessionAttendanceCount': presentStudentIds.length,
+          transaction
+            ..set(_teamDoc(teamId), {
+              'groupAttendanceSummary': {
+                'lastSessionDate': FieldValue.serverTimestamp(),
+                'lastSessionAttendanceCount': presentStudentIds.length,
+                'updatedAt': FieldValue.serverTimestamp(),
+              },
               'updatedAt': FieldValue.serverTimestamp(),
-            },
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
-
-          transaction.update(sessionRef, {
-            'isClosed': true,
-            'updatedAt': FieldValue.serverTimestamp(),
-            'presentCount': presentStudentIds.length,
-            'absentCount':
-                session.studentIdsSnapshot.length - presentStudentIds.length,
-          });
+            }, SetOptions(merge: true))
+            ..update(sessionRef, {
+              'isClosed': true,
+              'updatedAt': FieldValue.serverTimestamp(),
+              'presentCount': presentStudentIds.length,
+              'absentCount':
+                  session.studentIdsSnapshot.length - presentStudentIds.length,
+            });
         });
       }
     } catch (error) {
@@ -1081,11 +1080,10 @@ class AttendanceRepository implements IAttendanceRepository {
         })
         .toList(growable: false);
 
-    history.sort(
+    return history..sort(
       (first, second) =>
           second.sessionStartsAt.compareTo(first.sessionStartsAt),
     );
-    return history;
   }
 
   @override

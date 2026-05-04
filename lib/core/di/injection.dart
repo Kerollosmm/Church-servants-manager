@@ -1,6 +1,7 @@
 import 'package:church_management_system/core/routing/app_router.dart';
 import 'package:church_management_system/features/admin/data/admin_team_membership_service.dart';
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
+import 'package:church_management_system/features/admin/presentation/bloc/dashboard/admin_dashboard_bloc.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_insight_repository.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_mark_repository.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
@@ -12,8 +13,6 @@ import 'package:church_management_system/features/auth/data/repos/firebase_auth_
 import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
 import 'package:church_management_system/features/auth/data/services/auth_user_profile_store.dart';
 import 'package:church_management_system/features/auth/data/services/firebase_identity_provider.dart';
-import 'package:church_management_system/features/auth/data/services/firestore_profile_provider.dart';
-import 'package:church_management_system/features/auth/domain/auth_freshness_policy.dart';
 import 'package:church_management_system/features/auth/domain/repos/auth_repository.dart';
 import 'package:church_management_system/features/servant/data/repo/servant_data_repository.dart';
 import 'package:church_management_system/features/servant/domain/repos/i_servant_repository.dart';
@@ -27,6 +26,7 @@ import 'package:church_management_system/features/student/domain/usecases/can_mu
 import 'package:church_management_system/features/student/domain/usecases/get_students_stream_usecase.dart';
 import 'package:church_management_system/features/student/domain/usecases/provision_student_with_auth_usecase.dart';
 import 'package:church_management_system/features/team/data/repos/team_repository.dart';
+import 'package:church_management_system/features/team/domain/repos/i_team_repository.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get_it/get_it.dart';
 
@@ -37,8 +37,6 @@ void configureDependencies() {
   // ---- External ----
   getIt
     ..registerLazySingleton<FirebaseFirestore>(() => FirebaseFirestore.instance)
-    // ---- Auth Freshness ----
-    ..registerLazySingleton<AuthFreshnessPolicy>(AuthFreshnessPolicy.new)
     // ---- Services (Low-level) ----
     ..registerLazySingleton<AuthUserProfileStore>(
       () => AuthUserProfileStore(firestore: getIt()),
@@ -46,15 +44,10 @@ void configureDependencies() {
     ..registerLazySingleton<FirebaseIdentityProvider>(
       FirebaseIdentityProvider.new,
     )
-    ..registerLazySingleton<FirestoreProfileProvider>(
-      () => FirestoreProfileProvider(store: getIt<AuthUserProfileStore>()),
-    )
     ..registerLazySingleton<AuthRepository>(
       () => FirebaseAuthRepository(
         identityProvider: getIt<FirebaseIdentityProvider>(),
-        profileProvider: getIt<FirestoreProfileProvider>(),
         userProfileStore: getIt<AuthUserProfileStore>(),
-        freshnessPolicy: getIt<AuthFreshnessPolicy>(),
       ),
     )
     ..registerLazySingleton<FirebaseAuthRepository>(
@@ -122,8 +115,11 @@ void configureDependencies() {
     ..registerLazySingleton<AttendanceMarkRepository>(
       () => AttendanceMarkRepository(firestore: getIt()),
     )
-    ..registerLazySingleton<TeamRepository>(
+    ..registerLazySingleton<ITeamRepository>(
       () => TeamRepository(firestore: getIt()),
+    )
+    ..registerLazySingleton<TeamRepository>(
+      () => getIt<ITeamRepository>() as TeamRepository,
     )
     // ---- Domain Services / Use Cases ----
     ..registerLazySingleton<AdminTeamService>(
@@ -154,6 +150,13 @@ void configureDependencies() {
       () => ProvisionServantWithAuthUseCase(
         servantRepository: getIt<IServantRepository>(),
         provisioningService: getIt<AdminUserProvisioningService>(),
+      ),
+    )
+    ..registerLazySingleton<AdminDashboardBloc>(
+      () => AdminDashboardBloc(
+        getIt<IStudentRepository>(),
+        getIt<IServantRepository>(),
+        getIt<ITeamRepository>(),
       ),
     )
     // ---- Routing ----
