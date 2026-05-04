@@ -5,12 +5,14 @@ import 'dart:ui';
 
 import 'package:church_management_system/church_app.dart';
 import 'package:church_management_system/core/di/injection.dart';
+import 'package:church_management_system/features/auth/data/services/auth_user_local_store.dart';
 import 'package:church_management_system/firebase_options.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 Future<void> _initializeFirebase() async {
   if (kIsWeb || Platform.isAndroid || Platform.isIOS || Platform.isMacOS) {
@@ -27,6 +29,9 @@ void main() {
   runZonedGuarded(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
+
+      // Mandate: Initialize Hive for offline-first storage
+      await Hive.initFlutter();
 
       FlutterError.onError = (details) {
         FlutterError.presentError(details);
@@ -49,6 +54,10 @@ void main() {
         );
         GoogleFonts.config.allowRuntimeFetching = false;
         configureDependencies();
+
+        // Initialize Local Auth Store
+        await getIt<AuthUserLocalStore>().init();
+
         runApp(const ChurchApp());
       } catch (error, stack) {
         developer.log(

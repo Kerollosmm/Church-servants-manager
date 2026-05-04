@@ -3,7 +3,7 @@ import 'package:church_management_system/features/auth/data/models/auth_user.dar
 import 'package:church_management_system/features/servant/data/models/servant_models.dart';
 import 'package:church_management_system/features/servant/data/repo/servant_data_repository.dart';
 import 'package:church_management_system/features/servant/domain/usecases/provision_servant_with_auth_usecase.dart';
-import 'package:church_management_system/features/servant/presentation/bloc/servant_data/servant_data_cubit.dart';
+import 'package:church_management_system/features/servant/presentation/bloc/servant_data/servant_data_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -37,7 +37,7 @@ void main() {
   });
 
   test('denies non-admin load with permission error', () async {
-    final cubit = ServantDataCubit(
+    final cubit = ServantDataBloc(
       repository: repository,
       provisionUseCase: provisionUseCase,
     );
@@ -49,7 +49,7 @@ void main() {
       ),
     );
 
-    await cubit.loadServants(actor: actor(UserRole.student));
+    cubit.add(ServantsLoadRequested(actor: actor(UserRole.student)));
     await expectation;
     verifyNever(
       () => repository.getServantsPage(
@@ -78,7 +78,7 @@ void main() {
         ),
       );
 
-      final cubit = ServantDataCubit(
+      final cubit = ServantDataBloc(
         repository: repository,
         provisionUseCase: provisionUseCase,
       );
@@ -95,7 +95,7 @@ void main() {
         ]),
       );
 
-      await cubit.loadServants(actor: actor(UserRole.admin));
+      cubit.add(ServantsLoadRequested(actor: actor(UserRole.admin)));
       await expectation;
       final loaded = cubit.state as ServantDataLoaded;
       expect(loaded.hasMore, isTrue);
@@ -136,7 +136,7 @@ void main() {
       ),
     );
 
-    final cubit = ServantDataCubit(
+    final cubit = ServantDataBloc(
       repository: repository,
       provisionUseCase: provisionUseCase,
     );
@@ -163,12 +163,7 @@ void main() {
       ]),
     );
 
-    await cubit.createServant(
-      actor: admin,
-      servant: newServant,
-      email: 'servant@example.com',
-      password: 'secret123',
-    );
+    cubit.add(ServantCreateRequested(actor: admin, servant: newServant, email: 'servant@example.com', password: 'secret123'));
 
     await expectation;
     verify(
@@ -216,7 +211,7 @@ void main() {
         ),
       );
 
-      final cubit = ServantDataCubit(
+      final cubit = ServantDataBloc(
         repository: repository,
         provisionUseCase: provisionUseCase,
       );
@@ -232,7 +227,7 @@ void main() {
         ),
       );
 
-      await cubit.restoreServant(actor: admin, docId: 's1');
+      cubit.add(ServantRestored(actor: admin, docId: 's1'));
 
       await expectation;
       verify(

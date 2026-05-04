@@ -6,7 +6,7 @@ import 'package:church_management_system/features/auth/data/models/auth_user.dar
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
 import 'package:church_management_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
-import 'package:church_management_system/features/student/domain/usecases/get_students_stream_usecase.dart';
+import 'package:church_management_system/features/student/domain/usecases/get_students_list_usecase.dart';
 import 'package:church_management_system/features/student/domain/usecases/provision_student_with_auth_usecase.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -16,24 +16,23 @@ part 'student_data_state.dart';
 
 /// BLoC for managing student data with role-based filtering.
 ///
-/// Delegates stream selection to [GetStudentsStreamUseCase]
+/// Delegates list fetching to [GetStudentsListUseCase]
 /// and authorization to [CanMutateStudentUseCase].
 class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
   final IStudentRepository _studentRepository;
-  final GetStudentsStreamUseCase _getStudentsStream;
+  final GetStudentsListUseCase _getStudentsList;
   final CanMutateStudentUseCase _canMutateStudent;
   final ProvisionStudentWithAuthUseCase _provisionUseCase;
 
-  StreamSubscription<List<StudentModel>>? _studentsSubscription;
   Completer<void>? _pendingRefreshCompleter;
 
   StudentDataBloc({
     required IStudentRepository studentRepository,
-    required GetStudentsStreamUseCase getStudentsStream,
+    required GetStudentsListUseCase getStudentsList,
     required CanMutateStudentUseCase canMutateStudent,
     required ProvisionStudentWithAuthUseCase provisionUseCase,
   }) : _studentRepository = studentRepository,
-       _getStudentsStream = getStudentsStream,
+       _getStudentsList = getStudentsList,
        _canMutateStudent = canMutateStudent,
        _provisionUseCase = provisionUseCase,
        super(const StudentDataInitial()) {
@@ -44,15 +43,6 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     on<StudentDeleted>(_onDeleteStudent);
     on<StudentRestored>(_onRestoreStudent);
     on<StudentsRefreshRequested>(_onRefreshStudents);
-    on<StudentsListeningStopped>(_onStopListening);
-    on<_StudentsStreamUpdated>(_onStreamUpdated);
-    on<_StreamError>(_onStreamError);
-  }
-
-  Future<void> _cancelStudentsSubscription() async {
-    final subscription = _studentsSubscription;
-    _studentsSubscription = null;
-    await subscription?.cancel();
   }
 
   Future<void> refresh(AuthUser actor) {
@@ -93,37 +83,80 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     _pendingRefreshCompleter = null;
   }
 
-  /// Subscribes to the stream returned by the use case.
-  Future<void> _subscribeToStudents({
+  /// Fetches students using the use case.
+  Future<void> _fetchStudents({
     required AuthUser actor,
     String? teamId,
     bool includeArchived = false,
   }) async {
-    await _cancelStudentsSubscription();
+    try {
+      final students = await _getStudentsList(
+        actor: actor,
+        teamId: teamId,
+        includeArchived: includeArchived,
+      );
 
-    final stream = _getStudentsStream(
-      actor: actor,
-      teamId: teamId,
-      includeArchived: includeArchived,
-    );
+      if (isClosed) return;
 
-    if (stream == null) {
-      add(const _StudentsStreamUpdated([]));
-      return;
+      if (students == null) {
+        _onDataFetched([]);
+        return;
+      }
+
+      students.sort((a, b) => a.name.compareTo(b.name));
+      _onDataFetched(students);
+    } catch (e, stackTrace) {
+      if (isClosed) return;
+      developer.log(
+        'Fetch error',
+        error: e,
+        stackTrace: stackTrace,
+        name: 'StudentDataBloc',
+      );
+      emit(StudentDataError('$e'));
+      _completePendingRefresh();
+    }
+  }
+
+  void _onDataFetched(List<StudentModel> fetchedStudents) {
+    final allStudents = fetchedStudents
+        .where((student) => student.role == UserRole.student)
+        .toList(growable: false);
+    final studentsByDocId = {for (final s in allStudents) s.docID: s};
+
+    final currentState = state;
+    String? query;
+    String? groupId;
+    String? teamId;
+    bool includeArchived = false;
+
+    if (currentState is StudentDataLoaded) {
+      query = currentState.currentQuery;
+      groupId = currentState.currentFilterGroupId;
+      teamId = currentState.currentFilterTeamId;
+      includeArchived = currentState.includeArchived;
+    } else if (currentState is StudentDataLoading) {
+      query = currentState.currentQuery;
+      groupId = currentState.currentFilterGroupId;
+      teamId = currentState.currentFilterTeamId;
+      includeArchived = currentState.includeArchived;
     }
 
-    _studentsSubscription = stream.listen(
-      (students) {
-        if (isClosed) return;
-        students.sort((a, b) => a.name.compareTo(b.name));
-        add(_StudentsStreamUpdated(students));
-      },
-      onError: (Object error) {
-        if (isClosed) return;
-        developer.log('Stream error', error: error, name: 'StudentDataBloc');
-        add(_StreamError('$error'));
-      },
+    final visibleStudents = _resolveVisibleStudents(
+      allStudents: allStudents,
+      query: query,
     );
+
+    _emitLoadedState(
+      students: visibleStudents,
+      allStudents: allStudents,
+      studentsByDocId: studentsByDocId,
+      groupId: groupId,
+      teamId: teamId,
+      query: query,
+      includeArchived: includeArchived,
+    );
+    _completePendingRefresh();
   }
 
   List<StudentModel> _filterByName(List<StudentModel> students, String query) {
@@ -143,8 +176,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     return allStudents;
   }
 
-  void _emitLoadedState(
-    Emitter<StudentDataState> emit, {
+  void _emitLoadedState({
     required List<StudentModel> students,
     required List<StudentModel> allStudents,
     required Map<String, StudentModel> studentsByDocId,
@@ -173,7 +205,6 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
   }
 
   void _emitSuccessWithData(
-    Emitter<StudentDataState> emit,
     String message, {
     StudentMutationOperation? mutationOperation,
   }) {
@@ -210,7 +241,6 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     );
 
     _emitLoadedState(
-      emit,
       students: visibleStudents,
       allStudents: allStudents,
       studentsByDocId: studentsByDocId,
@@ -233,16 +263,12 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     return await _studentRepository.getStudentById(docId);
   }
 
-  void _emitError(
-    Emitter<StudentDataState> emit,
-    String message,
-    Object error,
-  ) {
+  void _emitError(String message, Object error) {
     developer.log(message, error: error, name: 'StudentDataBloc');
     emit(StudentDataError('$message. حاول مرة أخرى.'));
   }
 
-  void _emitNotAllowed(Emitter<StudentDataState> emit) {
+  void _emitNotAllowed() {
     emit(const StudentDataError('غير مسموح.'));
   }
 
@@ -301,61 +327,11 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
       ),
     );
 
-    await _subscribeToStudents(
+    await _fetchStudents(
       actor: event.actor,
       teamId: event.teamId,
       includeArchived: event.includeArchived,
     );
-  }
-
-  void _onStreamUpdated(
-    _StudentsStreamUpdated event,
-    Emitter<StudentDataState> emit,
-  ) {
-    final allStudents = event.students
-        .where((student) => student.role == UserRole.student)
-        .toList(growable: false);
-    final studentsByDocId = {for (final s in allStudents) s.docID: s};
-
-    final currentState = state;
-    String? query;
-    String? groupId;
-    String? teamId;
-    bool includeArchived = false;
-
-    if (currentState is StudentDataLoaded) {
-      query = currentState.currentQuery;
-      groupId = currentState.currentFilterGroupId;
-      teamId = currentState.currentFilterTeamId;
-      includeArchived = currentState.includeArchived;
-    } else if (currentState is StudentDataLoading) {
-      query = currentState.currentQuery;
-      groupId = currentState.currentFilterGroupId;
-      teamId = currentState.currentFilterTeamId;
-      includeArchived = currentState.includeArchived;
-    }
-
-    final visibleStudents = _resolveVisibleStudents(
-      allStudents: allStudents,
-      query: query,
-    );
-
-    _emitLoadedState(
-      emit,
-      students: visibleStudents,
-      allStudents: allStudents,
-      studentsByDocId: studentsByDocId,
-      groupId: groupId,
-      teamId: teamId,
-      query: query,
-      includeArchived: includeArchived,
-    );
-    _completePendingRefresh();
-  }
-
-  void _onStreamError(_StreamError event, Emitter<StudentDataState> emit) {
-    emit(StudentDataError(event.message));
-    _completePendingRefresh();
   }
 
   Future<void> _onSearchStudents(
@@ -387,7 +363,6 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     final nextIncludeArchived = event.includeArchived;
 
     if (query.isNotEmpty) {
-      await _cancelStudentsSubscription();
       emit(
         StudentDataLoading(
           previousStudents: _resolveVisibleStudents(
@@ -429,7 +404,6 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
             : students;
 
         _emitLoadedState(
-          emit,
           students: filtered,
           allStudents: allStudents,
           studentsByDocId: studentsByDocId,
@@ -439,7 +413,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
           includeArchived: nextIncludeArchived,
         );
       } catch (e) {
-        _emitError(emit, 'تعذر البحث عن المخدومين', e);
+        _emitError('تعذر البحث عن المخدومين', e);
       }
       return;
     }
@@ -462,7 +436,6 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
       );
       if (event.actor.role == UserRole.admin &&
           (nextTeamId == null || nextTeamId.isEmpty)) {
-        await _cancelStudentsSubscription();
         try {
           final students = await _studentRepository.getAllStudents(
             limit: 50,
@@ -476,7 +449,6 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
           };
 
           _emitLoadedState(
-            emit,
             students: _resolveVisibleStudents(
               allStudents: nextAllStudents,
               query: query,
@@ -489,10 +461,10 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
             includeArchived: nextIncludeArchived,
           );
         } catch (e) {
-          _emitError(emit, 'تعذر تحميل بيانات المخدومين', e);
+          _emitError('تعذر تحميل بيانات المخدومين', e);
         }
       } else {
-        await _subscribeToStudents(
+        await _fetchStudents(
           actor: event.actor,
           teamId: nextTeamId,
           includeArchived: nextIncludeArchived,
@@ -506,7 +478,6 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
       query: query,
     );
     _emitLoadedState(
-      emit,
       students: visibleStudents,
       allStudents: allStudents,
       studentsByDocId: studentsByDocId,
@@ -523,7 +494,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
   ) async {
     try {
       if (!_canMutateStudent(event.actor, event.student)) {
-        _emitNotAllowed(emit);
+        _emitNotAllowed();
         return;
       }
 
@@ -533,9 +504,11 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
         password: event.password,
       );
 
-      _emitSuccessWithData(emit, 'تم إنشاء المخدوم بنجاح');
+      _emitSuccessWithData('تم إنشاء المخدوم بنجاح');
+      // Reload students
+      refresh(event.actor);
     } catch (e) {
-      _emitError(emit, 'تعذر إنشاء المخدوم', e);
+      _emitError('تعذر إنشاء المخدوم', e);
     }
   }
 
@@ -550,7 +523,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
         return;
       }
       if (!_canMutateStudent(event.actor, existing)) {
-        _emitNotAllowed(emit);
+        _emitNotAllowed();
         return;
       }
 
@@ -560,7 +533,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
         existing: existing,
         updated: event.student,
       )) {
-        _emitNotAllowed(emit);
+        _emitNotAllowed();
         return;
       }
       if (_isInvalidServantPromotion(
@@ -586,9 +559,11 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
       } else {
         await _studentRepository.updateStudent(event.student);
       }
-      _emitSuccessWithData(emit, 'تم تحديث بيانات المخدوم بنجاح');
+      _emitSuccessWithData('تم تحديث بيانات المخدوم بنجاح');
+      // Reload students
+      refresh(event.actor);
     } catch (e) {
-      _emitError(emit, 'تعذر تحديث بيانات المخدوم', e);
+      _emitError('تعذر تحديث بيانات المخدوم', e);
     }
   }
 
@@ -603,7 +578,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
         return;
       }
       if (!_canMutateStudent(event.actor, existing)) {
-        _emitNotAllowed(emit);
+        _emitNotAllowed();
         return;
       }
 
@@ -614,12 +589,12 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
       );
 
       _emitSuccessWithData(
-        emit,
         'تمت أرشفة المخدوم بنجاح',
         mutationOperation: StudentMutationOperation.archive,
       );
+      refresh(event.actor);
     } catch (e) {
-      _emitError(emit, 'تعذر أرشفة المخدوم', e);
+      _emitError('تعذر أرشفة المخدوم', e);
     }
   }
 
@@ -637,7 +612,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
         return;
       }
       if (event.actor.role != UserRole.admin) {
-        _emitNotAllowed(emit);
+        _emitNotAllowed();
         return;
       }
 
@@ -648,12 +623,12 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
       );
 
       _emitSuccessWithData(
-        emit,
         'تمت استعادة المخدوم بنجاح',
         mutationOperation: StudentMutationOperation.restore,
       );
+      refresh(event.actor);
     } catch (e) {
-      _emitError(emit, 'تعذر استعادة المخدوم', e);
+      _emitError('تعذر استعادة المخدوم', e);
     }
   }
 
@@ -696,25 +671,15 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
       ),
     );
 
-    await _subscribeToStudents(
+    await _fetchStudents(
       actor: event.actor,
       teamId: teamId,
       includeArchived: event.includeArchived,
     );
   }
 
-  Future<void> _onStopListening(
-    StudentsListeningStopped event,
-    Emitter<StudentDataState> emit,
-  ) async {
-    await _cancelStudentsSubscription();
-    emit(const StudentDataInitial());
-    _completePendingRefresh();
-  }
-
   @override
   Future<void> close() async {
-    await _cancelStudentsSubscription();
     _completePendingRefresh();
     return super.close();
   }

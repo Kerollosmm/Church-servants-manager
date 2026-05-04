@@ -8,11 +8,11 @@ import 'package:church_management_system/features/auth/presentation/screens/logi
 import 'package:church_management_system/features/auth/presentation/screens/verify_email_screen.dart';
 import 'package:church_management_system/features/servant/domain/repos/i_servant_repository.dart';
 import 'package:church_management_system/features/servant/domain/usecases/provision_servant_with_auth_usecase.dart';
-import 'package:church_management_system/features/servant/presentation/bloc/servant_data/servant_data_cubit.dart';
+import 'package:church_management_system/features/servant/presentation/bloc/servant_data/servant_data_bloc.dart';
 import 'package:church_management_system/features/servant/presentation/screens/servant_dashboard_screen.dart';
 import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
 import 'package:church_management_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
-import 'package:church_management_system/features/student/domain/usecases/get_students_stream_usecase.dart';
+import 'package:church_management_system/features/student/domain/usecases/get_students_list_usecase.dart';
 import 'package:church_management_system/features/student/domain/usecases/provision_student_with_auth_usecase.dart';
 import 'package:church_management_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
 import 'package:church_management_system/features/student/presentation/bloc/student_profile/student_profile_cubit.dart';
@@ -40,13 +40,13 @@ class RoleUserRoute extends StatelessWidget {
             BlocProvider(
               create: (context) => StudentDataBloc(
                 studentRepository: getIt<IStudentRepository>(),
-                getStudentsStream: getIt<GetStudentsStreamUseCase>(),
+                getStudentsList: getIt<GetStudentsListUseCase>(),
                 canMutateStudent: getIt<CanMutateStudentUseCase>(),
                 provisionUseCase: getIt<ProvisionStudentWithAuthUseCase>(),
               ),
             ),
             BlocProvider(
-              create: (context) => ServantDataCubit(
+              create: (context) => ServantDataBloc(
                 repository: getIt<IServantRepository>(),
                 provisionUseCase: getIt<ProvisionServantWithAuthUseCase>(),
               ),

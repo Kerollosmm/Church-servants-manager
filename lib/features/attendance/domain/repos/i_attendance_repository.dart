@@ -32,14 +32,9 @@ abstract class IAttendanceRepository {
     required AuthUser closedBy,
   });
 
-  Stream<List<AttendanceSession>> watchSessionsForTeam(String teamId);
+  Future<List<AttendanceSession>> getSessionsForTeam(String teamId);
 
-  Stream<AttendanceSession?> watchActiveSessionForTeam(String teamId);
-
-  Stream<AttendanceSession?> watchSessionById({
-    required String teamId,
-    required String sessionId,
-  });
+  Future<AttendanceSession?> getActiveSessionForTeam(String teamId);
 
   Future<AttendanceSession?> getSessionById({
     required String teamId,
@@ -77,18 +72,17 @@ abstract class IAttendanceRepository {
     required AuthUser markedBy,
   });
 
-  /// Watches session status as a live stream for real-time open/closed state.
-  Stream<SessionStatus> watchSessionStatus({
+  Future<SessionStatus> getSessionStatus({
     required String teamId,
     required String sessionId,
   });
 
-  Stream<List<AttendanceRosterItem>> watchSessionRoster({
+  Future<List<AttendanceRosterItem>> getSessionRoster({
     required String teamId,
     required String sessionId,
   });
 
-  Stream<AttendanceRosterSnapshot> watchSessionRosterSnapshot({
+  Future<AttendanceRosterSnapshot> getSessionRosterSnapshot({
     required String teamId,
     required String sessionId,
   });

@@ -292,13 +292,6 @@ class ServantDataRepository implements IServantRepository {
   }
 
   @override
-  Stream<List<ServantModel>> getServantsStream({bool includeArchived = false}) {
-    return _sortedServantsQuery().snapshots().map((snapshot) {
-      return _servantsFromDocs(snapshot.docs, includeArchived);
-    });
-  }
-
-  @override
   Future<String> createServant(ServantModel servant) async {
     try {
       final normalizedUid = servant.uid?.trim();

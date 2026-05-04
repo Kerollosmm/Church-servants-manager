@@ -19,7 +19,7 @@ import 'package:church_management_system/features/student/data/models/student_mo
 import 'package:church_management_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
 import 'package:church_management_system/features/team/data/models/team_model.dart';
 import 'package:church_management_system/features/team/data/repos/team_repository.dart';
-import 'package:church_management_system/features/team/presentation/bloc/team_cubit.dart';
+import 'package:church_management_system/features/team/presentation/bloc/team_bloc.dart';
 import 'package:church_management_system/features/team/presentation/widgets/team_dropdown.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -37,14 +37,14 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
   String? _selectedTeamId;
   bool _showArchived = false;
   late final StudentDataBloc _studentDataBloc;
-  late final TeamCubit _teamCubit;
+  late final TeamBloc _teamCubit;
   final DataExportService _exportService = DataExportService();
 
   @override
   void initState() {
     super.initState();
     _studentDataBloc = context.read<StudentDataBloc>();
-    _teamCubit = TeamCubit(
+    _teamCubit = TeamBloc(
       teamRepository: getIt<TeamRepository>(),
       adminTeamService: getIt<AdminTeamService>(),
     );
@@ -103,7 +103,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
 
   void _onTeamFilterChanged(AuthUser actor, String? teamId) {
     _selectedTeamId = teamId;
-    _teamCubit.selectTeam(teamId);
+    _teamCubit.add(TeamSelected(teamId));
     final query = _searchController.text.trim();
     if (query.isNotEmpty) {
       _dispatchSearch(actor, query, teamId: teamId);
@@ -143,16 +143,18 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
 
   void _loadTeamsForActor(AuthUser actor) {
     if (actor.role == UserRole.admin) {
-      _teamCubit.loadAllTeams();
+      _teamCubit.add(const TeamLoadAllRequested());
       return;
     }
     final groupId = actor.groupId;
     if (groupId != null && groupId.isNotEmpty) {
-      _teamCubit.loadTeamsByGroup(
-        groupId,
-        defaultTeamId: actor.effectiveAssignedTeamIds.length == 1
-            ? actor.effectiveAssignedTeamIds.first
-            : null,
+      _teamCubit.add(
+        TeamLoadRequested(
+          groupId,
+          defaultTeamId: actor.effectiveAssignedTeamIds.length == 1
+              ? actor.effectiveAssignedTeamIds.first
+              : null,
+        ),
       );
     }
   }
@@ -240,7 +242,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
         }
         final assignedTeamIds = actor.effectiveAssignedTeamIds;
 
-        return BlocProvider<TeamCubit>.value(
+        return BlocProvider<TeamBloc>.value(
           value: _teamCubit,
           child: Scaffold(
             appBar: AppBar(
@@ -369,7 +371,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                                             ),
                                       ),
                                     AppSpacing.gapSm,
-                                    BlocBuilder<TeamCubit, TeamState>(
+                                    BlocBuilder<TeamBloc, TeamState>(
                                       builder: (context, teamState) {
                                         final teams = teamState is TeamLoaded
                                             ? teamState.teams

@@ -105,6 +105,17 @@ class StudentDataRepository implements IStudentRepository {
   }
 
   @override
+  Future<List<StudentModel>> getStudentsByClasses(
+    List<String> classIds, {
+    bool includeArchived = false,
+  }) async {
+    return _queryService.getStudentsByClassesList(
+      classIds,
+      includeArchived: includeArchived,
+    );
+  }
+
+  @override
   Future<List<StudentModel>> getStudentsByGrade(
     int grade, {
     bool includeArchived = false,
@@ -316,43 +327,5 @@ class StudentDataRepository implements IStudentRepository {
     return _queryService.getStudentIdsByClasses(classIds);
   }
 
-  // Stream-based queries (real-time)
-
-  @override
-  Stream<List<StudentModel>> watchAllStudents({bool includeArchived = false}) {
-    return _queryService.watchAllStudents(includeArchived: includeArchived);
-  }
-
-  @override
-  Stream<List<StudentModel>> watchStudentsByClass(
-    String classId, {
-    bool includeArchived = false,
-  }) {
-    return _queryService.watchStudentsByClass(
-      classId,
-      includeArchived: includeArchived,
-    );
-  }
-
-  @override
-  Stream<List<StudentModel>> watchStudentsByClasses(
-    List<String> classIds, {
-    bool includeArchived = false,
-  }) {
-    return _queryService.watchStudentsByClasses(
-      classIds,
-      includeArchived: includeArchived,
-    );
-  }
-
-  @override
-  Stream<List<StudentModel>> watchStudentsByGroup(
-    String groupName, {
-    bool includeArchived = false,
-  }) {
-    return _queryService.watchStudentsByGroup(
-      groupName,
-      includeArchived: includeArchived,
-    );
-  }
+  // Stream-based queries removed (real-time)
 }

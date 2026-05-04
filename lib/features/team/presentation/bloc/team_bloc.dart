@@ -8,12 +8,13 @@ import 'package:church_management_system/features/team/data/repos/team_repositor
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+part 'team_event.dart';
 part 'team_state.dart';
 
-/// Cubit for managing team/class data.
+/// Bloc for managing team/class data.
 /// - Admin: full CRUD across all groups
 /// - Servant: load teams for their group
-class TeamCubit extends Cubit<TeamState> {
+class TeamBloc extends Bloc<TeamEvent, TeamState> {
   final TeamRepository _teamRepository;
   final AdminTeamService _adminTeamService;
   List<TeamModel> _currentTeams = const [];
@@ -21,19 +22,32 @@ class TeamCubit extends Cubit<TeamState> {
   bool _includeArchived = false;
   String? _currentLoadGroupId;
 
-  TeamCubit({
+  TeamBloc({
     required TeamRepository teamRepository,
     required AdminTeamService adminTeamService,
   }) : _teamRepository = teamRepository,
        _adminTeamService = adminTeamService,
-       super(const TeamInitial());
+       super(const TeamInitial()) {
+    on<TeamLoadRequested>(_onTeamLoadRequested);
+    on<TeamLoadAllRequested>(_onTeamLoadAllRequested);
+    on<TeamLoadByIdsRequested>(_onTeamLoadByIdsRequested);
+    on<TeamCreateRequested>(_onTeamCreateRequested);
+    on<TeamUpdateRequested>(_onTeamUpdateRequested);
+    on<TeamDeleteRequested>(_onTeamDeleteRequested);
+    on<TeamRestoreRequested>(_onTeamRestoreRequested);
+    on<TeamSelected>(_onTeamSelected);
+    on<ServantAssignedToTeam>(_onServantAssignedToTeam);
+    on<ServantUnassignedFromTeam>(_onServantUnassignedFromTeam);
+    on<TeamMembersSet>(_onTeamMembersSet);
+  }
 
   void _emitUserFacingError(
+    Emitter<TeamState> emit,
     String contextLabel,
     Object error,
     String userMessage,
   ) {
-    developer.log(contextLabel, error: error, name: 'TeamCubit');
+    developer.log(contextLabel, error: error, name: 'TeamBloc');
     if (_currentTeams.isNotEmpty) {
       emit(
         TeamLoaded(
@@ -48,7 +62,8 @@ class TeamCubit extends Cubit<TeamState> {
     emit(TeamError(userMessage));
   }
 
-  Future<void> _runTeamLoad({
+  Future<void> _runTeamLoad(
+    Emitter<TeamState> emit, {
     required Future<List<TeamModel>> Function() action,
     String? selectedTeamId,
     bool includeArchived = false,
@@ -65,12 +80,13 @@ class TeamCubit extends Cubit<TeamState> {
       _currentLoadGroupId = loadGroupId;
       emit(TeamLoaded(teams: teams, selectedTeamId: selectedTeamId));
     } catch (e) {
-      developer.log(errorContext, error: e, name: 'TeamCubit');
+      developer.log(errorContext, error: e, name: 'TeamBloc');
       emit(TeamError(errorMessage));
     }
   }
 
-  Future<void> _runTeamMutation({
+  Future<void> _runTeamMutation(
+    Emitter<TeamState> emit, {
     required Future<void> Function() action,
     required String successMessage,
     required String errorContext,
@@ -113,107 +129,122 @@ class TeamCubit extends Cubit<TeamState> {
         ),
       );
     } catch (e) {
-      _emitUserFacingError(errorContext, e, errorMessage);
+      _emitUserFacingError(emit, errorContext, e, errorMessage);
     }
   }
 
-  /// Load teams for a specific group/year.
-  Future<void> loadTeamsByGroup(
-    String groupId, {
-    String? defaultTeamId,
-    bool includeArchived = false,
-  }) async {
+  Future<void> _onTeamLoadRequested(
+    TeamLoadRequested event,
+    Emitter<TeamState> emit,
+  ) async {
     await _runTeamLoad(
+      emit,
       action: () => _teamRepository.getTeamsByGroup(
-        groupId,
-        includeArchived: includeArchived,
+        event.groupId,
+        includeArchived: event.includeArchived,
       ),
-      selectedTeamId: defaultTeamId,
-      includeArchived: includeArchived,
-      loadGroupId: groupId,
+      selectedTeamId: event.defaultTeamId,
+      includeArchived: event.includeArchived,
+      loadGroupId: event.groupId,
       errorContext: 'Failed to load teams',
       errorMessage: 'تعذر تحميل الفرق. تحقق من الاتصال وحاول مرة أخرى.',
     );
   }
 
-  /// Load all teams across all groups (admin use).
-  Future<void> loadAllTeams({bool includeArchived = false}) async {
+  Future<void> _onTeamLoadAllRequested(
+    TeamLoadAllRequested event,
+    Emitter<TeamState> emit,
+  ) async {
     await _runTeamLoad(
+      emit,
       action: () =>
-          _teamRepository.getAllTeams(includeArchived: includeArchived),
-      includeArchived: includeArchived,
+          _teamRepository.getAllTeams(includeArchived: event.includeArchived),
+      includeArchived: event.includeArchived,
       errorContext: 'Failed to load all teams',
       errorMessage: 'تعذر تحميل الفرق. تحقق من الاتصال وحاول مرة أخرى.',
     );
   }
 
-  /// Load teams by specific IDs (for servants with assignedTeamIds but no groupId).
-  Future<void> loadTeamsByIds(
-    List<String> ids, {
-    String? defaultTeamId,
-    bool includeArchived = false,
-  }) async {
+  Future<void> _onTeamLoadByIdsRequested(
+    TeamLoadByIdsRequested event,
+    Emitter<TeamState> emit,
+  ) async {
     await _runTeamLoad(
-      action: () =>
-          _teamRepository.getTeamsByIds(ids, includeArchived: includeArchived),
-      selectedTeamId: defaultTeamId,
-      includeArchived: includeArchived,
+      emit,
+      action: () => _teamRepository.getTeamsByIds(
+        event.ids,
+        includeArchived: event.includeArchived,
+      ),
+      selectedTeamId: event.defaultTeamId,
+      includeArchived: event.includeArchived,
       errorContext: 'Failed to load teams by IDs',
       errorMessage: 'تعذر تحميل الفرق. تحقق من الاتصال وحاول مرة أخرى.',
     );
   }
 
-  /// Create a new team (admin only).
-  Future<void> createTeam(TeamModel team) async {
+  Future<void> _onTeamCreateRequested(
+    TeamCreateRequested event,
+    Emitter<TeamState> emit,
+  ) async {
     await _runTeamMutation(
-      action: () => _teamRepository.createTeam(team),
+      emit,
+      action: () => _teamRepository.createTeam(event.team),
       successMessage: 'تم إنشاء الفريق بنجاح',
       errorContext: 'Failed to create team',
       errorMessage: 'تعذر إنشاء الفريق. حاول مرة أخرى.',
-      reloadGroupId: team.groupId,
+      reloadGroupId: event.team.groupId,
     );
   }
 
-  /// Update an existing team (admin only).
-  Future<void> updateTeam(TeamModel team) async {
+  Future<void> _onTeamUpdateRequested(
+    TeamUpdateRequested event,
+    Emitter<TeamState> emit,
+  ) async {
     await _runTeamMutation(
-      action: () => _teamRepository.updateTeam(team),
+      emit,
+      action: () => _teamRepository.updateTeam(event.team),
       successMessage: 'تم تحديث الفريق بنجاح',
       errorContext: 'Failed to update team',
       errorMessage: 'تعذر تحديث الفريق. حاول مرة أخرى.',
-      reloadGroupId: team.groupId,
+      reloadGroupId: event.team.groupId,
     );
   }
 
-  /// Delete a team (admin only).
-  Future<void> deleteTeam(String teamId, String groupId) async {
+  Future<void> _onTeamDeleteRequested(
+    TeamDeleteRequested event,
+    Emitter<TeamState> emit,
+  ) async {
     await _runTeamMutation(
-      action: () => _teamRepository.deleteTeam(teamId),
+      emit,
+      action: () => _teamRepository.deleteTeam(event.teamId),
       successMessage: 'تمت أرشفة الفريق بنجاح',
       errorContext: 'Failed to archive team',
       errorMessage: 'تعذر أرشفة الفريق. حاول مرة أخرى.',
-      reloadGroupId: groupId,
+      reloadGroupId: event.groupId,
     );
   }
 
-  Future<void> restoreTeam(String teamId, String groupId) async {
+  Future<void> _onTeamRestoreRequested(
+    TeamRestoreRequested event,
+    Emitter<TeamState> emit,
+  ) async {
     await _runTeamMutation(
-      action: () => _teamRepository.restoreTeam(teamId),
+      emit,
+      action: () => _teamRepository.restoreTeam(event.teamId),
       successMessage: 'تمت استعادة الفريق بنجاح',
       errorContext: 'Failed to restore team',
       errorMessage: 'تعذر استعادة الفريق. حاول مرة أخرى.',
-      reloadGroupId: groupId,
+      reloadGroupId: event.groupId,
     );
   }
 
-  /// Select a team (for dropdown usage).
-  void selectTeam(String? teamId) {
-    _selectedTeamId = teamId;
+  void _onTeamSelected(TeamSelected event, Emitter<TeamState> emit) {
+    _selectedTeamId = event.teamId;
     final currentState = state;
     if (currentState is TeamLoaded) {
       emit(
         currentState.copyWith(
-          selectedTeamId: teamId,
+          selectedTeamId: event.teamId,
           mutationStatus: TeamMutationStatus.idle,
           clearFeedbackMessage: true,
         ),
@@ -221,56 +252,56 @@ class TeamCubit extends Cubit<TeamState> {
     }
   }
 
-  /// Admin: assign a responsible servant to a team.
-  Future<void> assignServant({
-    required AuthUser actor,
-    required TeamModel team,
-    required ServantModel servant,
-  }) async {
+  Future<void> _onServantAssignedToTeam(
+    ServantAssignedToTeam event,
+    Emitter<TeamState> emit,
+  ) async {
     await _runTeamMutation(
+      emit,
       action: () => _adminTeamService.assignServantToTeam(
-        actor: actor,
-        team: team,
-        servant: servant,
+        actor: event.actor,
+        team: event.team,
+        servant: event.servant,
       ),
       successMessage: 'تم تعيين الخادم بنجاح',
       errorContext: 'Failed to assign servant',
       errorMessage: 'تعذر تعيين الخادم. حاول مرة أخرى.',
-      reloadGroupId: team.groupId,
+      reloadGroupId: event.team.groupId,
     );
   }
 
-  /// Admin: unassign the responsible servant from a team.
-  Future<void> unassignServant({
-    required AuthUser actor,
-    required TeamModel team,
-  }) async {
+  Future<void> _onServantUnassignedFromTeam(
+    ServantUnassignedFromTeam event,
+    Emitter<TeamState> emit,
+  ) async {
     await _runTeamMutation(
-      action: () =>
-          _adminTeamService.unassignServantFromTeam(actor: actor, team: team),
+      emit,
+      action: () => _adminTeamService.unassignServantFromTeam(
+        actor: event.actor,
+        team: event.team,
+      ),
       successMessage: 'تم إلغاء تعيين الخادم بنجاح',
       errorContext: 'Failed to unassign servant',
       errorMessage: 'تعذر إلغاء تعيين الخادم. حاول مرة أخرى.',
-      reloadGroupId: team.groupId,
+      reloadGroupId: event.team.groupId,
     );
   }
 
-  /// Admin: set the members of a team (students).
-  Future<void> setTeamMembers({
-    required AuthUser actor,
-    required TeamModel team,
-    required List<StudentModel> students,
-  }) async {
+  Future<void> _onTeamMembersSet(
+    TeamMembersSet event,
+    Emitter<TeamState> emit,
+  ) async {
     await _runTeamMutation(
+      emit,
       action: () => _adminTeamService.setStudentsForTeam(
-        actor: actor,
-        team: team,
-        selectedStudents: students,
+        actor: event.actor,
+        team: event.team,
+        selectedStudents: event.students,
       ),
       successMessage: 'تم تحديث أعضاء الفريق بنجاح',
       errorContext: 'Failed to set team members',
       errorMessage: 'تعذر تحديث أعضاء الفريق. حاول مرة أخرى.',
-      reloadGroupId: team.groupId,
+      reloadGroupId: event.team.groupId,
     );
   }
 }

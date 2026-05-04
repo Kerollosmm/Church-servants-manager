@@ -20,6 +20,9 @@ _$TeamModelImpl _$$TeamModelImplFromJson(
   archiveReason: json['archiveReason'] as String?,
   restoredAt: const FirestoreTimestampConverter().fromJson(json['restoredAt']),
   restoredByUserId: json['restoredByUserId'] as String?,
+  syncStatus:
+      $enumDecodeNullable(_$SyncStatusEnumMap, json['syncStatus']) ??
+      SyncStatus.synced,
 );
 
 Map<String, dynamic> _$$TeamModelImplToJson(
@@ -36,4 +39,11 @@ Map<String, dynamic> _$$TeamModelImplToJson(
   'archiveReason': instance.archiveReason,
   'restoredAt': const FirestoreTimestampConverter().toJson(instance.restoredAt),
   'restoredByUserId': instance.restoredByUserId,
+  'syncStatus': _$SyncStatusEnumMap[instance.syncStatus]!,
+};
+
+const _$SyncStatusEnumMap = {
+  SyncStatus.pending: 'pending',
+  SyncStatus.synced: 'synced',
+  SyncStatus.failed: 'failed',
 };

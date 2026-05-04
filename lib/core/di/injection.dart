@@ -2,15 +2,14 @@ import 'package:church_management_system/core/routing/app_router.dart';
 import 'package:church_management_system/features/admin/data/admin_team_membership_service.dart';
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
 import 'package:church_management_system/features/admin/presentation/bloc/dashboard/admin_dashboard_bloc.dart';
-import 'package:church_management_system/features/attendance/data/repos/attendance_insight_repository.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_mark_repository.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_session_repository.dart';
 import 'package:church_management_system/features/attendance/data/services/attendance_session_service.dart';
-import 'package:church_management_system/features/attendance/domain/repos/i_attendance_insight_repository.dart';
 import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
 import 'package:church_management_system/features/auth/data/repos/firebase_auth_repository.dart';
 import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
+import 'package:church_management_system/features/auth/data/services/auth_user_local_store.dart';
 import 'package:church_management_system/features/auth/data/services/auth_user_profile_store.dart';
 import 'package:church_management_system/features/auth/data/services/firebase_identity_provider.dart';
 import 'package:church_management_system/features/auth/domain/repos/auth_repository.dart';
@@ -18,13 +17,14 @@ import 'package:church_management_system/features/servant/data/repo/servant_data
 import 'package:church_management_system/features/servant/domain/repos/i_servant_repository.dart';
 import 'package:church_management_system/features/servant/domain/usecases/provision_servant_with_auth_usecase.dart';
 import 'package:church_management_system/features/student/data/repos/student_data_repository.dart';
-import 'package:church_management_system/features/student/data/services/student_ai_service.dart';
 import 'package:church_management_system/features/student/data/services/student_linked_user_sync_service.dart';
 import 'package:church_management_system/features/student/data/services/student_query_service.dart';
 import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
 import 'package:church_management_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
-import 'package:church_management_system/features/student/domain/usecases/get_students_stream_usecase.dart';
+import 'package:church_management_system/features/student/domain/usecases/get_students_list_usecase.dart';
 import 'package:church_management_system/features/student/domain/usecases/provision_student_with_auth_usecase.dart';
+import 'package:church_management_system/features/team/data/datasources/team_local_datasource.dart';
+import 'package:church_management_system/features/team/data/datasources/team_remote_datasource.dart';
 import 'package:church_management_system/features/team/data/repos/team_repository.dart';
 import 'package:church_management_system/features/team/domain/repos/i_team_repository.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -38,8 +38,12 @@ void configureDependencies() {
   getIt
     ..registerLazySingleton<FirebaseFirestore>(() => FirebaseFirestore.instance)
     // ---- Services (Low-level) ----
+    ..registerLazySingleton<AuthUserLocalStore>(AuthUserLocalStore.new)
     ..registerLazySingleton<AuthUserProfileStore>(
-      () => AuthUserProfileStore(firestore: getIt()),
+      () => AuthUserProfileStore(
+        firestore: getIt(),
+        localStore: getIt<AuthUserLocalStore>(),
+      ),
     )
     ..registerLazySingleton<FirebaseIdentityProvider>(
       FirebaseIdentityProvider.new,
@@ -48,6 +52,7 @@ void configureDependencies() {
       () => FirebaseAuthRepository(
         identityProvider: getIt<FirebaseIdentityProvider>(),
         userProfileStore: getIt<AuthUserProfileStore>(),
+        localAuthStore: getIt<AuthUserLocalStore>(),
       ),
     )
     ..registerLazySingleton<FirebaseAuthRepository>(
@@ -68,15 +73,6 @@ void configureDependencies() {
     ..registerLazySingleton<AdminTeamMembershipService>(
       () => AdminTeamMembershipService(firestore: getIt()),
     )
-    // ---- AI Services ----
-    ..registerLazySingleton<StudentAIService>(() {
-      const apiKey = String.fromEnvironment('GEMINI_API_KEY');
-      if (apiKey.isEmpty) {
-        // Fallback to NoOp service if API key is missing
-        return NoOpStudentAIService();
-      }
-      return GeminiStudentAIService(apiKey: apiKey);
-    })
     // ---- Repositories ----
     ..registerLazySingleton<IStudentRepository>(
       () => StudentDataRepository(
@@ -103,12 +99,6 @@ void configureDependencies() {
     ..registerLazySingleton<AttendanceRepository>(
       () => getIt<IAttendanceRepository>() as AttendanceRepository,
     )
-    ..registerLazySingleton<IAttendanceInsightRepository>(
-      () => AttendanceInsightRepository(
-        aiService: getIt<StudentAIService>(),
-        firestore: getIt(),
-      ),
-    )
     ..registerLazySingleton<AttendanceSessionRepository>(
       () => AttendanceSessionRepository(firestore: getIt()),
     )
@@ -120,6 +110,10 @@ void configureDependencies() {
     )
     ..registerLazySingleton<TeamRepository>(
       () => getIt<ITeamRepository>() as TeamRepository,
+    )
+    ..registerLazySingleton<TeamLocalDatasource>(TeamLocalDatasource.new)
+    ..registerLazySingleton<TeamRemoteDatasource>(
+      () => TeamRemoteDatasource(firestore: getIt()),
     )
     // ---- Domain Services / Use Cases ----
     ..registerLazySingleton<AdminTeamService>(
@@ -134,8 +128,8 @@ void configureDependencies() {
         studentQueryService: getIt<StudentQueryService>(),
       ),
     )
-    ..registerLazySingleton<GetStudentsStreamUseCase>(
-      () => GetStudentsStreamUseCase(getIt<IStudentRepository>()),
+    ..registerLazySingleton<GetStudentsListUseCase>(
+      () => GetStudentsListUseCase(getIt<IStudentRepository>()),
     )
     ..registerLazySingleton<CanMutateStudentUseCase>(
       () => const CanMutateStudentUseCase(),

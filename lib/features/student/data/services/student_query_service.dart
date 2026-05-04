@@ -4,7 +4,6 @@ import 'package:church_management_system/core/utils/list_extensions.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/student/domain/failures/student_failures.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:rxdart/rxdart.dart';
 
 typedef StudentQueryDoc = QueryDocumentSnapshot<Map<String, dynamic>>;
 
@@ -343,6 +342,17 @@ class StudentQueryService {
     }
   }
 
+  Future<List<StudentModel>> getStudentsByClassesList(
+    List<String> classIds, {
+    bool includeArchived = false,
+  }) async {
+    final studentIds = await getStudentIdsByClasses(classIds);
+    return _applyArchivedFilter(
+      await _getStudentsByDocumentIds(studentIds),
+      includeArchived,
+    );
+  }
+
   Future<List<String>> getStudentIdsByClasses(List<String> classIds) async {
     if (classIds.isEmpty) return [];
 
@@ -365,92 +375,5 @@ class StudentQueryService {
     }
 
     return studentIds;
-  }
-
-  Stream<List<StudentModel>> watchAllStudents({bool includeArchived = false}) {
-    Query<Map<String, dynamic>> query = _studentsCollection.orderBy('name');
-    if (!includeArchived) {
-      query = query.where('isArchived', isEqualTo: false);
-    }
-    return query.snapshots().map(
-      (snapshot) => mapStudentDocs(snapshot.docs).students,
-    );
-  }
-
-  Stream<List<StudentModel>> watchStudentsByClass(
-    String classId, {
-    bool includeArchived = false,
-  }) {
-    Query<Map<String, dynamic>> query = _studentsCollection
-        .where('classId', isEqualTo: classId)
-        .orderBy('name');
-    if (!includeArchived) {
-      query = query.where('isArchived', isEqualTo: false);
-    }
-    return query.snapshots().map(
-      (snapshot) => mapStudentDocs(snapshot.docs).students,
-    );
-  }
-
-  Stream<List<StudentModel>> watchStudentsByClasses(
-    List<String> classIds, {
-    bool includeArchived = false,
-  }) {
-    final normalizedIds = <String>{};
-    for (final classId in classIds) {
-      final trimmed = classId.trim();
-      if (trimmed.isNotEmpty) {
-        normalizedIds.add(trimmed);
-      }
-    }
-
-    if (normalizedIds.isEmpty) {
-      return Stream.value(const <StudentModel>[]);
-    }
-
-    final chunks = normalizedIds.toList(growable: false).chunk(10);
-    final streams = chunks
-        .map(
-          (chunk) => _studentsCollection
-              .where('classId', whereIn: chunk)
-              .orderBy('name')
-              .snapshots()
-              .map(
-                (snapshot) => _applyArchivedFilter(
-                  mapStudentDocs(snapshot.docs).students,
-                  includeArchived,
-                ),
-              ),
-        )
-        .toList(growable: false);
-
-    if (streams.length == 1) {
-      return streams.first;
-    }
-
-    return Rx.combineLatestList(streams).map((chunkResults) {
-      final byDocId = <String, StudentModel>{};
-      for (final students in chunkResults) {
-        for (final student in students) {
-          byDocId[student.docID] = student;
-        }
-      }
-      return byDocId.values.toList(growable: false);
-    });
-  }
-
-  Stream<List<StudentModel>> watchStudentsByGroup(
-    String groupName, {
-    bool includeArchived = false,
-  }) {
-    Query<Map<String, dynamic>> query = _studentsCollection
-        .where('group', isEqualTo: groupName)
-        .orderBy('name');
-    if (!includeArchived) {
-      query = query.where('isArchived', isEqualTo: false);
-    }
-    return query.snapshots().map(
-      (snapshot) => mapStudentDocs(snapshot.docs).students,
-    );
   }
 }

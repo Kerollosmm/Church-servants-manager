@@ -54,20 +54,8 @@ abstract class IStudentRepository {
 
   Future<List<String>> getStudentIdsByClasses(List<String> classIds);
 
-  Stream<List<StudentModel>> watchAllStudents({bool includeArchived});
-
-  Stream<List<StudentModel>> watchStudentsByClass(
-    String classId, {
-    bool includeArchived,
-  });
-
-  Stream<List<StudentModel>> watchStudentsByClasses(
+  Future<List<StudentModel>> getStudentsByClasses(
     List<String> classIds, {
-    bool includeArchived,
-  });
-
-  Stream<List<StudentModel>> watchStudentsByGroup(
-    String groupName, {
     bool includeArchived,
   });
 

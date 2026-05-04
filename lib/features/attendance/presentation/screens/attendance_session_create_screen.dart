@@ -15,7 +15,7 @@ import 'package:church_management_system/features/auth/data/models/auth_user.dar
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_management_system/features/team/data/models/team_model.dart';
 import 'package:church_management_system/features/team/data/repos/team_repository.dart';
-import 'package:church_management_system/features/team/presentation/bloc/team_cubit.dart';
+import 'package:church_management_system/features/team/presentation/bloc/team_bloc.dart';
 import 'package:church_management_system/features/team/presentation/widgets/team_dropdown.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -186,28 +186,36 @@ class _AttendanceSessionCreateScreenState
 
         return MultiBlocProvider(
           providers: [
-            BlocProvider<TeamCubit>(
+            BlocProvider<TeamBloc>(
               create: (context) {
-                final teamCubit = TeamCubit(
+                final teamCubit = TeamBloc(
                   teamRepository: getIt<TeamRepository>(),
                   adminTeamService: getIt<AdminTeamService>(),
                 );
 
                 if (actor.role == UserRole.admin) {
-                  teamCubit.loadAllTeams();
+                  teamCubit.add(const TeamLoadAllRequested());
                 } else {
                   final teamIds = actor.effectiveAssignedTeamIds;
                   final groupId = actor.groupId;
 
                   if (groupId != null && groupId.isNotEmpty) {
-                    teamCubit.loadTeamsByGroup(
-                      groupId,
-                      defaultTeamId: teamIds.length == 1 ? teamIds.first : null,
+                    teamCubit.add(
+                      TeamLoadRequested(
+                        groupId,
+                        defaultTeamId: teamIds.length == 1
+                            ? teamIds.first
+                            : null,
+                      ),
                     );
                   } else if (teamIds.isNotEmpty) {
-                    teamCubit.loadTeamsByIds(
-                      teamIds,
-                      defaultTeamId: teamIds.length == 1 ? teamIds.first : null,
+                    teamCubit.add(
+                      TeamLoadByIdsRequested(
+                        teamIds,
+                        defaultTeamId: teamIds.length == 1
+                            ? teamIds.first
+                            : null,
+                      ),
                     );
                   }
                 }
@@ -248,7 +256,7 @@ class _AttendanceSessionCreateScreenState
                   Navigator.pop(context);
                 } else {
                   // Partial success or failure with details
-                  final teamCubit = context.read<TeamCubit>();
+                  final teamCubit = context.read<TeamBloc>();
                   final teams = teamCubit.state is TeamLoaded
                       ? (teamCubit.state as TeamLoaded).teams
                       : <TeamModel>[];
@@ -276,7 +284,7 @@ class _AttendanceSessionCreateScreenState
             },
             child: Scaffold(
               appBar: AppBar(title: const Text('إنشاء جلسة حضور')),
-              body: BlocBuilder<TeamCubit, TeamState>(
+              body: BlocBuilder<TeamBloc, TeamState>(
                 builder: (context, teamState) {
                   final teams = teamState is TeamLoaded
                       ? teamState.teams

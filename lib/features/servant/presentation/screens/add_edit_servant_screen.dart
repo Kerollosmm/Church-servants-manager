@@ -3,7 +3,7 @@ import 'package:church_management_system/core/routing/route_args.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
 import 'package:church_management_system/features/servant/data/models/servant_models.dart';
-import 'package:church_management_system/features/servant/presentation/bloc/servant_data/servant_data_cubit.dart';
+import 'package:church_management_system/features/servant/presentation/bloc/servant_data/servant_data_bloc.dart';
 import 'package:church_management_system/features/servant/presentation/widgets/servant_edit_form_sections.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -94,9 +94,9 @@ class _AddEditServantScreenState extends State<AddEditServantScreen> {
       notes: _nullableTrimmed(_controllers.notes.text),
     );
 
-    final cubit = context.read<ServantDataCubit>();
+    final cubit = context.read<ServantDataBloc>();
     if (isEditing) {
-      cubit.updateServant(actor: actor, servant: servant);
+      cubit.add(ServantUpdateRequested(actor: actor, servant: servant));
       return;
     }
 
@@ -111,11 +111,13 @@ class _AddEditServantScreenState extends State<AddEditServantScreen> {
       return;
     }
 
-    cubit.createServant(
-      actor: actor,
-      servant: servant,
-      email: email,
-      password: password,
+    cubit.add(
+      ServantCreateRequested(
+        actor: actor,
+        servant: servant,
+        email: email,
+        password: password,
+      ),
     );
   }
 
@@ -147,7 +149,7 @@ class _AddEditServantScreenState extends State<AddEditServantScreen> {
     final isEditing = widget.args.isEditing;
     final servant = widget.args.servant;
 
-    return BlocListener<ServantDataCubit, ServantDataState>(
+    return BlocListener<ServantDataBloc, ServantDataState>(
       listener: (context, state) {
         if (state is ServantDataLoaded &&
             state.mutationStatus == ServantMutationStatus.success) {
@@ -212,7 +214,7 @@ class _AddEditServantScreenState extends State<AddEditServantScreen> {
                     onPickBirthdate: _pickBirthdate,
                   ),
                   AppSpacing.gapMd,
-                  BlocBuilder<ServantDataCubit, ServantDataState>(
+                  BlocBuilder<ServantDataBloc, ServantDataState>(
                     buildWhen: (prev, curr) {
                       if (prev.runtimeType != curr.runtimeType) return true;
                       if (curr is ServantDataLoaded &&

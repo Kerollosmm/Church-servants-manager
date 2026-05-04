@@ -4,7 +4,7 @@ import 'package:church_management_system/features/auth/data/models/auth_user.dar
 import 'package:church_management_system/features/servant/data/models/servant_models.dart';
 import 'package:church_management_system/features/team/data/models/team_model.dart';
 import 'package:church_management_system/features/team/data/repos/team_repository.dart';
-import 'package:church_management_system/features/team/presentation/bloc/team_cubit.dart';
+import 'package:church_management_system/features/team/presentation/bloc/team_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -37,7 +37,7 @@ void main() {
       () => repository.getTeamsByGroup('year1'),
     ).thenAnswer((_) async => [team]);
 
-    final cubit = TeamCubit(
+    final cubit = TeamBloc(
       teamRepository: repository,
       adminTeamService: adminService,
     );
@@ -50,7 +50,7 @@ void main() {
       ]),
     );
 
-    await cubit.loadTeamsByGroup('year1');
+    cubit.add(TeamLoadRequested('year1'));
     await expectation;
     await cubit.close();
   });
@@ -64,7 +64,7 @@ void main() {
       ),
     ).thenThrow(StateError('permission denied'));
 
-    final cubit = TeamCubit(
+    final cubit = TeamBloc(
       teamRepository: repository,
       adminTeamService: adminService,
     );
@@ -77,7 +77,9 @@ void main() {
       ]),
     );
 
-    await cubit.assignServant(actor: admin, team: team, servant: servant);
+    cubit.add(
+      ServantAssignedToTeam(actor: admin, team: team, servant: servant),
+    );
     await expectation;
     await cubit.close();
   });
@@ -88,7 +90,7 @@ void main() {
       () => repository.getTeamsByGroup('year1'),
     ).thenAnswer((_) async => [team]);
 
-    final cubit = TeamCubit(
+    final cubit = TeamBloc(
       teamRepository: repository,
       adminTeamService: adminService,
     );
@@ -108,7 +110,7 @@ void main() {
       ]),
     );
 
-    await cubit.createTeam(team);
+    cubit.add(TeamCreateRequested(team));
     await expectation;
     verify(() => repository.createTeam(team)).called(1);
     verify(() => repository.getTeamsByGroup('year1')).called(1);
@@ -123,12 +125,12 @@ void main() {
       ).thenAnswer((_) async => [team]);
       when(() => repository.updateTeam(team)).thenAnswer((_) async {});
 
-      final cubit = TeamCubit(
+      final cubit = TeamBloc(
         teamRepository: repository,
         adminTeamService: adminService,
       );
 
-      await cubit.loadTeamsByGroup('year1');
+      cubit.add(TeamLoadRequested('year1'));
 
       final expectation = expectLater(
         cubit.stream,
@@ -149,7 +151,7 @@ void main() {
         ]),
       );
 
-      await cubit.updateTeam(team);
+      cubit.add(TeamUpdateRequested(team));
       await expectation;
       verify(() => repository.updateTeam(team)).called(1);
       verify(() => repository.getTeamsByGroup('year1')).called(2);
@@ -166,7 +168,7 @@ void main() {
       ),
     ).thenThrow(StateError('failed update members'));
 
-    final cubit = TeamCubit(
+    final cubit = TeamBloc(
       teamRepository: repository,
       adminTeamService: adminService,
     );
@@ -179,7 +181,7 @@ void main() {
       ]),
     );
 
-    await cubit.setTeamMembers(actor: admin, team: team, students: const []);
+    cubit.add(TeamMembersSet(actor: admin, team: team, students: const []));
     await expectation;
     await cubit.close();
   });

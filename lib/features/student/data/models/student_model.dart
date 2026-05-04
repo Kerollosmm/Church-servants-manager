@@ -45,9 +45,6 @@ class StudentModel with _$StudentModel {
 
     /// Aggregated attendance metrics (totalPresent, streak, etc.) updated on session close.
     Map<String, dynamic>? attendanceSummary,
-
-    /// AI-generated insights and encouragement messages.
-    Map<String, dynamic>? aiRecommendations,
   }) = _StudentModel;
 
   /// Creates a StudentModel from JSON.

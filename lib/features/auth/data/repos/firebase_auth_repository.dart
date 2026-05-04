@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
+import 'package:church_management_system/features/auth/data/services/auth_user_local_store.dart';
 import 'package:church_management_system/features/auth/data/services/auth_user_profile_store.dart';
 import 'package:church_management_system/features/auth/data/services/firebase_identity_provider.dart';
 import 'package:church_management_system/features/auth/data/utils/auth_error_mapper.dart';
@@ -14,16 +15,19 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 class FirebaseAuthRepository implements AuthRepository {
   final FirebaseIdentityProvider _identityProvider;
   final AuthUserProfileStore _userProfileStore;
+  final AuthUserLocalStore _localAuthStore;
 
   AuthUser? _lastKnownAppUser;
 
   FirebaseAuthRepository({
     required FirebaseIdentityProvider identityProvider,
     required AuthUserProfileStore userProfileStore,
+    required AuthUserLocalStore localAuthStore,
     Connectivity?
     connectivity, // Kept for constructor compatibility if injected elsewhere
   }) : _identityProvider = identityProvider,
-       _userProfileStore = userProfileStore;
+       _userProfileStore = userProfileStore,
+       _localAuthStore = localAuthStore;
 
   @override
   AuthUser? get currentUser {
@@ -99,7 +103,7 @@ class FirebaseAuthRepository implements AuthRepository {
         return null;
       }
 
-      // Fetch profile using serverAndCache natively
+      // Fetch profile using serverAndCache natively (which now includes Hive check)
       final profile = await _userProfileStore.fetchUser(firebaseUser.uid);
 
       final mergedUser = profile.copyWith(
@@ -222,7 +226,8 @@ class FirebaseAuthRepository implements AuthRepository {
     try {
       await _identityProvider.signOut();
       _lastKnownAppUser = null;
-      // Security Fix: Wipe offline cache to prevent data leaks on shared devices
+      // Mandate: Clear local cache on sign out
+      await _localAuthStore.deleteUser();
       await FirebaseFirestore.instance.clearPersistence();
     } catch (e) {
       throw AuthErrorMapper.mapException(e);

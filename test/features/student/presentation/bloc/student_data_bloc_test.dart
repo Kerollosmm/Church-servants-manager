@@ -5,7 +5,7 @@ import 'package:church_management_system/features/auth/data/models/auth_user.dar
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/student/data/repos/student_data_repository.dart';
 import 'package:church_management_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
-import 'package:church_management_system/features/student/domain/usecases/get_students_stream_usecase.dart';
+import 'package:church_management_system/features/student/domain/usecases/get_students_list_usecase.dart';
 import 'package:church_management_system/features/student/domain/usecases/provision_student_with_auth_usecase.dart';
 import 'package:church_management_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -13,8 +13,8 @@ import 'package:mocktail/mocktail.dart';
 
 class MockStudentDataRepository extends Mock implements StudentDataRepository {}
 
-class MockGetStudentsStreamUseCase extends Mock
-    implements GetStudentsStreamUseCase {}
+class MockGetStudentsListUseCase extends Mock
+    implements GetStudentsListUseCase {}
 
 class MockCanMutateStudentUseCase extends Mock
     implements CanMutateStudentUseCase {}
@@ -24,7 +24,7 @@ class MockProvisionStudentWithAuthUseCase extends Mock
 
 void main() {
   late MockStudentDataRepository repository;
-  late MockGetStudentsStreamUseCase getStudentsStream;
+  late MockGetStudentsListUseCase getStudentsList;
   late MockCanMutateStudentUseCase canMutateStudent;
   late MockProvisionStudentWithAuthUseCase provisionUseCase;
 
@@ -67,7 +67,7 @@ void main() {
 
   setUp(() {
     repository = MockStudentDataRepository();
-    getStudentsStream = MockGetStudentsStreamUseCase();
+    getStudentsList = MockGetStudentsListUseCase();
     canMutateStudent = MockCanMutateStudentUseCase();
     provisionUseCase = MockProvisionStudentWithAuthUseCase();
   });
@@ -76,11 +76,13 @@ void main() {
     'load emits loading then empty loaded when actor has no stream access',
     () async {
       final admin = actor(UserRole.admin);
-      when(() => getStudentsStream(actor: admin)).thenReturn(null);
+      when(
+        () => getStudentsList.call(actor: admin),
+      ).thenAnswer((_) async => null);
 
       final bloc = StudentDataBloc(
         studentRepository: repository,
-        getStudentsStream: getStudentsStream,
+        getStudentsList: getStudentsList,
         canMutateStudent: canMutateStudent,
         provisionUseCase: provisionUseCase,
       );
@@ -101,44 +103,6 @@ void main() {
     },
   );
 
-  test('refresh keeps previous students visible while loading', () async {
-    final admin = actor(UserRole.admin);
-    final controller = StreamController<List<StudentModel>>.broadcast();
-    when(
-      () => getStudentsStream(actor: admin),
-    ).thenAnswer((_) => controller.stream);
-
-    final bloc = StudentDataBloc(
-      studentRepository: repository,
-      getStudentsStream: getStudentsStream,
-      canMutateStudent: canMutateStudent,
-      provisionUseCase: provisionUseCase,
-    );
-
-    final expectation = expectLater(
-      bloc.stream,
-      emitsInOrder([
-        isA<StudentDataLoading>(),
-        isA<StudentDataLoaded>().having((s) => s.students.length, 'count', 1),
-        isA<StudentDataLoading>()
-            .having((s) => s.previousStudents.length, 'previousStudents', 1)
-            .having((s) => s.isRefresh, 'isRefresh', true),
-        isA<StudentDataLoaded>().having((s) => s.students.length, 'count', 1),
-      ]),
-    );
-
-    bloc.add(StudentsLoadRequested(actor: admin));
-    await Future<void>.delayed(Duration.zero);
-    controller.add([student()]);
-    await Future<void>.delayed(Duration.zero);
-    await bloc.refresh(admin);
-    controller.add([student(id: 's2')]);
-
-    await expectation;
-    await controller.close();
-    await bloc.close();
-  });
-
   test(
     'search with changed team reloads the student stream for the new team',
     () async {
@@ -147,15 +111,15 @@ void main() {
       final team2Controller = StreamController<List<StudentModel>>.broadcast();
 
       when(
-        () => getStudentsStream(actor: admin, teamId: 'team1'),
-      ).thenAnswer((_) => team1Controller.stream);
+        () => getStudentsList.call(actor: admin, teamId: 'team1'),
+      ).thenAnswer((_) async => <StudentModel>[]);
       when(
-        () => getStudentsStream(actor: admin, teamId: 'team2'),
-      ).thenAnswer((_) => team2Controller.stream);
+        () => getStudentsList.call(actor: admin, teamId: 'team2'),
+      ).thenAnswer((_) async => <StudentModel>[]);
 
       final bloc = StudentDataBloc(
         studentRepository: repository,
-        getStudentsStream: getStudentsStream,
+        getStudentsList: getStudentsList,
         canMutateStudent: canMutateStudent,
         provisionUseCase: provisionUseCase,
       );
@@ -201,7 +165,7 @@ void main() {
 
     final bloc = StudentDataBloc(
       studentRepository: repository,
-      getStudentsStream: getStudentsStream,
+      getStudentsList: getStudentsList,
       canMutateStudent: canMutateStudent,
       provisionUseCase: provisionUseCase,
     );
@@ -227,7 +191,7 @@ void main() {
 
     final bloc = StudentDataBloc(
       studentRepository: repository,
-      getStudentsStream: getStudentsStream,
+      getStudentsList: getStudentsList,
       canMutateStudent: canMutateStudent,
       provisionUseCase: provisionUseCase,
     );
@@ -257,7 +221,7 @@ void main() {
 
     final bloc = StudentDataBloc(
       studentRepository: repository,
-      getStudentsStream: getStudentsStream,
+      getStudentsList: getStudentsList,
       canMutateStudent: canMutateStudent,
       provisionUseCase: provisionUseCase,
     );
@@ -292,7 +256,7 @@ void main() {
 
     final bloc = StudentDataBloc(
       studentRepository: repository,
-      getStudentsStream: getStudentsStream,
+      getStudentsList: getStudentsList,
       canMutateStudent: canMutateStudent,
       provisionUseCase: provisionUseCase,
     );
@@ -331,7 +295,7 @@ void main() {
 
     final bloc = StudentDataBloc(
       studentRepository: repository,
-      getStudentsStream: getStudentsStream,
+      getStudentsList: getStudentsList,
       canMutateStudent: canMutateStudent,
       provisionUseCase: provisionUseCase,
     );
@@ -380,7 +344,7 @@ void main() {
 
       final bloc = StudentDataBloc(
         studentRepository: repository,
-        getStudentsStream: getStudentsStream,
+        getStudentsList: getStudentsList,
         canMutateStudent: canMutateStudent,
         provisionUseCase: provisionUseCase,
       );
@@ -424,7 +388,7 @@ void main() {
 
     final bloc = StudentDataBloc(
       studentRepository: repository,
-      getStudentsStream: getStudentsStream,
+      getStudentsList: getStudentsList,
       canMutateStudent: canMutateStudent,
       provisionUseCase: provisionUseCase,
     );
@@ -470,7 +434,7 @@ void main() {
 
     final bloc = StudentDataBloc(
       studentRepository: repository,
-      getStudentsStream: getStudentsStream,
+      getStudentsList: getStudentsList,
       canMutateStudent: canMutateStudent,
       provisionUseCase: provisionUseCase,
     );
@@ -512,7 +476,7 @@ void main() {
 
     final bloc = StudentDataBloc(
       studentRepository: repository,
-      getStudentsStream: getStudentsStream,
+      getStudentsList: getStudentsList,
       canMutateStudent: canMutateStudent,
       provisionUseCase: provisionUseCase,
     );

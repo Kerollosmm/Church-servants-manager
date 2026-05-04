@@ -6,7 +6,8 @@ import 'package:church_management_system/features/attendance/data/models/attenda
 import 'package:church_management_system/features/attendance/data/models/attendance_roster_snapshot.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
-import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_cubit.dart';
+import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_bloc.dart';
+import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_event.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_state.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -87,17 +88,24 @@ void main() {
     rosterController = StreamController<AttendanceRosterSnapshot>.broadcast();
     statusController = StreamController<SessionStatus>.broadcast();
     when(
-      () => repository.watchSessionRosterSnapshot(
+      () => repository.getSessionRosterSnapshot(
         teamId: any(named: 'teamId'),
         sessionId: any(named: 'sessionId'),
       ),
-    ).thenAnswer((_) => rosterController.stream);
+    ).thenAnswer(
+      (_) => Future.value(
+        AttendanceRosterSnapshot(
+          session: buildSession(isClosed: false),
+          roster: [],
+        ),
+      ),
+    );
     when(
-      () => repository.watchSessionStatus(
+      () => repository.getSessionStatus(
         teamId: any(named: 'teamId'),
         sessionId: any(named: 'sessionId'),
       ),
-    ).thenAnswer((_) => statusController.stream);
+    ).thenAnswer((_) => Future.value(SessionStatus.open));
     when(
       () => repository.canUserManageAttendance(
         user: any(named: 'user'),
@@ -113,20 +121,22 @@ void main() {
 
   group('initialization', () {
     test('emits Loading then Loaded on initialize', () async {
-      final cubit = AttendanceTakingCubit(
+      final bloc = AttendanceTakingBloc(
         repository: repository,
         nowProvider: () => DateTime(2026, 3, 9, 18, 10),
       );
 
       final expectation = expectLater(
-        cubit.stream,
+        bloc.stream,
         emitsInOrder([
           isA<AttendanceTakingLoading>(),
           isA<AttendanceTakingLoaded>(),
         ]),
       );
 
-      cubit.initialize(teamId: 'team-1', sessionId: 'session-1');
+      bloc.add(
+        const InitializeSessionEvent(teamId: 'team-1', sessionId: 'session-1'),
+      );
       statusController.add(SessionStatus.open);
       rosterController.add(
         AttendanceRosterSnapshot(
@@ -143,7 +153,7 @@ void main() {
       );
 
       await expectation;
-      await cubit.close();
+      await bloc.close();
     });
   });
 
@@ -160,11 +170,13 @@ void main() {
         ),
       ).thenAnswer((_) async {});
 
-      final cubit = AttendanceTakingCubit(
+      final bloc = AttendanceTakingBloc(
         repository: repository,
         nowProvider: () => DateTime(2026, 3, 9, 18, 10),
       );
-      cubit.initialize(teamId: 'team-1', sessionId: 'session-1');
+      bloc.add(
+        const InitializeSessionEvent(teamId: 'team-1', sessionId: 'session-1'),
+      );
       statusController.add(SessionStatus.open);
       rosterController.add(
         AttendanceRosterSnapshot(
@@ -181,17 +193,21 @@ void main() {
       );
       await Future<void>.delayed(Duration.zero);
 
-      await cubit.markPresent(
-        actor: servant,
-        item: buildRosterItem(
-          session: openSession,
-          studentId: 'student-1',
-          studentName: 'Mina',
-          status: AttendanceEffectiveStatus.unmarked,
+      bloc.add(
+        MarkStudentPresentEvent(
+          actor: servant,
+          item: buildRosterItem(
+            session: openSession,
+            studentId: 'student-1',
+            studentName: 'Mina',
+            status: AttendanceEffectiveStatus.unmarked,
+          ),
         ),
       );
+      await Future<void>.delayed(Duration.zero);
 
-      await cubit.submitAllPendingMarks(actor: servant);
+      bloc.add(SubmitSessionEvent(actor: servant));
+      await Future<void>.delayed(Duration.zero);
 
       verify(
         () => repository.batchWriteMarks(
@@ -202,7 +218,7 @@ void main() {
           cachedPermission: any(named: 'cachedPermission'),
         ),
       ).called(1);
-      await cubit.close();
+      await bloc.close();
     });
 
     test(
@@ -210,11 +226,16 @@ void main() {
       () async {
         final openSession = buildSession(isClosed: false);
 
-        final cubit = AttendanceTakingCubit(
+        final bloc = AttendanceTakingBloc(
           repository: repository,
           nowProvider: () => DateTime(2026, 3, 9, 18, 10),
         );
-        cubit.initialize(teamId: 'team-1', sessionId: 'session-1');
+        bloc.add(
+          const InitializeSessionEvent(
+            teamId: 'team-1',
+            sessionId: 'session-1',
+          ),
+        );
         statusController.add(SessionStatus.open);
         rosterController.add(
           AttendanceRosterSnapshot(
@@ -231,19 +252,26 @@ void main() {
         );
         await Future<void>.delayed(Duration.zero);
 
-        await cubit.markPresent(
-          actor: servant,
-          item: buildRosterItem(
-            session: openSession,
-            studentId: 'student-1',
-            studentName: 'Mina',
-            status: AttendanceEffectiveStatus.present,
+        bloc.add(
+          MarkStudentPresentEvent(
+            actor: servant,
+            item: buildRosterItem(
+              session: openSession,
+              studentId: 'student-1',
+              studentName: 'Mina',
+              status: AttendanceEffectiveStatus.present,
+            ),
           ),
         );
+        await Future<void>.delayed(Duration.zero);
 
-        expect(cubit.hasPendingMarks, isFalse);
+        expect(
+          (bloc.state as AttendanceTakingLoaded).pendingLocalMarks.isEmpty,
+          isTrue,
+        );
 
-        await cubit.submitAllPendingMarks(actor: servant);
+        bloc.add(SubmitSessionEvent(actor: servant));
+        await Future<void>.delayed(Duration.zero);
 
         verifyNever(
           () => repository.batchWriteMarks(
@@ -253,18 +281,20 @@ void main() {
             markedBy: any(named: 'markedBy'),
           ),
         );
-        await cubit.close();
+        await bloc.close();
       },
     );
 
     test('on closed session emits error and skips repository', () async {
       final closedSession = buildSession(isClosed: true);
 
-      final cubit = AttendanceTakingCubit(
+      final bloc = AttendanceTakingBloc(
         repository: repository,
         nowProvider: () => DateTime(2026, 3, 9, 18, 10),
       );
-      cubit.initialize(teamId: 'team-1', sessionId: 'session-1');
+      bloc.add(
+        const InitializeSessionEvent(teamId: 'team-1', sessionId: 'session-1'),
+      );
       statusController.add(SessionStatus.closed);
       rosterController.add(
         AttendanceRosterSnapshot(
@@ -281,18 +311,21 @@ void main() {
       );
       await Future<void>.delayed(Duration.zero);
 
-      await cubit.markPresent(
-        actor: servant,
-        item: buildRosterItem(
-          session: closedSession,
-          studentId: 'student-1',
-          studentName: 'Mina',
-          status: AttendanceEffectiveStatus.absent,
+      bloc.add(
+        MarkStudentPresentEvent(
+          actor: servant,
+          item: buildRosterItem(
+            session: closedSession,
+            studentId: 'student-1',
+            studentName: 'Mina',
+            status: AttendanceEffectiveStatus.absent,
+          ),
         ),
       );
+      await Future<void>.delayed(Duration.zero);
 
-      expect(cubit.state, isA<AttendanceTakingLoaded>());
-      expect((cubit.state as AttendanceTakingLoaded).errorMessage, isNotEmpty);
+      expect(bloc.state, isA<AttendanceTakingLoaded>());
+      expect((bloc.state as AttendanceTakingLoaded).errorMessage, isNotEmpty);
       verifyNever(
         () => repository.markStudentPresent(
           teamId: 'team-1',
@@ -302,7 +335,7 @@ void main() {
           markedBy: servant,
         ),
       );
-      await cubit.close();
+      await bloc.close();
     });
   });
 
@@ -312,11 +345,16 @@ void main() {
       () async {
         final openSession = buildSession(isClosed: false);
 
-        final cubit = AttendanceTakingCubit(
+        final bloc = AttendanceTakingBloc(
           repository: repository,
           nowProvider: () => DateTime(2026, 3, 9, 18, 10),
         );
-        cubit.initialize(teamId: 'team-1', sessionId: 'session-1');
+        bloc.add(
+          const InitializeSessionEvent(
+            teamId: 'team-1',
+            sessionId: 'session-1',
+          ),
+        );
 
         // Start as open.
         statusController.add(SessionStatus.open);
@@ -334,14 +372,14 @@ void main() {
           ),
         );
         await Future<void>.delayed(Duration.zero);
-        expect((cubit.state as AttendanceTakingLoaded).isSessionOpen, isTrue);
+        expect((bloc.state as AttendanceTakingLoaded).isSessionOpen, isTrue);
 
         // Flip to closed.
         statusController.add(SessionStatus.closed);
         await Future<void>.delayed(Duration.zero);
 
-        expect((cubit.state as AttendanceTakingLoaded).isSessionOpen, isFalse);
-        await cubit.close();
+        expect((bloc.state as AttendanceTakingLoaded).isSessionOpen, isFalse);
+        await bloc.close();
       },
     );
   });
@@ -350,11 +388,13 @@ void main() {
     test('triggers state rebuild with updated marksMap', () async {
       final openSession = buildSession(isClosed: false);
 
-      final cubit = AttendanceTakingCubit(
+      final bloc = AttendanceTakingBloc(
         repository: repository,
         nowProvider: () => DateTime(2026, 3, 9, 18, 10),
       );
-      cubit.initialize(teamId: 'team-1', sessionId: 'session-1');
+      bloc.add(
+        const InitializeSessionEvent(teamId: 'team-1', sessionId: 'session-1'),
+      );
       statusController.add(SessionStatus.open);
 
       // Initial unmarked state.
@@ -372,7 +412,7 @@ void main() {
         ),
       );
       await Future<void>.delayed(Duration.zero);
-      expect((cubit.state as AttendanceTakingLoaded).marksMap, isEmpty);
+      expect((bloc.state as AttendanceTakingLoaded).marksMap, isEmpty);
 
       // Update with a present mark.
       rosterController.add(
@@ -390,45 +430,9 @@ void main() {
       );
       await Future<void>.delayed(Duration.zero);
 
-      final state = cubit.state as AttendanceTakingLoaded;
+      final state = bloc.state as AttendanceTakingLoaded;
       expect(state.marksMap['student-1'], AttendanceMarkStatus.present);
-      await cubit.close();
-    });
-  });
-
-  group('unmarkedCount', () {
-    test('returns correct count of unmarked students', () async {
-      final openSession = buildSession(isClosed: false);
-
-      final cubit = AttendanceTakingCubit(
-        repository: repository,
-        nowProvider: () => DateTime(2026, 3, 9, 18, 10),
-      );
-      cubit.initialize(teamId: 'team-1', sessionId: 'session-1');
-      statusController.add(SessionStatus.open);
-      rosterController.add(
-        AttendanceRosterSnapshot(
-          session: openSession,
-          roster: [
-            buildRosterItem(
-              session: openSession,
-              studentId: 'student-1',
-              studentName: 'Mina',
-              status: AttendanceEffectiveStatus.present,
-            ),
-            buildRosterItem(
-              session: openSession,
-              studentId: 'student-2',
-              studentName: 'Peter',
-              status: AttendanceEffectiveStatus.unmarked,
-            ),
-          ],
-        ),
-      );
-      await Future<void>.delayed(Duration.zero);
-
-      expect(cubit.unmarkedCount, 1);
-      await cubit.close();
+      await bloc.close();
     });
   });
 }

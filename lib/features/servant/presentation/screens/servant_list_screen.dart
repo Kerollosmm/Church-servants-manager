@@ -13,7 +13,7 @@ import 'package:church_management_system/core/widgets/search/live_search_panel.d
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_management_system/features/servant/data/models/servant_models.dart';
-import 'package:church_management_system/features/servant/presentation/bloc/servant_data/servant_data_cubit.dart';
+import 'package:church_management_system/features/servant/presentation/bloc/servant_data/servant_data_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -35,9 +35,8 @@ class _ServantListScreenState extends State<ServantListScreen> {
     super.initState();
     final actor = _currentActorOrNull();
     if (actor != null) {
-      context.read<ServantDataCubit>().loadServants(
-        actor: actor,
-        includeArchived: _showArchived,
+      context.read<ServantDataBloc>().add(
+        ServantsLoadRequested(actor: actor, includeArchived: _showArchived),
       );
     }
   }
@@ -59,25 +58,29 @@ class _ServantListScreenState extends State<ServantListScreen> {
   void _onSearchChanged(AuthUser actor, String value) {
     _searchDebounce?.cancel();
     _searchDebounce = Timer(const Duration(milliseconds: 350), () {
-      context.read<ServantDataCubit>().searchServants(
-        actor: actor,
-        query: value,
-        includeArchived: _showArchived,
+      context.read<ServantDataBloc>().add(
+        ServantsSearchRequested(
+          actor: actor,
+          query: value,
+          includeArchived: _showArchived,
+        ),
       );
     });
   }
 
   void _clearSearch(AuthUser actor) {
     _searchController.clear();
-    context.read<ServantDataCubit>().searchServants(
-      actor: actor,
-      query: '',
-      includeArchived: _showArchived,
+    context.read<ServantDataBloc>().add(
+      ServantsSearchRequested(
+        actor: actor,
+        query: '',
+        includeArchived: _showArchived,
+      ),
     );
   }
 
   Future<void> _refresh(AuthUser actor) async {
-    await context.read<ServantDataCubit>().refreshServants(actor: actor);
+    context.read<ServantDataBloc>().add(ServantsRefreshRequested(actor: actor));
   }
 
   Future<void> _openServantDetail(AuthUser actor, ServantModel servant) async {
@@ -87,7 +90,7 @@ class _ServantListScreenState extends State<ServantListScreen> {
       arguments: ServantDetailArgs(actor: actor, servant: servant),
     );
     if (!mounted || result != true) return;
-    await _refresh(actor);
+    _refresh(actor);
   }
 
   bool _canManage(AuthUser actor) => actor.role == UserRole.admin;
@@ -146,9 +149,11 @@ class _ServantListScreenState extends State<ServantListScreen> {
                 tooltip: _showArchived ? 'إخفاء المؤرشف' : 'عرض المؤرشف',
                 onPressed: () {
                   setState(() => _showArchived = !_showArchived);
-                  context.read<ServantDataCubit>().loadServants(
-                    actor: actor,
-                    includeArchived: _showArchived,
+                  context.read<ServantDataBloc>().add(
+                    ServantsLoadRequested(
+                      actor: actor,
+                      includeArchived: _showArchived,
+                    ),
                   );
                 },
               ),
@@ -156,8 +161,8 @@ class _ServantListScreenState extends State<ServantListScreen> {
                 icon: const Icon(Icons.refresh),
                 tooltip: 'تحديث', // Refresh
                 onPressed: () {
-                  context.read<ServantDataCubit>().refreshServants(
-                    actor: actor,
+                  context.read<ServantDataBloc>().add(
+                    ServantsRefreshRequested(actor: actor),
                   );
                 },
               ),
@@ -179,7 +184,7 @@ class _ServantListScreenState extends State<ServantListScreen> {
                   label: const Text('إضافة خادم'), // Add Servant
                 )
               : null,
-          body: BlocConsumer<ServantDataCubit, ServantDataState>(
+          body: BlocConsumer<ServantDataBloc, ServantDataState>(
             buildWhen: (prev, curr) {
               if (prev.runtimeType != curr.runtimeType) return true;
               if (curr is ServantDataLoaded && prev is ServantDataLoaded) {
@@ -236,10 +241,12 @@ class _ServantListScreenState extends State<ServantListScreen> {
                               isLoading: viewData.isLoading,
                               onChanged: (v) => _onSearchChanged(actor, v),
                               onSubmitted: (v) {
-                                context.read<ServantDataCubit>().searchServants(
-                                  actor: actor,
-                                  query: v,
-                                  includeArchived: _showArchived,
+                                context.read<ServantDataBloc>().add(
+                                  ServantsSearchRequested(
+                                    actor: actor,
+                                    query: v,
+                                    includeArchived: _showArchived,
+                                  ),
                                 );
                               },
                               onClear: () => _clearSearch(actor),
@@ -258,11 +265,12 @@ class _ServantListScreenState extends State<ServantListScreen> {
                         hasScrollBody: false,
                         child: AppErrorState(
                           message: state.message,
-                          onRetry: () =>
-                              context.read<ServantDataCubit>().loadServants(
-                                actor: actor,
-                                includeArchived: _showArchived,
-                              ),
+                          onRetry: () => context.read<ServantDataBloc>().add(
+                            ServantsLoadRequested(
+                              actor: actor,
+                              includeArchived: _showArchived,
+                            ),
+                          ),
                         ),
                       )
                     else if (viewData.showEmptyState)
@@ -313,8 +321,8 @@ class _ServantListScreenState extends State<ServantListScreen> {
                         child: _LoadMoreServantsButton(
                           isLoading: viewData.loadedState!.isLoadingMore,
                           onPressed: () {
-                            context.read<ServantDataCubit>().loadMoreServants(
-                              actor: actor,
+                            context.read<ServantDataBloc>().add(
+                              ServantsLoadMoreRequested(actor: actor),
                             );
                           },
                         ),

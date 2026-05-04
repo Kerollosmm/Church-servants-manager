@@ -272,40 +272,6 @@ void main() {
     );
   });
 
-  test('watchSessionRoster derives absent automatically after close', () async {
-    await seedStudent(student(id: 'student-1', name: 'Mina'));
-    final session = buildSession(
-      startsAt: currentTime,
-      endsAt: currentTime.add(const Duration(minutes: 30)),
-    );
-    await seedSession(session);
-
-    final iterator = StreamIterator(
-      repository.watchSessionRosterSnapshot(
-        teamId: 'team-1',
-        sessionId: session.id,
-      ),
-    );
-
-    expect(await iterator.moveNext(), isTrue);
-    expect(
-      iterator.current.roster.single.effectiveStatus,
-      AttendanceEffectiveStatus.unmarked,
-    );
-    expect(iterator.current.roster.single.isSessionOpen, isTrue);
-
-    currentTime = currentTime.add(const Duration(minutes: 31));
-    clockController.add(currentTime);
-
-    expect(await iterator.moveNext(), isTrue);
-    expect(
-      iterator.current.roster.single.effectiveStatus,
-      AttendanceEffectiveStatus.absent,
-    );
-    expect(iterator.current.roster.single.isSessionOpen, isFalse);
-    await iterator.cancel();
-  });
-
   test('present and late marks remain effective after session close', () async {
     await seedStudent(student(id: 'student-1', name: 'Mina'));
     final session = await repository.createSession(
@@ -326,9 +292,10 @@ void main() {
     );
 
     currentTime = currentTime.add(const Duration(minutes: 31));
-    final presentRoster = await repository
-        .watchSessionRoster(teamId: 'team-1', sessionId: session.id)
-        .first;
+    final presentRoster = await repository.getSessionRoster(
+      teamId: 'team-1',
+      sessionId: session.id,
+    );
     expect(
       presentRoster.single.effectiveStatus,
       AttendanceEffectiveStatus.present,
@@ -351,9 +318,10 @@ void main() {
           'updatedAt': DateTime.now(),
         });
 
-    final lateRoster = await repository
-        .watchSessionRoster(teamId: 'team-1', sessionId: session.id)
-        .first;
+    final lateRoster = await repository.getSessionRoster(
+      teamId: 'team-1',
+      sessionId: session.id,
+    );
     expect(lateRoster.single.effectiveStatus, AttendanceEffectiveStatus.late);
   });
 
@@ -421,9 +389,7 @@ void main() {
           .collection('marks')
           .get();
       expect(marks.docs.length, 2);
-      final markedStudentIds = marks.docs
-          .map((d) => d.id.split('_').first)
-          .toSet();
+      final markedStudentIds = marks.docs.map((d) => d.id.split('_')).toSet();
       expect(markedStudentIds.contains('student-1'), isTrue);
       expect(markedStudentIds.contains('student-2'), isTrue);
     });

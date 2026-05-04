@@ -1,4 +1,4 @@
-part of 'team_cubit.dart';
+part of 'team_bloc.dart';
 
 enum TeamMutationStatus { idle, inProgress, success, failure }
 

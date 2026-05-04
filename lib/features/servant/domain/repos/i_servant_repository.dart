@@ -37,8 +37,6 @@ abstract class IServantRepository {
     bool includeArchived,
   });
 
-  Stream<List<ServantModel>> getServantsStream({bool includeArchived});
-
   Future<String> createServant(ServantModel servant);
 
   Future<void> upsertServant(ServantModel servant);

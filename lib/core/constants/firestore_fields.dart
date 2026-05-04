@@ -7,7 +7,6 @@ class FirestoreFields {
   // AI & Aggregation Fields
   static const attendanceSummary = 'attendanceSummary';
   static const groupAttendanceSummary = 'groupAttendanceSummary';
-  static const aiRecommendations = 'aiRecommendations';
 
   // Student Specific
   static const classId = 'classId';

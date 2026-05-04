@@ -9,7 +9,8 @@ import 'package:church_management_system/features/attendance/data/models/attenda
 import 'package:church_management_system/features/attendance/data/models/attendance_roster_item.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
-import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_cubit.dart';
+import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_bloc.dart';
+import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_event.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_state.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/session_admin/attendance_session_admin_cubit.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/session_admin/attendance_session_admin_state.dart';
@@ -42,13 +43,15 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
-        BlocProvider<AttendanceTakingCubit>(
+        BlocProvider<AttendanceTakingBloc>(
           create: (context) =>
-              AttendanceTakingCubit(repository: getIt<AttendanceRepository>())
-                ..initialize(
-                  teamId: widget.args.teamId,
-                  sessionId: widget.args.sessionId,
-                  actor: widget.args.actor,
+              AttendanceTakingBloc(repository: getIt<AttendanceRepository>())
+                ..add(
+                  InitializeSessionEvent(
+                    teamId: widget.args.teamId,
+                    sessionId: widget.args.sessionId,
+                    actor: widget.args.actor,
+                  ),
                 ),
         ),
         BlocProvider<AttendanceSessionAdminCubit>(
@@ -59,7 +62,7 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
       ],
       child: MultiBlocListener(
         listeners: [
-          BlocListener<AttendanceTakingCubit, AttendanceTakingState>(
+          BlocListener<AttendanceTakingBloc, AttendanceTakingState>(
             listenWhen: (previous, current) {
               final prevMessage = previous is AttendanceTakingLoaded
                   ? previous.errorMessage
@@ -108,7 +111,7 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
             },
           ),
         ],
-        child: BlocBuilder<AttendanceTakingCubit, AttendanceTakingState>(
+        child: BlocBuilder<AttendanceTakingBloc, AttendanceTakingState>(
           builder: (context, state) {
             final now = DateTime.now();
             final loadedState = state is AttendanceTakingLoaded ? state : null;
@@ -152,11 +155,11 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
                           loadedState.mutationStatus ==
                               MutationStatus.inProgress
                           ? null
-                          : () => context
-                                .read<AttendanceTakingCubit>()
-                                .markAllRemainingPresent(
-                                  actor: widget.args.actor,
-                                ),
+                          : () => context.read<AttendanceTakingBloc>().add(
+                              MarkAllRemainingPresentEvent(
+                                actor: widget.args.actor,
+                              ),
+                            ),
                     ),
                   if (widget.args.actor.role == UserRole.admin &&
                       loadedState != null &&
@@ -189,11 +192,9 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
                               loadedState.mutationStatus ==
                                   MutationStatus.inProgress
                               ? null
-                              : () => context
-                                    .read<AttendanceTakingCubit>()
-                                    .submitAllPendingMarks(
-                                      actor: widget.args.actor,
-                                    ),
+                              : () => context.read<AttendanceTakingBloc>().add(
+                                  SubmitSessionEvent(actor: widget.args.actor),
+                                ),
                           icon: const Icon(Icons.check_circle_outline),
                           label: Text(
                             'تأكيد الحضور (${loadedState.pendingLocalMarks.length})',
@@ -384,9 +385,8 @@ class _RosterItemCard extends StatelessWidget {
                           isMutationInProgress ||
                           effectivePendingMark == AttendanceMarkStatus.present
                       ? null
-                      : () => context.read<AttendanceTakingCubit>().markPresent(
-                          actor: actor,
-                          item: item,
+                      : () => context.read<AttendanceTakingBloc>().add(
+                          MarkStudentPresentEvent(actor: actor, item: item),
                         ),
                   icon: const Icon(Icons.check_circle_outline),
                   label: const Text('حاضر'),
@@ -397,9 +397,8 @@ class _RosterItemCard extends StatelessWidget {
                           isMutationInProgress ||
                           effectivePendingMark == AttendanceMarkStatus.late
                       ? null
-                      : () => context.read<AttendanceTakingCubit>().markLate(
-                          actor: actor,
-                          item: item,
+                      : () => context.read<AttendanceTakingBloc>().add(
+                          MarkStudentLateEvent(actor: actor, item: item),
                         ),
                   icon: const Icon(Icons.alarm_on_outlined),
                   label: const Text('متأخر'),
@@ -408,9 +407,8 @@ class _RosterItemCard extends StatelessWidget {
                   TextButton.icon(
                     onPressed: !isSessionOpen || isMutationInProgress
                         ? null
-                        : () => context.read<AttendanceTakingCubit>().clearMark(
-                            actor: actor,
-                            item: item,
+                        : () => context.read<AttendanceTakingBloc>().add(
+                            ClearStudentMarkEvent(actor: actor, item: item),
                           ),
                     icon: const Icon(Icons.clear),
                     label: const Text('مسح التحديد'),

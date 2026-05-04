@@ -709,45 +709,29 @@ class AttendanceRepository implements IAttendanceRepository {
   }
 
   @override
-  Stream<List<AttendanceSession>> watchSessionsForTeam(String teamId) {
-    return _sessionsCol(teamId)
+  Future<List<AttendanceSession>> getSessionsForTeam(String teamId) async {
+    final snapshot = await _sessionsCol(teamId)
         .orderBy('startsAt', descending: true)
         .limit(50)
-        .snapshots()
-        .map(_mapSessionsSnapshot);
+        .get(const GetOptions());
+    return _mapSessionsSnapshot(snapshot);
   }
 
   @override
-  Stream<AttendanceSession?> watchActiveSessionForTeam(String teamId) {
-    final openSessionsStream = _sessionsCol(teamId)
+  Future<AttendanceSession?> getActiveSessionForTeam(String teamId) async {
+    final snapshot = await _sessionsCol(teamId)
         .where('isClosed', isEqualTo: false)
         .orderBy('startsAt', descending: true)
-        .snapshots()
-        .map(_mapSessionsSnapshot);
-    return Rx.combineLatest2(
-      openSessionsStream,
-      _watchClock(interval: const Duration(seconds: 60)),
-      (List<AttendanceSession> sessions, DateTime now) {
-        for (final session in sessions) {
-          if (session.isOpenAt(now)) {
-            return session;
-          }
-        }
-        return null;
-      },
-    );
-  }
-
-  @override
-  Stream<AttendanceSession?> watchSessionById({
-    required String teamId,
-    required String sessionId,
-  }) {
-    return _sessionDoc(teamId, sessionId).snapshots().map((doc) {
-      final data = doc.data();
-      if (!doc.exists || data == null) return null;
-      return AttendanceSession.fromMap(data, doc.id);
-    });
+        .limit(10)
+        .get(const GetOptions());
+    final sessions = _mapSessionsSnapshot(snapshot);
+    final now = _nowProvider();
+    for (final session in sessions) {
+      if (session.isOpenAt(now)) {
+        return session;
+      }
+    }
+    return null;
   }
 
   @override
@@ -756,7 +740,10 @@ class AttendanceRepository implements IAttendanceRepository {
     required String sessionId,
   }) async {
     try {
-      final doc = await _sessionDoc(teamId, sessionId).get();
+      final doc = await _sessionDoc(
+        teamId,
+        sessionId,
+      ).get(const GetOptions());
       final data = doc.data();
       if (!doc.exists || data == null) return null;
       return AttendanceSession.fromMap(data, doc.id);
@@ -949,66 +936,90 @@ class AttendanceRepository implements IAttendanceRepository {
   }
 
   @override
-  Stream<List<AttendanceRosterItem>> watchSessionRoster({
+  Future<List<AttendanceRosterItem>> getSessionRoster({
     required String teamId,
     required String sessionId,
-  }) {
-    return watchSessionRosterSnapshot(
+  }) async {
+    final snapshot = await getSessionRosterSnapshot(
       teamId: teamId,
       sessionId: sessionId,
-    ).map((snapshot) => snapshot.roster);
+    );
+    return snapshot.roster;
   }
 
   @override
-  Stream<AttendanceRosterSnapshot> watchSessionRosterSnapshot({
+  Future<AttendanceRosterSnapshot> getSessionRosterSnapshot({
     required String teamId,
     required String sessionId,
-  }) {
-    final marksStream = _watchMarksMap(teamId, sessionId);
+  }) async {
+    final session = await getSessionById(teamId: teamId, sessionId: sessionId);
+    if (session == null) {
+      throw const AttendanceSessionNotFoundFailure();
+    }
 
-    return watchSessionById(teamId: teamId, sessionId: sessionId).switchMap((
-      session,
-    ) {
-      if (session == null) {
-        return Stream<AttendanceRosterSnapshot>.error(
-          const AttendanceSessionNotFoundFailure(),
+    final marksSnapshot = await _marksCol(
+      teamId,
+      sessionId,
+    ).get(const GetOptions());
+
+    final marks = <String, AttendanceMark>{};
+    final studentMarks = <String, List<AttendanceMark>>{};
+
+    for (final doc in marksSnapshot.docs) {
+      try {
+        final parts = doc.id.split('_');
+        final studentId = parts.first;
+        final mark = AttendanceMark.fromMap(doc.data(), studentId);
+
+        if (!studentMarks.containsKey(studentId)) {
+          studentMarks[studentId] = [];
+        }
+        studentMarks[studentId]!.add(mark);
+      } catch (error) {
+        developer.log(
+          'skipped malformed attendance mark ${doc.reference.path}',
+          error: error,
+          name: 'AttendanceRepository',
         );
       }
+    }
 
-      return Rx.combineLatest2(marksStream, _watchSessionBoundary(session), (
-        Map<String, AttendanceMark> marksById,
-        DateTime now,
-      ) {
-        return _buildRosterSnapshot(
-          session: session,
-          studentsById: const <String, StudentModel>{},
-          marksById: marksById,
-          now: now,
-        );
-      });
+    studentMarks.forEach((studentId, list) {
+      if (list.isEmpty) return;
+      list.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      marks[studentId] = list.first;
     });
+
+    return _buildRosterSnapshot(
+      session: session,
+      studentsById: const <String, StudentModel>{},
+      marksById: marks,
+      now: _nowProvider(),
+    );
   }
 
   @override
-  Stream<SessionStatus> watchSessionStatus({
+  Future<SessionStatus> getSessionStatus({
     required String teamId,
     required String sessionId,
-  }) {
-    return _sessionDoc(teamId, sessionId).snapshots().map((doc) {
-      final data = doc.data();
-      if (!doc.exists || data == null) {
-        return SessionStatus.closed;
-      }
-      final isReopened = data['isReopenedForAdminEdit'] == true;
-      final isClosed = data['isClosed'] == true;
-      if (isReopened && !isClosed) {
-        return SessionStatus.reopened;
-      }
-      if (isClosed) {
-        return SessionStatus.closed;
-      }
-      return SessionStatus.open;
-    });
+  }) async {
+    final doc = await _sessionDoc(
+      teamId,
+      sessionId,
+    ).get(const GetOptions());
+    final data = doc.data();
+    if (!doc.exists || data == null) {
+      return SessionStatus.closed;
+    }
+    final isReopened = data['isReopenedForAdminEdit'] == true;
+    final isClosed = data['isClosed'] == true;
+    if (isReopened && !isClosed) {
+      return SessionStatus.reopened;
+    }
+    if (isClosed) {
+      return SessionStatus.closed;
+    }
+    return SessionStatus.open;
   }
 
   @override

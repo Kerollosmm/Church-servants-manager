@@ -1,17 +1,29 @@
 import 'dart:developer' as developer;
 import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
+import 'package:church_management_system/features/auth/data/services/auth_user_local_store.dart';
 import 'package:church_management_system/features/auth/domain/failures/auth_exceptions.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AuthUserProfileStore {
-  AuthUserProfileStore({FirebaseFirestore? firestore})
-    : _db = firestore ?? FirebaseFirestore.instance;
+  AuthUserProfileStore({
+    FirebaseFirestore? firestore,
+    required AuthUserLocalStore localStore,
+  }) : _db = firestore ?? FirebaseFirestore.instance,
+       _localStore = localStore;
 
   final FirebaseFirestore _db;
+  final AuthUserLocalStore _localStore;
 
   Future<AuthUser> fetchUser(String uid) async {
     try {
+      // Mandate: Check Hive before Firestore
+      final cached = _localStore.getUser();
+      if (cached != null && cached.uid == uid) {
+        return cached;
+      }
+
+      // Mandatory Check: One-time get with Source.serverAndCache
       final doc = await _db
           .collection(FirestoreCollections.users)
           .doc(uid)
@@ -21,7 +33,10 @@ class AuthUserProfileStore {
         throw UserNotFoundAuthException();
       }
 
-      return AuthUser.fromJson(doc.data()!);
+      final user = AuthUser.fromJson(doc.data()!);
+      // Persist to Hive immediately
+      await _localStore.saveUser(user);
+      return user;
     } catch (e) {
       if (e is UserNotFoundAuthException) rethrow;
       throw GenericAuthException('Failed to fetch user data: $e');

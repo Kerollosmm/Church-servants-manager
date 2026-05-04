@@ -63,9 +63,7 @@ class OchreTextField extends StatelessWidget {
             suffixIcon: suffixIcon,
             enabledBorder: OutlineInputBorder(
               borderRadius: AppRadius.smRadius,
-              borderSide: const BorderSide(
-                color: AppColors.outlineVariant,
-              ),
+              borderSide: const BorderSide(color: AppColors.outlineVariant),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: AppRadius.smRadius,

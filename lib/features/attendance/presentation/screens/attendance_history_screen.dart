@@ -19,7 +19,7 @@ import 'package:church_management_system/features/auth/data/models/auth_user.dar
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_management_system/features/team/data/models/team_model.dart';
 import 'package:church_management_system/features/team/data/repos/team_repository.dart';
-import 'package:church_management_system/features/team/presentation/bloc/team_cubit.dart';
+import 'package:church_management_system/features/team/presentation/bloc/team_bloc.dart';
 import 'package:church_management_system/features/team/presentation/widgets/team_dropdown.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -28,7 +28,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 ///
 /// Shows team dropdown, active session card, and history cards.
 /// Uses [AttendanceHistoryCubit], [AttendanceSessionAdminCubit],
-/// and [TeamCubit].
+/// and [TeamBloc].
 class AttendanceHistoryScreen extends StatefulWidget {
   const AttendanceHistoryScreen({super.key});
 
@@ -136,23 +136,26 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
 
         return MultiBlocProvider(
           providers: [
-            BlocProvider<TeamCubit>(
+            BlocProvider<TeamBloc>(
               create: (context) {
-                final teamCubit = TeamCubit(
+                final teamCubit = TeamBloc(
                   teamRepository: getIt<TeamRepository>(),
                   adminTeamService: getIt<AdminTeamService>(),
                 );
 
                 if (actor.role == UserRole.admin) {
-                  teamCubit.loadAllTeams();
+                  teamCubit.add(const TeamLoadAllRequested());
                 } else {
                   final groupId = actor.groupId;
                   if (groupId != null && groupId.isNotEmpty) {
-                    teamCubit.loadTeamsByGroup(
-                      groupId,
-                      defaultTeamId: actor.effectiveAssignedTeamIds.length == 1
-                          ? actor.effectiveAssignedTeamIds.first
-                          : null,
+                    teamCubit.add(
+                      TeamLoadRequested(
+                        groupId,
+                        defaultTeamId:
+                            actor.effectiveAssignedTeamIds.length == 1
+                            ? actor.effectiveAssignedTeamIds.first
+                            : null,
+                      ),
                     );
                   }
                 }
@@ -225,7 +228,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                         label: const Text('جلسة جديدة'),
                       )
                     : null,
-                body: BlocBuilder<TeamCubit, TeamState>(
+                body: BlocBuilder<TeamBloc, TeamState>(
                   builder: (context, teamState) {
                     final teams = teamState is TeamLoaded
                         ? teamState.teams

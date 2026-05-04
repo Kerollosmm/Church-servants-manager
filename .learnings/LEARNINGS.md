@@ -57,7 +57,7 @@ When reviewing code, check for methods that are defined but never called — esp
 Deleting domain-layer interface files couples BLoCs directly to Firebase implementations, destroying testability.
 
 ### Details
-The PR deleted `IServantRepository`, `IStudentRepository`, and stubbed `ITeamRepository`. This caused `ServantDataCubit`, `StudentDataBloc`, and `GetStudentsStreamUseCase` to depend directly on concrete `*DataRepository` classes that import `cloud_firestore`. This violates Clean Architecture's Dependency Inversion Principle and makes unit testing impossible without real Firebase or complex mocking.
+The PR deleted `IServantRepository`, `IStudentRepository`, and stubbed `ITeamRepository`. This caused `ServantDataBloc`, `StudentDataBloc`, and `GetStudentsStreamUseCase` to depend directly on concrete `*DataRepository` classes that import `cloud_firestore`. This violates Clean Architecture's Dependency Inversion Principle and makes unit testing impossible without real Firebase or complex mocking.
 
 ### Suggested Action
 Never delete domain interfaces even if they seem redundant. They are the contract that enables testability and implementation swapping. If an interface seems redundant, it's likely still serving the architectural purpose of decoupling layers.

@@ -7,7 +7,7 @@ import 'package:church_management_system/features/servant/data/models/servant_mo
 import 'package:church_management_system/features/servant/data/repo/servant_data_repository.dart';
 import 'package:church_management_system/features/team/data/models/team_model.dart';
 import 'package:church_management_system/features/team/presentation/bloc/assign_servant_options_cubit.dart';
-import 'package:church_management_system/features/team/presentation/bloc/team_cubit.dart';
+import 'package:church_management_system/features/team/presentation/bloc/team_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -147,15 +147,19 @@ class _AssignServantDialogState extends State<AssignServantDialog> {
                     _selectedId,
                   );
                   if (selectedServant == null) {
-                    context.read<TeamCubit>().unassignServant(
-                      actor: widget.actor,
-                      team: widget.team,
+                    context.read<TeamBloc>().add(
+                      ServantUnassignedFromTeam(
+                        actor: widget.actor,
+                        team: widget.team,
+                      ),
                     );
                   } else {
-                    context.read<TeamCubit>().assignServant(
-                      actor: widget.actor,
-                      team: widget.team,
-                      servant: selectedServant,
+                    context.read<TeamBloc>().add(
+                      ServantAssignedToTeam(
+                        actor: widget.actor,
+                        team: widget.team,
+                        servant: selectedServant,
+                      ),
                     );
                   }
                   Navigator.pop(context);

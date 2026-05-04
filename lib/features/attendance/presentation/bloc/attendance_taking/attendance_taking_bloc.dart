@@ -2,31 +2,39 @@ import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
-import 'package:church_management_system/features/attendance/data/models/attendance_roster_item.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_roster_snapshot.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
 import 'package:church_management_system/features/attendance/domain/failures/attendance_failures.dart';
+import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_event.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_state.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:rxdart/rxdart.dart';
 
-/// Cubit for managing attendance-taking UI state during a session.
+/// Bloc for managing attendance-taking UI state during a session.
 ///
-/// Listens to session-level marks and status streams, merging them atomically.
+/// Uses pull-to-refresh model for quota efficiency on Spark plan.
 /// Delegates mutations to [AttendanceRepository] with idempotency guards.
-class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
-  AttendanceTakingCubit({
+class AttendanceTakingBloc
+    extends Bloc<AttendanceTakingEvent, AttendanceTakingState> {
+  AttendanceTakingBloc({
     required AttendanceRepository repository,
     DateTime Function()? nowProvider,
   }) : _repository = repository,
        _nowProvider = nowProvider ?? DateTime.now,
-       super(const AttendanceTakingInitial());
+       super(const AttendanceTakingInitial()) {
+    on<InitializeSessionEvent>(_onInitializeSession);
+    on<RefreshSessionEvent>(_onRefreshSession);
+    on<MarkStudentPresentEvent>(_onMarkStudentPresent);
+    on<MarkStudentAbsentEvent>(_onMarkStudentAbsent);
+    on<MarkStudentLateEvent>(_onMarkStudentLate);
+    on<ClearStudentMarkEvent>(_onClearStudentMark);
+    on<SubmitSessionEvent>(_onSubmitSession);
+    on<MarkAllRemainingPresentEvent>(_onMarkAllRemainingPresent);
+    on<ResetMutationStatusEvent>(_onResetMutationStatus);
+  }
 
   final AttendanceRepository _repository;
   final DateTime Function() _nowProvider;
-
-  StreamSubscription<AttendanceTakingState>? _sessionSubscription;
 
   bool _permissionGranted = false;
   String? _cachedTeamId;
@@ -36,59 +44,70 @@ class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
   bool get isPermissionCached =>
       _permissionGranted && _cachedTeamId != null && _cachedSessionId != null;
 
-  /// Whether there are local marks waiting to be submitted.
-  bool get hasPendingMarks {
-    final cs = state;
-    return cs is AttendanceTakingLoaded && cs.pendingLocalMarks.isNotEmpty;
-  }
-
-  /// Number of students without any mark in the current roster.
-  int get unmarkedCount {
-    final currentState = state;
-    if (currentState is! AttendanceTakingLoaded) return 0;
-    return currentState.roster
-        .where((s) => !currentState.effectiveMarksMap.containsKey(s.studentId))
-        .length;
-  }
-
-  void initialize({
-    required String teamId,
-    required String sessionId,
-    AuthUser? actor,
-  }) {
+  Future<void> _onInitializeSession(
+    InitializeSessionEvent event,
+    Emitter<AttendanceTakingState> emit,
+  ) async {
     emit(const AttendanceTakingLoading());
-    _sessionSubscription?.cancel();
 
-    _sessionSubscription =
-        CombineLatestStream.combine2(
-          _repository.watchSessionRosterSnapshot(
-            teamId: teamId,
-            sessionId: sessionId,
+    try {
+      await _fetchAndEmitSessionData(event.teamId, event.sessionId, emit);
+
+      if (event.actor != null) {
+        unawaited(
+          _preloadPermission(
+            actor: event.actor!,
+            teamId: event.teamId,
+            sessionId: event.sessionId,
           ),
-          _repository.watchSessionStatus(teamId: teamId, sessionId: sessionId),
-          _mapSnapshotToState,
-        ).listen(
-          emit,
-          onError: (Object error, StackTrace stackTrace) {
-            developer.log(
-              'session stream failed',
-              error: error,
-              stackTrace: stackTrace,
-              name: 'AttendanceTakingCubit',
-            );
-            emit(
-              AttendanceTakingError(
-                mapExceptionToAttendanceFailure(error).message,
-              ),
-            );
-          },
         );
-
-    if (actor != null) {
-      unawaited(
-        _preloadPermission(actor: actor, teamId: teamId, sessionId: sessionId),
+      }
+    } catch (error, stackTrace) {
+      developer.log(
+        'initialize failed',
+        error: error,
+        stackTrace: stackTrace,
+        name: 'AttendanceTakingBloc',
+      );
+      emit(
+        AttendanceTakingError(mapExceptionToAttendanceFailure(error).message),
       );
     }
+  }
+
+  Future<void> _onRefreshSession(
+    RefreshSessionEvent event,
+    Emitter<AttendanceTakingState> emit,
+  ) async {
+    try {
+      await _fetchAndEmitSessionData(event.teamId, event.sessionId, emit);
+    } catch (error, stackTrace) {
+      developer.log(
+        'refresh failed',
+        error: error,
+        stackTrace: stackTrace,
+        name: 'AttendanceTakingBloc',
+      );
+    }
+  }
+
+  Future<void> _fetchAndEmitSessionData(
+    String teamId,
+    String sessionId,
+    Emitter<AttendanceTakingState> emit,
+  ) async {
+    final results = await Future.wait([
+      _repository.getSessionRosterSnapshot(
+        teamId: teamId,
+        sessionId: sessionId,
+      ),
+      _repository.getSessionStatus(teamId: teamId, sessionId: sessionId),
+    ]);
+
+    final snapshot = results[0] as AttendanceRosterSnapshot;
+    final status = results[1] as SessionStatus;
+
+    emit(_mapSnapshotToState(snapshot, status));
   }
 
   Future<void> _preloadPermission({
@@ -150,59 +169,70 @@ class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
     return currentState.effectiveMarksMap[studentId] == targetStatus;
   }
 
-  Future<void> markPresent({
-    required AuthUser actor,
-    required AttendanceRosterItem item,
-  }) async {
-    if (_shouldSkipMutation(item.studentId, AttendanceMarkStatus.present)) {
-      return;
-    }
+  void _onMarkStudentPresent(
+    MarkStudentPresentEvent event,
+    Emitter<AttendanceTakingState> emit,
+  ) {
+    _handleMarkUpdate(event.item.studentId, AttendanceMarkStatus.present, emit);
+  }
+
+  void _onMarkStudentAbsent(
+    MarkStudentAbsentEvent event,
+    Emitter<AttendanceTakingState> emit,
+  ) {
+    _handleMarkUpdate(event.item.studentId, AttendanceMarkStatus.absent, emit);
+  }
+
+  void _onMarkStudentLate(
+    MarkStudentLateEvent event,
+    Emitter<AttendanceTakingState> emit,
+  ) {
+    _handleMarkUpdate(event.item.studentId, AttendanceMarkStatus.late, emit);
+  }
+
+  void _handleMarkUpdate(
+    String studentId,
+    AttendanceMarkStatus targetStatus,
+    Emitter<AttendanceTakingState> emit,
+  ) {
+    if (_shouldSkipMutation(studentId, targetStatus)) return;
 
     final cs = state;
     if (cs is! AttendanceTakingLoaded) return;
+
     if (!cs.isSessionOpen) {
       emit(cs.copyWith(errorMessage: 'انتهى وقت تسجيل الحضور لهذه الجلسة.'));
       return;
     }
-    emit(cs.withPendingMark(item.studentId, AttendanceMarkStatus.present));
+
+    emit(cs.withPendingMark(studentId, targetStatus));
   }
 
-  Future<void> markLate({
-    required AuthUser actor,
-    required AttendanceRosterItem item,
-  }) async {
-    if (_shouldSkipMutation(item.studentId, AttendanceMarkStatus.late)) return;
-
-    final cs = state;
-    if (cs is! AttendanceTakingLoaded) return;
-    if (!cs.isSessionOpen) {
-      emit(cs.copyWith(errorMessage: 'انتهى وقت تسجيل الحضور لهذه الجلسة.'));
-      return;
-    }
-    emit(cs.withPendingMark(item.studentId, AttendanceMarkStatus.late));
-  }
-
-  Future<void> clearMark({
-    required AuthUser actor,
-    required AttendanceRosterItem item,
-  }) async {
+  Future<void> _onClearStudentMark(
+    ClearStudentMarkEvent event,
+    Emitter<AttendanceTakingState> emit,
+  ) async {
     final currentState = state;
     if (currentState is AttendanceTakingLoaded &&
-        !currentState.marksMap.containsKey(item.studentId)) {
+        !currentState.marksMap.containsKey(event.item.studentId)) {
       return;
     }
 
     await _runMutation(
+      emit: emit,
       action: () => _repository.clearStudentMark(
-        teamId: item.teamId,
-        sessionId: item.sessionId,
-        studentId: item.studentId,
-        requestedBy: actor,
+        teamId: event.item.teamId,
+        sessionId: event.item.sessionId,
+        studentId: event.item.studentId,
+        requestedBy: event.actor,
       ),
     );
   }
 
-  Future<void> submitAllPendingMarks({required AuthUser actor}) async {
+  Future<void> _onSubmitSession(
+    SubmitSessionEvent event,
+    Emitter<AttendanceTakingState> emit,
+  ) async {
     final cs = state;
     if (cs is! AttendanceTakingLoaded) return;
     if (cs.pendingLocalMarks.isEmpty) return;
@@ -212,11 +242,12 @@ class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
     );
 
     await _runMutation(
+      emit: emit,
       action: () => _repository.batchWriteMarks(
         teamId: cs.session.teamId,
         sessionId: cs.session.id,
         marks: pendingSnapshot,
-        markedBy: actor,
+        markedBy: event.actor,
         cachedPermission:
             _permissionGranted && _cachedTeamId == cs.session.teamId,
       ),
@@ -229,20 +260,27 @@ class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
     }
   }
 
-  Future<void> markAllRemainingPresent({required AuthUser actor}) async {
+  Future<void> _onMarkAllRemainingPresent(
+    MarkAllRemainingPresentEvent event,
+    Emitter<AttendanceTakingState> emit,
+  ) async {
     final currentState = state;
     if (currentState is! AttendanceTakingLoaded) return;
 
     await _runMutation(
+      emit: emit,
       action: () => _repository.markAllPresentForRemainingStudents(
         teamId: currentState.session.teamId,
         sessionId: currentState.session.id,
-        markedBy: actor,
+        markedBy: event.actor,
       ),
     );
   }
 
-  Future<void> _runMutation({required Future<void> Function() action}) async {
+  Future<void> _runMutation({
+    required Emitter<AttendanceTakingState> emit,
+    required Future<void> Function() action,
+  }) async {
     final currentState = state;
     if (currentState is! AttendanceTakingLoaded) return;
 
@@ -276,7 +314,7 @@ class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
         'mutation failed',
         error: error,
         stackTrace: stackTrace,
-        name: 'AttendanceTakingCubit',
+        name: 'AttendanceTakingBloc',
       );
       if (isClosed) return;
       if (state is! AttendanceTakingLoaded) return;
@@ -294,12 +332,19 @@ class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
   void _scheduleReset(Duration delay) {
     Future<void>.delayed(delay).then((_) {
       if (isClosed) return;
-      final current = state;
-      if (current is AttendanceTakingLoaded &&
-          current.mutationStatus == MutationStatus.success) {
-        emit(current.copyWith(mutationStatus: MutationStatus.idle));
-      }
+      add(const ResetMutationStatusEvent());
     });
+  }
+
+  void _onResetMutationStatus(
+    ResetMutationStatusEvent event,
+    Emitter<AttendanceTakingState> emit,
+  ) {
+    final current = state;
+    if (current is AttendanceTakingLoaded &&
+        current.mutationStatus == MutationStatus.success) {
+      emit(current.copyWith(mutationStatus: MutationStatus.idle));
+    }
   }
 
   @override
@@ -307,7 +352,6 @@ class AttendanceTakingCubit extends Cubit<AttendanceTakingState> {
     _permissionGranted = false;
     _cachedTeamId = null;
     _cachedSessionId = null;
-    await _sessionSubscription?.cancel();
     return super.close();
   }
 }

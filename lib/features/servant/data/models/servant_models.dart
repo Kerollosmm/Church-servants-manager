@@ -70,9 +70,6 @@ class ServantModel with _$ServantModel {
 
     /// Aggregated group attendance metrics (for US1 Trend Insights).
     Map<String, dynamic>? groupAttendanceSummary,
-
-    /// AI-generated insights and recommendations for the servant.
-    Map<String, dynamic>? aiRecommendations,
   }) = _ServantModel;
 
   /// Creates a ServantModel from JSON.
@@ -135,7 +132,7 @@ class ServantModel with _$ServantModel {
         ids.add(trimmed);
       }
     }
-      final legacyId = assignedTeamId?.trim();
+    final legacyId = assignedTeamId?.trim();
     if (legacyId != null && legacyId.isNotEmpty) {
       ids.add(legacyId);
     }
