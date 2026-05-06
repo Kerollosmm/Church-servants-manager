@@ -2,6 +2,7 @@ import 'package:church_management_system/core/routing/app_router.dart';
 import 'package:church_management_system/features/admin/data/admin_team_membership_service.dart';
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
 import 'package:church_management_system/features/admin/presentation/bloc/dashboard/admin_dashboard_bloc.dart';
+import 'package:church_management_system/features/attendance/data/local/attendance_local_datasource.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_mark_repository.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_session_repository.dart';
@@ -102,8 +103,14 @@ void configureDependencies() {
     ..registerLazySingleton<AttendanceSessionRepository>(
       () => AttendanceSessionRepository(firestore: getIt()),
     )
+    ..registerLazySingleton<AttendanceLocalDatasource>(
+      AttendanceLocalDatasource.new,
+    )
     ..registerLazySingleton<AttendanceMarkRepository>(
-      () => AttendanceMarkRepository(firestore: getIt()),
+      () => AttendanceMarkRepository(
+        firestore: getIt(),
+        localDatasource: getIt<AttendanceLocalDatasource>(),
+      ),
     )
     ..registerLazySingleton<ITeamRepository>(
       () => TeamRepository(firestore: getIt()),

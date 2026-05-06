@@ -6,7 +6,9 @@ import 'package:church_management_system/core/widgets/common/app_profile_header_
 import 'package:church_management_system/core/widgets/common/app_state_message.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:church_management_system/features/student/presentation/bloc/student_profile/student_profile_cubit.dart';
+import 'package:church_management_system/features/student/presentation/bloc/student_profile/student_profile_bloc.dart';
+import 'package:church_management_system/features/student/presentation/bloc/student_profile/student_profile_event.dart';
+import 'package:church_management_system/features/student/presentation/bloc/student_profile/student_profile_state.dart';
 import 'package:church_management_system/features/student/presentation/widgets/student_profile_setup_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -24,7 +26,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
   @override
   void initState() {
     super.initState();
-    context.read<StudentProfileCubit>().loadProfile(widget.user);
+    context.read<StudentProfileBloc>().add(LoadProfileEvent(widget.user));
   }
 
   @override
@@ -32,7 +34,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.user.uid != widget.user.uid ||
         oldWidget.user.isEmailVerified != widget.user.isEmailVerified) {
-      context.read<StudentProfileCubit>().loadProfile(widget.user);
+      context.read<StudentProfileBloc>().add(LoadProfileEvent(widget.user));
     }
   }
 
@@ -46,7 +48,9 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
             icon: const Icon(Icons.refresh),
             tooltip: 'تحديث',
             onPressed: () {
-              context.read<StudentProfileCubit>().loadProfile(widget.user);
+              context.read<StudentProfileBloc>().add(
+                LoadProfileEvent(widget.user),
+              );
             },
           ),
           IconButton(
@@ -58,7 +62,7 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
           ),
         ],
       ),
-      body: BlocBuilder<StudentProfileCubit, StudentProfileState>(
+      body: BlocBuilder<StudentProfileBloc, StudentProfileState>(
         builder: (context, state) {
           if (state is StudentProfileLoading ||
               state is StudentProfileInitial) {
@@ -84,7 +88,9 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
               title: 'تعذر تحميل الملف الشخصي',
               message: state.message,
               onRetry: () {
-                context.read<StudentProfileCubit>().loadProfile(widget.user);
+                context.read<StudentProfileBloc>().add(
+                  LoadProfileEvent(widget.user),
+                );
               },
             );
           }

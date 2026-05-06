@@ -37,6 +37,12 @@ _$ServantModelImpl _$$ServantModelImplFromJson(
       const <String>[],
   groupAttendanceSummary:
       json['groupAttendanceSummary'] as Map<String, dynamic>?,
+  syncStatus:
+      $enumDecodeNullable(_$SyncStatusEnumMap, json['syncStatus']) ??
+      SyncStatus.synced,
+  clientUpdatedAt: const FirestoreTimestampConverter().fromJson(
+    json['clientUpdatedAt'],
+  ),
 );
 
 Map<String, dynamic> _$$ServantModelImplToJson(
@@ -63,4 +69,14 @@ Map<String, dynamic> _$$ServantModelImplToJson(
   'assignedTeamId': instance.assignedTeamId,
   'assignedTeamIds': instance.assignedTeamIds,
   'groupAttendanceSummary': instance.groupAttendanceSummary,
+  'syncStatus': _$SyncStatusEnumMap[instance.syncStatus]!,
+  'clientUpdatedAt': const FirestoreTimestampConverter().toJson(
+    instance.clientUpdatedAt,
+  ),
+};
+
+const _$SyncStatusEnumMap = {
+  SyncStatus.pending: 'pending',
+  SyncStatus.synced: 'synced',
+  SyncStatus.failed: 'failed',
 };

@@ -122,9 +122,7 @@ class TeamRemoteDatasource {
         ? _classesCollection
         : _classesCollection.where('isArchived', isEqualTo: false);
 
-    final snapshot = await baseQuery.get(
-      const GetOptions(),
-    );
+    final snapshot = await baseQuery.get(const GetOptions());
 
     final teams = _teamsFromDocs(
       snapshot.docs,
@@ -157,9 +155,7 @@ class TeamRemoteDatasource {
     String id, {
     bool includeArchived = false,
   }) async {
-    final doc = await _classesCollection
-        .doc(id)
-        .get(const GetOptions());
+    final doc = await _classesCollection.doc(id).get(const GetOptions());
     if (doc.exists && doc.data() != null) {
       return _teamFromData(
         doc.data()!,

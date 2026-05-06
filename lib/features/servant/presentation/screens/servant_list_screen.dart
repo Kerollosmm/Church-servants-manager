@@ -7,9 +7,11 @@ import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
 import 'package:church_management_system/core/widgets/app_empty_state.dart';
 import 'package:church_management_system/core/widgets/app_error_state.dart';
-import 'package:church_management_system/core/widgets/cards/person_list_card.dart';
+import 'package:church_management_system/core/widgets/common/ochre_button.dart';
+import 'package:church_management_system/core/widgets/common/ochre_card.dart';
+import 'package:church_management_system/core/widgets/common/ochre_text_field.dart';
+import 'package:church_management_system/core/widgets/common/sanctuary_background.dart';
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
-import 'package:church_management_system/core/widgets/search/live_search_panel.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_management_system/features/servant/data/models/servant_models.dart';
@@ -137,8 +139,15 @@ class _ServantListScreenState extends State<ServantListScreen> {
         }
 
         return Scaffold(
+          extendBodyBehindAppBar: true,
           appBar: AppBar(
-            title: Text(_showArchived ? 'الخدام المؤرشفون' : 'الخدام'),
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            title: Text(
+              _showArchived ? 'الخدام المؤرشفون' : 'الخدام',
+              style: const TextStyle(color: AppColors.textPrimary),
+            ),
+            iconTheme: const IconThemeData(color: AppColors.textPrimary),
             actions: [
               IconButton(
                 icon: Icon(
@@ -159,7 +168,7 @@ class _ServantListScreenState extends State<ServantListScreen> {
               ),
               IconButton(
                 icon: const Icon(Icons.refresh),
-                tooltip: 'تحديث', // Refresh
+                tooltip: 'تحديث',
                 onPressed: () {
                   context.read<ServantDataBloc>().add(
                     ServantsRefreshRequested(actor: actor),
@@ -169,7 +178,9 @@ class _ServantListScreenState extends State<ServantListScreen> {
             ],
           ),
           floatingActionButton: _canManage(actor)
-              ? FloatingActionButton.extended(
+              ? FloatingActionButton(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.white,
                   onPressed: () async {
                     final result = await Navigator.pushNamed(
                       context,
@@ -180,162 +191,199 @@ class _ServantListScreenState extends State<ServantListScreen> {
                       await _refresh(actor);
                     }
                   },
-                  icon: const Icon(Icons.person_add),
-                  label: const Text('إضافة خادم'), // Add Servant
+                  child: const Icon(Icons.person_add),
                 )
               : null,
-          body: BlocConsumer<ServantDataBloc, ServantDataState>(
-            buildWhen: (prev, curr) {
-              if (prev.runtimeType != curr.runtimeType) return true;
-              if (curr is ServantDataLoaded && prev is ServantDataLoaded) {
-                return prev.servants != curr.servants ||
-                    prev.mutationStatus != curr.mutationStatus ||
-                    prev.isLoadingMore != curr.isLoadingMore;
-              }
-              return true;
-            },
-            listener: (context, state) {
-              if (state is ServantDataError) {
-                AppSnackbars.showError(context, state.message);
-              }
-              if (state is ServantDataLoaded &&
-                  state.feedbackMessage != null &&
-                  state.mutationStatus == ServantMutationStatus.success) {
-                AppSnackbars.showSuccess(
-                  context,
-                  state.feedbackMessage!,
-                  backgroundColor: AppColors.secondary,
-                );
-              }
-              if (state is ServantDataLoaded &&
-                  state.feedbackMessage != null &&
-                  state.mutationStatus == ServantMutationStatus.failure) {
-                AppSnackbars.showError(context, state.feedbackMessage!);
-              }
-            },
-            builder: (context, state) {
-              final viewData = _buildViewData(state);
+          body: SanctuaryBackground(
+            child: BlocConsumer<ServantDataBloc, ServantDataState>(
+              buildWhen: (prev, curr) {
+                if (prev.runtimeType != curr.runtimeType) return true;
+                if (curr is ServantDataLoaded && prev is ServantDataLoaded) {
+                  return prev.servants != curr.servants ||
+                      prev.mutationStatus != curr.mutationStatus ||
+                      prev.isLoadingMore != curr.isLoadingMore;
+                }
+                return true;
+              },
+              listener: (context, state) {
+                if (state is ServantDataError) {
+                  AppSnackbars.showError(context, state.message);
+                }
+                if (state is ServantDataLoaded &&
+                    state.feedbackMessage != null &&
+                    state.mutationStatus == ServantMutationStatus.success) {
+                  AppSnackbars.showSuccess(
+                    context,
+                    state.feedbackMessage!,
+                    backgroundColor: AppColors.secondary,
+                  );
+                }
+                if (state is ServantDataLoaded &&
+                    state.feedbackMessage != null &&
+                    state.mutationStatus == ServantMutationStatus.failure) {
+                  AppSnackbars.showError(context, state.feedbackMessage!);
+                }
+              },
+              builder: (context, state) {
+                final viewData = _buildViewData(state);
 
-              return RefreshIndicator(
-                onRefresh: () => _refresh(actor),
-                child: CustomScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  slivers: [
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(
-                          AppSpacing.md,
-                          AppSpacing.md,
-                          AppSpacing.md,
-                          AppSpacing.sm,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            LiveSearchPanel(
+                return RefreshIndicator(
+                  onRefresh: () => _refresh(actor),
+                  displacement: kToolbarHeight + 40,
+                  child: CustomScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    slivers: [
+                      SliverToBoxAdapter(
+                        child: SizedBox(height: kToolbarHeight + 20),
+                      ),
+                      SliverPersistentHeader(
+                        pinned: true,
+                        delegate: _SearchHeaderDelegate(
+                          child: OchreCard(
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.md,
+                            ),
+                            padding: const EdgeInsets.all(AppSpacing.md),
+                            borderRadius: AppRadius.mdRadius,
+                            child: OchreTextField(
                               controller: _searchController,
                               label: 'البحث عن خادم',
-                              hint: 'الاسم',
-                              clearTooltip: 'مسح',
-                              liveLabel: 'متصل بـ Firestore',
-                              isLoading: viewData.isLoading,
+                              placeholder: 'الاسم...',
+                              prefixIcon: Icons.search,
                               onChanged: (v) => _onSearchChanged(actor, v),
-                              onSubmitted: (v) {
-                                context.read<ServantDataBloc>().add(
-                                  ServantsSearchRequested(
-                                    actor: actor,
-                                    query: v,
-                                    includeArchived: _showArchived,
-                                  ),
-                                );
-                              },
-                              onClear: () => _clearSearch(actor),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    if (viewData.showInitialLoading)
-                      const SliverFillRemaining(
-                        hasScrollBody: false,
-                        child: Center(child: CircularProgressIndicator()),
-                      )
-                    else if (state is ServantDataError)
-                      SliverFillRemaining(
-                        hasScrollBody: false,
-                        child: AppErrorState(
-                          message: state.message,
-                          onRetry: () => context.read<ServantDataBloc>().add(
-                            ServantsLoadRequested(
-                              actor: actor,
-                              includeArchived: _showArchived,
+                              suffixIcon: _searchController.text.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(Icons.clear),
+                                      onPressed: () => _clearSearch(actor),
+                                    )
+                                  : (viewData.isLoading
+                                        ? const Padding(
+                                            padding: EdgeInsets.all(12),
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
+                                          )
+                                        : null),
                             ),
                           ),
                         ),
-                      )
-                    else if (viewData.showEmptyState)
-                      SliverFillRemaining(
-                        hasScrollBody: false,
-                        child: AppEmptyState(
-                          title: _showArchived
-                              ? 'لا يوجد خدام مؤرشفون'
-                              : 'لا يوجد خدام',
-                          subtitle: 'جرب البحث مرة أخرى أو أضف خادما جديدا.',
-                          onAction: _canManage(actor)
-                              ? () async {
-                                  final result = await Navigator.pushNamed(
-                                    context,
-                                    servantEdit,
-                                    arguments: ServantEditArgs(actor: actor),
-                                  );
-                                  if (result == true && mounted) {
-                                    await _refresh(actor);
+                      ),
+                      const SliverToBoxAdapter(child: AppSpacing.gapMd),
+                      if (viewData.showInitialLoading)
+                        const SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: Center(child: CircularProgressIndicator()),
+                        )
+                      else if (state is ServantDataError)
+                        SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: AppErrorState(
+                            message: state.message,
+                            onRetry: () => context.read<ServantDataBloc>().add(
+                              ServantsLoadRequested(
+                                actor: actor,
+                                includeArchived: _showArchived,
+                              ),
+                            ),
+                          ),
+                        )
+                      else if (viewData.showEmptyState)
+                        SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: AppEmptyState(
+                            title: _showArchived
+                                ? 'لا يوجد خدام مؤرشفون'
+                                : 'لا يوجد خدام',
+                            subtitle: 'جرب البحث مرة أخرى أو أضف خادما جديدا.',
+                            onAction: _canManage(actor)
+                                ? () async {
+                                    final result = await Navigator.pushNamed(
+                                      context,
+                                      servantEdit,
+                                      arguments: ServantEditArgs(actor: actor),
+                                    );
+                                    if (result == true && mounted) {
+                                      await _refresh(actor);
+                                    }
                                   }
-                                }
-                              : null,
-                          actionLabel: 'إضافة خادم',
-                          onRefresh: () => _refresh(actor),
-                        ),
-                      )
-                    else
-                      SliverList(
-                        delegate: SliverChildBuilderDelegate((context, index) {
-                          final servant = viewData.servants[index];
-                          return Padding(
-                            padding: const EdgeInsets.fromLTRB(
-                              AppSpacing.md,
-                              0,
-                              AppSpacing.md,
-                              AppSpacing.md,
-                            ),
-                            child: ServantCard(
-                              actor: actor,
-                              servant: servant,
-                              onTap: () => _openServantDetail(actor, servant),
-                            ),
-                          );
-                        }, childCount: viewData.servants.length),
-                      ),
-                    if (viewData.canLoadMore && viewData.loadedState != null)
-                      SliverToBoxAdapter(
-                        child: _LoadMoreServantsButton(
-                          isLoading: viewData.loadedState!.isLoadingMore,
-                          onPressed: () {
-                            context.read<ServantDataBloc>().add(
-                              ServantsLoadMoreRequested(actor: actor),
+                                : null,
+                            actionLabel: 'إضافة خادم',
+                            onRefresh: () => _refresh(actor),
+                          ),
+                        )
+                      else
+                        SliverList(
+                          delegate: SliverChildBuilderDelegate((
+                            context,
+                            index,
+                          ) {
+                            final servant = viewData.servants[index];
+                            return Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                AppSpacing.md,
+                                0,
+                                AppSpacing.md,
+                                AppSpacing.md,
+                              ),
+                              child: ServantCard(
+                                actor: actor,
+                                servant: servant,
+                                onTap: () => _openServantDetail(actor, servant),
+                              ),
                             );
-                          },
+                          }, childCount: viewData.servants.length),
                         ),
+                      if (viewData.canLoadMore && viewData.loadedState != null)
+                        SliverToBoxAdapter(
+                          child: _LoadMoreServantsButton(
+                            isLoading: viewData.loadedState!.isLoadingMore,
+                            onPressed: () {
+                              context.read<ServantDataBloc>().add(
+                                ServantsLoadMoreRequested(actor: actor),
+                              );
+                            },
+                          ),
+                        ),
+                      const SliverToBoxAdapter(
+                        child: SizedBox(height: AppSpacing.xl),
                       ),
-                  ],
-                ),
-              );
-            },
+                    ],
+                  ),
+                );
+              },
+            ),
           ),
         );
       },
     );
   }
+}
+
+class _SearchHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+
+  _SearchHeaderDelegate({required this.child});
+
+  @override
+  double get minExtent => 110;
+  @override
+  double get maxExtent => 110;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return Container(
+      color: Colors.transparent,
+      alignment: Alignment.center,
+      child: child,
+    );
+  }
+
+  @override
+  bool shouldRebuild(_SearchHeaderDelegate oldDelegate) => true;
 }
 
 class _ServantListViewData {
@@ -374,16 +422,13 @@ class _LoadMoreServantsButton extends StatelessWidget {
         AppSpacing.md,
         AppSpacing.lg,
       ),
-      child: OutlinedButton.icon(
-        onPressed: isLoading ? null : onPressed,
-        icon: isLoading
-            ? const SizedBox(
-                height: 16,
-                width: 16,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : const Icon(Icons.expand_more),
-        label: Text(isLoading ? 'جاري تحميل المزيد...' : 'تحميل المزيد'),
+      child: OchreButton(
+        text: isLoading ? 'جاري تحميل المزيد...' : 'تحميل المزيد',
+        isLoading: isLoading,
+        color: AppColors.surface,
+        textColor: AppColors.primary,
+        icon: Icons.expand_more,
+        onPressed: onPressed,
       ),
     );
   }
@@ -404,12 +449,48 @@ class ServantCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PersonListCard(
-      name: servant.name,
-      subtitle: servant.isArchived
-          ? 'خادم مؤرشف'
-          : 'المجموعة: ${servant.teamName ?? '--'}',
+    return OchreCard(
       onTap: onTap,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+            child: Text(
+              servant.name.isNotEmpty ? servant.name[0].toUpperCase() : '?',
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          AppSpacing.gapMd,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  servant.name,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                Text(
+                  servant.isArchived
+                      ? 'خادم مؤرشف'
+                      : 'المجموعة: ${servant.teamName ?? '--'}',
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right, color: AppColors.textTertiary),
+        ],
+      ),
     );
   }
 }

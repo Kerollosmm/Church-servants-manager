@@ -15,7 +15,7 @@ import 'package:church_management_system/features/student/domain/usecases/can_mu
 import 'package:church_management_system/features/student/domain/usecases/get_students_list_usecase.dart';
 import 'package:church_management_system/features/student/domain/usecases/provision_student_with_auth_usecase.dart';
 import 'package:church_management_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
-import 'package:church_management_system/features/student/presentation/bloc/student_profile/student_profile_cubit.dart';
+import 'package:church_management_system/features/student/presentation/bloc/student_profile/student_profile_bloc.dart';
 import 'package:church_management_system/features/student/presentation/screens/student_profile_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -57,7 +57,7 @@ class RoleUserRoute extends StatelessWidget {
         break;
       case UserRole.student:
         child = BlocProvider(
-          create: (context) => StudentProfileCubit(
+          create: (context) => StudentProfileBloc(
             studentRepository: getIt<IStudentRepository>(),
           ),
           child: StudentProfileScreen(user: user),

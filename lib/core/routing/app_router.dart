@@ -100,8 +100,15 @@ class AppRouter {
       case studentDetail:
         return _buildArgsValidatedRoute<StudentDetailArgs>(
           settings: settings,
-          builder: (args) =>
-              Builder(builder: (context) => StudentDetailScreen(args: args)),
+          builder: (args) => BlocProvider(
+            create: (context) => StudentDataBloc(
+              studentRepository: getIt<IStudentRepository>(),
+              getStudentsList: getIt<GetStudentsListUseCase>(),
+              canMutateStudent: getIt<CanMutateStudentUseCase>(),
+              provisionUseCase: getIt<ProvisionStudentWithAuthUseCase>(),
+            ),
+            child: StudentDetailScreen(args: args),
+          ),
           invalidMessage: 'Invalid student data',
         );
       case studentEdit:
@@ -135,13 +142,25 @@ class AppRouter {
       case servantDetail:
         return _buildArgsValidatedRoute<ServantDetailArgs>(
           settings: settings,
-          builder: (args) => AdminGate(child: ServantDetailScreen(args: args)),
+          builder: (args) => BlocProvider(
+            create: (context) => ServantDataBloc(
+              repository: getIt<IServantRepository>(),
+              provisionUseCase: getIt<ProvisionServantWithAuthUseCase>(),
+            ),
+            child: AdminGate(child: ServantDetailScreen(args: args)),
+          ),
           invalidMessage: 'Invalid servant data',
         );
       case servantEdit:
         return _buildArgsValidatedRoute<ServantEditArgs>(
           settings: settings,
-          builder: (args) => AdminGate(child: AddEditServantScreen(args: args)),
+          builder: (args) => BlocProvider(
+            create: (context) => ServantDataBloc(
+              repository: getIt<IServantRepository>(),
+              provisionUseCase: getIt<ProvisionServantWithAuthUseCase>(),
+            ),
+            child: AdminGate(child: AddEditServantScreen(args: args)),
+          ),
           invalidMessage: 'Invalid servant data',
         );
 

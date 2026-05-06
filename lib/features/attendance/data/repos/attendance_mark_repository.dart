@@ -1,6 +1,8 @@
 import 'dart:developer' as developer;
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
+import 'package:church_management_system/features/attendance/data/local/attendance_local_datasource.dart';
+import 'package:church_management_system/features/attendance/data/local/mark_sync_entry.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_mark.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
@@ -10,11 +12,19 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Repository responsible for attendance mark CRUD operations.
 /// Handles creating, updating, and deleting individual student marks within a session.
+///
+/// Implements write-behind pattern: mutations are persisted to [AttendanceLocalDatasource]
+/// first (Hive cache + sync queue), then attempted against Firestore. Network failures
+/// are caught silently — entries remain in the queue for the sync engine to retry.
 class AttendanceMarkRepository {
-  AttendanceMarkRepository({FirebaseFirestore? firestore})
-    : _firestore = firestore ?? FirebaseFirestore.instance;
+  AttendanceMarkRepository({
+    FirebaseFirestore? firestore,
+    required AttendanceLocalDatasource localDatasource,
+  }) : _firestore = firestore ?? FirebaseFirestore.instance,
+       _localDatasource = localDatasource;
 
   final FirebaseFirestore _firestore;
+  final AttendanceLocalDatasource _localDatasource;
 
   CollectionReference<Map<String, dynamic>> get _classesCollection =>
       _firestore.collection(FirestoreCollections.classes);
@@ -78,7 +88,9 @@ class AttendanceMarkRepository {
   }
 
   /// Creates a new attendance mark for a student.
-  /// Uses transaction to prevent double-counting on retry.
+  ///
+  /// **Write-behind**: Hive cache + sync queue first, then Firestore.
+  /// Network failures are caught — mark stays queued for retry.
   Future<void> createMark({
     required String teamId,
     required String sessionId,
@@ -96,40 +108,93 @@ class AttendanceMarkRepository {
       now: DateTime.now(),
     );
     final normalizedStudentId = studentId.trim();
-    final markRef = _markDoc(teamId, sessionId, normalizedStudentId);
-    final sessionRef = _sessionDoc(teamId, sessionId);
     final effectiveStudentName = studentNameSnapshot.trim().isNotEmpty
         ? studentNameSnapshot.trim()
         : 'مخدوم';
     final normalizedNote = note?.trim();
+    final now = DateTime.now();
 
-    // Use normal get and batch to support offline writes.
-    final markDoc = await markRef.get();
-    if (markDoc.exists) {
-      return;
-    }
-
-    final data = <String, dynamic>{
+    final markData = <String, dynamic>{
       'studentNameSnapshot': effectiveStudentName,
       'status': status.name,
       'markedByUserId': markedBy.uid,
       'markedByName': markedBy.name,
-      'markedAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
+      'markedAt': now.toIso8601String(),
+      'updatedAt': now.toIso8601String(),
+      if (normalizedNote != null && normalizedNote.isNotEmpty)
+        'note': normalizedNote,
     };
-    if (normalizedNote != null && normalizedNote.isNotEmpty) {
-      data['note'] = normalizedNote;
-    }
 
-    final batch = _firestore.batch()
-      ..set(markRef, data, SetOptions(merge: true))
-      ..set(sessionRef, {
-        '${status.name}Count': FieldValue.increment(1),
-      }, SetOptions(merge: true));
-    await batch.commit();
+    // 1. Write to Hive cache immediately.
+    await _localDatasource.cacheMark(
+      teamId: teamId,
+      sessionId: sessionId,
+      studentId: normalizedStudentId,
+      markData: markData,
+    );
+
+    // 2. Enqueue for Firestore sync.
+    await _localDatasource.enqueue(
+      MarkSyncEntry(
+        id: normalizedStudentId,
+        teamId: teamId,
+        sessionId: sessionId,
+        studentId: normalizedStudentId,
+        operation: MarkSyncOperation.create,
+        markData: markData,
+        queuedAt: now,
+      ),
+    );
+
+    // 3. Attempt Firestore write; silently catch network errors.
+    try {
+      final markRef = _markDoc(teamId, sessionId, normalizedStudentId);
+      final sessionRef = _sessionDoc(teamId, sessionId);
+
+      final markDoc = await markRef.get();
+      if (markDoc.exists) {
+        // Already exists — remove from sync queue and return.
+        await _localDatasource.removeFromQueue(
+          '${teamId}_${sessionId}_$normalizedStudentId',
+        );
+        return;
+      }
+
+      final firestoreData = <String, dynamic>{
+        'studentNameSnapshot': effectiveStudentName,
+        'status': status.name,
+        'markedByUserId': markedBy.uid,
+        'markedByName': markedBy.name,
+        'markedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+      if (normalizedNote != null && normalizedNote.isNotEmpty) {
+        firestoreData['note'] = normalizedNote;
+      }
+
+      final batch = _firestore.batch()
+        ..set(markRef, firestoreData, SetOptions(merge: true))
+        ..set(sessionRef, {
+          '${status.name}Count': FieldValue.increment(1),
+        }, SetOptions(merge: true));
+      await batch.commit();
+
+      // Synced — remove from queue.
+      await _localDatasource.removeFromQueue(
+        '${teamId}_${sessionId}_$normalizedStudentId',
+      );
+    } catch (error) {
+      developer.log(
+        'createMark queued for retry: $teamId/$sessionId/$normalizedStudentId',
+        error: error,
+        name: 'AttendanceMarkRepository',
+      );
+    }
   }
 
   /// Updates an existing attendance mark.
+  ///
+  /// **Write-behind**: Hive cache + sync queue first, then Firestore.
   Future<void> updateMark({
     required String teamId,
     required String sessionId,
@@ -146,40 +211,89 @@ class AttendanceMarkRepository {
       now: DateTime.now(),
     );
     final normalizedStudentId = studentId.trim();
-    final markRef = _markDoc(teamId, sessionId, normalizedStudentId);
-    final sessionRef = _sessionDoc(teamId, sessionId);
     final normalizedNote = note?.trim();
+    final now = DateTime.now();
 
-    final markDoc = await markRef.get();
-    if (!markDoc.exists) return;
-
-    final oldStatusStr = markDoc.data()?['status'] as String?;
-    final oldStatus = AttendanceMarkStatus.values.firstWhere(
-      (e) => e.name == oldStatusStr,
-      orElse: () => AttendanceMarkStatus.present,
-    );
-
-    final batch = _firestore.batch();
-    if (oldStatus != status) {
-      batch.set(sessionRef, {
-        '${oldStatus.name}Count': FieldValue.increment(-1),
-        '${status.name}Count': FieldValue.increment(1),
-      }, SetOptions(merge: true));
-    }
-
-    batch.set(markRef, {
+    final markData = <String, dynamic>{
       'status': status.name,
       'markedByUserId': markedBy.uid,
       'markedByName': markedBy.name,
-      'updatedAt': FieldValue.serverTimestamp(),
-      'note': normalizedNote == null || normalizedNote.isEmpty
-          ? FieldValue.delete()
-          : normalizedNote,
-    }, SetOptions(merge: true));
-    await batch.commit();
+      'updatedAt': now.toIso8601String(),
+      if (normalizedNote != null && normalizedNote.isNotEmpty)
+        'note': normalizedNote,
+    };
+
+    // 1. Update Hive cache.
+    await _localDatasource.cacheMark(
+      teamId: teamId,
+      sessionId: sessionId,
+      studentId: normalizedStudentId,
+      markData: markData,
+    );
+
+    // 2. Enqueue for sync.
+    await _localDatasource.enqueue(
+      MarkSyncEntry(
+        id: normalizedStudentId,
+        teamId: teamId,
+        sessionId: sessionId,
+        studentId: normalizedStudentId,
+        operation: MarkSyncOperation.update,
+        markData: markData,
+        queuedAt: now,
+      ),
+    );
+
+    // 3. Attempt Firestore write.
+    try {
+      final markRef = _markDoc(teamId, sessionId, normalizedStudentId);
+      final sessionRef = _sessionDoc(teamId, sessionId);
+
+      final markDoc = await markRef.get();
+      if (!markDoc.exists) return;
+
+      final oldStatusStr = markDoc.data()?['status'] as String?;
+      final oldStatus = AttendanceMarkStatus.values.firstWhere(
+        (e) => e.name == oldStatusStr,
+        orElse: () => AttendanceMarkStatus.present,
+      );
+
+      final batch = _firestore.batch();
+      if (oldStatus != status) {
+        batch.set(sessionRef, {
+          '${oldStatus.name}Count': FieldValue.increment(-1),
+          '${status.name}Count': FieldValue.increment(1),
+        }, SetOptions(merge: true));
+      }
+
+      batch.set(markRef, {
+        'status': status.name,
+        'markedByUserId': markedBy.uid,
+        'markedByName': markedBy.name,
+        'updatedAt': FieldValue.serverTimestamp(),
+        'note': normalizedNote == null || normalizedNote.isEmpty
+            ? FieldValue.delete()
+            : normalizedNote,
+      }, SetOptions(merge: true));
+      await batch.commit();
+
+      // Synced — remove from queue.
+      await _localDatasource.removeFromQueue(
+        '${teamId}_${sessionId}_$normalizedStudentId',
+      );
+    } catch (error) {
+      developer.log(
+        'updateMark queued for retry: $teamId/$sessionId/$normalizedStudentId',
+        error: error,
+        name: 'AttendanceMarkRepository',
+      );
+    }
   }
 
   /// Deletes an attendance mark (toggle-off behavior per FR-08.7).
+  ///
+  /// **Write-behind**: removes from Hive cache, enqueues delete, then attempts
+  /// Firestore transaction. Session counts may temporarily drift while offline.
   Future<void> deleteMark({
     required String teamId,
     required String sessionId,
@@ -194,25 +308,59 @@ class AttendanceMarkRepository {
       now: DateTime.now(),
     );
     final normalizedStudentId = studentId.trim();
-    final markRef = _markDoc(teamId, sessionId, normalizedStudentId);
-    final sessionRef = _sessionDoc(teamId, sessionId);
 
-    await _firestore.runTransaction((transaction) async {
-      final markDoc = await transaction.get(markRef);
-      if (!markDoc.exists) return;
+    // 1. Remove from Hive cache.
+    await _localDatasource.removeCachedMark(
+      teamId: teamId,
+      sessionId: sessionId,
+      studentId: normalizedStudentId,
+    );
 
-      final oldStatusStr = markDoc.data()?['status'] as String?;
-      final oldStatus = AttendanceMarkStatus.values.firstWhere(
-        (e) => e.name == oldStatusStr,
-        orElse: () => AttendanceMarkStatus.present,
+    // 2. Enqueue delete for sync.
+    await _localDatasource.enqueue(
+      MarkSyncEntry(
+        id: normalizedStudentId,
+        teamId: teamId,
+        sessionId: sessionId,
+        studentId: normalizedStudentId,
+        operation: MarkSyncOperation.delete,
+        queuedAt: DateTime.now(),
+      ),
+    );
+
+    // 3. Attempt Firestore transaction.
+    try {
+      final markRef = _markDoc(teamId, sessionId, normalizedStudentId);
+      final sessionRef = _sessionDoc(teamId, sessionId);
+
+      await _firestore.runTransaction((transaction) async {
+        final markDoc = await transaction.get(markRef);
+        if (!markDoc.exists) return;
+
+        final oldStatusStr = markDoc.data()?['status'] as String?;
+        final oldStatus = AttendanceMarkStatus.values.firstWhere(
+          (e) => e.name == oldStatusStr,
+          orElse: () => AttendanceMarkStatus.present,
+        );
+
+        transaction
+          ..update(sessionRef, {
+            '${oldStatus.name}Count': FieldValue.increment(-1),
+          })
+          ..delete(markRef);
+      });
+
+      // Synced — remove from queue.
+      await _localDatasource.removeFromQueue(
+        '${teamId}_${sessionId}_$normalizedStudentId',
       );
-
-      transaction
-        ..update(sessionRef, {
-          '${oldStatus.name}Count': FieldValue.increment(-1),
-        })
-        ..delete(markRef);
-    });
+    } catch (error) {
+      developer.log(
+        'deleteMark queued for retry: $teamId/$sessionId/$normalizedStudentId',
+        error: error,
+        name: 'AttendanceMarkRepository',
+      );
+    }
   }
 
   /// Gets all marks for a session.

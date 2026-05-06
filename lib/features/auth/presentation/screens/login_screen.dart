@@ -3,15 +3,13 @@ import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
 import 'package:church_management_system/core/utils/validators.dart';
 import 'package:church_management_system/core/widgets/app_logo.dart';
+import 'package:church_management_system/core/widgets/common/ochre_button.dart';
+import 'package:church_management_system/core/widgets/common/ochre_text_field.dart';
+import 'package:church_management_system/core/widgets/common/sanctuary_background.dart';
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
-
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_management_system/features/auth/presentation/widgets/email_verification_dialog.dart';
 import 'package:church_management_system/features/auth/presentation/widgets/ochre_auth_card.dart';
-import 'package:church_management_system/features/auth/presentation/widgets/ochre_background.dart';
-import 'package:church_management_system/features/auth/presentation/widgets/ochre_button.dart';
-import 'package:church_management_system/features/auth/presentation/widgets/ochre_text_field.dart';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -78,7 +76,7 @@ class _LoginScreenState extends State<LoginScreen> {
             );
           }
         },
-        child: OchreBackground(
+        child: SanctuaryBackground(
           child: SafeArea(
             child: Center(
               child: SingleChildScrollView(

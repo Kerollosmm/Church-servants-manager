@@ -34,6 +34,12 @@ _$StudentModelImpl _$$StudentModelImplFromJson(
   restoredByUserId: json['restoredByUserId'] as String?,
   classId: json['classId'] as String?,
   attendanceSummary: json['attendanceSummary'] as Map<String, dynamic>?,
+  syncStatus:
+      $enumDecodeNullable(_$SyncStatusEnumMap, json['syncStatus']) ??
+      SyncStatus.synced,
+  clientUpdatedAt: const FirestoreTimestampConverter().fromJson(
+    json['clientUpdatedAt'],
+  ),
 );
 
 Map<String, dynamic> _$$StudentModelImplToJson(
@@ -64,6 +70,10 @@ Map<String, dynamic> _$$StudentModelImplToJson(
   'restoredByUserId': instance.restoredByUserId,
   'classId': instance.classId,
   'attendanceSummary': instance.attendanceSummary,
+  'syncStatus': _$SyncStatusEnumMap[instance.syncStatus]!,
+  'clientUpdatedAt': const FirestoreTimestampConverter().toJson(
+    instance.clientUpdatedAt,
+  ),
 };
 
 const _$UserRoleEnumMap = {
@@ -82,4 +92,10 @@ const _$EducationStageEnumMap = {
   EducationStage.preparatory: 'preparatory',
   EducationStage.highSchool: 'highSchool',
   EducationStage.college: 'college',
+};
+
+const _$SyncStatusEnumMap = {
+  SyncStatus.pending: 'pending',
+  SyncStatus.synced: 'synced',
+  SyncStatus.failed: 'failed',
 };

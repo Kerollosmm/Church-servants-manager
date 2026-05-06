@@ -1,11 +1,12 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/routes.dart';
 import 'package:church_management_system/core/routing/route_args.dart';
+import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
-import 'package:church_management_system/core/widgets/common/app_detail_section_card.dart';
 import 'package:church_management_system/core/widgets/common/app_info_banner.dart';
 import 'package:church_management_system/core/widgets/common/app_key_value_row.dart';
-import 'package:church_management_system/core/widgets/common/app_profile_header_card.dart';
+import 'package:church_management_system/core/widgets/common/ochre_card.dart';
+import 'package:church_management_system/core/widgets/common/sanctuary_background.dart';
 import 'package:church_management_system/core/widgets/dialogs/generic_dialog.dart';
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
 import 'package:church_management_system/features/servant/presentation/bloc/servant_data/servant_data_bloc.dart';
@@ -47,13 +48,20 @@ class ServantDetailScreen extends StatelessWidget {
         }
       },
       child: Scaffold(
+        extendBodyBehindAppBar: true,
         appBar: AppBar(
-          title: const Text('تفاصيل الخادم'), // Servant Details
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          title: const Text(
+            'تفاصيل الخادم',
+            style: TextStyle(color: AppColors.textPrimary),
+          ),
+          iconTheme: const IconThemeData(color: AppColors.textPrimary),
           actions: [
             if (canEdit && !servant.isArchived)
               IconButton(
                 icon: const Icon(Icons.edit_outlined),
-                tooltip: 'تعديل', // Edit
+                tooltip: 'تعديل',
                 onPressed: () {
                   Navigator.pushNamed(
                     context,
@@ -79,8 +87,7 @@ class ServantDetailScreen extends StatelessWidget {
                   );
                   if (shouldArchive != true || !context.mounted) return;
 
-                  final cubit = context.read<ServantDataBloc>();
-                  cubit.add(
+                  context.read<ServantDataBloc>().add(
                     ServantDeleted(actor: args.actor, docId: servant.docID),
                   );
                 },
@@ -99,77 +106,80 @@ class ServantDetailScreen extends StatelessWidget {
                   );
                   if (shouldRestore != true || !context.mounted) return;
 
-                  final cubit = context.read<ServantDataBloc>();
-                  cubit.add(
+                  context.read<ServantDataBloc>().add(
                     ServantRestored(actor: args.actor, docId: servant.docID),
                   );
                 },
               ),
           ],
         ),
-        body: ListView(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          children: [
-            _HeaderCard(
-              servantName: servant.name,
-              teamName: servant.teamName ?? '--',
+        body: SanctuaryBackground(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              kToolbarHeight + AppSpacing.xl,
+              AppSpacing.md,
+              AppSpacing.xl,
             ),
-            AppSpacing.gapMd,
-            _InfoSection(
-              title: 'البيانات الأساسية', // Basic Info
-              children: [
-                _InfoRow(label: 'الاسم', value: servant.name), // Name
-                _InfoRow(
-                  label: 'المجموعة',
-                  value: _optional(servant.teamName),
-                ), // Team
-                _InfoRow(label: 'الدور', value: servant.role.name), // Role
-              ],
-            ),
-            AppSpacing.gapMd,
-            _InfoSection(
-              title: 'بيانات التواصل', // Contact
-              children: [
-                _InfoRow(
-                  label: 'رقم الهاتف',
-                  value: _optional(servant.phone),
-                ), // Phone
-                _InfoRow(
-                  label: 'البريد الإلكتروني',
-                  value: _optional(servant.email),
-                ), // Email
-              ],
-            ),
-            AppSpacing.gapMd,
-            _InfoSection(
-              title: 'بيانات أخرى', // Other
-              children: [
-                _InfoRow(
-                  label: 'تاريخ الميلاد',
-                  value: _formatDate(servant.birthdate),
-                ), // Birthdate
-                _InfoRow(
-                  label: 'أب الاعتراف',
-                  value: _optional(servant.fatherOfConfession),
-                ), // Father of Confession
-                _InfoRow(
-                  label: 'ملاحظات',
-                  value: _optional(servant.notes),
-                ), // Notes
-              ],
-            ),
-            AppSpacing.gapMd,
-            AppInfoBanner(
-              icon: servant.isArchived
-                  ? Icons.archive_outlined
-                  : Icons.cloud_done,
-              message: servant.isArchived
-                  ? 'هذا الخادم مؤرشف حاليا ويحتاج إلى إعادة تعيين فريق بعد الاستعادة.'
-                  : canEdit
-                  ? 'صلاحية المسؤول: تعديل'
-                  : 'عرض فقط',
-            ),
-          ],
+            children: [
+              _ProfileAvatarHeader(
+                name: servant.name,
+                isActive: !servant.isArchived,
+              ),
+              AppSpacing.gapLg,
+              _InfoSection(
+                title: 'البيانات الأساسية',
+                children: [
+                  _InfoRow(label: 'الاسم', value: servant.name),
+                  _InfoRow(
+                    label: 'المجموعة',
+                    value: _optional(servant.teamName),
+                  ),
+                  _InfoRow(label: 'الدور', value: servant.role.name),
+                ],
+              ),
+              AppSpacing.gapMd,
+              _InfoSection(
+                title: 'بيانات التواصل',
+                children: [
+                  _InfoRow(
+                    label: 'رقم الهاتف',
+                    value: _optional(servant.phone),
+                  ),
+                  _InfoRow(
+                    label: 'البريد الإلكتروني',
+                    value: _optional(servant.email),
+                  ),
+                ],
+              ),
+              AppSpacing.gapMd,
+              _InfoSection(
+                title: 'بيانات أخرى',
+                children: [
+                  _InfoRow(
+                    label: 'تاريخ الميلاد',
+                    value: _formatDate(servant.birthdate),
+                  ),
+                  _InfoRow(
+                    label: 'أب الاعتراف',
+                    value: _optional(servant.fatherOfConfession),
+                  ),
+                  _InfoRow(label: 'ملاحظات', value: _optional(servant.notes)),
+                ],
+              ),
+              AppSpacing.gapLg,
+              AppInfoBanner(
+                icon: servant.isArchived
+                    ? Icons.archive_outlined
+                    : Icons.verified_user_outlined,
+                message: servant.isArchived
+                    ? 'هذا الخادم مؤرشف حالياً ويحتاج إلى إعادة تعيين فريق بعد الاستعادة.'
+                    : canEdit
+                    ? 'صلاحية المسؤول: عرض وتعديل كامل البيانات.'
+                    : 'أنت تشاهد تفاصيل الخادم.',
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -187,18 +197,72 @@ class ServantDetailScreen extends StatelessWidget {
   }
 }
 
-class _HeaderCard extends StatelessWidget {
-  final String servantName;
-  final String teamName;
+class _ProfileAvatarHeader extends StatelessWidget {
+  final String name;
+  final bool isActive;
 
-  const _HeaderCard({required this.servantName, required this.teamName});
+  const _ProfileAvatarHeader({required this.name, required this.isActive});
 
   @override
   Widget build(BuildContext context) {
-    return AppProfileHeaderCard(
-      title: servantName,
-      subtitle: 'المجموعة: $teamName',
-      avatarText: servantName.isNotEmpty ? servantName[0].toUpperCase() : '?',
+    return Column(
+      children: [
+        Stack(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: AppColors.primary.withValues(alpha: 0.2),
+                  width: 2,
+                ),
+              ),
+              child: CircleAvatar(
+                radius: 50,
+                backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                child: Text(
+                  name.isNotEmpty ? name[0].toUpperCase() : '?',
+                  style: const TextStyle(
+                    fontSize: 40,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: 8,
+              right: 8,
+              child: Container(
+                width: 18,
+                height: 18,
+                decoration: BoxDecoration(
+                  color: isActive ? AppColors.secondary : AppColors.error,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.white, width: 3),
+                ),
+              ),
+            ),
+          ],
+        ),
+        AppSpacing.gapMd,
+        Text(
+          name,
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        Text(
+          isActive ? 'حساب نشط' : 'حساب مؤرشف',
+          style: TextStyle(
+            color: isActive ? AppColors.secondary : AppColors.error,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -211,7 +275,22 @@ class _InfoSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppDetailSectionCard(title: title, children: children);
+    return OchreCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: AppColors.primary,
+            ),
+          ),
+          AppSpacing.gapMd,
+          ...children,
+        ],
+      ),
+    );
   }
 }
 
@@ -223,6 +302,9 @@ class _InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppKeyValueRow(label: label, value: value, labelWidth: 140);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: AppKeyValueRow(label: label, value: value, labelWidth: 120),
+    );
   }
 }

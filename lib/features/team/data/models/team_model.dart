@@ -1,3 +1,4 @@
+import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/utils/json_converters.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:hive/hive.dart';
@@ -8,8 +9,6 @@ part 'team_model.freezed.dart';
 part 'team_model.g.dart';
 
 typedef _TimestampConverter = FirestoreTimestampConverter;
-
-enum SyncStatus { pending, synced, failed }
 
 class SyncStatusAdapter extends TypeAdapter<SyncStatus> {
   @override

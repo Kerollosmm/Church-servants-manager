@@ -1,8 +1,7 @@
-import 'dart:developer' as developer;
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
-import 'package:church_management_system/core/utils/list_extensions.dart';
 import 'package:church_management_system/core/utils/pagination_cursor.dart';
+import 'package:church_management_system/features/servant/data/datasources/servant_local_datasource.dart';
 import 'package:church_management_system/features/servant/data/models/servant_models.dart';
 import 'package:church_management_system/features/servant/domain/failures/servant_failures.dart';
 import 'package:church_management_system/features/servant/domain/repos/i_servant_repository.dart';
@@ -27,9 +26,13 @@ class ServantsPage {
 /// Servants are stored in the Users collection with role == 'servant'.
 class ServantDataRepository implements IServantRepository {
   final FirebaseFirestore _firestore;
+  final ServantLocalDatasource _localDatasource;
 
-  ServantDataRepository({required FirebaseFirestore firestore})
-    : _firestore = firestore;
+  ServantDataRepository({
+    required FirebaseFirestore firestore,
+    ServantLocalDatasource? localDatasource,
+  }) : _firestore = firestore,
+       _localDatasource = localDatasource ?? ServantLocalDatasource();
 
   /// Reference to Users collection (servants are users with role == servant)
   CollectionReference<Map<String, dynamic>> get _usersCollection =>
@@ -294,19 +297,31 @@ class ServantDataRepository implements IServantRepository {
   @override
   Future<String> createServant(ServantModel servant) async {
     try {
-      final normalizedUid = servant.uid?.trim();
-      final docId = (normalizedUid != null && normalizedUid.isNotEmpty)
-          ? normalizedUid
-          : _usersCollection.doc().id;
-      final normalizedServant = servant.copyWith(
-        docID: docId,
-        uid: normalizedUid == null || normalizedUid.isEmpty
-            ? servant.uid
-            : normalizedUid,
+      final docRef = servant.docID.isNotEmpty
+          ? _usersCollection.doc(servant.docID)
+          : _usersCollection.doc();
+
+      final finalServant = servant.copyWith(
+        docID: docRef.id,
+        syncStatus: SyncStatus.pending,
+        clientUpdatedAt: DateTime.now(),
       );
-      final data = _normalizeServantWriteData(normalizedServant);
-      await _usersCollection.doc(docId).set(data, SetOptions(merge: true));
-      return docId;
+
+      await _localDatasource.saveServant(finalServant);
+      await _localDatasource.queueForSync(finalServant);
+
+      try {
+        await docRef.set(_normalizeServantWriteData(finalServant));
+        final syncedServant = finalServant.copyWith(
+          syncStatus: SyncStatus.synced,
+        );
+        await _localDatasource.saveServant(syncedServant);
+        await _localDatasource.removeFromSyncQueue(docRef.id);
+      } catch (networkError) {
+        // Retain pending status locally.
+      }
+
+      return docRef.id;
     } catch (e) {
       throw mapExceptionToServantFailure(e);
     }
@@ -315,11 +330,29 @@ class ServantDataRepository implements IServantRepository {
   @override
   Future<void> upsertServant(ServantModel servant) async {
     try {
-      final data = _normalizeServantWriteData(servant);
+      final finalServant = servant.copyWith(
+        syncStatus: SyncStatus.pending,
+        clientUpdatedAt: DateTime.now(),
+      );
 
-      await _usersCollection
-          .doc(servant.docID)
-          .set(data, SetOptions(merge: true));
+      await _localDatasource.saveServant(finalServant);
+      await _localDatasource.queueForSync(finalServant);
+
+      try {
+        await _usersCollection
+            .doc(servant.docID)
+            .set(
+              _normalizeServantWriteData(finalServant),
+              SetOptions(merge: true),
+            );
+        final syncedServant = finalServant.copyWith(
+          syncStatus: SyncStatus.synced,
+        );
+        await _localDatasource.saveServant(syncedServant);
+        await _localDatasource.removeFromSyncQueue(servant.docID);
+      } catch (networkError) {
+        // Retain pending status locally.
+      }
     } catch (e) {
       throw mapExceptionToServantFailure(e);
     }
@@ -327,23 +360,7 @@ class ServantDataRepository implements IServantRepository {
 
   @override
   Future<void> updateServant(ServantModel servant) async {
-    try {
-      final oldServant = await getServantById(
-        servant.docID,
-        includeArchived: true,
-      );
-      final data = _normalizeServantWriteData(servant);
-      await _usersCollection.doc(servant.docID).update(data);
-
-      if (oldServant != null && oldServant.name != servant.name) {
-        await propagateServantNameToTeams(
-          servantUid: servant.docID,
-          newName: servant.name,
-        );
-      }
-    } catch (e) {
-      throw mapExceptionToServantFailure(e);
-    }
+    return upsertServant(servant);
   }
 
   @override
@@ -352,7 +369,31 @@ class ServantDataRepository implements IServantRepository {
     Map<String, dynamic> fields,
   ) async {
     try {
-      await _usersCollection.doc(docId).update(fields);
+      final existing = await _localDatasource.getServant(docId);
+      if (existing != null) {
+        final updatedData = {...existing.toMap(), ...fields};
+        final updated = ServantModel.fromMap(updatedData, docId).copyWith(
+          syncStatus: SyncStatus.pending,
+          clientUpdatedAt: DateTime.now(),
+        );
+        await _localDatasource.saveServant(updated);
+        await _localDatasource.queueForSync(updated);
+      }
+
+      try {
+        await _usersCollection.doc(docId).update(fields);
+        if (existing != null) {
+          final updatedData = {...existing.toMap(), ...fields};
+          final synced = ServantModel.fromMap(
+            updatedData,
+            docId,
+          ).copyWith(syncStatus: SyncStatus.synced);
+          await _localDatasource.saveServant(synced);
+          await _localDatasource.removeFromSyncQueue(docId);
+        }
+      } catch (networkError) {
+        // Retain pending status locally.
+      }
     } catch (e) {
       throw mapExceptionToServantFailure(e);
     }
@@ -364,16 +405,39 @@ class ServantDataRepository implements IServantRepository {
     required String performedByUid,
   }) async {
     try {
-      await _usersCollection.doc(docId).set({
+      final fields = {
         'isArchived': true,
         'archivedAt': FieldValue.serverTimestamp(),
-        'archivedByUserId': performedByUid.trim().isEmpty
-            ? 'system'
-            : performedByUid,
-        'restorePendingPasswordReset': false,
-        'assignedTeamIds': FieldValue.delete(),
+        'archivedByUserId': performedByUid,
         'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      };
+
+      final existing = await _localDatasource.getServant(docId);
+      if (existing != null) {
+        final updated = existing.copyWith(
+          isArchived: true,
+          archivedAt: DateTime.now(),
+          archivedByUserId: performedByUid,
+          syncStatus: SyncStatus.pending,
+          clientUpdatedAt: DateTime.now(),
+        );
+        await _localDatasource.saveServant(updated);
+        await _localDatasource.queueForSync(updated);
+      }
+
+      try {
+        await _usersCollection.doc(docId).update(fields);
+        if (existing != null) {
+          final synced = existing.copyWith(
+            isArchived: true,
+            syncStatus: SyncStatus.synced,
+          );
+          await _localDatasource.saveServant(synced);
+          await _localDatasource.removeFromSyncQueue(docId);
+        }
+      } catch (networkError) {
+        // Retain pending status locally.
+      }
     } catch (e) {
       throw mapExceptionToServantFailure(e);
     }
@@ -387,36 +451,49 @@ class ServantDataRepository implements IServantRepository {
     List<String>? assignedTeamIds,
   }) async {
     try {
-      final updates = <String, dynamic>{
+      final fields = <String, dynamic>{
         'isArchived': false,
-        'restorePendingPasswordReset': true,
         'restoredAt': FieldValue.serverTimestamp(),
-        'restoredByUserId': performedByUid.trim().isEmpty
-            ? 'system'
-            : performedByUid,
+        'restoredByUserId': performedByUid,
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
-      if (assignedTeamId != null) {
-        updates['assignedTeamId'] = assignedTeamId;
-      }
-      if (assignedTeamIds != null) {
-        updates['assignedTeamIds'] = assignedTeamIds;
+      if (assignedTeamId != null) fields['assignedTeamId'] = assignedTeamId;
+      if (assignedTeamIds != null) fields['assignedTeamIds'] = assignedTeamIds;
+
+      final existing = await _localDatasource.getServant(docId);
+      if (existing != null) {
+        final updated = existing.copyWith(
+          isArchived: false,
+          restoredAt: DateTime.now(),
+          restoredByUserId: performedByUid,
+          assignedTeamId: assignedTeamId ?? existing.assignedTeamId,
+          assignedTeamIds: assignedTeamIds ?? existing.assignedTeamIds,
+          syncStatus: SyncStatus.pending,
+          clientUpdatedAt: DateTime.now(),
+        );
+        await _localDatasource.saveServant(updated);
+        await _localDatasource.queueForSync(updated);
       }
 
-      await _usersCollection.doc(docId).set(updates, SetOptions(merge: true));
+      try {
+        await _usersCollection.doc(docId).update(fields);
+        if (existing != null) {
+          final synced = existing.copyWith(
+            isArchived: false,
+            syncStatus: SyncStatus.synced,
+          );
+          await _localDatasource.saveServant(synced);
+          await _localDatasource.removeFromSyncQueue(docId);
+        }
+      } catch (networkError) {
+        // Retain pending status locally.
+      }
     } catch (e) {
       throw mapExceptionToServantFailure(e);
     }
   }
 
-  /// Propagates a servant's name change to all teams where this servant
-  /// is assigned as the responsible servant (NFR-04.2(a)).
-  ///
-  /// This is the single update owner for `assignedServantName` denormalization.
-  /// Called after servant name is successfully updated. Best-effort: catches
-  /// and logs failures via debugPrint rather than throwing.
-  /// Chunks updates into batches of 500 to respect Firestore limits.
   @override
   Future<void> propagateServantNameToTeams({
     required String servantUid,
@@ -430,23 +507,17 @@ class ServantDataRepository implements IServantRepository {
 
       if (teamsSnapshot.docs.isEmpty) return;
 
-      final chunks = teamsSnapshot.docs.chunk(500);
-      for (final chunk in chunks) {
-        final batch = _firestore.batch();
-        for (final teamDoc in chunk) {
-          batch.update(teamDoc.reference, {
-            'assignedServantName': newName,
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
-        }
-        await batch.commit();
+      final batch = _firestore.batch();
+      for (final doc in teamsSnapshot.docs) {
+        batch.update(doc.reference, {
+          'assignedServantName': newName,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
       }
+      await batch.commit();
     } catch (e) {
-      developer.log(
-        'Failed to propagate servant name to teams',
-        error: e,
-        name: 'ServantDataRepository',
-      );
+      // Propagation failures are typically non-fatal but we log them in real apps.
+      throw mapExceptionToServantFailure(e);
     }
   }
 }

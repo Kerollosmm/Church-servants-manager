@@ -4,6 +4,8 @@ enum AttendanceStatus { present, absent, late }
 
 enum EducationStage { preparatory, highSchool, college }
 
+enum SyncStatus { pending, synced, failed }
+
 enum Group { year1, year2, year3 }
 
 extension GroupDisplayName on Group {

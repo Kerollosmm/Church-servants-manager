@@ -1,6 +1,7 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/core/utils/pagination_cursor.dart';
+import 'package:church_management_system/features/student/data/datasources/student_local_datasource.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/student/data/services/student_linked_user_sync_service.dart';
 import 'package:church_management_system/features/student/data/services/student_query_service.dart';
@@ -16,17 +17,20 @@ class StudentDataRepository implements IStudentRepository {
   final FirebaseFirestore _firestore;
   final StudentQueryService _queryService;
   final StudentLinkedUserSyncService _linkedUserSyncService;
+  final StudentLocalDatasource _localDatasource;
 
   StudentDataRepository({
     required FirebaseFirestore firestore,
     StudentQueryService? queryService,
     StudentLinkedUserSyncService? linkedUserSyncService,
+    StudentLocalDatasource? localDatasource,
   }) : _firestore = firestore,
        _queryService =
            queryService ?? StudentQueryService(firestore: firestore),
        _linkedUserSyncService =
            linkedUserSyncService ??
-           StudentLinkedUserSyncService(firestore: firestore);
+           StudentLinkedUserSyncService(firestore: firestore),
+       _localDatasource = localDatasource ?? StudentLocalDatasource();
 
   CollectionReference<Map<String, dynamic>> get _studentsCollection =>
       _firestore.collection(FirestoreCollections.students);
@@ -204,15 +208,32 @@ class StudentDataRepository implements IStudentRepository {
       final docRef = student.docID.isNotEmpty
           ? _studentsCollection.doc(student.docID)
           : _studentsCollection.doc();
-      final finalStudent = student.copyWith(docID: docRef.id);
+      final finalStudent = student.copyWith(
+        docID: docRef.id,
+        syncStatus: SyncStatus.pending,
+      );
 
-      final batch = _firestore.batch()
-        ..set(docRef, {
-          ...finalStudent.toMap(),
-          'createdAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-      await batch.commit();
+      await _localDatasource.saveStudent(finalStudent);
+      await _localDatasource.queueForSync(finalStudent);
+
+      try {
+        final batch = _firestore.batch()
+          ..set(docRef, {
+            ...finalStudent.toMap(),
+            'createdAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        await batch.commit();
+
+        final syncedStudent = finalStudent.copyWith(
+          syncStatus: SyncStatus.synced,
+        );
+        await _localDatasource.saveStudent(syncedStudent);
+        await _localDatasource.removeFromSyncQueue(docRef.id);
+      } catch (networkError) {
+        // Retain pending status locally.
+        // We don't throw a fatal error that crashes the UI.
+      }
 
       return docRef.id;
     } catch (e) {
@@ -223,11 +244,24 @@ class StudentDataRepository implements IStudentRepository {
   @override
   Future<void> updateStudent(StudentModel student) async {
     try {
-      final docRef = _studentsCollection.doc(student.docID);
-      await docRef.update({
-        ...student.toMap(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      final pendingStudent = student.copyWith(syncStatus: SyncStatus.pending);
+      await _localDatasource.saveStudent(pendingStudent);
+      await _localDatasource.queueForSync(pendingStudent);
+
+      try {
+        final docRef = _studentsCollection.doc(student.docID);
+        await docRef.update({
+          ...student.toMap(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        final syncedStudent = pendingStudent.copyWith(
+          syncStatus: SyncStatus.synced,
+        );
+        await _localDatasource.saveStudent(syncedStudent);
+        await _localDatasource.removeFromSyncQueue(student.docID);
+      } catch (networkError) {
+        // Retain pending status locally on network failure.
+      }
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
     }

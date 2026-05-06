@@ -70,6 +70,9 @@ class ServantModel with _$ServantModel {
 
     /// Aggregated group attendance metrics (for US1 Trend Insights).
     Map<String, dynamic>? groupAttendanceSummary,
+
+    @Default(SyncStatus.synced) SyncStatus syncStatus,
+    @_TimestampConverter() DateTime? clientUpdatedAt,
   }) = _ServantModel;
 
   /// Creates a ServantModel from JSON.
@@ -116,6 +119,7 @@ class ServantModel with _$ServantModel {
       'father_of_confession': readString('father_of_confession'),
       'notes': readString('notes'),
       'assignedTeamId': readString('assignedTeamId'),
+      'syncStatus': readString('syncStatus') ?? 'synced',
     });
   }
 

@@ -45,6 +45,9 @@ class StudentModel with _$StudentModel {
 
     /// Aggregated attendance metrics (totalPresent, streak, etc.) updated on session close.
     Map<String, dynamic>? attendanceSummary,
+
+    @Default(SyncStatus.synced) SyncStatus syncStatus,
+    @_TimestampConverter() DateTime? clientUpdatedAt,
   }) = _StudentModel;
 
   /// Creates a StudentModel from JSON.
@@ -95,6 +98,7 @@ class StudentModel with _$StudentModel {
       'role': readString('role') ?? 'student',
       'group': readString('group') ?? 'year1',
       'education_stage': readString('education_stage') ?? 'highSchool',
+      'syncStatus': readString('syncStatus') ?? 'synced',
     });
   }
 

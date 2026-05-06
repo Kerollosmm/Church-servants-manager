@@ -710,10 +710,9 @@ class AttendanceRepository implements IAttendanceRepository {
 
   @override
   Future<List<AttendanceSession>> getSessionsForTeam(String teamId) async {
-    final snapshot = await _sessionsCol(teamId)
-        .orderBy('startsAt', descending: true)
-        .limit(50)
-        .get(const GetOptions());
+    final snapshot = await _sessionsCol(
+      teamId,
+    ).orderBy('startsAt', descending: true).limit(50).get(const GetOptions());
     return _mapSessionsSnapshot(snapshot);
   }
 
@@ -740,10 +739,7 @@ class AttendanceRepository implements IAttendanceRepository {
     required String sessionId,
   }) async {
     try {
-      final doc = await _sessionDoc(
-        teamId,
-        sessionId,
-      ).get(const GetOptions());
+      final doc = await _sessionDoc(teamId, sessionId).get(const GetOptions());
       final data = doc.data();
       if (!doc.exists || data == null) return null;
       return AttendanceSession.fromMap(data, doc.id);
@@ -1003,10 +999,7 @@ class AttendanceRepository implements IAttendanceRepository {
     required String teamId,
     required String sessionId,
   }) async {
-    final doc = await _sessionDoc(
-      teamId,
-      sessionId,
-    ).get(const GetOptions());
+    final doc = await _sessionDoc(teamId, sessionId).get(const GetOptions());
     final data = doc.data();
     if (!doc.exists || data == null) {
       return SessionStatus.closed;

@@ -3,7 +3,8 @@ import 'package:church_management_system/core/theme/app_spacing.dart';
 import 'package:church_management_system/core/utils/validators.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
-import 'package:church_management_system/features/student/presentation/bloc/student_profile/student_profile_cubit.dart';
+import 'package:church_management_system/features/student/presentation/bloc/student_profile/student_profile_bloc.dart';
+import 'package:church_management_system/features/student/presentation/bloc/student_profile/student_profile_event.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -72,7 +73,9 @@ class _StudentProfileSetupViewState extends State<StudentProfileSetupView> {
       notes: null,
     );
 
-    context.read<StudentProfileCubit>().setupProfile(newStudent, widget.user);
+    context.read<StudentProfileBloc>().add(
+      SetupProfileEvent(newStudent: newStudent, actor: widget.user),
+    );
   }
 
   @override

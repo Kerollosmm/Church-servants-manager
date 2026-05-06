@@ -23,12 +23,12 @@ class OchreAuthCard extends StatelessWidget {
         borderRadius: AppRadius.mdRadius,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 30,
             offset: const Offset(0, 10),
           ),
         ],
-        border: Border.all(color: AppColors.primary.withOpacity(0.1)),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -38,7 +38,7 @@ class OchreAuthCard extends StatelessWidget {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
-            color: AppColors.primary.withOpacity(0.05),
+            color: AppColors.primary.withValues(alpha: 0.05),
             child: header,
           ),
 
@@ -56,8 +56,8 @@ class OchreAuthCard extends StatelessWidget {
               gradient: LinearGradient(
                 colors: [
                   AppColors.primary,
-                  AppColors.primary.withOpacity(0.6),
-                  AppColors.primary.withOpacity(0.2),
+                  AppColors.primary.withValues(alpha: 0.6),
+                  AppColors.primary.withValues(alpha: 0.2),
                 ],
                 begin: Alignment.centerRight,
                 end: Alignment.centerLeft,

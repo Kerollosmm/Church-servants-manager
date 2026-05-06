@@ -1,6 +1,9 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/routing/route_args.dart';
+import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
+import 'package:church_management_system/core/widgets/common/ochre_button.dart';
+import 'package:church_management_system/core/widgets/common/sanctuary_background.dart';
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
 import 'package:church_management_system/features/servant/data/models/servant_models.dart';
 import 'package:church_management_system/features/servant/presentation/bloc/servant_data/servant_data_bloc.dart';
@@ -33,7 +36,7 @@ class _AddEditServantScreenState extends State<AddEditServantScreen> {
     _birthdate = servant?.birthdate;
     _selectedRole = servant?.role ?? UserRole.servant;
     _selectedGroup = Group.values.firstWhere(
-      (value) => value.name == servant?.teamName,
+      (v) => v.name == servant?.teamName,
       orElse: () => Group.year1,
     );
   }
@@ -181,70 +184,75 @@ class _AddEditServantScreenState extends State<AddEditServantScreen> {
           }
         },
         child: Scaffold(
-          appBar: AppBar(title: Text(isEditing ? 'تعديل خادم' : 'إضافة خادم')),
-          body: SafeArea(
-            child: Form(
-              key: _formKey,
-              child: ListView(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                children: [
-                  ServantPrimaryDetailsSection(
-                    nameController: _controllers.name,
-                    phoneController: _controllers.phone,
-                    emailController: _controllers.email,
-                    passwordController: _controllers.password,
-                    isEditing: isEditing,
-                    selectedRole: _selectedRole,
-                    selectedGroup: _selectedGroup,
-                    onRoleChanged: (value) {
-                      setState(() => _selectedRole = value);
-                    },
-                    onGroupChanged: (value) {
-                      setState(() => _selectedGroup = value);
-                    },
-                    passwordValidator: _passwordValidator,
-                  ),
-                  AppSpacing.gapMd,
-                  ServantSecondaryDetailsSection(
-                    fatherOfConfessionController:
-                        _controllers.fatherOfConfession,
-                    notesController: _controllers.notes,
-                    imageUrlController: _controllers.imageUrl,
-                    birthdate: _birthdate,
-                    onPickBirthdate: _pickBirthdate,
-                  ),
-                  AppSpacing.gapMd,
-                  BlocBuilder<ServantDataBloc, ServantDataState>(
-                    buildWhen: (prev, curr) {
-                      if (prev.runtimeType != curr.runtimeType) return true;
-                      if (curr is ServantDataLoaded &&
-                          prev is ServantDataLoaded) {
-                        return prev.mutationStatus != curr.mutationStatus;
-                      }
-                      return true;
-                    },
-                    builder: (context, state) {
-                      final isSubmitting =
-                          state is ServantDataLoading ||
-                          (state is ServantDataLoaded &&
-                              state.mutationStatus ==
-                                  ServantMutationStatus.inProgress);
-                      return FilledButton.icon(
-                        onPressed: isSubmitting ? null : _submit,
-                        icon: isSubmitting
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : Icon(isEditing ? Icons.save_outlined : Icons.add),
-                        label: Text(isEditing ? 'حفظ التعديلات' : 'إنشاء خادم'),
-                      );
-                    },
-                  ),
-                ],
+          extendBodyBehindAppBar: true,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            title: Text(
+              isEditing ? 'تعديل خادم' : 'إضافة خادم',
+              style: const TextStyle(color: AppColors.textPrimary),
+            ),
+            iconTheme: const IconThemeData(color: AppColors.textPrimary),
+          ),
+          body: SanctuaryBackground(
+            child: SafeArea(
+              child: Form(
+                key: _formKey,
+                child: ListView(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  children: [
+                    ServantPrimaryDetailsSection(
+                      nameController: _controllers.name,
+                      phoneController: _controllers.phone,
+                      emailController: _controllers.email,
+                      passwordController: _controllers.password,
+                      isEditing: isEditing,
+                      selectedRole: _selectedRole,
+                      selectedGroup: _selectedGroup,
+                      onRoleChanged: (value) {
+                        setState(() => _selectedRole = value);
+                      },
+                      onGroupChanged: (value) {
+                        setState(() => _selectedGroup = value);
+                      },
+                      passwordValidator: _passwordValidator,
+                    ),
+                    AppSpacing.gapMd,
+                    ServantSecondaryDetailsSection(
+                      fatherOfConfessionController:
+                          _controllers.fatherOfConfession,
+                      notesController: _controllers.notes,
+                      imageUrlController: _controllers.imageUrl,
+                      birthdate: _birthdate,
+                      onPickBirthdate: _pickBirthdate,
+                    ),
+                    AppSpacing.gapLg,
+                    BlocBuilder<ServantDataBloc, ServantDataState>(
+                      buildWhen: (prev, curr) {
+                        if (prev.runtimeType != curr.runtimeType) return true;
+                        if (curr is ServantDataLoaded &&
+                            prev is ServantDataLoaded) {
+                          return prev.mutationStatus != curr.mutationStatus;
+                        }
+                        return true;
+                      },
+                      builder: (context, state) {
+                        final isSubmitting =
+                            state is ServantDataLoading ||
+                            (state is ServantDataLoaded &&
+                                state.mutationStatus ==
+                                    ServantMutationStatus.inProgress);
+                        return OchreButton(
+                          text: isEditing ? 'حفظ التعديلات' : 'إنشاء خادم',
+                          icon: isEditing ? Icons.save_outlined : Icons.add,
+                          isLoading: isSubmitting,
+                          onPressed: isSubmitting ? null : _submit,
+                        );
+                      },
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+                  ],
+                ),
               ),
             ),
           ),

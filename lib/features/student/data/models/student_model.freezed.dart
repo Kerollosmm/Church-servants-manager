@@ -60,6 +60,9 @@ mixin _$StudentModel {
   /// Aggregated attendance metrics (totalPresent, streak, etc.) updated on session close.
   Map<String, dynamic>? get attendanceSummary =>
       throw _privateConstructorUsedError;
+  SyncStatus get syncStatus => throw _privateConstructorUsedError;
+  @_TimestampConverter()
+  DateTime? get clientUpdatedAt => throw _privateConstructorUsedError;
 
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
   @JsonKey(ignore: true)
@@ -100,6 +103,8 @@ abstract class $StudentModelCopyWith<$Res> {
     String? restoredByUserId,
     String? classId,
     Map<String, dynamic>? attendanceSummary,
+    SyncStatus syncStatus,
+    @_TimestampConverter() DateTime? clientUpdatedAt,
   });
 }
 
@@ -141,6 +146,8 @@ class _$StudentModelCopyWithImpl<$Res, $Val extends StudentModel>
     Object? restoredByUserId = freezed,
     Object? classId = freezed,
     Object? attendanceSummary = freezed,
+    Object? syncStatus = null,
+    Object? clientUpdatedAt = freezed,
   }) {
     return _then(
       _value.copyWith(
@@ -244,6 +251,14 @@ class _$StudentModelCopyWithImpl<$Res, $Val extends StudentModel>
                 ? _value.attendanceSummary
                 : attendanceSummary // ignore: cast_nullable_to_non_nullable
                       as Map<String, dynamic>?,
+            syncStatus: null == syncStatus
+                ? _value.syncStatus
+                : syncStatus // ignore: cast_nullable_to_non_nullable
+                      as SyncStatus,
+            clientUpdatedAt: freezed == clientUpdatedAt
+                ? _value.clientUpdatedAt
+                : clientUpdatedAt // ignore: cast_nullable_to_non_nullable
+                      as DateTime?,
           )
           as $Val,
     );
@@ -285,6 +300,8 @@ abstract class _$$StudentModelImplCopyWith<$Res>
     String? restoredByUserId,
     String? classId,
     Map<String, dynamic>? attendanceSummary,
+    SyncStatus syncStatus,
+    @_TimestampConverter() DateTime? clientUpdatedAt,
   });
 }
 
@@ -325,6 +342,8 @@ class __$$StudentModelImplCopyWithImpl<$Res>
     Object? restoredByUserId = freezed,
     Object? classId = freezed,
     Object? attendanceSummary = freezed,
+    Object? syncStatus = null,
+    Object? clientUpdatedAt = freezed,
   }) {
     return _then(
       _$StudentModelImpl(
@@ -428,6 +447,14 @@ class __$$StudentModelImplCopyWithImpl<$Res>
             ? _value._attendanceSummary
             : attendanceSummary // ignore: cast_nullable_to_non_nullable
                   as Map<String, dynamic>?,
+        syncStatus: null == syncStatus
+            ? _value.syncStatus
+            : syncStatus // ignore: cast_nullable_to_non_nullable
+                  as SyncStatus,
+        clientUpdatedAt: freezed == clientUpdatedAt
+            ? _value.clientUpdatedAt
+            : clientUpdatedAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime?,
       ),
     );
   }
@@ -462,6 +489,8 @@ class _$StudentModelImpl extends _StudentModel {
     this.restoredByUserId,
     this.classId,
     final Map<String, dynamic>? attendanceSummary,
+    this.syncStatus = SyncStatus.synced,
+    @_TimestampConverter() this.clientUpdatedAt,
   }) : _attendanceSummary = attendanceSummary,
        super._();
 
@@ -544,8 +573,15 @@ class _$StudentModelImpl extends _StudentModel {
   }
 
   @override
+  @JsonKey()
+  final SyncStatus syncStatus;
+  @override
+  @_TimestampConverter()
+  final DateTime? clientUpdatedAt;
+
+  @override
   String toString() {
-    return 'StudentModel(uid: $uid, docID: $docID, name: $name, imageUrl: $imageUrl, role: $role, mobile: $mobile, group: $group, teamName: $teamName, motherPhone: $motherPhone, fatherPhone: $fatherPhone, grade: $grade, educationStage: $educationStage, school: $school, address: $address, birthdate: $birthdate, fatherOfConfession: $fatherOfConfession, notes: $notes, isArchived: $isArchived, archivedAt: $archivedAt, archivedByUserId: $archivedByUserId, archiveReason: $archiveReason, restoredAt: $restoredAt, restoredByUserId: $restoredByUserId, classId: $classId, attendanceSummary: $attendanceSummary)';
+    return 'StudentModel(uid: $uid, docID: $docID, name: $name, imageUrl: $imageUrl, role: $role, mobile: $mobile, group: $group, teamName: $teamName, motherPhone: $motherPhone, fatherPhone: $fatherPhone, grade: $grade, educationStage: $educationStage, school: $school, address: $address, birthdate: $birthdate, fatherOfConfession: $fatherOfConfession, notes: $notes, isArchived: $isArchived, archivedAt: $archivedAt, archivedByUserId: $archivedByUserId, archiveReason: $archiveReason, restoredAt: $restoredAt, restoredByUserId: $restoredByUserId, classId: $classId, attendanceSummary: $attendanceSummary, syncStatus: $syncStatus, clientUpdatedAt: $clientUpdatedAt)';
   }
 
   @override
@@ -593,7 +629,11 @@ class _$StudentModelImpl extends _StudentModel {
             const DeepCollectionEquality().equals(
               other._attendanceSummary,
               _attendanceSummary,
-            ));
+            ) &&
+            (identical(other.syncStatus, syncStatus) ||
+                other.syncStatus == syncStatus) &&
+            (identical(other.clientUpdatedAt, clientUpdatedAt) ||
+                other.clientUpdatedAt == clientUpdatedAt));
   }
 
   @JsonKey(ignore: true)
@@ -625,6 +665,8 @@ class _$StudentModelImpl extends _StudentModel {
     restoredByUserId,
     classId,
     const DeepCollectionEquality().hash(_attendanceSummary),
+    syncStatus,
+    clientUpdatedAt,
   ]);
 
   @JsonKey(ignore: true)
@@ -668,6 +710,8 @@ abstract class _StudentModel extends StudentModel {
     final String? restoredByUserId,
     final String? classId,
     final Map<String, dynamic>? attendanceSummary,
+    final SyncStatus syncStatus,
+    @_TimestampConverter() final DateTime? clientUpdatedAt,
   }) = _$StudentModelImpl;
   const _StudentModel._() : super._();
 
@@ -735,6 +779,11 @@ abstract class _StudentModel extends StudentModel {
   @override
   /// Aggregated attendance metrics (totalPresent, streak, etc.) updated on session close.
   Map<String, dynamic>? get attendanceSummary;
+  @override
+  SyncStatus get syncStatus;
+  @override
+  @_TimestampConverter()
+  DateTime? get clientUpdatedAt;
   @override
   @JsonKey(ignore: true)
   _$$StudentModelImplCopyWith<_$StudentModelImpl> get copyWith =>

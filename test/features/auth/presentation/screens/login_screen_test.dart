@@ -1,9 +1,9 @@
+import 'package:church_management_system/core/widgets/common/ochre_button.dart';
+import 'package:church_management_system/core/widgets/common/ochre_text_field.dart';
+import 'package:church_management_system/core/widgets/common/sanctuary_background.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_management_system/features/auth/presentation/screens/login_screen.dart';
 import 'package:church_management_system/features/auth/presentation/widgets/ochre_auth_card.dart';
-import 'package:church_management_system/features/auth/presentation/widgets/ochre_background.dart';
-import 'package:church_management_system/features/auth/presentation/widgets/ochre_button.dart';
-import 'package:church_management_system/features/auth/presentation/widgets/ochre_text_field.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -35,7 +35,7 @@ void main() {
     testWidgets('should render all Ochre Sanctuary components', (tester) async {
       await tester.pumpWidget(createWidgetUnderTest());
 
-      expect(find.byType(OchreBackground), findsOneWidget);
+      expect(find.byType(SanctuaryBackground), findsOneWidget);
       expect(find.byType(OchreAuthCard), findsOneWidget);
       expect(find.byType(OchreTextField), findsNWidgets(2)); // Email & Password
       expect(find.byType(OchreButton), findsOneWidget);

@@ -1,4 +1,5 @@
-part of 'student_profile_cubit.dart';
+import 'package:church_management_system/features/student/data/models/student_model.dart';
+import 'package:equatable/equatable.dart';
 
 sealed class StudentProfileState extends Equatable {
   const StudentProfileState();

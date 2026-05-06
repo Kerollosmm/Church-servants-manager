@@ -163,7 +163,14 @@ void main() {
       ]),
     );
 
-    cubit.add(ServantCreateRequested(actor: admin, servant: newServant, email: 'servant@example.com', password: 'secret123'));
+    cubit.add(
+      ServantCreateRequested(
+        actor: admin,
+        servant: newServant,
+        email: 'servant@example.com',
+        password: 'secret123',
+      ),
+    );
 
     await expectation;
     verify(
