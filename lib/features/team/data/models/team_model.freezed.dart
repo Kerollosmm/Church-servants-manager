@@ -22,28 +22,39 @@ TeamModel _$TeamModelFromJson(Map<String, dynamic> json) {
 /// @nodoc
 mixin _$TeamModel {
   /// Firestore document ID.
+  @HiveField(0)
   String get id => throw _privateConstructorUsedError;
 
   /// Team display name (e.g. "فريق مارمرقس").
+  @HiveField(1)
   String get name => throw _privateConstructorUsedError;
 
   /// The group/year this team belongs to (e.g. "year1").
+  @HiveField(2)
   String get groupId => throw _privateConstructorUsedError;
 
   /// UID of the servant assigned to this team (optional).
+  @HiveField(3)
   String? get assignedServantId => throw _privateConstructorUsedError;
 
   /// Denormalized servant name for display.
+  @HiveField(4)
   String? get assignedServantName => throw _privateConstructorUsedError;
+  @HiveField(5)
   bool get isArchived => throw _privateConstructorUsedError;
+  @HiveField(6)
   @_TimestampConverter()
   DateTime? get archivedAt => throw _privateConstructorUsedError;
+  @HiveField(7)
   String? get archivedByUserId => throw _privateConstructorUsedError;
+  @HiveField(8)
   String? get archiveReason => throw _privateConstructorUsedError;
+  @HiveField(9)
   @_TimestampConverter()
   DateTime? get restoredAt => throw _privateConstructorUsedError;
-  String? get restoredByUserId => throw _privateConstructorUsedError;
   @HiveField(10)
+  String? get restoredByUserId => throw _privateConstructorUsedError;
+  @HiveField(11)
   SyncStatus get syncStatus => throw _privateConstructorUsedError;
 
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -58,18 +69,18 @@ abstract class $TeamModelCopyWith<$Res> {
       _$TeamModelCopyWithImpl<$Res, TeamModel>;
   @useResult
   $Res call({
-    String id,
-    String name,
-    String groupId,
-    String? assignedServantId,
-    String? assignedServantName,
-    bool isArchived,
-    @_TimestampConverter() DateTime? archivedAt,
-    String? archivedByUserId,
-    String? archiveReason,
-    @_TimestampConverter() DateTime? restoredAt,
-    String? restoredByUserId,
-    @HiveField(10) SyncStatus syncStatus,
+    @HiveField(0) String id,
+    @HiveField(1) String name,
+    @HiveField(2) String groupId,
+    @HiveField(3) String? assignedServantId,
+    @HiveField(4) String? assignedServantName,
+    @HiveField(5) bool isArchived,
+    @HiveField(6) @_TimestampConverter() DateTime? archivedAt,
+    @HiveField(7) String? archivedByUserId,
+    @HiveField(8) String? archiveReason,
+    @HiveField(9) @_TimestampConverter() DateTime? restoredAt,
+    @HiveField(10) String? restoredByUserId,
+    @HiveField(11) SyncStatus syncStatus,
   });
 }
 
@@ -165,18 +176,18 @@ abstract class _$$TeamModelImplCopyWith<$Res>
   @override
   @useResult
   $Res call({
-    String id,
-    String name,
-    String groupId,
-    String? assignedServantId,
-    String? assignedServantName,
-    bool isArchived,
-    @_TimestampConverter() DateTime? archivedAt,
-    String? archivedByUserId,
-    String? archiveReason,
-    @_TimestampConverter() DateTime? restoredAt,
-    String? restoredByUserId,
-    @HiveField(10) SyncStatus syncStatus,
+    @HiveField(0) String id,
+    @HiveField(1) String name,
+    @HiveField(2) String groupId,
+    @HiveField(3) String? assignedServantId,
+    @HiveField(4) String? assignedServantName,
+    @HiveField(5) bool isArchived,
+    @HiveField(6) @_TimestampConverter() DateTime? archivedAt,
+    @HiveField(7) String? archivedByUserId,
+    @HiveField(8) String? archiveReason,
+    @HiveField(9) @_TimestampConverter() DateTime? restoredAt,
+    @HiveField(10) String? restoredByUserId,
+    @HiveField(11) SyncStatus syncStatus,
   });
 }
 
@@ -264,18 +275,18 @@ class __$$TeamModelImplCopyWithImpl<$Res>
 @JsonSerializable()
 class _$TeamModelImpl extends _TeamModel {
   const _$TeamModelImpl({
-    required this.id,
-    required this.name,
-    required this.groupId,
-    this.assignedServantId,
-    this.assignedServantName,
-    this.isArchived = false,
-    @_TimestampConverter() this.archivedAt,
-    this.archivedByUserId,
-    this.archiveReason,
-    @_TimestampConverter() this.restoredAt,
-    this.restoredByUserId,
-    @HiveField(10) this.syncStatus = SyncStatus.synced,
+    @HiveField(0) required this.id,
+    @HiveField(1) required this.name,
+    @HiveField(2) required this.groupId,
+    @HiveField(3) this.assignedServantId,
+    @HiveField(4) this.assignedServantName,
+    @HiveField(5) this.isArchived = false,
+    @HiveField(6) @_TimestampConverter() this.archivedAt,
+    @HiveField(7) this.archivedByUserId,
+    @HiveField(8) this.archiveReason,
+    @HiveField(9) @_TimestampConverter() this.restoredAt,
+    @HiveField(10) this.restoredByUserId,
+    @HiveField(11) this.syncStatus = SyncStatus.synced,
   }) : super._();
 
   factory _$TeamModelImpl.fromJson(Map<String, dynamic> json) =>
@@ -283,41 +294,52 @@ class _$TeamModelImpl extends _TeamModel {
 
   /// Firestore document ID.
   @override
+  @HiveField(0)
   final String id;
 
   /// Team display name (e.g. "فريق مارمرقس").
   @override
+  @HiveField(1)
   final String name;
 
   /// The group/year this team belongs to (e.g. "year1").
   @override
+  @HiveField(2)
   final String groupId;
 
   /// UID of the servant assigned to this team (optional).
   @override
+  @HiveField(3)
   final String? assignedServantId;
 
   /// Denormalized servant name for display.
   @override
+  @HiveField(4)
   final String? assignedServantName;
   @override
   @JsonKey()
+  @HiveField(5)
   final bool isArchived;
   @override
+  @HiveField(6)
   @_TimestampConverter()
   final DateTime? archivedAt;
   @override
+  @HiveField(7)
   final String? archivedByUserId;
   @override
+  @HiveField(8)
   final String? archiveReason;
   @override
+  @HiveField(9)
   @_TimestampConverter()
   final DateTime? restoredAt;
   @override
+  @HiveField(10)
   final String? restoredByUserId;
   @override
   @JsonKey()
-  @HiveField(10)
+  @HiveField(11)
   final SyncStatus syncStatus;
 
   @override
@@ -385,18 +407,18 @@ class _$TeamModelImpl extends _TeamModel {
 
 abstract class _TeamModel extends TeamModel {
   const factory _TeamModel({
-    required final String id,
-    required final String name,
-    required final String groupId,
-    final String? assignedServantId,
-    final String? assignedServantName,
-    final bool isArchived,
-    @_TimestampConverter() final DateTime? archivedAt,
-    final String? archivedByUserId,
-    final String? archiveReason,
-    @_TimestampConverter() final DateTime? restoredAt,
-    final String? restoredByUserId,
-    @HiveField(10) final SyncStatus syncStatus,
+    @HiveField(0) required final String id,
+    @HiveField(1) required final String name,
+    @HiveField(2) required final String groupId,
+    @HiveField(3) final String? assignedServantId,
+    @HiveField(4) final String? assignedServantName,
+    @HiveField(5) final bool isArchived,
+    @HiveField(6) @_TimestampConverter() final DateTime? archivedAt,
+    @HiveField(7) final String? archivedByUserId,
+    @HiveField(8) final String? archiveReason,
+    @HiveField(9) @_TimestampConverter() final DateTime? restoredAt,
+    @HiveField(10) final String? restoredByUserId,
+    @HiveField(11) final SyncStatus syncStatus,
   }) = _$TeamModelImpl;
   const _TeamModel._() : super._();
 
@@ -405,35 +427,46 @@ abstract class _TeamModel extends TeamModel {
 
   @override
   /// Firestore document ID.
+  @HiveField(0)
   String get id;
   @override
   /// Team display name (e.g. "فريق مارمرقس").
+  @HiveField(1)
   String get name;
   @override
   /// The group/year this team belongs to (e.g. "year1").
+  @HiveField(2)
   String get groupId;
   @override
   /// UID of the servant assigned to this team (optional).
+  @HiveField(3)
   String? get assignedServantId;
   @override
   /// Denormalized servant name for display.
+  @HiveField(4)
   String? get assignedServantName;
   @override
+  @HiveField(5)
   bool get isArchived;
   @override
+  @HiveField(6)
   @_TimestampConverter()
   DateTime? get archivedAt;
   @override
+  @HiveField(7)
   String? get archivedByUserId;
   @override
+  @HiveField(8)
   String? get archiveReason;
   @override
+  @HiveField(9)
   @_TimestampConverter()
   DateTime? get restoredAt;
   @override
+  @HiveField(10)
   String? get restoredByUserId;
   @override
-  @HiveField(10)
+  @HiveField(11)
   SyncStatus get syncStatus;
   @override
   @JsonKey(ignore: true)

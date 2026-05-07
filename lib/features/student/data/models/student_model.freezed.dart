@@ -21,46 +21,73 @@ StudentModel _$StudentModelFromJson(Map<String, dynamic> json) {
 
 /// @nodoc
 mixin _$StudentModel {
+  @HiveField(0)
   String get uid => throw _privateConstructorUsedError;
+  @HiveField(1)
   String get docID => throw _privateConstructorUsedError;
+  @HiveField(2)
   String get name => throw _privateConstructorUsedError;
+  @HiveField(3)
   String? get imageUrl => throw _privateConstructorUsedError;
+  @HiveField(4)
   UserRole get role => throw _privateConstructorUsedError;
+  @HiveField(5)
   String get mobile => throw _privateConstructorUsedError;
+  @HiveField(6)
   Group get group => throw _privateConstructorUsedError;
+  @HiveField(7)
   @JsonKey(name: 'team_name')
   String get teamName => throw _privateConstructorUsedError;
+  @HiveField(8)
   @JsonKey(name: 'mother_number')
   String get motherPhone => throw _privateConstructorUsedError;
+  @HiveField(9)
   @JsonKey(name: 'father_number')
   String get fatherPhone => throw _privateConstructorUsedError;
+  @HiveField(10)
   int get grade => throw _privateConstructorUsedError;
+  @HiveField(11)
   @JsonKey(name: 'education_stage')
   EducationStage get educationStage => throw _privateConstructorUsedError;
+  @HiveField(12)
   @JsonKey(name: 'school_college')
   String? get school => throw _privateConstructorUsedError;
+  @HiveField(13)
   String? get address => throw _privateConstructorUsedError;
+  @HiveField(14)
   @_TimestampConverter()
   DateTime? get birthdate => throw _privateConstructorUsedError;
+  @HiveField(15)
   @JsonKey(name: 'father_of_confession')
   String get fatherOfConfession => throw _privateConstructorUsedError;
+  @HiveField(16)
   String? get notes => throw _privateConstructorUsedError;
+  @HiveField(17)
   bool get isArchived => throw _privateConstructorUsedError;
+  @HiveField(18)
   @_TimestampConverter()
   DateTime? get archivedAt => throw _privateConstructorUsedError;
+  @HiveField(19)
   String? get archivedByUserId => throw _privateConstructorUsedError;
+  @HiveField(20)
   String? get archiveReason => throw _privateConstructorUsedError;
+  @HiveField(21)
   @_TimestampConverter()
   DateTime? get restoredAt => throw _privateConstructorUsedError;
+  @HiveField(22)
   String? get restoredByUserId => throw _privateConstructorUsedError;
 
   /// Class ID for efficient querying - enables single query instead of N+1.
+  @HiveField(23)
   String? get classId => throw _privateConstructorUsedError;
 
   /// Aggregated attendance metrics (totalPresent, streak, etc.) updated on session close.
+  @HiveField(24)
   Map<String, dynamic>? get attendanceSummary =>
       throw _privateConstructorUsedError;
+  @HiveField(25)
   SyncStatus get syncStatus => throw _privateConstructorUsedError;
+  @HiveField(26)
   @_TimestampConverter()
   DateTime? get clientUpdatedAt => throw _privateConstructorUsedError;
 
@@ -78,33 +105,37 @@ abstract class $StudentModelCopyWith<$Res> {
   ) = _$StudentModelCopyWithImpl<$Res, StudentModel>;
   @useResult
   $Res call({
-    String uid,
-    String docID,
-    String name,
-    String? imageUrl,
-    UserRole role,
-    String mobile,
-    Group group,
-    @JsonKey(name: 'team_name') String teamName,
-    @JsonKey(name: 'mother_number') String motherPhone,
-    @JsonKey(name: 'father_number') String fatherPhone,
-    int grade,
-    @JsonKey(name: 'education_stage') EducationStage educationStage,
-    @JsonKey(name: 'school_college') String? school,
-    String? address,
-    @_TimestampConverter() DateTime? birthdate,
-    @JsonKey(name: 'father_of_confession') String fatherOfConfession,
-    String? notes,
-    bool isArchived,
-    @_TimestampConverter() DateTime? archivedAt,
-    String? archivedByUserId,
-    String? archiveReason,
-    @_TimestampConverter() DateTime? restoredAt,
-    String? restoredByUserId,
-    String? classId,
-    Map<String, dynamic>? attendanceSummary,
-    SyncStatus syncStatus,
-    @_TimestampConverter() DateTime? clientUpdatedAt,
+    @HiveField(0) String uid,
+    @HiveField(1) String docID,
+    @HiveField(2) String name,
+    @HiveField(3) String? imageUrl,
+    @HiveField(4) UserRole role,
+    @HiveField(5) String mobile,
+    @HiveField(6) Group group,
+    @HiveField(7) @JsonKey(name: 'team_name') String teamName,
+    @HiveField(8) @JsonKey(name: 'mother_number') String motherPhone,
+    @HiveField(9) @JsonKey(name: 'father_number') String fatherPhone,
+    @HiveField(10) int grade,
+    @HiveField(11)
+    @JsonKey(name: 'education_stage')
+    EducationStage educationStage,
+    @HiveField(12) @JsonKey(name: 'school_college') String? school,
+    @HiveField(13) String? address,
+    @HiveField(14) @_TimestampConverter() DateTime? birthdate,
+    @HiveField(15)
+    @JsonKey(name: 'father_of_confession')
+    String fatherOfConfession,
+    @HiveField(16) String? notes,
+    @HiveField(17) bool isArchived,
+    @HiveField(18) @_TimestampConverter() DateTime? archivedAt,
+    @HiveField(19) String? archivedByUserId,
+    @HiveField(20) String? archiveReason,
+    @HiveField(21) @_TimestampConverter() DateTime? restoredAt,
+    @HiveField(22) String? restoredByUserId,
+    @HiveField(23) String? classId,
+    @HiveField(24) Map<String, dynamic>? attendanceSummary,
+    @HiveField(25) SyncStatus syncStatus,
+    @HiveField(26) @_TimestampConverter() DateTime? clientUpdatedAt,
   });
 }
 
@@ -275,33 +306,37 @@ abstract class _$$StudentModelImplCopyWith<$Res>
   @override
   @useResult
   $Res call({
-    String uid,
-    String docID,
-    String name,
-    String? imageUrl,
-    UserRole role,
-    String mobile,
-    Group group,
-    @JsonKey(name: 'team_name') String teamName,
-    @JsonKey(name: 'mother_number') String motherPhone,
-    @JsonKey(name: 'father_number') String fatherPhone,
-    int grade,
-    @JsonKey(name: 'education_stage') EducationStage educationStage,
-    @JsonKey(name: 'school_college') String? school,
-    String? address,
-    @_TimestampConverter() DateTime? birthdate,
-    @JsonKey(name: 'father_of_confession') String fatherOfConfession,
-    String? notes,
-    bool isArchived,
-    @_TimestampConverter() DateTime? archivedAt,
-    String? archivedByUserId,
-    String? archiveReason,
-    @_TimestampConverter() DateTime? restoredAt,
-    String? restoredByUserId,
-    String? classId,
-    Map<String, dynamic>? attendanceSummary,
-    SyncStatus syncStatus,
-    @_TimestampConverter() DateTime? clientUpdatedAt,
+    @HiveField(0) String uid,
+    @HiveField(1) String docID,
+    @HiveField(2) String name,
+    @HiveField(3) String? imageUrl,
+    @HiveField(4) UserRole role,
+    @HiveField(5) String mobile,
+    @HiveField(6) Group group,
+    @HiveField(7) @JsonKey(name: 'team_name') String teamName,
+    @HiveField(8) @JsonKey(name: 'mother_number') String motherPhone,
+    @HiveField(9) @JsonKey(name: 'father_number') String fatherPhone,
+    @HiveField(10) int grade,
+    @HiveField(11)
+    @JsonKey(name: 'education_stage')
+    EducationStage educationStage,
+    @HiveField(12) @JsonKey(name: 'school_college') String? school,
+    @HiveField(13) String? address,
+    @HiveField(14) @_TimestampConverter() DateTime? birthdate,
+    @HiveField(15)
+    @JsonKey(name: 'father_of_confession')
+    String fatherOfConfession,
+    @HiveField(16) String? notes,
+    @HiveField(17) bool isArchived,
+    @HiveField(18) @_TimestampConverter() DateTime? archivedAt,
+    @HiveField(19) String? archivedByUserId,
+    @HiveField(20) String? archiveReason,
+    @HiveField(21) @_TimestampConverter() DateTime? restoredAt,
+    @HiveField(22) String? restoredByUserId,
+    @HiveField(23) String? classId,
+    @HiveField(24) Map<String, dynamic>? attendanceSummary,
+    @HiveField(25) SyncStatus syncStatus,
+    @HiveField(26) @_TimestampConverter() DateTime? clientUpdatedAt,
   });
 }
 
@@ -464,33 +499,37 @@ class __$$StudentModelImplCopyWithImpl<$Res>
 @JsonSerializable()
 class _$StudentModelImpl extends _StudentModel {
   const _$StudentModelImpl({
-    required this.uid,
-    required this.docID,
-    required this.name,
-    required this.imageUrl,
-    required this.role,
-    required this.mobile,
-    required this.group,
-    @JsonKey(name: 'team_name') required this.teamName,
-    @JsonKey(name: 'mother_number') required this.motherPhone,
-    @JsonKey(name: 'father_number') required this.fatherPhone,
-    required this.grade,
-    @JsonKey(name: 'education_stage') required this.educationStage,
-    @JsonKey(name: 'school_college') required this.school,
-    required this.address,
-    @_TimestampConverter() required this.birthdate,
-    @JsonKey(name: 'father_of_confession') required this.fatherOfConfession,
-    required this.notes,
-    this.isArchived = false,
-    @_TimestampConverter() this.archivedAt,
-    this.archivedByUserId,
-    this.archiveReason,
-    @_TimestampConverter() this.restoredAt,
-    this.restoredByUserId,
-    this.classId,
-    final Map<String, dynamic>? attendanceSummary,
-    this.syncStatus = SyncStatus.synced,
-    @_TimestampConverter() this.clientUpdatedAt,
+    @HiveField(0) required this.uid,
+    @HiveField(1) required this.docID,
+    @HiveField(2) required this.name,
+    @HiveField(3) required this.imageUrl,
+    @HiveField(4) required this.role,
+    @HiveField(5) required this.mobile,
+    @HiveField(6) required this.group,
+    @HiveField(7) @JsonKey(name: 'team_name') required this.teamName,
+    @HiveField(8) @JsonKey(name: 'mother_number') required this.motherPhone,
+    @HiveField(9) @JsonKey(name: 'father_number') required this.fatherPhone,
+    @HiveField(10) required this.grade,
+    @HiveField(11)
+    @JsonKey(name: 'education_stage')
+    required this.educationStage,
+    @HiveField(12) @JsonKey(name: 'school_college') required this.school,
+    @HiveField(13) required this.address,
+    @HiveField(14) @_TimestampConverter() required this.birthdate,
+    @HiveField(15)
+    @JsonKey(name: 'father_of_confession')
+    required this.fatherOfConfession,
+    @HiveField(16) required this.notes,
+    @HiveField(17) this.isArchived = false,
+    @HiveField(18) @_TimestampConverter() this.archivedAt,
+    @HiveField(19) this.archivedByUserId,
+    @HiveField(20) this.archiveReason,
+    @HiveField(21) @_TimestampConverter() this.restoredAt,
+    @HiveField(22) this.restoredByUserId,
+    @HiveField(23) this.classId,
+    @HiveField(24) final Map<String, dynamic>? attendanceSummary,
+    @HiveField(25) this.syncStatus = SyncStatus.synced,
+    @HiveField(26) @_TimestampConverter() this.clientUpdatedAt,
   }) : _attendanceSummary = attendanceSummary,
        super._();
 
@@ -498,64 +537,88 @@ class _$StudentModelImpl extends _StudentModel {
       _$$StudentModelImplFromJson(json);
 
   @override
+  @HiveField(0)
   final String uid;
   @override
+  @HiveField(1)
   final String docID;
   @override
+  @HiveField(2)
   final String name;
   @override
+  @HiveField(3)
   final String? imageUrl;
   @override
+  @HiveField(4)
   final UserRole role;
   @override
+  @HiveField(5)
   final String mobile;
   @override
+  @HiveField(6)
   final Group group;
   @override
+  @HiveField(7)
   @JsonKey(name: 'team_name')
   final String teamName;
   @override
+  @HiveField(8)
   @JsonKey(name: 'mother_number')
   final String motherPhone;
   @override
+  @HiveField(9)
   @JsonKey(name: 'father_number')
   final String fatherPhone;
   @override
+  @HiveField(10)
   final int grade;
   @override
+  @HiveField(11)
   @JsonKey(name: 'education_stage')
   final EducationStage educationStage;
   @override
+  @HiveField(12)
   @JsonKey(name: 'school_college')
   final String? school;
   @override
+  @HiveField(13)
   final String? address;
   @override
+  @HiveField(14)
   @_TimestampConverter()
   final DateTime? birthdate;
   @override
+  @HiveField(15)
   @JsonKey(name: 'father_of_confession')
   final String fatherOfConfession;
   @override
+  @HiveField(16)
   final String? notes;
   @override
   @JsonKey()
+  @HiveField(17)
   final bool isArchived;
   @override
+  @HiveField(18)
   @_TimestampConverter()
   final DateTime? archivedAt;
   @override
+  @HiveField(19)
   final String? archivedByUserId;
   @override
+  @HiveField(20)
   final String? archiveReason;
   @override
+  @HiveField(21)
   @_TimestampConverter()
   final DateTime? restoredAt;
   @override
+  @HiveField(22)
   final String? restoredByUserId;
 
   /// Class ID for efficient querying - enables single query instead of N+1.
   @override
+  @HiveField(23)
   final String? classId;
 
   /// Aggregated attendance metrics (totalPresent, streak, etc.) updated on session close.
@@ -563,6 +626,7 @@ class _$StudentModelImpl extends _StudentModel {
 
   /// Aggregated attendance metrics (totalPresent, streak, etc.) updated on session close.
   @override
+  @HiveField(24)
   Map<String, dynamic>? get attendanceSummary {
     final value = _attendanceSummary;
     if (value == null) return null;
@@ -574,8 +638,10 @@ class _$StudentModelImpl extends _StudentModel {
 
   @override
   @JsonKey()
+  @HiveField(25)
   final SyncStatus syncStatus;
   @override
+  @HiveField(26)
   @_TimestampConverter()
   final DateTime? clientUpdatedAt;
 
@@ -683,35 +749,43 @@ class _$StudentModelImpl extends _StudentModel {
 
 abstract class _StudentModel extends StudentModel {
   const factory _StudentModel({
-    required final String uid,
-    required final String docID,
-    required final String name,
-    required final String? imageUrl,
-    required final UserRole role,
-    required final String mobile,
-    required final Group group,
-    @JsonKey(name: 'team_name') required final String teamName,
-    @JsonKey(name: 'mother_number') required final String motherPhone,
-    @JsonKey(name: 'father_number') required final String fatherPhone,
-    required final int grade,
+    @HiveField(0) required final String uid,
+    @HiveField(1) required final String docID,
+    @HiveField(2) required final String name,
+    @HiveField(3) required final String? imageUrl,
+    @HiveField(4) required final UserRole role,
+    @HiveField(5) required final String mobile,
+    @HiveField(6) required final Group group,
+    @HiveField(7) @JsonKey(name: 'team_name') required final String teamName,
+    @HiveField(8)
+    @JsonKey(name: 'mother_number')
+    required final String motherPhone,
+    @HiveField(9)
+    @JsonKey(name: 'father_number')
+    required final String fatherPhone,
+    @HiveField(10) required final int grade,
+    @HiveField(11)
     @JsonKey(name: 'education_stage')
     required final EducationStage educationStage,
-    @JsonKey(name: 'school_college') required final String? school,
-    required final String? address,
-    @_TimestampConverter() required final DateTime? birthdate,
+    @HiveField(12)
+    @JsonKey(name: 'school_college')
+    required final String? school,
+    @HiveField(13) required final String? address,
+    @HiveField(14) @_TimestampConverter() required final DateTime? birthdate,
+    @HiveField(15)
     @JsonKey(name: 'father_of_confession')
     required final String fatherOfConfession,
-    required final String? notes,
-    final bool isArchived,
-    @_TimestampConverter() final DateTime? archivedAt,
-    final String? archivedByUserId,
-    final String? archiveReason,
-    @_TimestampConverter() final DateTime? restoredAt,
-    final String? restoredByUserId,
-    final String? classId,
-    final Map<String, dynamic>? attendanceSummary,
-    final SyncStatus syncStatus,
-    @_TimestampConverter() final DateTime? clientUpdatedAt,
+    @HiveField(16) required final String? notes,
+    @HiveField(17) final bool isArchived,
+    @HiveField(18) @_TimestampConverter() final DateTime? archivedAt,
+    @HiveField(19) final String? archivedByUserId,
+    @HiveField(20) final String? archiveReason,
+    @HiveField(21) @_TimestampConverter() final DateTime? restoredAt,
+    @HiveField(22) final String? restoredByUserId,
+    @HiveField(23) final String? classId,
+    @HiveField(24) final Map<String, dynamic>? attendanceSummary,
+    @HiveField(25) final SyncStatus syncStatus,
+    @HiveField(26) @_TimestampConverter() final DateTime? clientUpdatedAt,
   }) = _$StudentModelImpl;
   const _StudentModel._() : super._();
 
@@ -719,69 +793,96 @@ abstract class _StudentModel extends StudentModel {
       _$StudentModelImpl.fromJson;
 
   @override
+  @HiveField(0)
   String get uid;
   @override
+  @HiveField(1)
   String get docID;
   @override
+  @HiveField(2)
   String get name;
   @override
+  @HiveField(3)
   String? get imageUrl;
   @override
+  @HiveField(4)
   UserRole get role;
   @override
+  @HiveField(5)
   String get mobile;
   @override
+  @HiveField(6)
   Group get group;
   @override
+  @HiveField(7)
   @JsonKey(name: 'team_name')
   String get teamName;
   @override
+  @HiveField(8)
   @JsonKey(name: 'mother_number')
   String get motherPhone;
   @override
+  @HiveField(9)
   @JsonKey(name: 'father_number')
   String get fatherPhone;
   @override
+  @HiveField(10)
   int get grade;
   @override
+  @HiveField(11)
   @JsonKey(name: 'education_stage')
   EducationStage get educationStage;
   @override
+  @HiveField(12)
   @JsonKey(name: 'school_college')
   String? get school;
   @override
+  @HiveField(13)
   String? get address;
   @override
+  @HiveField(14)
   @_TimestampConverter()
   DateTime? get birthdate;
   @override
+  @HiveField(15)
   @JsonKey(name: 'father_of_confession')
   String get fatherOfConfession;
   @override
+  @HiveField(16)
   String? get notes;
   @override
+  @HiveField(17)
   bool get isArchived;
   @override
+  @HiveField(18)
   @_TimestampConverter()
   DateTime? get archivedAt;
   @override
+  @HiveField(19)
   String? get archivedByUserId;
   @override
+  @HiveField(20)
   String? get archiveReason;
   @override
+  @HiveField(21)
   @_TimestampConverter()
   DateTime? get restoredAt;
   @override
+  @HiveField(22)
   String? get restoredByUserId;
   @override
   /// Class ID for efficient querying - enables single query instead of N+1.
+  @HiveField(23)
   String? get classId;
   @override
   /// Aggregated attendance metrics (totalPresent, streak, etc.) updated on session close.
+  @HiveField(24)
   Map<String, dynamic>? get attendanceSummary;
   @override
+  @HiveField(25)
   SyncStatus get syncStatus;
   @override
+  @HiveField(26)
   @_TimestampConverter()
   DateTime? get clientUpdatedAt;
   @override

@@ -22,63 +22,86 @@ ServantModel _$ServantModelFromJson(Map<String, dynamic> json) {
 /// @nodoc
 mixin _$ServantModel {
   /// Firebase Auth UID for this servant.
+  @HiveField(0)
   String? get uid => throw _privateConstructorUsedError;
 
   /// Firestore document ID.
+  @HiveField(1)
   String get docID => throw _privateConstructorUsedError;
+  @HiveField(2)
   String get name => throw _privateConstructorUsedError;
 
   /// Role (defaults to servant)
+  @HiveField(3)
   @_RoleConverter()
   UserRole get role => throw _privateConstructorUsedError;
 
   /// Email (may be null for some users)
+  @HiveField(4)
   String? get email => throw _privateConstructorUsedError;
 
   /// Phone number (optional - may not exist in user docs)
+  @HiveField(5)
   String? get phone => throw _privateConstructorUsedError;
 
   /// Profile image URL
+  @HiveField(6)
   String? get imageUrl => throw _privateConstructorUsedError;
 
   /// Team/group name - uses groupId from Users collection
+  @HiveField(7)
   @JsonKey(name: 'groupId')
   String? get teamName => throw _privateConstructorUsedError;
 
   /// Email verification status
+  @HiveField(8)
   @JsonKey(name: 'isEmailVerified')
   bool get isEmailVerified => throw _privateConstructorUsedError;
 
   /// Father of confession name.
+  @HiveField(9)
   @JsonKey(name: 'father_of_confession')
   String? get fatherOfConfession => throw _privateConstructorUsedError;
 
   /// Birthdate with Timestamp conversion.
+  @HiveField(10)
   @_TimestampConverter()
   DateTime? get birthdate => throw _privateConstructorUsedError;
 
   /// Optional notes about the servant.
+  @HiveField(11)
   String? get notes => throw _privateConstructorUsedError;
+  @HiveField(12)
   bool get isArchived => throw _privateConstructorUsedError;
+  @HiveField(13)
   @_TimestampConverter()
   DateTime? get archivedAt => throw _privateConstructorUsedError;
+  @HiveField(14)
   String? get archivedByUserId => throw _privateConstructorUsedError;
+  @HiveField(15)
   String? get archiveReason => throw _privateConstructorUsedError;
+  @HiveField(16)
   @_TimestampConverter()
   DateTime? get restoredAt => throw _privateConstructorUsedError;
+  @HiveField(17)
   String? get restoredByUserId => throw _privateConstructorUsedError;
 
   /// Assigned team/class ID within the servant's group.
+  @HiveField(18)
   @Deprecated('Use assignedTeamIds instead')
   String? get assignedTeamId => throw _privateConstructorUsedError;
 
   /// Multiple assigned team IDs (if applicable).
+  @HiveField(19)
   List<String> get assignedTeamIds => throw _privateConstructorUsedError;
 
   /// Aggregated group attendance metrics (for US1 Trend Insights).
+  @HiveField(20)
   Map<String, dynamic>? get groupAttendanceSummary =>
       throw _privateConstructorUsedError;
+  @HiveField(21)
   SyncStatus get syncStatus => throw _privateConstructorUsedError;
+  @HiveField(22)
   @_TimestampConverter()
   DateTime? get clientUpdatedAt => throw _privateConstructorUsedError;
 
@@ -96,29 +119,33 @@ abstract class $ServantModelCopyWith<$Res> {
   ) = _$ServantModelCopyWithImpl<$Res, ServantModel>;
   @useResult
   $Res call({
-    String? uid,
-    String docID,
-    String name,
-    @_RoleConverter() UserRole role,
-    String? email,
-    String? phone,
-    String? imageUrl,
-    @JsonKey(name: 'groupId') String? teamName,
-    @JsonKey(name: 'isEmailVerified') bool isEmailVerified,
-    @JsonKey(name: 'father_of_confession') String? fatherOfConfession,
-    @_TimestampConverter() DateTime? birthdate,
-    String? notes,
-    bool isArchived,
-    @_TimestampConverter() DateTime? archivedAt,
-    String? archivedByUserId,
-    String? archiveReason,
-    @_TimestampConverter() DateTime? restoredAt,
-    String? restoredByUserId,
-    @Deprecated('Use assignedTeamIds instead') String? assignedTeamId,
-    List<String> assignedTeamIds,
-    Map<String, dynamic>? groupAttendanceSummary,
-    SyncStatus syncStatus,
-    @_TimestampConverter() DateTime? clientUpdatedAt,
+    @HiveField(0) String? uid,
+    @HiveField(1) String docID,
+    @HiveField(2) String name,
+    @HiveField(3) @_RoleConverter() UserRole role,
+    @HiveField(4) String? email,
+    @HiveField(5) String? phone,
+    @HiveField(6) String? imageUrl,
+    @HiveField(7) @JsonKey(name: 'groupId') String? teamName,
+    @HiveField(8) @JsonKey(name: 'isEmailVerified') bool isEmailVerified,
+    @HiveField(9)
+    @JsonKey(name: 'father_of_confession')
+    String? fatherOfConfession,
+    @HiveField(10) @_TimestampConverter() DateTime? birthdate,
+    @HiveField(11) String? notes,
+    @HiveField(12) bool isArchived,
+    @HiveField(13) @_TimestampConverter() DateTime? archivedAt,
+    @HiveField(14) String? archivedByUserId,
+    @HiveField(15) String? archiveReason,
+    @HiveField(16) @_TimestampConverter() DateTime? restoredAt,
+    @HiveField(17) String? restoredByUserId,
+    @HiveField(18)
+    @Deprecated('Use assignedTeamIds instead')
+    String? assignedTeamId,
+    @HiveField(19) List<String> assignedTeamIds,
+    @HiveField(20) Map<String, dynamic>? groupAttendanceSummary,
+    @HiveField(21) SyncStatus syncStatus,
+    @HiveField(22) @_TimestampConverter() DateTime? clientUpdatedAt,
   });
 }
 
@@ -269,29 +296,33 @@ abstract class _$$ServantModelImplCopyWith<$Res>
   @override
   @useResult
   $Res call({
-    String? uid,
-    String docID,
-    String name,
-    @_RoleConverter() UserRole role,
-    String? email,
-    String? phone,
-    String? imageUrl,
-    @JsonKey(name: 'groupId') String? teamName,
-    @JsonKey(name: 'isEmailVerified') bool isEmailVerified,
-    @JsonKey(name: 'father_of_confession') String? fatherOfConfession,
-    @_TimestampConverter() DateTime? birthdate,
-    String? notes,
-    bool isArchived,
-    @_TimestampConverter() DateTime? archivedAt,
-    String? archivedByUserId,
-    String? archiveReason,
-    @_TimestampConverter() DateTime? restoredAt,
-    String? restoredByUserId,
-    @Deprecated('Use assignedTeamIds instead') String? assignedTeamId,
-    List<String> assignedTeamIds,
-    Map<String, dynamic>? groupAttendanceSummary,
-    SyncStatus syncStatus,
-    @_TimestampConverter() DateTime? clientUpdatedAt,
+    @HiveField(0) String? uid,
+    @HiveField(1) String docID,
+    @HiveField(2) String name,
+    @HiveField(3) @_RoleConverter() UserRole role,
+    @HiveField(4) String? email,
+    @HiveField(5) String? phone,
+    @HiveField(6) String? imageUrl,
+    @HiveField(7) @JsonKey(name: 'groupId') String? teamName,
+    @HiveField(8) @JsonKey(name: 'isEmailVerified') bool isEmailVerified,
+    @HiveField(9)
+    @JsonKey(name: 'father_of_confession')
+    String? fatherOfConfession,
+    @HiveField(10) @_TimestampConverter() DateTime? birthdate,
+    @HiveField(11) String? notes,
+    @HiveField(12) bool isArchived,
+    @HiveField(13) @_TimestampConverter() DateTime? archivedAt,
+    @HiveField(14) String? archivedByUserId,
+    @HiveField(15) String? archiveReason,
+    @HiveField(16) @_TimestampConverter() DateTime? restoredAt,
+    @HiveField(17) String? restoredByUserId,
+    @HiveField(18)
+    @Deprecated('Use assignedTeamIds instead')
+    String? assignedTeamId,
+    @HiveField(19) List<String> assignedTeamIds,
+    @HiveField(20) Map<String, dynamic>? groupAttendanceSummary,
+    @HiveField(21) SyncStatus syncStatus,
+    @HiveField(22) @_TimestampConverter() DateTime? clientUpdatedAt,
   });
 }
 
@@ -434,29 +465,35 @@ class __$$ServantModelImplCopyWithImpl<$Res>
 @JsonSerializable()
 class _$ServantModelImpl extends _ServantModel {
   const _$ServantModelImpl({
-    this.uid,
-    required this.docID,
-    required this.name,
-    @_RoleConverter() this.role = UserRole.servant,
-    this.email,
-    this.phone,
-    this.imageUrl,
-    @JsonKey(name: 'groupId') this.teamName,
-    @JsonKey(name: 'isEmailVerified') this.isEmailVerified = false,
-    @JsonKey(name: 'father_of_confession') this.fatherOfConfession,
-    @_TimestampConverter() this.birthdate,
-    this.notes,
-    this.isArchived = false,
-    @_TimestampConverter() this.archivedAt,
-    this.archivedByUserId,
-    this.archiveReason,
-    @_TimestampConverter() this.restoredAt,
-    this.restoredByUserId,
-    @Deprecated('Use assignedTeamIds instead') this.assignedTeamId,
-    final List<String> assignedTeamIds = const <String>[],
-    final Map<String, dynamic>? groupAttendanceSummary,
-    this.syncStatus = SyncStatus.synced,
-    @_TimestampConverter() this.clientUpdatedAt,
+    @HiveField(0) this.uid,
+    @HiveField(1) required this.docID,
+    @HiveField(2) required this.name,
+    @HiveField(3) @_RoleConverter() this.role = UserRole.servant,
+    @HiveField(4) this.email,
+    @HiveField(5) this.phone,
+    @HiveField(6) this.imageUrl,
+    @HiveField(7) @JsonKey(name: 'groupId') this.teamName,
+    @HiveField(8)
+    @JsonKey(name: 'isEmailVerified')
+    this.isEmailVerified = false,
+    @HiveField(9)
+    @JsonKey(name: 'father_of_confession')
+    this.fatherOfConfession,
+    @HiveField(10) @_TimestampConverter() this.birthdate,
+    @HiveField(11) this.notes,
+    @HiveField(12) this.isArchived = false,
+    @HiveField(13) @_TimestampConverter() this.archivedAt,
+    @HiveField(14) this.archivedByUserId,
+    @HiveField(15) this.archiveReason,
+    @HiveField(16) @_TimestampConverter() this.restoredAt,
+    @HiveField(17) this.restoredByUserId,
+    @HiveField(18)
+    @Deprecated('Use assignedTeamIds instead')
+    this.assignedTeamId,
+    @HiveField(19) final List<String> assignedTeamIds = const <String>[],
+    @HiveField(20) final Map<String, dynamic>? groupAttendanceSummary,
+    @HiveField(21) this.syncStatus = SyncStatus.synced,
+    @HiveField(22) @_TimestampConverter() this.clientUpdatedAt,
   }) : _assignedTeamIds = assignedTeamIds,
        _groupAttendanceSummary = groupAttendanceSummary,
        super._();
@@ -466,73 +503,92 @@ class _$ServantModelImpl extends _ServantModel {
 
   /// Firebase Auth UID for this servant.
   @override
+  @HiveField(0)
   final String? uid;
 
   /// Firestore document ID.
   @override
+  @HiveField(1)
   final String docID;
   @override
+  @HiveField(2)
   final String name;
 
   /// Role (defaults to servant)
   @override
   @JsonKey()
+  @HiveField(3)
   @_RoleConverter()
   final UserRole role;
 
   /// Email (may be null for some users)
   @override
+  @HiveField(4)
   final String? email;
 
   /// Phone number (optional - may not exist in user docs)
   @override
+  @HiveField(5)
   final String? phone;
 
   /// Profile image URL
   @override
+  @HiveField(6)
   final String? imageUrl;
 
   /// Team/group name - uses groupId from Users collection
   @override
+  @HiveField(7)
   @JsonKey(name: 'groupId')
   final String? teamName;
 
   /// Email verification status
   @override
+  @HiveField(8)
   @JsonKey(name: 'isEmailVerified')
   final bool isEmailVerified;
 
   /// Father of confession name.
   @override
+  @HiveField(9)
   @JsonKey(name: 'father_of_confession')
   final String? fatherOfConfession;
 
   /// Birthdate with Timestamp conversion.
   @override
+  @HiveField(10)
   @_TimestampConverter()
   final DateTime? birthdate;
 
   /// Optional notes about the servant.
   @override
+  @HiveField(11)
   final String? notes;
   @override
   @JsonKey()
+  @HiveField(12)
   final bool isArchived;
   @override
+  @HiveField(13)
   @_TimestampConverter()
   final DateTime? archivedAt;
   @override
+  @HiveField(14)
   final String? archivedByUserId;
   @override
+  @HiveField(15)
   final String? archiveReason;
   @override
+  @HiveField(16)
   @_TimestampConverter()
   final DateTime? restoredAt;
   @override
+  @HiveField(17)
   final String? restoredByUserId;
 
   /// Assigned team/class ID within the servant's group.
   @override
+  @HiveField(18)
   @Deprecated('Use assignedTeamIds instead')
   final String? assignedTeamId;
 
@@ -542,6 +598,7 @@ class _$ServantModelImpl extends _ServantModel {
   /// Multiple assigned team IDs (if applicable).
   @override
   @JsonKey()
+  @HiveField(19)
   List<String> get assignedTeamIds {
     if (_assignedTeamIds is EqualUnmodifiableListView) return _assignedTeamIds;
     // ignore: implicit_dynamic_type
@@ -553,6 +610,7 @@ class _$ServantModelImpl extends _ServantModel {
 
   /// Aggregated group attendance metrics (for US1 Trend Insights).
   @override
+  @HiveField(20)
   Map<String, dynamic>? get groupAttendanceSummary {
     final value = _groupAttendanceSummary;
     if (value == null) return null;
@@ -564,8 +622,10 @@ class _$ServantModelImpl extends _ServantModel {
 
   @override
   @JsonKey()
+  @HiveField(21)
   final SyncStatus syncStatus;
   @override
+  @HiveField(22)
   @_TimestampConverter()
   final DateTime? clientUpdatedAt;
 
@@ -667,29 +727,33 @@ class _$ServantModelImpl extends _ServantModel {
 
 abstract class _ServantModel extends ServantModel {
   const factory _ServantModel({
-    final String? uid,
-    required final String docID,
-    required final String name,
-    @_RoleConverter() final UserRole role,
-    final String? email,
-    final String? phone,
-    final String? imageUrl,
-    @JsonKey(name: 'groupId') final String? teamName,
-    @JsonKey(name: 'isEmailVerified') final bool isEmailVerified,
-    @JsonKey(name: 'father_of_confession') final String? fatherOfConfession,
-    @_TimestampConverter() final DateTime? birthdate,
-    final String? notes,
-    final bool isArchived,
-    @_TimestampConverter() final DateTime? archivedAt,
-    final String? archivedByUserId,
-    final String? archiveReason,
-    @_TimestampConverter() final DateTime? restoredAt,
-    final String? restoredByUserId,
-    @Deprecated('Use assignedTeamIds instead') final String? assignedTeamId,
-    final List<String> assignedTeamIds,
-    final Map<String, dynamic>? groupAttendanceSummary,
-    final SyncStatus syncStatus,
-    @_TimestampConverter() final DateTime? clientUpdatedAt,
+    @HiveField(0) final String? uid,
+    @HiveField(1) required final String docID,
+    @HiveField(2) required final String name,
+    @HiveField(3) @_RoleConverter() final UserRole role,
+    @HiveField(4) final String? email,
+    @HiveField(5) final String? phone,
+    @HiveField(6) final String? imageUrl,
+    @HiveField(7) @JsonKey(name: 'groupId') final String? teamName,
+    @HiveField(8) @JsonKey(name: 'isEmailVerified') final bool isEmailVerified,
+    @HiveField(9)
+    @JsonKey(name: 'father_of_confession')
+    final String? fatherOfConfession,
+    @HiveField(10) @_TimestampConverter() final DateTime? birthdate,
+    @HiveField(11) final String? notes,
+    @HiveField(12) final bool isArchived,
+    @HiveField(13) @_TimestampConverter() final DateTime? archivedAt,
+    @HiveField(14) final String? archivedByUserId,
+    @HiveField(15) final String? archiveReason,
+    @HiveField(16) @_TimestampConverter() final DateTime? restoredAt,
+    @HiveField(17) final String? restoredByUserId,
+    @HiveField(18)
+    @Deprecated('Use assignedTeamIds instead')
+    final String? assignedTeamId,
+    @HiveField(19) final List<String> assignedTeamIds,
+    @HiveField(20) final Map<String, dynamic>? groupAttendanceSummary,
+    @HiveField(21) final SyncStatus syncStatus,
+    @HiveField(22) @_TimestampConverter() final DateTime? clientUpdatedAt,
   }) = _$ServantModelImpl;
   const _ServantModel._() : super._();
 
@@ -698,71 +762,94 @@ abstract class _ServantModel extends ServantModel {
 
   @override
   /// Firebase Auth UID for this servant.
+  @HiveField(0)
   String? get uid;
   @override
   /// Firestore document ID.
+  @HiveField(1)
   String get docID;
   @override
+  @HiveField(2)
   String get name;
   @override
   /// Role (defaults to servant)
+  @HiveField(3)
   @_RoleConverter()
   UserRole get role;
   @override
   /// Email (may be null for some users)
+  @HiveField(4)
   String? get email;
   @override
   /// Phone number (optional - may not exist in user docs)
+  @HiveField(5)
   String? get phone;
   @override
   /// Profile image URL
+  @HiveField(6)
   String? get imageUrl;
   @override
   /// Team/group name - uses groupId from Users collection
+  @HiveField(7)
   @JsonKey(name: 'groupId')
   String? get teamName;
   @override
   /// Email verification status
+  @HiveField(8)
   @JsonKey(name: 'isEmailVerified')
   bool get isEmailVerified;
   @override
   /// Father of confession name.
+  @HiveField(9)
   @JsonKey(name: 'father_of_confession')
   String? get fatherOfConfession;
   @override
   /// Birthdate with Timestamp conversion.
+  @HiveField(10)
   @_TimestampConverter()
   DateTime? get birthdate;
   @override
   /// Optional notes about the servant.
+  @HiveField(11)
   String? get notes;
   @override
+  @HiveField(12)
   bool get isArchived;
   @override
+  @HiveField(13)
   @_TimestampConverter()
   DateTime? get archivedAt;
   @override
+  @HiveField(14)
   String? get archivedByUserId;
   @override
+  @HiveField(15)
   String? get archiveReason;
   @override
+  @HiveField(16)
   @_TimestampConverter()
   DateTime? get restoredAt;
   @override
+  @HiveField(17)
   String? get restoredByUserId;
   @override
   /// Assigned team/class ID within the servant's group.
+  @HiveField(18)
   @Deprecated('Use assignedTeamIds instead')
   String? get assignedTeamId;
   @override
   /// Multiple assigned team IDs (if applicable).
+  @HiveField(19)
   List<String> get assignedTeamIds;
   @override
   /// Aggregated group attendance metrics (for US1 Trend Insights).
+  @HiveField(20)
   Map<String, dynamic>? get groupAttendanceSummary;
   @override
+  @HiveField(21)
   SyncStatus get syncStatus;
   @override
+  @HiveField(22)
   @_TimestampConverter()
   DateTime? get clientUpdatedAt;
   @override
