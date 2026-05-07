@@ -357,7 +357,7 @@ class StudentQueryService {
     if (classIds.isEmpty) return [];
 
     final studentIds = <String>[];
-    final chunks = classIds.chunk(10);
+    final chunks = classIds.chunk(30);
     final futures = chunks.map(
       (chunk) => _firestore
           .collection(FirestoreCollections.classes)

@@ -4,8 +4,12 @@ import 'dart:io' show Platform;
 import 'dart:ui';
 
 import 'package:church_management_system/church_app.dart';
+import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/features/auth/data/services/auth_user_local_store.dart';
+import 'package:church_management_system/features/servant/data/models/servant_models.dart';
+import 'package:church_management_system/features/student/data/models/student_model.dart';
+import 'package:church_management_system/features/team/data/models/team_model.dart';
 import 'package:church_management_system/firebase_options.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -25,6 +29,18 @@ Future<void> _initializeFirebase() async {
   }
 }
 
+void _registerHiveAdapters() {
+  Hive
+    ..registerAdapter(UserRoleAdapter())
+    ..registerAdapter(AttendanceStatusAdapter())
+    ..registerAdapter(EducationStageAdapter())
+    ..registerAdapter(SyncStatusAdapter())
+    ..registerAdapter(GroupAdapter())
+    ..registerAdapter(StudentModelAdapter())
+    ..registerAdapter(ServantModelAdapter())
+    ..registerAdapter(TeamModelAdapter());
+}
+
 void main() {
   runZonedGuarded(
     () async {
@@ -32,6 +48,7 @@ void main() {
 
       // Mandate: Initialize Hive for offline-first storage
       await Hive.initFlutter();
+      _registerHiveAdapters();
 
       FlutterError.onError = (details) {
         FlutterError.presentError(details);

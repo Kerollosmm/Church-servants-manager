@@ -1,5 +1,6 @@
 import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
+import 'package:church_management_system/core/widgets/common/ochre_ambient_shadow.dart';
 import 'package:flutter/material.dart';
 
 class OchreCard extends StatelessWidget {
@@ -35,17 +36,12 @@ class OchreCard extends StatelessWidget {
       padding: padding ?? const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: color ?? AppColors.surface,
-        borderRadius: borderRadius ?? AppRadius.mdRadius, // 12px
+        borderRadius:
+            borderRadius ?? AppRadius.lgRadius, // 16px for Sanctuary feel
         border:
             border ??
-            Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.black.withValues(alpha: 0.05),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
+            Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.5)),
+        boxShadow: OchreAmbientShadow.level1,
       ),
       child: child,
     );
@@ -53,7 +49,7 @@ class OchreCard extends StatelessWidget {
     if (onTap != null) {
       return InkWell(
         onTap: onTap,
-        borderRadius: borderRadius ?? AppRadius.mdRadius,
+        borderRadius: borderRadius ?? AppRadius.lgRadius,
         child: card,
       );
     }

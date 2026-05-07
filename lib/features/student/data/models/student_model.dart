@@ -1,7 +1,7 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/utils/json_converters.dart';
-
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:hive/hive.dart';
 
 // ignore_for_file: invalid_annotation_target
 
@@ -11,43 +11,48 @@ part 'student_model.g.dart';
 typedef _TimestampConverter = FirestoreTimestampConverter;
 
 @freezed
+@HiveType(typeId: 1)
 class StudentModel with _$StudentModel {
   const StudentModel._();
 
   const factory StudentModel({
-    required String uid,
-    required String docID,
-    required String name,
-    required String? imageUrl,
-    required UserRole role,
-    required String mobile,
-    required Group group,
-    @JsonKey(name: 'team_name') required String teamName,
-    @JsonKey(name: 'mother_number') required String motherPhone,
-    @JsonKey(name: 'father_number') required String fatherPhone,
-    required int grade,
-    @JsonKey(name: 'education_stage') required EducationStage educationStage,
-    @JsonKey(name: 'school_college') required String? school,
-    required String? address,
-    @_TimestampConverter() required DateTime? birthdate,
-    @JsonKey(name: 'father_of_confession') required String fatherOfConfession,
-    required String? notes,
+    @HiveField(0) required String uid,
+    @HiveField(1) required String docID,
+    @HiveField(2) required String name,
+    @HiveField(3) required String? imageUrl,
+    @HiveField(4) required UserRole role,
+    @HiveField(5) required String mobile,
+    @HiveField(6) required Group group,
+    @HiveField(7) @JsonKey(name: 'team_name') required String teamName,
+    @HiveField(8) @JsonKey(name: 'mother_number') required String motherPhone,
+    @HiveField(9) @JsonKey(name: 'father_number') required String fatherPhone,
+    @HiveField(10) required int grade,
+    @HiveField(11)
+    @JsonKey(name: 'education_stage')
+    required EducationStage educationStage,
+    @HiveField(12) @JsonKey(name: 'school_college') required String? school,
+    @HiveField(13) required String? address,
+    @HiveField(14) @_TimestampConverter() required DateTime? birthdate,
+    @HiveField(15)
+    @JsonKey(name: 'father_of_confession')
+    required String fatherOfConfession,
+    @HiveField(16) required String? notes,
 
-    @Default(false) bool isArchived,
-    @_TimestampConverter() DateTime? archivedAt,
-    String? archivedByUserId,
-    String? archiveReason,
-    @_TimestampConverter() DateTime? restoredAt,
-    String? restoredByUserId,
+    @HiveField(17) @Default(false) bool isArchived,
+    @HiveField(18) @_TimestampConverter() DateTime? archivedAt,
+    @HiveField(19) String? archivedByUserId,
+    @HiveField(20) String? archiveReason,
+    @HiveField(21) @_TimestampConverter() DateTime? restoredAt,
+    @HiveField(22) String? restoredByUserId,
 
     /// Class ID for efficient querying - enables single query instead of N+1.
-    String? classId,
+    @HiveField(23) String? classId,
 
     /// Aggregated attendance metrics (totalPresent, streak, etc.) updated on session close.
-    Map<String, dynamic>? attendanceSummary,
+    @HiveField(24) Map<String, dynamic>? attendanceSummary,
 
-    @Default(SyncStatus.synced) SyncStatus syncStatus,
-    @_TimestampConverter() DateTime? clientUpdatedAt,
+    @HiveField(25) @Default(SyncStatus.synced) SyncStatus syncStatus,
+    @HiveField(26) @_TimestampConverter() DateTime? clientUpdatedAt,
   }) = _StudentModel;
 
   /// Creates a StudentModel from JSON.

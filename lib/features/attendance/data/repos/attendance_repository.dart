@@ -19,7 +19,6 @@ import 'package:church_management_system/features/student/data/models/student_mo
 import 'package:church_management_system/features/student/data/services/student_query_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:rxdart/rxdart.dart';
 
 /// Repository for attendance data and operations.
 ///
@@ -31,17 +30,14 @@ class AttendanceRepository implements IAttendanceRepository {
     required FirebaseFirestore firestore,
     StudentQueryService? studentQueryService,
     DateTime Function()? nowProvider,
-    Stream<DateTime>? clockStream,
   }) : _firestore = firestore,
        _studentQueryService =
            studentQueryService ?? StudentQueryService(firestore: firestore),
-       _nowProvider = nowProvider ?? DateTime.now,
-       _clockStream = clockStream;
+       _nowProvider = nowProvider ?? DateTime.now;
 
   final FirebaseFirestore _firestore;
   final StudentQueryService _studentQueryService;
   final DateTime Function() _nowProvider;
-  final Stream<DateTime>? _clockStream;
 
   CollectionReference<Map<String, dynamic>> get _classesCollection =>
       _firestore.collection(FirestoreCollections.classes);
@@ -76,39 +72,6 @@ class AttendanceRepository implements IAttendanceRepository {
     String studentId,
     String servantId,
   ) => _marksCol(teamId, sessionId).doc('${studentId}_$servantId');
-
-  Stream<DateTime> _watchClock({
-    Duration interval = const Duration(seconds: 15),
-  }) {
-    final source =
-        _clockStream ??
-        Stream<DateTime>.periodic(interval, (_) => _nowProvider());
-    return source.startWith(_nowProvider());
-  }
-
-  Stream<DateTime> _watchSessionBoundary(AttendanceSession session) {
-    final clockStream = _clockStream;
-    if (clockStream != null) {
-      return clockStream
-          .where((tick) => !tick.isBefore(session.endsAt))
-          .startWith(_nowProvider());
-    }
-
-    final controller = StreamController<DateTime>()..add(_nowProvider());
-    final now = _nowProvider();
-    if (session.endsAt.isAfter(now)) {
-      Future.delayed(session.endsAt.difference(now)).then((_) {
-        if (!controller.isClosed) {
-          controller
-            ..add(_nowProvider())
-            ..close();
-        }
-      });
-    } else {
-      controller.close();
-    }
-    return controller.stream;
-  }
 
   String _normalizeTitle(String? title) {
     return title?.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase() ?? '';
@@ -203,46 +166,6 @@ class AttendanceRepository implements IAttendanceRepository {
     }
     sessions.sort((first, second) => second.startsAt.compareTo(first.startsAt));
     return sessions;
-  }
-
-  /// Aggregates a stream of marks from all servants.
-  /// For each student, the most recently updated mark is selected.
-  Stream<Map<String, AttendanceMark>> _watchMarksMap(
-    String teamId,
-    String sessionId,
-  ) {
-    return _marksCol(teamId, sessionId).snapshots().map((snapshot) {
-      final marks = <String, AttendanceMark>{};
-      final studentMarks = <String, List<AttendanceMark>>{};
-
-      for (final doc in snapshot.docs) {
-        try {
-          final parts = doc.id.split('_');
-          final studentId = parts.first;
-          final mark = AttendanceMark.fromMap(doc.data(), studentId);
-
-          if (!studentMarks.containsKey(studentId)) {
-            studentMarks[studentId] = [];
-          }
-          studentMarks[studentId]!.add(mark);
-        } catch (error) {
-          developer.log(
-            'skipped malformed attendance mark ${doc.reference.path}',
-            error: error,
-            name: 'AttendanceRepository',
-          );
-        }
-      }
-
-      // Aggregate: Pick the mark with latest updatedAt for each student
-      studentMarks.forEach((studentId, list) {
-        if (list.isEmpty) return;
-        list.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-        marks[studentId] = list.first;
-      });
-
-      return marks;
-    });
   }
 
   AttendanceRosterSnapshot _buildRosterSnapshot({

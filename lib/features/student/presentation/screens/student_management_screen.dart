@@ -8,7 +8,8 @@ import 'package:church_management_system/core/theme/app_spacing.dart';
 import 'package:church_management_system/core/utils/data_export_service.dart';
 import 'package:church_management_system/core/widgets/app_empty_state.dart';
 import 'package:church_management_system/core/widgets/app_error_state.dart';
-import 'package:church_management_system/core/widgets/cards/person_list_card.dart';
+import 'package:church_management_system/core/widgets/common/ochre_card.dart';
+import 'package:church_management_system/core/widgets/common/sanctuary_background.dart';
 import 'package:church_management_system/core/widgets/dialogs/generic_dialog.dart';
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
 import 'package:church_management_system/core/widgets/search/live_search_panel.dart';
@@ -226,8 +227,6 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return BlocSelector<AuthBloc, AuthState, AuthUser?>(
       selector: (state) => switch (state) {
         AuthAuthenticated() => state.user,
@@ -244,245 +243,297 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
 
         return BlocProvider<TeamBloc>.value(
           value: _teamCubit,
-          child: Scaffold(
-            appBar: AppBar(
-              title: Text(
-                _showArchived
-                    ? 'المخدومون المؤرشفون'
-                    : (actor.role == UserRole.admin
-                          ? 'إدارة المخدومين'
-                          : 'مخدومي'),
-              ),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.download),
-                  tooltip: 'تصدير',
-                  onPressed: _onExport,
+          child: SanctuaryBackground(
+            child: Scaffold(
+              backgroundColor: Colors.transparent,
+              appBar: AppBar(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                title: Text(
+                  _showArchived
+                      ? 'المخدومون المؤرشفون'
+                      : (actor.role == UserRole.admin
+                            ? 'إدارة المخدومين'
+                            : 'مخدومي'),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.refresh),
-                  tooltip: 'تحديث',
-                  onPressed: () {
-                    context.read<StudentDataBloc>().refresh(actor);
-                  },
-                ),
-                IconButton(
-                  icon: Icon(
-                    _showArchived
-                        ? Icons.unarchive_outlined
-                        : Icons.archive_outlined,
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.download),
+                    tooltip: 'تصدير',
+                    onPressed: _onExport,
                   ),
-                  tooltip: _showArchived ? 'إخفاء المؤرشف' : 'عرض المؤرشف',
-                  onPressed: () {
-                    setState(() => _showArchived = !_showArchived);
-                    context.read<StudentDataBloc>().add(
-                      StudentsLoadRequested(
-                        actor: actor,
-                        teamId: _selectedTeamId,
-                        includeArchived: _showArchived,
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
-            floatingActionButton: _canManage(actor)
-                ? FloatingActionButton.extended(
+                  IconButton(
+                    icon: const Icon(Icons.refresh),
+                    tooltip: 'تحديث',
                     onPressed: () {
-                      _openStudentEditor(actor);
+                      context.read<StudentDataBloc>().refresh(actor);
                     },
-                    icon: const Icon(Icons.person_add),
-                    label: const Text('إضافة مخدوم'),
-                  )
-                : null,
-            body: BlocConsumer<StudentDataBloc, StudentDataState>(
-              buildWhen: (prev, curr) {
-                // Only rebuild when student list or loading state changes
-                if (prev.runtimeType != curr.runtimeType) return true;
-                if (curr is StudentDataLoaded && prev is StudentDataLoaded) {
-                  return prev.students != curr.students ||
-                      prev.mutationStatus != curr.mutationStatus;
-                }
-                return true;
-              },
-              listener: (context, state) {
-                if (state is StudentDataError) {
-                  AppSnackbars.showError(context, state.message);
-                }
-                if (state is StudentDataLoaded &&
-                    state.successMessage != null) {
-                  if (state.mutationStatus != StudentMutationStatus.success) {
-                    return;
-                  }
-                  AppSnackbars.showSuccess(
-                    context,
-                    state.successMessage!,
-                    backgroundColor: AppColors.secondary,
-                  );
-                }
-              },
-              builder: (context, state) {
-                final viewData = _buildViewData(state);
-
-                return RefreshIndicator(
-                  onRefresh: () =>
-                      context.read<StudentDataBloc>().refresh(actor),
-                  child: CustomScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    slivers: [
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(
-                            AppSpacing.md,
-                            AppSpacing.md,
-                            AppSpacing.md,
-                            AppSpacing.sm,
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              LiveSearchPanel(
-                                controller: _searchController,
-                                label: 'ابحث باسم المخدوم',
-                                hint: 'ابحث بالاسم',
-                                clearTooltip: 'مسح',
-                                liveLabel: 'متصل بـ Firestore',
-                                isLoading: viewData.isLoading,
-                                onChanged: (v) => _onSearchChanged(actor, v),
-                                onSubmitted: (v) => _dispatchSearch(
-                                  actor,
-                                  v,
-                                  teamId: _selectedTeamId,
-                                ),
-                                onClear: () => _clearSearch(actor),
-                                bottom: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    if (actor.role == UserRole.servant)
-                                      Text(
-                                        assignedTeamIds.isNotEmpty
-                                            ? 'نطاق الخادم: ${assignedTeamIds.length} فريق'
-                                            : actor.groupId == null
-                                            ? 'نطاق الخادم: غير مخصص'
-                                            : 'نطاق الخادم: ${actor.groupId}',
-                                        style: theme.textTheme.bodySmall
-                                            ?.copyWith(
-                                              color: AppColors.textSecondary,
-                                            ),
-                                      ),
-                                    AppSpacing.gapSm,
-                                    BlocBuilder<TeamBloc, TeamState>(
-                                      builder: (context, teamState) {
-                                        final teams = teamState is TeamLoaded
-                                            ? teamState.teams
-                                            : const <TeamModel>[];
-                                        final loading =
-                                            teamState is TeamLoading ||
-                                            teamState is TeamInitial;
-                                        final errorMessage =
-                                            teamState is TeamError
-                                            ? teamState.message
-                                            : null;
-
-                                        return TeamDropdown(
-                                          teams: teams,
-                                          selectedTeamId: _selectedTeamId,
-                                          isLoading: loading,
-                                          errorMessage: errorMessage,
-                                          showAllOption:
-                                              actor.role == UserRole.admin ||
-                                              (actor.role == UserRole.servant &&
-                                                  assignedTeamIds.length > 1),
-                                          restrictToTeamIds:
-                                              actor.role == UserRole.servant &&
-                                                  assignedTeamIds.isNotEmpty
-                                              ? assignedTeamIds
-                                              : null,
-                                          label: 'تصفية حسب الفريق',
-                                          onChanged: (teamId) =>
-                                              _onTeamFilterChanged(
-                                                actor,
-                                                teamId,
-                                              ),
-                                        );
-                                      },
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      if (viewData.showInitialLoading)
-                        const SliverFillRemaining(
-                          hasScrollBody: false,
-                          child: Center(child: CircularProgressIndicator()),
-                        )
-                      else if (state is StudentDataError)
-                        SliverFillRemaining(
-                          hasScrollBody: false,
-                          child: AppErrorState(
-                            message: state.message,
-                            onRetry: () => context.read<StudentDataBloc>().add(
-                              StudentsLoadRequested(
-                                actor: actor,
-                                teamId: _selectedTeamId,
-                                includeArchived: _showArchived,
-                              ),
-                            ),
-                          ),
-                        )
-                      else if (viewData.showEmptyState)
-                        SliverFillRemaining(
-                          hasScrollBody: false,
-                          child: AppEmptyState(
-                            title: _showArchived
-                                ? 'لا يوجد مخدومون مؤرشفون'
-                                : 'لا يوجد مخدومون',
-                            subtitle: _showArchived
-                                ? 'عند أرشفة مخدوم سيظهر هنا.'
-                                : 'جرّب بحثا مختلفا أو أضف مخدوما جديدا.',
-                            onAction: _canManage(actor)
-                                ? () => _openStudentEditor(actor)
-                                : null,
-                            actionLabel: 'إضافة مخدوم',
-                            onRefresh: () =>
-                                context.read<StudentDataBloc>().refresh(actor),
-                          ),
-                        )
-                      else
-                        SliverList(
-                          delegate: SliverChildBuilderDelegate((
-                            context,
-                            index,
-                          ) {
-                            final student = viewData.students[index];
-                            return Padding(
-                              padding: const EdgeInsets.fromLTRB(
-                                AppSpacing.md,
-                                0,
-                                AppSpacing.md,
-                                AppSpacing.md,
-                              ),
-                              child: _StudentCard(
-                                key: ValueKey(student.docID),
-                                actor: actor,
-                                student: student,
-                                onTap: () => _openStudentDetail(actor, student),
-                              ),
-                            );
-                          }, childCount: viewData.students.length),
-                        ),
-                    ],
                   ),
-                );
-              },
+                ],
+              ),
+              floatingActionButton: _canManage(actor)
+                  ? FloatingActionButton.extended(
+                      onPressed: () {
+                        _openStudentEditor(actor);
+                      },
+                      icon: const Icon(Icons.person_add),
+                      label: const Text('إضافة مخدوم'),
+                    )
+                  : null,
+              body: BlocConsumer<StudentDataBloc, StudentDataState>(
+                buildWhen: (prev, curr) {
+                  if (prev.runtimeType != curr.runtimeType) return true;
+                  if (curr is StudentDataLoaded && prev is StudentDataLoaded) {
+                    return prev.students != curr.students ||
+                        prev.mutationStatus != curr.mutationStatus;
+                  }
+                  return true;
+                },
+                listener: (context, state) {
+                  if (state is StudentDataError) {
+                    AppSnackbars.showError(context, state.message);
+                  }
+                  if (state is StudentDataLoaded &&
+                      state.successMessage != null) {
+                    if (state.mutationStatus != StudentMutationStatus.success) {
+                      return;
+                    }
+                    AppSnackbars.showSuccess(
+                      context,
+                      state.successMessage!,
+                      backgroundColor: AppColors.secondary,
+                    );
+                  }
+                },
+                builder: (context, state) {
+                  final viewData = _buildViewData(state);
+
+                  return RefreshIndicator(
+                    onRefresh: () =>
+                        context.read<StudentDataBloc>().refresh(actor),
+                    child: CustomScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      slivers: [
+                        SliverPersistentHeader(
+                          pinned: true,
+                          delegate: _SearchHeaderDelegate(
+                            searchController: _searchController,
+                            isLoading: viewData.isLoading,
+                            actor: actor,
+                            assignedTeamIds: assignedTeamIds,
+                            selectedTeamId: _selectedTeamId,
+                            showArchived: _showArchived,
+                            onSearchChanged: (v) => _onSearchChanged(actor, v),
+                            onSearchSubmitted: (v) => _dispatchSearch(
+                              actor,
+                              v,
+                              teamId: _selectedTeamId,
+                            ),
+                            onSearchClear: () => _clearSearch(actor),
+                            onTeamChanged: (id) =>
+                                _onTeamFilterChanged(actor, id),
+                            onArchiveToggle: () {
+                              setState(() => _showArchived = !_showArchived);
+                              context.read<StudentDataBloc>().add(
+                                StudentsLoadRequested(
+                                  actor: actor,
+                                  teamId: _selectedTeamId,
+                                  includeArchived: _showArchived,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        if (viewData.showInitialLoading)
+                          const SliverFillRemaining(
+                            hasScrollBody: false,
+                            child: Center(child: CircularProgressIndicator()),
+                          )
+                        else if (state is StudentDataError)
+                          SliverFillRemaining(
+                            hasScrollBody: false,
+                            child: AppErrorState(
+                              message: state.message,
+                              onRetry: () =>
+                                  context.read<StudentDataBloc>().add(
+                                    StudentsLoadRequested(
+                                      actor: actor,
+                                      teamId: _selectedTeamId,
+                                      includeArchived: _showArchived,
+                                    ),
+                                  ),
+                            ),
+                          )
+                        else if (viewData.showEmptyState)
+                          SliverFillRemaining(
+                            hasScrollBody: false,
+                            child: AppEmptyState(
+                              title: _showArchived
+                                  ? 'لا يوجد مخدومون مؤرشفون'
+                                  : 'لا يوجد مخدومون',
+                              subtitle: _showArchived
+                                  ? 'عند أرشفة مخدوم سيظهر هنا.'
+                                  : 'جرّب بحثا مختلفا أو أضف مخدوما جديدا.',
+                              onAction: _canManage(actor)
+                                  ? () => _openStudentEditor(actor)
+                                  : null,
+                              actionLabel: 'إضافة مخدوم',
+                              onRefresh: () => context
+                                  .read<StudentDataBloc>()
+                                  .refresh(actor),
+                            ),
+                          )
+                        else
+                          SliverList(
+                            delegate: SliverChildBuilderDelegate((
+                              context,
+                              index,
+                            ) {
+                              final student = viewData.students[index];
+                              return Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  AppSpacing.md,
+                                  0,
+                                  AppSpacing.md,
+                                  AppSpacing.md,
+                                ),
+                                child: _StudentCard(
+                                  key: ValueKey(student.docID),
+                                  actor: actor,
+                                  student: student,
+                                  onTap: () =>
+                                      _openStudentDetail(actor, student),
+                                ),
+                              );
+                            }, childCount: viewData.students.length),
+                          ),
+                      ],
+                    ),
+                  );
+                },
+              ),
             ),
           ),
         );
       },
     );
+  }
+}
+
+class _SearchHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final TextEditingController searchController;
+  final bool isLoading;
+  final AuthUser actor;
+  final List<String> assignedTeamIds;
+  final String? selectedTeamId;
+  final bool showArchived;
+  final ValueChanged<String> onSearchChanged;
+  final ValueChanged<String> onSearchSubmitted;
+  final VoidCallback onSearchClear;
+  final ValueChanged<String?> onTeamChanged;
+  final VoidCallback onArchiveToggle;
+
+  _SearchHeaderDelegate({
+    required this.searchController,
+    required this.isLoading,
+    required this.actor,
+    required this.assignedTeamIds,
+    required this.selectedTeamId,
+    required this.showArchived,
+    required this.onSearchChanged,
+    required this.onSearchSubmitted,
+    required this.onSearchClear,
+    required this.onTeamChanged,
+    required this.onArchiveToggle,
+  });
+
+  @override
+  double get minExtent => 200;
+  @override
+  double get maxExtent => 200;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return Container(
+      color: AppColors.background.withValues(alpha: 0.9),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.sm,
+        AppSpacing.md,
+        AppSpacing.sm,
+      ),
+      child: Column(
+        children: [
+          LiveSearchPanel(
+            controller: searchController,
+            label: 'ابحث باسم المخدوم',
+            hint: 'ابحث بالاسم',
+            clearTooltip: 'مسح',
+            liveLabel: 'متصل بـ Firestore',
+            isLoading: isLoading,
+            onChanged: onSearchChanged,
+            onSubmitted: onSearchSubmitted,
+            onClear: onSearchClear,
+          ),
+          AppSpacing.gapSm,
+          Row(
+            children: [
+              Expanded(
+                child: BlocBuilder<TeamBloc, TeamState>(
+                  builder: (context, teamState) {
+                    final teams = teamState is TeamLoaded
+                        ? teamState.teams
+                        : const <TeamModel>[];
+                    final loading =
+                        teamState is TeamLoading || teamState is TeamInitial;
+                    final errorMessage = teamState is TeamError
+                        ? teamState.message
+                        : null;
+
+                    return TeamDropdown(
+                      teams: teams,
+                      selectedTeamId: selectedTeamId,
+                      isLoading: loading,
+                      errorMessage: errorMessage,
+                      showAllOption:
+                          actor.role == UserRole.admin ||
+                          (actor.role == UserRole.servant &&
+                              assignedTeamIds.length > 1),
+                      restrictToTeamIds:
+                          actor.role == UserRole.servant &&
+                              assignedTeamIds.isNotEmpty
+                          ? assignedTeamIds
+                          : null,
+                      label: 'تصفية حسب الفريق',
+                      onChanged: onTeamChanged,
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              FilterChip(
+                label: const Text('المؤرشف'),
+                selected: showArchived,
+                onSelected: (_) => onArchiveToggle(),
+                selectedColor: AppColors.primary.withValues(alpha: 0.2),
+                checkmarkColor: AppColors.primary,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _SearchHeaderDelegate oldDelegate) {
+    return oldDelegate.isLoading != isLoading ||
+        oldDelegate.selectedTeamId != selectedTeamId ||
+        oldDelegate.showArchived != showArchived;
   }
 }
 
@@ -514,12 +565,44 @@ class _StudentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PersonListCard(
-      name: student.name,
-      subtitle: student.isArchived
-          ? 'مؤرشف'
-          : 'المجموعة ${student.group.name} • الصف ${student.grade}',
+    return OchreCard(
+      padding: EdgeInsets.zero,
       onTap: onTap,
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.xs,
+        ),
+        leading: CircleAvatar(
+          backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+          child: Text(
+            student.name.isNotEmpty ? student.name[0].toUpperCase() : '?',
+            style: const TextStyle(
+              color: AppColors.primary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        title: Text(
+          student.name,
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+        ),
+        subtitle: Text(
+          student.isArchived
+              ? 'مؤرشف'
+              : 'المجموعة ${student.group.displayName} • الصف ${student.grade}',
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+        ),
+        trailing: Icon(
+          Directionality.of(context) == TextDirection.rtl
+              ? Icons.arrow_back_ios_new_rounded
+              : Icons.arrow_forward_ios_rounded,
+          color: AppColors.outline,
+          size: 14,
+        ),
+      ),
     );
   }
 }

@@ -92,7 +92,7 @@ class AdminRecentActivity extends StatelessWidget {
       case 'assignment':
         return Colors.green.shade100;
       default:
-        return AppColors.primary.withOpacity(0.1);
+        return AppColors.primary.withValues(alpha: 0.1);
     }
   }
 }

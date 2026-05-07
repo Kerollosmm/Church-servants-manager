@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
@@ -107,15 +105,22 @@ void main() {
     'search with changed team reloads the student stream for the new team',
     () async {
       final admin = actor(UserRole.admin);
-      final team1Controller = StreamController<List<StudentModel>>.broadcast();
-      final team2Controller = StreamController<List<StudentModel>>.broadcast();
 
       when(
-        () => getStudentsList.call(actor: admin, teamId: 'team1'),
-      ).thenAnswer((_) async => <StudentModel>[]);
+        () => getStudentsList.call(
+          actor: admin,
+          teamId: 'team1',
+          includeArchived: any(named: 'includeArchived'),
+        ),
+      ).thenAnswer((_) async => <StudentModel>[student()]);
+
       when(
-        () => getStudentsList.call(actor: admin, teamId: 'team2'),
-      ).thenAnswer((_) async => <StudentModel>[]);
+        () => getStudentsList.call(
+          actor: admin,
+          teamId: 'team2',
+          includeArchived: any(named: 'includeArchived'),
+        ),
+      ).thenAnswer((_) async => <StudentModel>[student(id: 's2')]);
 
       final bloc = StudentDataBloc(
         studentRepository: repository,
@@ -142,18 +147,13 @@ void main() {
 
       bloc.add(StudentsLoadRequested(actor: admin, teamId: 'team1'));
       await Future<void>.delayed(Duration.zero);
-      team1Controller.add([student()]);
-      await Future<void>.delayed(Duration.zero);
 
       bloc.add(
         StudentsSearchRequested(actor: admin, query: '', teamId: 'team2'),
       );
       await Future<void>.delayed(Duration.zero);
-      team2Controller.add([student(id: 's2')]);
 
       await expectation;
-      await team1Controller.close();
-      await team2Controller.close();
       await bloc.close();
     },
   );

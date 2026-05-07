@@ -1,7 +1,10 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/routing/route_args.dart';
+import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
+import 'package:church_management_system/core/widgets/common/ochre_button.dart';
+import 'package:church_management_system/core/widgets/common/sanctuary_background.dart';
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
@@ -232,7 +235,7 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
             if (mounted) {
               setState(() => _isSubmitting = false);
               AppSnackbars.showSuccess(context, state.successMessage!);
-              Navigator.pop(context);
+              Navigator.pop(context, true);
             }
           } else if (state is StudentDataError) {
             if (mounted) {
@@ -254,87 +257,98 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
               Navigator.pop(context);
             }
           },
-          child: Scaffold(
-            appBar: AppBar(
-              title: Text(isEditing ? 'تعديل مخدوم' : 'إضافة مخدوم'),
-            ),
-            body: SafeArea(
-              child: BlocBuilder<StudentFormTeamsCubit, StudentFormTeamsState>(
-                builder: (context, teamsState) {
-                  return Form(
-                    key: _formKey,
-                    child: ListView(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      children: [
-                        StudentBasicsSection(
-                          nameController: _controllers.name,
-                          mobileController: _controllers.mobile,
-                          emailController: _controllers.email,
-                          passwordController: _controllers.password,
-                          actorRole: actor.role,
-                          isEditing: isEditing,
-                          selectedRole: _selectedRole,
-                          group: _group,
-                          educationStage: _educationStage,
-                          grade: _grade,
-                          teamsState: teamsState,
-                          onRoleChanged: (role) {
-                            setState(() => _selectedRole = role);
-                          },
-                          onGroupChanged: _handleGroupChanged,
-                          onTeamChanged: context
-                              .read<StudentFormTeamsCubit>()
-                              .selectTeam,
-                          onEducationStageChanged: (value) {
-                            setState(() => _educationStage = value);
-                          },
-                          onGradeChanged: (value) {
-                            setState(() => _grade = value);
-                          },
-                        ),
-                        AppSpacing.gapMd,
-                        StudentFamilySection(
-                          motherPhoneController: _controllers.motherPhone,
-                          fatherPhoneController: _controllers.fatherPhone,
-                        ),
-                        AppSpacing.gapMd,
-                        StudentAdditionalSection(
-                          fatherOfConfessionController:
-                              _controllers.fatherOfConfession,
-                          schoolController: _controllers.school,
-                          addressController: _controllers.address,
-                          notesController: _controllers.notes,
-                          imageUrlController: _controllers.imageUrl,
-                          birthdate: _birthdate,
-                          isTeacher: actor.role == UserRole.servant,
-                          actorGroupLabel: actor.groupId ?? 'غير مخصص',
-                          onPickBirthdate: _pickBirthdate,
-                        ),
-                        AppSpacing.gapMd,
-                        FilledButton.icon(
-                          key: const Key('submit_student_button'),
-                          onPressed: _isSubmitting
-                              ? null
-                              : () => _submit(teamsState),
-                          icon: _isSubmitting
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : Icon(
-                                  isEditing ? Icons.save_outlined : Icons.add,
-                                ),
-                          label: Text(
-                            isEditing ? 'حفظ التعديلات' : 'إنشاء مخدوم',
-                          ),
-                        ),
-                      ],
+          child: SanctuaryBackground(
+            child: Scaffold(
+              backgroundColor: Colors.transparent,
+              appBar: AppBar(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                title: Text(isEditing ? 'تعديل مخدوم' : 'إضافة مخدوم'),
+              ),
+              bottomNavigationBar: Container(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: AppColors.background.withValues(alpha: 0.9),
+                  border: Border(
+                    top: BorderSide(
+                      color: AppColors.outlineVariant.withValues(alpha: 0.5),
                     ),
-                  );
-                },
+                  ),
+                ),
+                child: SafeArea(
+                  child:
+                      BlocBuilder<StudentFormTeamsCubit, StudentFormTeamsState>(
+                        builder: (context, teamsState) {
+                          return OchreButton(
+                            key: const Key('submit_student_button'),
+                            onPressed: () => _submit(teamsState),
+                            isLoading: _isSubmitting,
+                            text: isEditing ? 'حفظ التعديلات' : 'إنشاء مخدوم',
+                            icon: isEditing ? Icons.save_outlined : Icons.add,
+                          );
+                        },
+                      ),
+                ),
+              ),
+              body: SafeArea(
+                child:
+                    BlocBuilder<StudentFormTeamsCubit, StudentFormTeamsState>(
+                      builder: (context, teamsState) {
+                        return Form(
+                          key: _formKey,
+                          child: ListView(
+                            padding: const EdgeInsets.all(AppSpacing.md),
+                            children: [
+                              StudentBasicsSection(
+                                nameController: _controllers.name,
+                                mobileController: _controllers.mobile,
+                                emailController: _controllers.email,
+                                passwordController: _controllers.password,
+                                actorRole: actor.role,
+                                isEditing: isEditing,
+                                selectedRole: _selectedRole,
+                                group: _group,
+                                educationStage: _educationStage,
+                                grade: _grade,
+                                teamsState: teamsState,
+                                onRoleChanged: (role) {
+                                  setState(() => _selectedRole = role);
+                                },
+                                onGroupChanged: _handleGroupChanged,
+                                onTeamChanged: context
+                                    .read<StudentFormTeamsCubit>()
+                                    .selectTeam,
+                                onEducationStageChanged: (value) {
+                                  setState(() => _educationStage = value);
+                                },
+                                onGradeChanged: (value) {
+                                  setState(() => _grade = value);
+                                },
+                              ),
+                              AppSpacing.gapMd,
+                              StudentFamilySection(
+                                motherPhoneController: _controllers.motherPhone,
+                                fatherPhoneController: _controllers.fatherPhone,
+                              ),
+                              AppSpacing.gapMd,
+                              StudentAdditionalSection(
+                                fatherOfConfessionController:
+                                    _controllers.fatherOfConfession,
+                                schoolController: _controllers.school,
+                                addressController: _controllers.address,
+                                notesController: _controllers.notes,
+                                imageUrlController: _controllers.imageUrl,
+                                birthdate: _birthdate,
+                                isTeacher: actor.role == UserRole.servant,
+                                actorGroupLabel: actor.groupId ?? 'غير مخصص',
+                                onPickBirthdate: _pickBirthdate,
+                              ),
+                              const SizedBox(height: AppSpacing.xl),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
               ),
             ),
           ),

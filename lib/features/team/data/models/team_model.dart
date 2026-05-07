@@ -10,55 +10,40 @@ part 'team_model.g.dart';
 
 typedef _TimestampConverter = FirestoreTimestampConverter;
 
-class SyncStatusAdapter extends TypeAdapter<SyncStatus> {
-  @override
-  final int typeId = 10;
-
-  @override
-  SyncStatus read(BinaryReader reader) {
-    final index = reader.readByte();
-    return SyncStatus.values[index];
-  }
-
-  @override
-  void write(BinaryWriter writer, SyncStatus obj) {
-    writer.writeByte(obj.index);
-  }
-}
-
 @freezed
+@HiveType(typeId: 3)
 class TeamModel with _$TeamModel {
   const TeamModel._();
 
   const factory TeamModel({
     /// Firestore document ID.
-    required String id,
+    @HiveField(0) required String id,
 
     /// Team display name (e.g. "فريق مارمرقس").
-    required String name,
+    @HiveField(1) required String name,
 
     /// The group/year this team belongs to (e.g. "year1").
-    required String groupId,
+    @HiveField(2) required String groupId,
 
     /// UID of the servant assigned to this team (optional).
-    String? assignedServantId,
+    @HiveField(3) String? assignedServantId,
 
     /// Denormalized servant name for display.
-    String? assignedServantName,
+    @HiveField(4) String? assignedServantName,
 
-    @Default(false) bool isArchived,
+    @HiveField(5) @Default(false) bool isArchived,
 
-    @_TimestampConverter() DateTime? archivedAt,
+    @HiveField(6) @_TimestampConverter() DateTime? archivedAt,
 
-    String? archivedByUserId,
+    @HiveField(7) String? archivedByUserId,
 
-    String? archiveReason,
+    @HiveField(8) String? archiveReason,
 
-    @_TimestampConverter() DateTime? restoredAt,
+    @HiveField(9) @_TimestampConverter() DateTime? restoredAt,
 
-    String? restoredByUserId,
+    @HiveField(10) String? restoredByUserId,
 
-    @Default(SyncStatus.synced) @HiveField(10) SyncStatus syncStatus,
+    @HiveField(11) @Default(SyncStatus.synced) SyncStatus syncStatus,
   }) = _TeamModel;
 
   /// Creates a TeamModel from JSON.
@@ -90,10 +75,9 @@ class TeamModel with _$TeamModel {
 
   /// Converts to Firestore-compatible map (excludes the doc ID and syncStatus).
   Map<String, dynamic> toMap() {
-    final json = toJson();
-    json.remove('id');
-    json.remove('syncStatus');
-    return json;
+    return toJson()
+      ..remove('id')
+      ..remove('syncStatus');
   }
 
   bool get isActive => !isArchived;

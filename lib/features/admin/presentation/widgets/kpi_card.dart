@@ -28,10 +28,10 @@ class KpiCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(12), // rounded-xl (0.75rem = 12px)
-        border: Border.all(color: AppColors.primary.withOpacity(0.05)),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.05)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02), // subtle shadow-sm
+            color: Colors.black.withValues(alpha: 0.02), // subtle shadow-sm
             blurRadius: 4,
             offset: const Offset(0, 1),
           ),
@@ -48,7 +48,7 @@ class KpiCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
+                  color: AppColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(icon, color: AppColors.primary, size: 24),

@@ -131,6 +131,7 @@ void main() {
       );
 
       cubit.add(TeamLoadRequested('year1'));
+      await Future<void>.delayed(Duration.zero);
 
       final expectation = expectLater(
         cubit.stream,

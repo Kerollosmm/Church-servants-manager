@@ -64,7 +64,7 @@ class OchreTextField extends StatelessWidget {
               color: AppColors.textTertiary.withValues(alpha: 0.5),
             ),
             filled: true,
-            fillColor: AppColors.surface,
+            fillColor: AppColors.surfaceContainerLow,
             contentPadding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.md,
               vertical: AppSpacing.md,

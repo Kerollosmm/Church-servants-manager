@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_roster_item.dart';
@@ -19,8 +17,6 @@ class AuthUserFake extends Fake implements AuthUser {}
 
 void main() {
   late MockAttendanceRepository repository;
-  late StreamController<AttendanceRosterSnapshot> rosterController;
-  late StreamController<SessionStatus> statusController;
 
   setUpAll(() {
     registerFallbackValue(AuthUserFake());
@@ -85,8 +81,6 @@ void main() {
 
   setUp(() {
     repository = MockAttendanceRepository();
-    rosterController = StreamController<AttendanceRosterSnapshot>.broadcast();
-    statusController = StreamController<SessionStatus>.broadcast();
     when(
       () => repository.getSessionRosterSnapshot(
         teamId: any(named: 'teamId'),
@@ -114,10 +108,7 @@ void main() {
     ).thenAnswer((_) async => true);
   });
 
-  tearDown(() async {
-    await rosterController.close();
-    await statusController.close();
-  });
+  tearDown(() async {});
 
   group('initialization', () {
     test('emits Loading then Loaded on initialize', () async {
@@ -134,12 +125,19 @@ void main() {
         ]),
       );
 
-      bloc.add(
-        const InitializeSessionEvent(teamId: 'team-1', sessionId: 'session-1'),
-      );
-      statusController.add(SessionStatus.open);
-      rosterController.add(
-        AttendanceRosterSnapshot(
+      when(
+        () => repository.getSessionStatus(
+          teamId: any(named: 'teamId'),
+          sessionId: any(named: 'sessionId'),
+        ),
+      ).thenAnswer((_) async => SessionStatus.open);
+      when(
+        () => repository.getSessionRosterSnapshot(
+          teamId: any(named: 'teamId'),
+          sessionId: any(named: 'sessionId'),
+        ),
+      ).thenAnswer(
+        (_) async => AttendanceRosterSnapshot(
           session: buildSession(isClosed: false),
           roster: [
             buildRosterItem(
@@ -150,6 +148,9 @@ void main() {
             ),
           ],
         ),
+      );
+      bloc.add(
+        const InitializeSessionEvent(teamId: 'team-1', sessionId: 'session-1'),
       );
 
       await expectation;
@@ -174,12 +175,19 @@ void main() {
         repository: repository,
         nowProvider: () => DateTime(2026, 3, 9, 18, 10),
       );
-      bloc.add(
-        const InitializeSessionEvent(teamId: 'team-1', sessionId: 'session-1'),
-      );
-      statusController.add(SessionStatus.open);
-      rosterController.add(
-        AttendanceRosterSnapshot(
+      when(
+        () => repository.getSessionStatus(
+          teamId: any(named: 'teamId'),
+          sessionId: any(named: 'sessionId'),
+        ),
+      ).thenAnswer((_) async => SessionStatus.open);
+      when(
+        () => repository.getSessionRosterSnapshot(
+          teamId: any(named: 'teamId'),
+          sessionId: any(named: 'sessionId'),
+        ),
+      ).thenAnswer(
+        (_) async => AttendanceRosterSnapshot(
           session: openSession,
           roster: [
             buildRosterItem(
@@ -190,6 +198,9 @@ void main() {
             ),
           ],
         ),
+      );
+      bloc.add(
+        const InitializeSessionEvent(teamId: 'team-1', sessionId: 'session-1'),
       );
       await Future<void>.delayed(Duration.zero);
 
@@ -230,15 +241,19 @@ void main() {
           repository: repository,
           nowProvider: () => DateTime(2026, 3, 9, 18, 10),
         );
-        bloc.add(
-          const InitializeSessionEvent(
-            teamId: 'team-1',
-            sessionId: 'session-1',
+        when(
+          () => repository.getSessionStatus(
+            teamId: any(named: 'teamId'),
+            sessionId: any(named: 'sessionId'),
           ),
-        );
-        statusController.add(SessionStatus.open);
-        rosterController.add(
-          AttendanceRosterSnapshot(
+        ).thenAnswer((_) async => SessionStatus.open);
+        when(
+          () => repository.getSessionRosterSnapshot(
+            teamId: any(named: 'teamId'),
+            sessionId: any(named: 'sessionId'),
+          ),
+        ).thenAnswer(
+          (_) async => AttendanceRosterSnapshot(
             session: openSession,
             roster: [
               buildRosterItem(
@@ -248,6 +263,12 @@ void main() {
                 status: AttendanceEffectiveStatus.present,
               ),
             ],
+          ),
+        );
+        bloc.add(
+          const InitializeSessionEvent(
+            teamId: 'team-1',
+            sessionId: 'session-1',
           ),
         );
         await Future<void>.delayed(Duration.zero);
@@ -292,12 +313,19 @@ void main() {
         repository: repository,
         nowProvider: () => DateTime(2026, 3, 9, 18, 10),
       );
-      bloc.add(
-        const InitializeSessionEvent(teamId: 'team-1', sessionId: 'session-1'),
-      );
-      statusController.add(SessionStatus.closed);
-      rosterController.add(
-        AttendanceRosterSnapshot(
+      when(
+        () => repository.getSessionStatus(
+          teamId: any(named: 'teamId'),
+          sessionId: any(named: 'sessionId'),
+        ),
+      ).thenAnswer((_) async => SessionStatus.closed);
+      when(
+        () => repository.getSessionRosterSnapshot(
+          teamId: any(named: 'teamId'),
+          sessionId: any(named: 'sessionId'),
+        ),
+      ).thenAnswer(
+        (_) async => AttendanceRosterSnapshot(
           session: closedSession,
           roster: [
             buildRosterItem(
@@ -308,6 +336,9 @@ void main() {
             ),
           ],
         ),
+      );
+      bloc.add(
+        const InitializeSessionEvent(teamId: 'team-1', sessionId: 'session-1'),
       );
       await Future<void>.delayed(Duration.zero);
 
@@ -339,7 +370,7 @@ void main() {
     });
   });
 
-  group('session status stream', () {
+  group('session status refresh', () {
     test(
       'session closed event disables marking (isSessionOpen: false)',
       () async {
@@ -349,17 +380,19 @@ void main() {
           repository: repository,
           nowProvider: () => DateTime(2026, 3, 9, 18, 10),
         );
-        bloc.add(
-          const InitializeSessionEvent(
-            teamId: 'team-1',
-            sessionId: 'session-1',
+        when(
+          () => repository.getSessionStatus(
+            teamId: any(named: 'teamId'),
+            sessionId: any(named: 'sessionId'),
           ),
-        );
-
-        // Start as open.
-        statusController.add(SessionStatus.open);
-        rosterController.add(
-          AttendanceRosterSnapshot(
+        ).thenAnswer((_) async => SessionStatus.open);
+        when(
+          () => repository.getSessionRosterSnapshot(
+            teamId: any(named: 'teamId'),
+            sessionId: any(named: 'sessionId'),
+          ),
+        ).thenAnswer(
+          (_) async => AttendanceRosterSnapshot(
             session: openSession,
             roster: [
               buildRosterItem(
@@ -371,11 +404,25 @@ void main() {
             ],
           ),
         );
+        bloc.add(
+          const InitializeSessionEvent(
+            teamId: 'team-1',
+            sessionId: 'session-1',
+          ),
+        );
         await Future<void>.delayed(Duration.zero);
         expect((bloc.state as AttendanceTakingLoaded).isSessionOpen, isTrue);
 
         // Flip to closed.
-        statusController.add(SessionStatus.closed);
+        when(
+          () => repository.getSessionStatus(
+            teamId: any(named: 'teamId'),
+            sessionId: any(named: 'sessionId'),
+          ),
+        ).thenAnswer((_) async => SessionStatus.closed);
+        bloc.add(
+          const RefreshSessionEvent(teamId: 'team-1', sessionId: 'session-1'),
+        );
         await Future<void>.delayed(Duration.zero);
 
         expect((bloc.state as AttendanceTakingLoaded).isSessionOpen, isFalse);
@@ -384,7 +431,7 @@ void main() {
     );
   });
 
-  group('watchSessionMarks stream update', () {
+  group('refresh update', () {
     test('triggers state rebuild with updated marksMap', () async {
       final openSession = buildSession(isClosed: false);
 
@@ -392,14 +439,19 @@ void main() {
         repository: repository,
         nowProvider: () => DateTime(2026, 3, 9, 18, 10),
       );
-      bloc.add(
-        const InitializeSessionEvent(teamId: 'team-1', sessionId: 'session-1'),
-      );
-      statusController.add(SessionStatus.open);
-
-      // Initial unmarked state.
-      rosterController.add(
-        AttendanceRosterSnapshot(
+      when(
+        () => repository.getSessionStatus(
+          teamId: any(named: 'teamId'),
+          sessionId: any(named: 'sessionId'),
+        ),
+      ).thenAnswer((_) async => SessionStatus.open);
+      when(
+        () => repository.getSessionRosterSnapshot(
+          teamId: any(named: 'teamId'),
+          sessionId: any(named: 'sessionId'),
+        ),
+      ).thenAnswer(
+        (_) async => AttendanceRosterSnapshot(
           session: openSession,
           roster: [
             buildRosterItem(
@@ -411,12 +463,21 @@ void main() {
           ],
         ),
       );
+
+      bloc.add(
+        const InitializeSessionEvent(teamId: 'team-1', sessionId: 'session-1'),
+      );
       await Future<void>.delayed(Duration.zero);
       expect((bloc.state as AttendanceTakingLoaded).marksMap, isEmpty);
 
       // Update with a present mark.
-      rosterController.add(
-        AttendanceRosterSnapshot(
+      when(
+        () => repository.getSessionRosterSnapshot(
+          teamId: any(named: 'teamId'),
+          sessionId: any(named: 'sessionId'),
+        ),
+      ).thenAnswer(
+        (_) async => AttendanceRosterSnapshot(
           session: openSession,
           roster: [
             buildRosterItem(
@@ -427,6 +488,9 @@ void main() {
             ),
           ],
         ),
+      );
+      bloc.add(
+        const RefreshSessionEvent(teamId: 'team-1', sessionId: 'session-1'),
       );
       await Future<void>.delayed(Duration.zero);
 

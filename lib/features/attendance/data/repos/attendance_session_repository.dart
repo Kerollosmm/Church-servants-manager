@@ -298,33 +298,13 @@ class AttendanceSessionRepository {
     });
   }
 
-  /// Watches all sessions for a team, ordered by startsAt descending.
-  Stream<List<AttendanceSession>> watchSessionsForTeam(String teamId) {
-    return _sessionsCol(teamId)
-        .orderBy('startsAt', descending: true)
-        .snapshots()
-        .map(_mapSessionsSnapshot);
-  }
-
-  /// Watches a specific session by ID.
-  Stream<AttendanceSession?> watchSessionById({
-    required String teamId,
-    required String sessionId,
-  }) {
-    return _sessionDoc(teamId, sessionId).snapshots().map((doc) {
-      final data = doc.data();
-      if (!doc.exists || data == null) return null;
-      return AttendanceSession.fromMap(data, doc.id);
-    });
-  }
-
   /// Gets a specific session by ID (one-time read).
   Future<AttendanceSession?> getSessionById({
     required String teamId,
     required String sessionId,
   }) async {
     try {
-      final doc = await _sessionDoc(teamId, sessionId).get();
+      final doc = await _sessionDoc(teamId, sessionId).get(const GetOptions());
       final data = doc.data();
       if (!doc.exists || data == null) return null;
       return AttendanceSession.fromMap(data, doc.id);
@@ -340,7 +320,7 @@ class AttendanceSessionRepository {
   }) async {
     final snapshot = await _sessionsCol(
       teamId,
-    ).where('dateKey', isEqualTo: dateKey).get();
+    ).where('dateKey', isEqualTo: dateKey).get(const GetOptions());
     return _mapSessionsSnapshot(snapshot);
   }
 }

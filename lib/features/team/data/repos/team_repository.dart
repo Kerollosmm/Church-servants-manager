@@ -118,12 +118,10 @@ class TeamRepository implements ITeamRepository {
             .get(const GetOptions(source: Source.cache));
 
         if (cacheSnapshot.docs.isNotEmpty) {
-          final teams = _teamsFromDocs(
+          return _teamsFromDocs(
             cacheSnapshot.docs,
             includeArchived: includeArchived,
-          );
-          teams.sort((a, b) => a.name.compareTo(b.name));
-          return teams;
+          )..sort((a, b) => a.name.compareTo(b.name));
         }
       } catch (e) {
         // Cache miss or other cache error is expected, fallback to server
@@ -141,23 +139,6 @@ class TeamRepository implements ITeamRepository {
     } catch (e) {
       throw mapExceptionToTeamFailure(e);
     }
-  }
-
-  @override
-  Stream<List<TeamModel>> watchTeamsByGroup(
-    String groupId, {
-    bool includeArchived = false,
-  }) {
-    return _classesCollection
-        .where('groupId', isEqualTo: groupId)
-        .orderBy('name')
-        .snapshots()
-        .map((snapshot) {
-          return _teamsFromDocs(
-            snapshot.docs,
-            includeArchived: includeArchived,
-          );
-        });
   }
 
   @override
@@ -202,26 +183,6 @@ class TeamRepository implements ITeamRepository {
     } catch (e) {
       throw mapExceptionToTeamFailure(e);
     }
-  }
-
-  @override
-  Stream<List<TeamModel>> watchAllTeams({
-    bool includeArchived = false,
-    String? groupId,
-  }) {
-    Query<Map<String, dynamic>> query = _classesCollection;
-
-    if (!includeArchived) {
-      query = query.where('isArchived', isEqualTo: false);
-    }
-
-    if (groupId != null && groupId.isNotEmpty) {
-      query = query.where('groupId', isEqualTo: groupId);
-    }
-
-    return query.orderBy('groupId').orderBy('name').snapshots().map((snapshot) {
-      return _teamsFromDocs(snapshot.docs, includeArchived: includeArchived);
-    });
   }
 
   @override

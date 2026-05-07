@@ -1,5 +1,6 @@
 import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
+import 'package:church_management_system/core/widgets/common/ochre_ambient_shadow.dart';
 import 'package:flutter/material.dart';
 
 class OchreButton extends StatefulWidget {
@@ -46,13 +47,7 @@ class _OchreButtonState extends State<OchreButton> {
           decoration: BoxDecoration(
             color: effectiveColor,
             borderRadius: AppRadius.smRadius,
-            boxShadow: [
-              BoxShadow(
-                color: effectiveColor.withValues(alpha: 0.3),
-                blurRadius: 15,
-                offset: const Offset(0, 8),
-              ),
-            ],
+            boxShadow: OchreAmbientShadow.level2,
           ),
           child: Center(
             child: widget.isLoading

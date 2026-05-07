@@ -1,12 +1,56 @@
-enum UserRole { servant, student, admin }
+import 'package:hive/hive.dart';
 
-enum AttendanceStatus { present, absent, late }
+part 'enums.g.dart';
 
-enum EducationStage { preparatory, highSchool, college }
+@HiveType(typeId: 11)
+enum UserRole {
+  @HiveField(0)
+  servant,
+  @HiveField(1)
+  student,
+  @HiveField(2)
+  admin,
+}
 
-enum SyncStatus { pending, synced, failed }
+@HiveType(typeId: 12)
+enum AttendanceStatus {
+  @HiveField(0)
+  present,
+  @HiveField(1)
+  absent,
+  @HiveField(2)
+  late,
+}
 
-enum Group { year1, year2, year3 }
+@HiveType(typeId: 13)
+enum EducationStage {
+  @HiveField(0)
+  preparatory,
+  @HiveField(1)
+  highSchool,
+  @HiveField(2)
+  college,
+}
+
+@HiveType(typeId: 14)
+enum SyncStatus {
+  @HiveField(0)
+  pending,
+  @HiveField(1)
+  synced,
+  @HiveField(2)
+  failed,
+}
+
+@HiveType(typeId: 15)
+enum Group {
+  @HiveField(0)
+  year1,
+  @HiveField(1)
+  year2,
+  @HiveField(2)
+  year3,
+}
 
 extension GroupDisplayName on Group {
   String get displayName {

@@ -61,7 +61,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(const AuthLoading());
     try {
-      final firebaseUser = FirebaseAuth.instance.currentUser;
+      final firebaseUser = _authService.currentUser;
       if (firebaseUser == null) {
         emit(const AuthUnauthenticated());
         return;
@@ -352,11 +352,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       try {
         await _authService.clearRestorePendingPasswordReset(user.uid);
-      } catch (e) {}
+      } catch (e) {
+        // Ignore error during cleanup
+      }
 
       try {
         await _authService.signOut();
-      } catch (_) {}
+      } catch (_) {
+        // Ignore error during cleanup
+      }
 
       emit(const AuthPasswordResetSuccess());
     } catch (e) {

@@ -109,7 +109,6 @@ void main() {
       firestore: firestore,
       studentQueryService: StudentQueryService(firestore: firestore),
       nowProvider: () => currentTime,
-      clockStream: clockController.stream,
     );
   });
 
@@ -389,7 +388,9 @@ void main() {
           .collection('marks')
           .get();
       expect(marks.docs.length, 2);
-      final markedStudentIds = marks.docs.map((d) => d.id.split('_')).toSet();
+      final markedStudentIds = marks.docs
+          .map((d) => d.id.split('_').first)
+          .toSet();
       expect(markedStudentIds.contains('student-1'), isTrue);
       expect(markedStudentIds.contains('student-2'), isTrue);
     });

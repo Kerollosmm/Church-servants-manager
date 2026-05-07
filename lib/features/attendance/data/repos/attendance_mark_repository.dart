@@ -368,7 +368,7 @@ class AttendanceMarkRepository {
     required String teamId,
     required String sessionId,
   }) async {
-    final snapshot = await _marksCol(teamId, sessionId).get();
+    final snapshot = await _marksCol(teamId, sessionId).get(const GetOptions());
     final marks = <String, AttendanceMark>{};
     for (final doc in snapshot.docs) {
       try {
@@ -384,28 +384,6 @@ class AttendanceMarkRepository {
     return marks;
   }
 
-  /// Watches all marks for a session in real-time.
-  Stream<Map<String, AttendanceMark>> watchMarksForSession({
-    required String teamId,
-    required String sessionId,
-  }) {
-    return _marksCol(teamId, sessionId).snapshots().map((snapshot) {
-      final marks = <String, AttendanceMark>{};
-      for (final doc in snapshot.docs) {
-        try {
-          marks[doc.id] = AttendanceMark.fromMap(doc.data(), doc.id);
-        } catch (error) {
-          developer.log(
-            'skipped malformed mark ${doc.reference.path}',
-            error: error,
-            name: 'AttendanceMarkRepository',
-          );
-        }
-      }
-      return marks;
-    });
-  }
-
   /// Gets a single mark for a student in a session.
   Future<AttendanceMark?> getMarkForStudent({
     required String teamId,
@@ -413,7 +391,11 @@ class AttendanceMarkRepository {
     required String studentId,
   }) async {
     final normalizedStudentId = studentId.trim();
-    final doc = await _markDoc(teamId, sessionId, normalizedStudentId).get();
+    final doc = await _markDoc(
+      teamId,
+      sessionId,
+      normalizedStudentId,
+    ).get(const GetOptions());
     final data = doc.data();
     if (!doc.exists || data == null) return null;
     try {
@@ -426,31 +408,6 @@ class AttendanceMarkRepository {
       );
       return null;
     }
-  }
-
-  /// Watches a single mark for a student in real-time.
-  Stream<AttendanceMark?> watchMarkForStudent({
-    required String teamId,
-    required String sessionId,
-    required String studentId,
-  }) {
-    final normalizedStudentId = studentId.trim();
-    return _markDoc(teamId, sessionId, normalizedStudentId).snapshots().map((
-      doc,
-    ) {
-      final data = doc.data();
-      if (!doc.exists || data == null) return null;
-      try {
-        return AttendanceMark.fromMap(data, doc.id);
-      } catch (error) {
-        developer.log(
-          'skipped malformed mark ${doc.reference.path}',
-          error: error,
-          name: 'AttendanceMarkRepository',
-        );
-        return null;
-      }
-    });
   }
 
   /// Validates that a mark can be written (session is writable, student is in roster).

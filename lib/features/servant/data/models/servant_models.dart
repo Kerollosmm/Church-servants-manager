@@ -1,6 +1,7 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/utils/json_converters.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:hive/hive.dart';
 
 // ignore_for_file: invalid_annotation_target
 
@@ -11,68 +12,76 @@ typedef _TimestampConverter = FirestoreTimestampConverter;
 typedef _RoleConverter = UserRoleJsonConverter;
 
 @freezed
+@HiveType(typeId: 2)
 class ServantModel with _$ServantModel {
   const ServantModel._();
 
   const factory ServantModel({
     /// Firebase Auth UID for this servant.
-    String? uid,
+    @HiveField(0) String? uid,
 
     /// Firestore document ID.
-    required String docID,
+    @HiveField(1) required String docID,
 
-    required String name,
+    @HiveField(2) required String name,
 
     /// Role (defaults to servant)
-    @_RoleConverter() @Default(UserRole.servant) UserRole role,
+    @HiveField(3) @_RoleConverter() @Default(UserRole.servant) UserRole role,
 
     /// Email (may be null for some users)
-    String? email,
+    @HiveField(4) String? email,
 
     /// Phone number (optional - may not exist in user docs)
-    String? phone,
+    @HiveField(5) String? phone,
 
     /// Profile image URL
-    String? imageUrl,
+    @HiveField(6) String? imageUrl,
 
     /// Team/group name - uses groupId from Users collection
-    @JsonKey(name: 'groupId') String? teamName,
+    @HiveField(7) @JsonKey(name: 'groupId') String? teamName,
 
     /// Email verification status
-    @JsonKey(name: 'isEmailVerified') @Default(false) bool isEmailVerified,
+    @HiveField(8)
+    @JsonKey(name: 'isEmailVerified')
+    @Default(false)
+    bool isEmailVerified,
 
     /// Father of confession name.
-    @JsonKey(name: 'father_of_confession') String? fatherOfConfession,
+    @HiveField(9)
+    @JsonKey(name: 'father_of_confession')
+    String? fatherOfConfession,
 
     /// Birthdate with Timestamp conversion.
-    @_TimestampConverter() DateTime? birthdate,
+    @HiveField(10) @_TimestampConverter() DateTime? birthdate,
 
     /// Optional notes about the servant.
-    String? notes,
+    @HiveField(11) String? notes,
 
-    @Default(false) bool isArchived,
+    @HiveField(12) @Default(false) bool isArchived,
 
-    @_TimestampConverter() DateTime? archivedAt,
+    @HiveField(13) @_TimestampConverter() DateTime? archivedAt,
 
-    String? archivedByUserId,
+    @HiveField(14) String? archivedByUserId,
 
-    String? archiveReason,
+    @HiveField(15) String? archiveReason,
 
-    @_TimestampConverter() DateTime? restoredAt,
+    @HiveField(16) @_TimestampConverter() DateTime? restoredAt,
 
-    String? restoredByUserId,
+    @HiveField(17) String? restoredByUserId,
 
     /// Assigned team/class ID within the servant's group.
-    @Deprecated('Use assignedTeamIds instead') String? assignedTeamId,
+    @HiveField(18)
+    @Deprecated('Use assignedTeamIds instead')
+    String? assignedTeamId,
 
     /// Multiple assigned team IDs (if applicable).
-    @Default(<String>[]) List<String> assignedTeamIds,
+    @HiveField(19) @Default(<String>[]) List<String> assignedTeamIds,
 
     /// Aggregated group attendance metrics (for US1 Trend Insights).
-    Map<String, dynamic>? groupAttendanceSummary,
+    @HiveField(20) Map<String, dynamic>? groupAttendanceSummary,
 
-    @Default(SyncStatus.synced) SyncStatus syncStatus,
-    @_TimestampConverter() DateTime? clientUpdatedAt,
+    @HiveField(21) @Default(SyncStatus.synced) SyncStatus syncStatus,
+    @HiveField(22) @_TimestampConverter() DateTime? clientUpdatedAt,
   }) = _ServantModel;
 
   /// Creates a ServantModel from JSON.
