@@ -113,4 +113,6 @@ abstract class IAttendanceRepository {
     required AuthUser user,
     required String teamId,
   });
+
+  Future<void> syncOfflineMark(Map<String, dynamic> payload);
 }

@@ -70,4 +70,6 @@ abstract class IStudentRepository {
     required UserRole previousRole,
     String? updatedEmail,
   });
+
+  Future<void> syncOfflineUpdate(Map<String, dynamic> payload);
 }

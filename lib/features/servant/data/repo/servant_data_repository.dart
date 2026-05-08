@@ -155,7 +155,7 @@ class ServantDataRepository implements IServantRepository {
       final serverSnapshot = await _usersCollection
           .where('role', isEqualTo: UserRole.servant.name)
           .where('groupId', isEqualTo: groupId)
-          .get(const GetOptions(source: Source.server));
+          .get(const GetOptions());
       return (
         servants: _servantsFromDocs(serverSnapshot.docs, includeArchived),
         isFromCache: false,
@@ -263,7 +263,7 @@ class ServantDataRepository implements IServantRepository {
       final snapshot = await _usersCollection
           .where('role', isEqualTo: UserRole.servant.name)
           .where('groupId', isEqualTo: teamName)
-          .get(const GetOptions(source: Source.server));
+          .get(const GetOptions());
 
       return _servantsFromDocs(snapshot.docs, includeArchived);
     } catch (e) {

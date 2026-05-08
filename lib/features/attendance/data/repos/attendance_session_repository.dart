@@ -1,5 +1,6 @@
 import 'dart:developer' as developer;
 import 'package:church_management_system/core/constants/firestore_collections.dart';
+import 'package:church_management_system/core/utils/list_extensions.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
 import 'package:church_management_system/features/attendance/domain/failures/attendance_failures.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
@@ -113,65 +114,61 @@ class AttendanceSessionRepository {
     );
 
     final docRef = _sessionDoc(normalizedTeamId, sessionId);
+    final teamRef = _classesCollection.doc(normalizedTeamId);
 
-    await _firestore.runTransaction((transaction) async {
-      // 1. Lock the team document and get active sessions index.
-      final teamDoc = await transaction.get(
-        _classesCollection.doc(normalizedTeamId),
-      );
-      if (!teamDoc.exists) {
-        throw const AttendanceValidationFailure('الفريق غير موجود.');
-      }
+    // 1. Fetch team metadata and active sessions index OUTSIDE transaction
+    final teamDocSnapshot = await teamRef.get(
+      const GetOptions(),
+    );
+    if (!teamDocSnapshot.exists) {
+      throw const AttendanceValidationFailure('الفريق غير موجود.');
+    }
 
-      final openSessionIds = List<String>.from(
-        teamDoc.data()?['openSessionIds'] ?? [],
-      );
+    final openSessionIds = List<String>.from(
+      teamDocSnapshot.data()?['openSessionIds'] ?? [],
+    );
 
-      // 2. Validate session uniqueness and overlap inside transaction.
-      final existingDoc = await transaction.get(docRef);
-      if (existingDoc.exists) {
-        throw const AttendanceSessionConflictFailure(
-          'تم إنشاء جلسة حضور مطابقة بالفعل.',
-        );
-      }
+    final now = DateTime.now();
+    final clashingIds = <String>[];
 
-      final now = DateTime.now();
-      final activeSessions = <AttendanceSession>[];
-      final clashingIds = <String>[];
+    // 2. Perform chunked 'whereIn' query OUTSIDE the transaction to prevent read amplification.
+    if (openSessionIds.isNotEmpty) {
+      final chunks = openSessionIds.chunk(30);
+      for (final chunk in chunks) {
+        final querySnapshot = await _sessionsCol(normalizedTeamId)
+            .where(FieldPath.documentId, whereIn: chunk)
+            .get(const GetOptions());
 
-      // Fetch all open sessions in parallel within the transaction
-      final sDocs = await Future.wait(
-        openSessionIds.map(
-          (id) => transaction.get(_sessionDoc(normalizedTeamId, id)),
-        ),
-      );
-
-      for (var i = 0; i < openSessionIds.length; i++) {
-        final id = openSessionIds[i];
-        final sDoc = sDocs[i];
-        if (sDoc.exists && sDoc.data() != null) {
-          final existing = AttendanceSession.fromMap(sDoc.data()!, sDoc.id);
+        for (final doc in querySnapshot.docs) {
+          final existing = AttendanceSession.fromMap(doc.data(), doc.id);
           if (!existing.isEffectivelyClosedAt(now)) {
-            activeSessions.add(existing);
             if (_sessionsOverlap(session, existing)) {
               throw const AttendanceSessionConflictFailure(
                 'تتعارض هذه الجلسة مع جلسة أخرى موجودة.',
               );
             }
           } else {
-            clashingIds.add(id);
+            clashingIds.add(doc.id);
           }
-        } else {
-          clashingIds.add(id);
-        }
+                }
       }
+    }
 
-      final updatedOpenIds =
-          openSessionIds.where((id) => !clashingIds.contains(id)).toList()
-            ..add(sessionId);
+    final updatedOpenIds =
+        openSessionIds.where((id) => !clashingIds.contains(id)).toList()
+          ..add(sessionId);
 
-      if (updatedOpenIds.length > 10) {
-        updatedOpenIds.removeRange(0, updatedOpenIds.length - 10);
+    if (updatedOpenIds.length > 10) {
+      updatedOpenIds.removeRange(0, updatedOpenIds.length - 10);
+    }
+
+    await _firestore.runTransaction((transaction) async {
+      // Re-verify session uniqueness inside transaction for absolute safety.
+      final existingDoc = await transaction.get(docRef);
+      if (existingDoc.exists) {
+        throw const AttendanceSessionConflictFailure(
+          'تم إنشاء جلسة حضور مطابقة بالفعل.',
+        );
       }
 
       // 3. Perform atomic creation and index update.
@@ -182,14 +179,16 @@ class AttendanceSessionRepository {
           'createdAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
         })
-        ..update(teamDoc.reference, {
+        ..update(teamRef, {
           'openSessionIds': updatedOpenIds,
           'updatedAt': FieldValue.serverTimestamp(),
         });
     });
 
     // Read back the written document to return server timestamps.
-    final writtenDoc = await docRef.get();
+    final writtenDoc = await docRef.get(
+      const GetOptions(),
+    );
     final writtenData = writtenDoc.data();
     if (!writtenDoc.exists || writtenData == null) {
       throw const AttendanceServerFailure('فشل في قراءة الجلسة بعد الإنشاء.');
@@ -226,42 +225,47 @@ class AttendanceSessionRepository {
     required String reopenedByUserId,
     required String reopenedByName,
   }) async {
-    await _firestore.runTransaction((transaction) async {
-      final teamRef = _classesCollection.doc(teamId);
-      final sessionRef = _sessionDoc(teamId, sessionId);
+    final teamRef = _classesCollection.doc(teamId);
+    final sessionRef = _sessionDoc(teamId, sessionId);
 
-      final teamDoc = await transaction.get(teamRef);
-      final sessionDoc = await transaction.get(sessionRef);
+    // 1. Fetch metadata OUTSIDE transaction to minimize read amplification.
+    final results = await Future.wait([
+      teamRef.get(const GetOptions()),
+      sessionRef.get(const GetOptions()),
+    ]);
 
-      if (!teamDoc.exists) {
-        throw const AttendanceValidationFailure('الفريق غير موجود.');
-      }
-      if (!sessionDoc.exists || sessionDoc.data() == null) {
-        throw const AttendanceSessionNotFoundFailure();
-      }
+    final teamDoc = results[0];
+    final sessionDoc = results[1];
 
-      final session = AttendanceSession.fromMap(
-        sessionDoc.data()!,
-        sessionDoc.id,
-      );
-      final openSessionIds = List<String>.from(
-        teamDoc.data()?['openSessionIds'] ?? [],
-      );
+    if (!teamDoc.exists) {
+      throw const AttendanceValidationFailure('الفريق غير موجود.');
+    }
+    if (!sessionDoc.exists || sessionDoc.data() == null) {
+      throw const AttendanceSessionNotFoundFailure();
+    }
 
-      final now = DateTime.now();
-      final clashingIds = <String>[];
+    final session = AttendanceSession.fromMap(
+      sessionDoc.data()!,
+      sessionDoc.id,
+    );
+    final openSessionIds = List<String>.from(
+      teamDoc.data()?['openSessionIds'] ?? [],
+    );
 
-      // Fetch all open sessions in parallel (excluding the target session)
-      final idsToCheck = openSessionIds.where((id) => id != sessionId).toList();
-      final sDocs = await Future.wait(
-        idsToCheck.map((id) => transaction.get(_sessionDoc(teamId, id))),
-      );
+    final now = DateTime.now();
+    final clashingIds = <String>[];
 
-      for (var i = 0; i < idsToCheck.length; i++) {
-        final id = idsToCheck[i];
-        final sDoc = sDocs[i];
-        if (sDoc.exists && sDoc.data() != null) {
-          final existing = AttendanceSession.fromMap(sDoc.data()!, sDoc.id);
+    // 2. Perform chunked 'whereIn' query OUTSIDE the transaction.
+    final idsToCheck = openSessionIds.where((id) => id != sessionId).toList();
+    if (idsToCheck.isNotEmpty) {
+      final chunks = idsToCheck.chunk(30);
+      for (final chunk in chunks) {
+        final querySnapshot = await _sessionsCol(teamId)
+            .where(FieldPath.documentId, whereIn: chunk)
+            .get(const GetOptions());
+
+        for (final doc in querySnapshot.docs) {
+          final existing = AttendanceSession.fromMap(doc.data(), doc.id);
           if (!existing.isEffectivelyClosedAt(now)) {
             if (_sessionsOverlap(session, existing)) {
               throw const AttendanceSessionConflictFailure(
@@ -269,13 +273,20 @@ class AttendanceSessionRepository {
               );
             }
           } else {
-            clashingIds.add(id);
+            clashingIds.add(doc.id);
           }
-        } else {
-          clashingIds.add(id);
-        }
+                }
       }
+    }
 
+    final updatedOpenIds = openSessionIds
+        .where((id) => !clashingIds.contains(id))
+        .toList();
+    if (!updatedOpenIds.contains(sessionId)) {
+      updatedOpenIds.add(sessionId);
+    }
+
+    await _firestore.runTransaction((transaction) async {
       transaction.update(sessionRef, {
         'isClosed': false,
         'reopenedAt': FieldValue.serverTimestamp(),
@@ -283,13 +294,6 @@ class AttendanceSessionRepository {
         'reopenedByName': reopenedByName,
         'updatedAt': FieldValue.serverTimestamp(),
       });
-
-      final updatedOpenIds = openSessionIds
-          .where((id) => !clashingIds.contains(id))
-          .toList();
-      if (!updatedOpenIds.contains(sessionId)) {
-        updatedOpenIds.add(sessionId);
-      }
 
       transaction.update(teamRef, {
         'openSessionIds': updatedOpenIds,
@@ -304,7 +308,10 @@ class AttendanceSessionRepository {
     required String sessionId,
   }) async {
     try {
-      final doc = await _sessionDoc(teamId, sessionId).get(const GetOptions());
+      final doc = await _sessionDoc(
+        teamId,
+        sessionId,
+      ).get(const GetOptions());
       final data = doc.data();
       if (!doc.exists || data == null) return null;
       return AttendanceSession.fromMap(data, doc.id);
@@ -318,9 +325,63 @@ class AttendanceSessionRepository {
     required String teamId,
     required String dateKey,
   }) async {
-    final snapshot = await _sessionsCol(
-      teamId,
-    ).where('dateKey', isEqualTo: dateKey).get(const GetOptions());
+    final snapshot = await _sessionsCol(teamId)
+        .where('dateKey', isEqualTo: dateKey)
+        .get(const GetOptions());
     return _mapSessionsSnapshot(snapshot);
+  }
+
+  /// Syncs an offline-created session.
+  Future<void> syncOfflineSessionCreation(Map<String, dynamic> payload) async {
+    try {
+      final sessionId = payload['id'] as String;
+      final teamId = payload['teamId'] as String;
+
+      final sessionRef = _sessionDoc(teamId, sessionId);
+      final teamRef = _classesCollection.doc(teamId);
+
+      await _firestore.runTransaction((transaction) async {
+        final sessionDoc = await transaction.get(sessionRef);
+        if (sessionDoc.exists) {
+          // Already synced
+          return;
+        }
+
+        final teamDoc = await transaction.get(teamRef);
+        List<String> openSessionIds = [];
+        if (teamDoc.exists) {
+          final data = teamDoc.data();
+          if (data != null && data['openSessionIds'] != null) {
+            openSessionIds = List<String>.from(data['openSessionIds']);
+          }
+        }
+
+        if (!openSessionIds.contains(sessionId)) {
+          openSessionIds.add(sessionId);
+        }
+
+        if (openSessionIds.length > 10) {
+          openSessionIds.removeRange(0, openSessionIds.length - 10);
+        }
+
+        // Map payload exactly as standard session creation
+        transaction.set(sessionRef, {
+          ...payload,
+          'teamIsActive': true,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
+        if (teamDoc.exists) {
+          transaction.update(teamRef, {
+            'openSessionIds': openSessionIds,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        }
+      });
+    } catch (error) {
+      if (error is AttendanceFailure) rethrow;
+      throw mapExceptionToAttendanceFailure(error);
+    }
   }
 }

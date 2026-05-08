@@ -129,7 +129,7 @@ class TeamRepository implements ITeamRepository {
 
       final snapshot = await _classesCollection
           .where('groupId', isEqualTo: groupId)
-          .get(const GetOptions(source: Source.server));
+          .get(const GetOptions());
 
       final teams = _teamsFromDocs(
         snapshot.docs,

@@ -190,7 +190,7 @@ class StudentDataRepository implements IStudentRepository {
           .startAt([query])
           .endAt(['$query\uf8ff'])
           .limit(limit * 2)
-          .get();
+          .get(const GetOptions());
 
       return _queryService
           .mapStudentDocs(snapshot.docs)
@@ -286,7 +286,9 @@ class StudentDataRepository implements IStudentRepository {
     required String performedByUid,
   }) async {
     try {
-      final doc = await _studentsCollection.doc(docId).get();
+      final doc = await _studentsCollection
+          .doc(docId)
+          .get(const GetOptions());
       final data = doc.data();
       if (!doc.exists || data == null) {
         return;
@@ -324,7 +326,9 @@ class StudentDataRepository implements IStudentRepository {
     required String performedByUid,
   }) async {
     try {
-      final doc = await _studentsCollection.doc(docId).get();
+      final doc = await _studentsCollection
+          .doc(docId)
+          .get(const GetOptions());
       final data = doc.data();
       if (!doc.exists || data == null) {
         return;
@@ -361,5 +365,41 @@ class StudentDataRepository implements IStudentRepository {
     return _queryService.getStudentIdsByClasses(classIds);
   }
 
-  // Stream-based queries removed (real-time)
+  @override
+  Future<void> syncOfflineUpdate(Map<String, dynamic> payload) async {
+    try {
+      final studentId = payload['studentId'] as String;
+      final updatedData = Map<String, dynamic>.from(
+        payload['updatedData'] as Map,
+      );
+      final createdAt = DateTime.parse(payload['updatedAt'] as String);
+
+      final docRef = _studentsCollection.doc(studentId);
+
+      await _firestore.runTransaction((transaction) async {
+        final docSnapshot = await transaction.get(docRef);
+
+        if (docSnapshot.exists) {
+          final data = docSnapshot.data();
+          if (data != null) {
+            final dbTimestamp = data['updatedAt'];
+            if (dbTimestamp is Timestamp) {
+              if (dbTimestamp.toDate().isAfter(createdAt)) {
+                return; // Database is newer, abort write (LWW)
+              }
+            }
+          }
+        }
+
+        // Set merge to true in case the document somehow doesn't exist yet,
+        // though normally an update implies the student already exists.
+        transaction.set(docRef, {
+          ...updatedData,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      });
+    } catch (e) {
+      throw mapExceptionToStudentFailure(e);
+    }
+  }
 }

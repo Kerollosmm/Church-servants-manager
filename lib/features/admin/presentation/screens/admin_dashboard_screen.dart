@@ -2,112 +2,153 @@ import 'package:church_management_system/core/constants/routes.dart' as routes;
 import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/routing/route_args.dart';
 import 'package:church_management_system/core/theme/app_colors.dart';
-import 'package:church_management_system/features/admin/presentation/bloc/dashboard/admin_dashboard_bloc.dart';
-import 'package:church_management_system/features/admin/presentation/bloc/dashboard/admin_dashboard_event.dart';
-import 'package:church_management_system/features/admin/presentation/bloc/dashboard/admin_dashboard_state.dart';
+import 'package:church_management_system/features/admin/presentation/bloc/admin_dashboard_bloc.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-class AdminDashboardScreen extends StatelessWidget {
-  const AdminDashboardScreen({super.key});
+class AdminDashboardScreen extends StatefulWidget {
+  final String teamId;
+
+  const AdminDashboardScreen({
+    super.key,
+    this.teamId = 'default_team_id', // Placeholder for now
+  });
 
   @override
-  Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) =>
-          getIt<AdminDashboardBloc>()..add(const LoadDashboardData()),
-      child: const _AdminDashboardView(),
-    );
-  }
+  State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
 }
 
-class _AdminDashboardView extends StatelessWidget {
-  const _AdminDashboardView();
+class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
+  late final AdminDashboardBloc _bloc;
+
+  @override
+  void initState() {
+    super.initState();
+    _bloc = getIt<AdminDashboardBloc>();
+    _bloc.add(LoadStats(widget.teamId));
+  }
+
+  @override
+  void dispose() {
+    _bloc.close();
+    super.dispose();
+  }
+
+  String _formatDate(DateTime date) {
+    final year = date.year.toString();
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    final hour = date.hour.toString().padLeft(2, '0');
+    final minute = date.minute.toString().padLeft(2, '0');
+    return '$year-$month-$day $hour:$minute';
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: AppColors.background,
-        body: Stack(
-          children: [
-            RepaintBoundary(
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    center: const Alignment(0.8, -0.6),
-                    radius: 1.5,
-                    colors: [
-                      AppColors.primary.withValues(alpha: 0.08),
-                      AppColors.background,
-                    ],
-                    stops: const [0.0, 0.6],
+    return BlocProvider.value(
+      value: _bloc,
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Scaffold(
+          backgroundColor: AppColors.background,
+          appBar: _buildAppBar(context),
+          body: RefreshIndicator(
+            onRefresh: () async {
+              _bloc.add(ForceRefreshStats(widget.teamId));
+              // Wait a short delay for UX or until state isn't loading if we wanted.
+              // We'll just return immediately for simplicity since BLoC handles state.
+              await Future.delayed(const Duration(milliseconds: 300));
+            },
+            child: Stack(
+              children: [
+                RepaintBoundary(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: RadialGradient(
+                        center: const Alignment(0.8, -0.6),
+                        radius: 1.5,
+                        colors: [
+                          AppColors.primary.withValues(alpha: 0.08),
+                          AppColors.background,
+                        ],
+                        stops: const [0.0, 0.6],
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
-            SafeArea(
-              bottom: false,
-              child: BlocBuilder<AdminDashboardBloc, AdminDashboardState>(
-                builder: (context, state) {
-                  if (state is AdminDashboardLoading ||
-                      state is AdminDashboardInitial) {
-                    return const Center(child: CircularProgressIndicator());
-                  } else if (state is AdminDashboardError) {
-                    return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'حدث خطأ أثناء تحميل البيانات:\n${state.message}',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(color: AppColors.error),
-                            ),
-                            const SizedBox(height: 16),
-                            ElevatedButton(
-                              onPressed: () {
-                                context.read<AdminDashboardBloc>().add(
-                                  const LoadDashboardData(),
-                                );
-                              },
-                              child: const Text('إعادة المحاولة'),
-                            ),
-                          ],
+                SafeArea(
+                  bottom: false,
+                  child: CustomScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    slivers: [
+                      _buildWelcomeSection(context),
+                      SliverToBoxAdapter(
+                        child: BlocBuilder<AdminDashboardBloc, AdminDashboardState>(
+                          builder: (context, state) {
+                            if (state is AdminDashboardLoading ||
+                                state is AdminDashboardInitial) {
+                              return const Padding(
+                                padding: EdgeInsets.all(32.0),
+                                child: Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                              );
+                            } else if (state is AdminDashboardError) {
+                              return Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(
+                                        Icons.warning_amber_rounded,
+                                        size: 48,
+                                        color: AppColors.error,
+                                      ),
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        'حدث خطأ أثناء تحميل البيانات:\n${state.message}',
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          color: AppColors.error,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      ElevatedButton(
+                                        onPressed: () {
+                                          _bloc.add(LoadStats(widget.teamId));
+                                        },
+                                        child: const Text('إعادة المحاولة'),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            } else if (state is AdminDashboardLoaded) {
+                              return _buildStatsContent(context, state);
+                            }
+                            return const SizedBox.shrink();
+                          },
                         ),
                       ),
-                    );
-                  } else if (state is AdminDashboardLoaded) {
-                    return CustomScrollView(
-                      slivers: [
-                        _buildHeader(context),
-                        _buildWelcomeSection(context),
-                        _buildStatGrid(context, state.kpiData),
-                        _buildQuickActions(context),
-                        _buildRecentActivity(context, state.recentActivity),
-                        const SliverPadding(
-                          padding: EdgeInsets.only(bottom: 100),
-                        ),
-                      ],
-                    );
-                  }
-                  return const SizedBox.shrink();
-                },
-              ),
+                      _buildQuickActions(context),
+                      const SliverPadding(
+                        padding: EdgeInsets.only(bottom: 100),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  SliverAppBar _buildHeader(BuildContext context) {
-    return SliverAppBar(
-      floating: true,
-      pinned: true,
+  AppBar _buildAppBar(BuildContext context) {
+    return AppBar(
       backgroundColor: Colors.transparent,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
@@ -140,7 +181,6 @@ class _AdminDashboardView extends StatelessWidget {
             context.read<AuthBloc>().add(const AuthEventSignOut());
           },
           tooltip: 'تسجيل الخروج',
-          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
         ),
         const SizedBox(width: 8),
       ],
@@ -182,53 +222,50 @@ class _AdminDashboardView extends StatelessWidget {
     );
   }
 
-  Widget _buildStatGrid(BuildContext context, DashboardKpiData data) {
-    return SliverPadding(
-      padding: const EdgeInsets.all(16),
-      sliver: SliverGrid(
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          mainAxisSpacing: 16,
-          crossAxisSpacing: 16,
-          childAspectRatio: 1.15,
-        ),
-        delegate: SliverChildListDelegate([
-          _StatCard(
-            title: 'إجمالي الطلاب',
-            value: data.totalStudents.toString(),
-            trend: '5%+',
-            trendIcon: Icons.trending_up,
-            trendColor: AppColors.success,
-            icon: Icons.groups,
-            onTap: () => Navigator.pushNamed(context, routes.studentList),
+  Widget _buildStatsContent(BuildContext context, AdminDashboardLoaded state) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'إحصائيات الحضور (هذا الأسبوع)',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF0F172A),
+            ),
           ),
-          _StatCard(
-            title: 'الخدام',
-            value: data.totalServants.toString(),
-            trend: '2%+',
-            trendIcon: Icons.trending_up,
-            trendColor: AppColors.success,
-            icon: Icons.volunteer_activism,
-            onTap: () => Navigator.pushNamed(context, routes.servantList),
+          const SizedBox(height: 16),
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 16,
+            crossAxisSpacing: 16,
+            childAspectRatio: 1.15,
+            children: [
+              _StatCard(
+                title: 'إجمالي الجلسات\nهذا الأسبوع',
+                value: state.stats.totalSessions.toString(),
+                icon: Icons.event,
+                trendColor: AppColors.success,
+              ),
+              _StatCard(
+                title: 'إجمالي الحضور',
+                value: state.stats.totalPresent.toString(),
+                icon: Icons.people,
+                trendColor: AppColors.success,
+              ),
+            ],
           ),
-          _StatCard(
-            title: 'الفرق',
-            value: data.totalTeams.toString(),
-            trend: '0%',
-            trendColor: const Color(0xFF94A3B8),
-            icon: Icons.diversity_3,
-            onTap: () => Navigator.pushNamed(context, routes.teamManagement),
+          const SizedBox(height: 16),
+          Center(
+            child: Text(
+              'آخر تحديث: ${_formatDate(state.stats.updatedAt)}',
+              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+            ),
           ),
-          _StatCard(
-            title: 'معدل الحضور',
-            value: '${data.attendanceRate.toInt()}%',
-            trend: '8%+',
-            trendIcon: Icons.trending_up,
-            trendColor: AppColors.success,
-            icon: Icons.fact_check,
-            onTap: () => Navigator.pushNamed(context, routes.attendanceHistory),
-          ),
-        ]),
+        ],
       ),
     );
   }
@@ -299,72 +336,19 @@ class _AdminDashboardView extends StatelessWidget {
       ),
     );
   }
-
-  Widget _buildRecentActivity(
-    BuildContext context,
-    List<ActivityLog> activities,
-  ) {
-    return SliverPadding(
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 32),
-      sliver: SliverList(
-        delegate: SliverChildListDelegate([
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'النشاط الأخير',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: const Color(0xFF0F172A),
-                ),
-              ),
-              TextButton(
-                onPressed: () {},
-                style: TextButton.styleFrom(
-                  minimumSize: const Size(48, 48),
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                ),
-                child: const Text(
-                  'عرض الكل',
-                  style: TextStyle(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          if (activities.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Text('لا يوجد نشاط أخير', textAlign: TextAlign.center),
-            )
-          else
-            ...activities.map((activity) => _ActivityItem(activity: activity)),
-        ]),
-      ),
-    );
-  }
 }
 
 class _StatCard extends StatelessWidget {
   final String title;
   final String value;
-  final String trend;
-  final IconData? trendIcon;
-  final Color trendColor;
   final IconData icon;
-  final VoidCallback? onTap;
+  final Color trendColor;
 
   const _StatCard({
     required this.title,
     required this.value,
-    required this.trend,
-    this.trendIcon,
-    required this.trendColor,
     required this.icon,
-    this.onTap,
+    required this.trendColor,
   });
 
   @override
@@ -378,79 +362,54 @@ class _StatCard extends StatelessWidget {
         side: BorderSide(color: AppColors.primary.withValues(alpha: 0.05)),
       ),
       margin: EdgeInsets.zero,
-      child: InkWell(
-        onTap: onTap ?? () {},
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: AppColors.primary, size: 24),
+            ),
+            const Spacer(),
+            Flexible(
+              flex: 2,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(icon, color: AppColors.primary, size: 24),
-                  ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        trend,
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          color: trendColor,
-                          fontWeight: FontWeight.bold,
-                        ),
+                  Flexible(
+                    child: Text(
+                      title,
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: const Color(0xFF64748B),
+                        fontWeight: FontWeight.w500,
                       ),
-                      if (trendIcon != null) ...[
-                        const SizedBox(width: 2),
-                        Icon(trendIcon, size: 14, color: trendColor),
-                      ],
-                    ],
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Flexible(
+                    child: Text(
+                      value,
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF0F172A),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
               ),
-              const Spacer(),
-              Flexible(
-                flex: 2,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        title,
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          color: const Color(0xFF64748B),
-                          fontWeight: FontWeight.w500,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Flexible(
-                      child: Text(
-                        value,
-                        style: theme.textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF0F172A),
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -539,109 +498,6 @@ class _QuickActionCard extends StatelessWidget {
                 ),
               ],
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ActivityItem extends StatelessWidget {
-  final ActivityLog activity;
-
-  const _ActivityItem({required this.activity});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    IconData iconData;
-    Color color;
-    Color bgColor;
-
-    switch (activity.type) {
-      case 'person':
-        iconData = Icons.person;
-        color = const Color(0xFF2563EB); // blue-600
-        bgColor = const Color(0xFFDBEAFE); // blue-100
-        break;
-      case 'event':
-        iconData = Icons.event;
-        color = const Color(0xFFD97706); // amber-600
-        bgColor = const Color(0xFFFEF3C7); // amber-100
-        break;
-      case 'assignment':
-        iconData = Icons.assignment_turned_in;
-        color = const Color(0xFF059669); // emerald-600
-        bgColor = const Color(0xFFD1FAE5); // emerald-100
-        break;
-      default:
-        iconData = Icons.notifications;
-        color = AppColors.primary;
-        bgColor = AppColors.primary.withValues(alpha: 0.1);
-    }
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.05)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: InkWell(
-        onTap: () {},
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: bgColor,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(iconData, color: color, size: 20),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      activity.title,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFF0F172A),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      activity.subtitle,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: const Color(0xFF64748B),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                activity.time,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: const Color(0xFF94A3B8),
-                ),
-              ),
-            ],
           ),
         ),
       ),

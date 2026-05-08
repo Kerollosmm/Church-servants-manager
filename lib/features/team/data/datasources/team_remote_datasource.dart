@@ -53,7 +53,7 @@ class TeamRemoteDatasource {
   Future<void> _syncTeamNameReferences(TeamModel team) async {
     final studentsSnapshot = await _studentsCollection
         .where('classId', isEqualTo: team.id)
-        .get();
+        .get(const GetOptions());
 
     if (studentsSnapshot.docs.isEmpty) {
       return;
@@ -80,7 +80,7 @@ class TeamRemoteDatasource {
     for (final chunk in userIds.chunk(30)) {
       final usersSnapshot = await _usersCollection
           .where(FieldPath.documentId, whereIn: chunk)
-          .get();
+          .get(const GetOptions());
       for (final userDoc in usersSnapshot.docs) {
         operations.add((batch) {
           batch.set(userDoc.reference, {
@@ -198,7 +198,9 @@ class TeamRemoteDatasource {
   Future<void> updateTeam(TeamModel team) async {
     final teamRef = _classesCollection.doc(team.id);
 
-    final currentDoc = await teamRef.get();
+    final currentDoc = await teamRef.get(
+      const GetOptions(),
+    );
     if (!currentDoc.exists || currentDoc.data() == null) {
       throw const TeamNotFoundFailure();
     }
@@ -319,7 +321,9 @@ class TeamRemoteDatasource {
 
   Future<void> restoreTeam(String id) async {
     final teamRef = _classesCollection.doc(id);
-    final teamDoc = await teamRef.get();
+    final teamDoc = await teamRef.get(
+      const GetOptions(),
+    );
     final teamData = teamDoc.data();
     if (!teamDoc.exists || teamData == null) {
       throw const TeamNotFoundFailure();

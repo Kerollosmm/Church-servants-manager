@@ -817,7 +817,10 @@ class AttendanceRepository implements IAttendanceRepository {
       }
       _assertSessionWritable(session, _nowProvider());
 
-      final existingMarksSnapshot = await _marksCol(teamId, sessionId).get();
+      final existingMarksSnapshot = await _marksCol(
+        teamId,
+        sessionId,
+      ).get(const GetOptions());
       final existingMarkedStudentIds = existingMarksSnapshot.docs
           .map((doc) => doc.id.split('_').first)
           .toSet();
@@ -1139,6 +1142,81 @@ class AttendanceRepository implements IAttendanceRepository {
     final canManage = await canUserManageAttendance(user: user, teamId: teamId);
     if (!canManage) {
       throw const AttendancePermissionDeniedFailure();
+    }
+  }
+
+  @override
+  Future<void> syncOfflineMark(Map<String, dynamic> payload) async {
+    try {
+      final teamId = payload['teamId'] as String;
+      final sessionId = payload['sessionId'] as String;
+      final studentId = payload['studentId'] as String;
+      final statusString = payload['status'] as String;
+      final markedByUid = payload['markedByUid'] as String;
+      final markedByName = payload['markedByName'] as String;
+      final createdAt = DateTime.parse(payload['createdAt'] as String);
+
+      final sessionRef = _sessionDoc(teamId, sessionId);
+      final markRef = _markDoc(teamId, sessionId, studentId, markedByUid);
+
+      await _firestore.runTransaction((transaction) async {
+        final sessionDoc = await transaction.get(sessionRef);
+        if (!sessionDoc.exists) {
+          return;
+        }
+
+        final markDoc = await transaction.get(markRef);
+        String? oldStatus;
+
+        if (markDoc.exists) {
+          final data = markDoc.data();
+          if (data != null) {
+            oldStatus = data['status'] as String?;
+            final dbTimestamp = data['updatedAt'] ?? data['markedAt'];
+            if (dbTimestamp is Timestamp) {
+              if (dbTimestamp.toDate().isAfter(createdAt)) {
+                return; // Database is newer, abort write (LWW)
+              }
+            }
+          }
+        }
+
+        final sessionData = sessionDoc.data() ?? {};
+        final studentNameSnapshots =
+            sessionData['studentNameSnapshots'] as Map<String, dynamic>?;
+        final studentName = studentNameSnapshots?[studentId] ?? 'مخدوم';
+
+        final markData = <String, dynamic>{
+          'studentId': studentId,
+          'studentNameSnapshot': studentName,
+          'status': statusString,
+          'markedByUserId': markedByUid,
+          'markedByName': markedByName,
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+
+        if (!markDoc.exists) {
+          markData['markedAt'] = Timestamp.fromDate(createdAt);
+        }
+
+        transaction.set(markRef, markData, SetOptions(merge: true));
+
+        // Aggregation Support
+        if (oldStatus != statusString) {
+          if (statusString == 'present' && oldStatus != 'present') {
+            transaction.update(sessionRef, {
+              'presentCount': FieldValue.increment(1),
+            });
+          } else if (statusString == 'absent' && oldStatus == 'present') {
+            transaction.update(sessionRef, {
+              'presentCount': FieldValue.increment(-1),
+            });
+          }
+        }
+      });
+    } catch (error) {
+      if (error is AttendanceFailure) rethrow;
+      throw mapExceptionToAttendanceFailure(error);
     }
   }
 }

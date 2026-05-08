@@ -237,7 +237,9 @@ class StudentQueryService {
         }
       }
 
-      final snapshot = await query.get(const GetOptions(source: Source.server));
+      final snapshot = await query.get(
+        const GetOptions(),
+      );
       return mapStudentDocs(snapshot.docs).students;
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
@@ -297,7 +299,9 @@ class StudentQueryService {
       if (!includeArchived) {
         query = query.where('isArchived', isEqualTo: false);
       }
-      final snapshot = await query.get(const GetOptions(source: Source.server));
+      final snapshot = await query.get(
+        const GetOptions(),
+      );
       return mapStudentDocs(snapshot.docs).students;
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
@@ -329,7 +333,7 @@ class StudentQueryService {
     try {
       final serverSnapshot = await _studentsByGroupQuery(
         groupName,
-      ).get(const GetOptions(source: Source.server));
+      ).get(const GetOptions());
       return (
         students: _applyArchivedFilter(
           mapStudentDocs(serverSnapshot.docs).students,

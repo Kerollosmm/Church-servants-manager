@@ -63,18 +63,18 @@ class _QuickActionCardState extends State<QuickActionCard>
             borderRadius: BorderRadius.circular(12),
             border: widget.isPrimary
                 ? null
-                : Border.all(color: AppColors.primary.withValues(alpha:0.1)),
+                : Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
             boxShadow: widget.isPrimary
                 ? [
                     BoxShadow(
-                      color: AppColors.primary.withValues(alpha:0.2),
+                      color: AppColors.primary.withValues(alpha: 0.2),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
                   ]
                 : [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha:0.02),
+                      color: Colors.black.withValues(alpha: 0.02),
                       blurRadius: 4,
                       offset: const Offset(0, 1),
                     ),
@@ -89,8 +89,8 @@ class _QuickActionCardState extends State<QuickActionCard>
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: widget.isPrimary
-                      ? Colors.white.withValues(alpha:0.2)
-                      : AppColors.primary.withValues(alpha:0.1),
+                      ? Colors.white.withValues(alpha: 0.2)
+                      : AppColors.primary.withValues(alpha: 0.1),
                 ),
                 child: Center(
                   child: Icon(

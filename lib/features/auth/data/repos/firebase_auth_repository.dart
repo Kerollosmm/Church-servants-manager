@@ -36,20 +36,28 @@ class FirebaseAuthRepository implements AuthRepository {
     if (_lastKnownAppUser != null && _lastKnownAppUser!.uid == user.uid) {
       return _lastKnownAppUser;
     }
+    // Attempt local cache load immediately if memory cache misses
+    final localCached = _localAuthStore.getUser();
+    if (localCached != null && localCached.uid == user.uid) {
+      _lastKnownAppUser = localCached;
+      return localCached;
+    }
     return null;
   }
 
   @override
   Stream<AuthUser?> get userStream {
-    return _identityProvider.idTokenChanges.asyncMap((claims) async {
+    // Listen for auth state changes natively, ignoring custom claims entirely
+    return _identityProvider.idTokenChanges.asyncMap((_) async {
       final firebaseUser = _identityProvider.currentUser;
       if (firebaseUser == null) {
         _lastKnownAppUser = null;
+        await _localAuthStore.deleteUser();
         return null;
       }
 
       try {
-        // Single fetch using serverAndCache
+        // One-time fetch: Retrieves from server (if online) or Hive (if offline)
         final profile = await _userProfileStore.fetchUser(firebaseUser.uid);
 
         final mergedUser = profile.copyWith(
@@ -59,13 +67,15 @@ class FirebaseAuthRepository implements AuthRepository {
               ? firebaseUser.displayName!.trim()
               : profile.name,
           isEmailVerified: firebaseUser.emailVerified,
-          // We rely exclusively on the Firestore profile for the role
+          // Use profile source of truth for Role & RBAC (Custom Claims deprecated)
           role: profile.role,
           isArchived: profile.isArchived,
           assignedTeamIds: profile.assignedTeamIds,
         );
 
         _lastKnownAppUser = mergedUser;
+        // Save the newly synced user configuration in local persistent storage
+        await _localAuthStore.saveUser(mergedUser);
         return mergedUser;
       } catch (e, s) {
         developer.log(
@@ -74,21 +84,24 @@ class FirebaseAuthRepository implements AuthRepository {
           stackTrace: s,
           name: 'FirebaseAuthRepository',
         );
-        // If offline and cache is empty, we throw or return last known
+        // Fallback: If offline and the network fails unexpectedly, return the latest cached state
         if (_lastKnownAppUser != null) {
           return _lastKnownAppUser;
         }
-        return null; // Signals unauthenticated/error to BLoC
+        final cachedUser = _localAuthStore.getUser();
+        if (cachedUser != null) {
+          _lastKnownAppUser = cachedUser;
+          return cachedUser;
+        }
+        return null;
       }
     });
   }
 
   @override
   Future<void> forceRoleRefresh() async {
-    final user = _identityProvider.currentUser;
-    if (user != null) {
-      await user.getIdToken(true);
-    }
+    // DEPRECATED Custom Claims usage: Kept empty/no-op to satisfy the interface.
+    // Roles are now checked reactively via standard user fetch instead of token invalidation.
   }
 
   @override
@@ -100,10 +113,11 @@ class FirebaseAuthRepository implements AuthRepository {
       final firebaseUser = _identityProvider.currentUser;
       if (firebaseUser == null) {
         _lastKnownAppUser = null;
+        await _localAuthStore.deleteUser();
         return null;
       }
 
-      // Fetch profile using serverAndCache natively (which now includes Hive check)
+      // Fetch profile using serverAndCache natively (which integrates Hive check)
       final profile = await _userProfileStore.fetchUser(firebaseUser.uid);
 
       final mergedUser = profile.copyWith(
@@ -119,14 +133,22 @@ class FirebaseAuthRepository implements AuthRepository {
       );
 
       _lastKnownAppUser = mergedUser;
+      await _localAuthStore.saveUser(mergedUser);
       return mergedUser;
     } catch (e) {
+      // In offline scenarios where no user profile is available yet
+      final cachedUser = _localAuthStore.getUser();
+      if (cachedUser != null) {
+        _lastKnownAppUser = cachedUser;
+        return cachedUser;
+      }
       throw AuthErrorMapper.mapException(e);
     }
   }
 
   @override
-  AuthUser? get lastKnownAppUser => _lastKnownAppUser;
+  AuthUser? get lastKnownAppUser =>
+      _lastKnownAppUser ?? _localAuthStore.getUser();
 
   @override
   Future<AuthUser> signIn({

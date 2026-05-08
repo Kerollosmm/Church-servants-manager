@@ -61,7 +61,9 @@ class AdminTeamMembershipService {
   }
 
   Future<Set<String>> _getCurrentTeamMemberIds(String teamId) async {
-    final snapshot = await _students.where('classId', isEqualTo: teamId).get();
+    final snapshot = await _students
+        .where('classId', isEqualTo: teamId)
+        .get(const GetOptions());
     return snapshot.docs
         .where((doc) => doc.data()['isArchived'] != true)
         .map((d) => d.id)
@@ -83,7 +85,9 @@ class AdminTeamMembershipService {
 
       final snaps = await Future.wait(
         currentSlices.map(
-          (s) => _students.where(FieldPath.documentId, whereIn: s).get(),
+          (s) => _students
+              .where(FieldPath.documentId, whereIn: s)
+              .get(const GetOptions()),
         ),
       );
 

@@ -368,7 +368,10 @@ class AttendanceMarkRepository {
     required String teamId,
     required String sessionId,
   }) async {
-    final snapshot = await _marksCol(teamId, sessionId).get(const GetOptions());
+    final snapshot = await _marksCol(
+      teamId,
+      sessionId,
+    ).get(const GetOptions());
     final marks = <String, AttendanceMark>{};
     for (final doc in snapshot.docs) {
       try {

@@ -1,5 +1,7 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/di/injection.dart';
+import 'package:church_management_system/core/routing/app_router.dart';
+import 'package:church_management_system/core/theme/app_theme.dart';
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
 import 'package:church_management_system/features/admin/presentation/screens/admin_dashboard_screen.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
@@ -20,143 +22,148 @@ import 'package:church_management_system/features/student/presentation/screens/s
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-/// Root dispatcher widget that handles role-based navigation.
-class RoleUserRoute extends StatelessWidget {
-  const RoleUserRoute({super.key});
+class AuthGate extends StatelessWidget {
+  const AuthGate({super.key});
 
   bool _isAuthenticatedState(AuthState state) =>
       state is AuthAuthenticated || state is AuthDegraded;
 
-  Widget _buildHomeForAuthenticatedUser(UserRole role, AuthState state) {
+  Widget _buildAuthenticatedApp(BuildContext context, AuthState state) {
     final user = state is AuthAuthenticated
         ? state.user
         : (state as AuthDegraded).user;
 
-    Widget child;
-    switch (role) {
+    Widget homeWidget;
+    List<BlocProvider> featureProviders = [];
+
+    switch (user.role) {
       case UserRole.servant:
-        child = MultiBlocProvider(
-          providers: [
-            BlocProvider(
-              create: (context) => StudentDataBloc(
-                studentRepository: getIt<IStudentRepository>(),
-                getStudentsList: getIt<GetStudentsListUseCase>(),
-                canMutateStudent: getIt<CanMutateStudentUseCase>(),
-                provisionUseCase: getIt<ProvisionStudentWithAuthUseCase>(),
-              ),
+      case UserRole.admin:
+        featureProviders = [
+          BlocProvider<StudentDataBloc>(
+            create: (context) => StudentDataBloc(
+              studentRepository: getIt<IStudentRepository>(),
+              getStudentsList: getIt<GetStudentsListUseCase>(),
+              canMutateStudent: getIt<CanMutateStudentUseCase>(),
+              provisionUseCase: getIt<ProvisionStudentWithAuthUseCase>(),
             ),
-            BlocProvider(
-              create: (context) => ServantDataBloc(
-                repository: getIt<IServantRepository>(),
-                provisionUseCase: getIt<ProvisionServantWithAuthUseCase>(),
-              ),
+          ),
+          BlocProvider<ServantDataBloc>(
+            create: (context) => ServantDataBloc(
+              repository: getIt<IServantRepository>(),
+              provisionUseCase: getIt<ProvisionServantWithAuthUseCase>(),
             ),
-          ],
-          child: ServantDashboardScreen(user: user),
-        );
+          ),
+        ];
+
+        homeWidget = user.role == UserRole.admin
+            ? (state is AuthAuthenticated
+                  ? const AdminDashboardScreen()
+                  : _AdminRefreshRequiredScreen(
+                      message: (state as AuthDegraded).message,
+                    ))
+            : ServantDashboardScreen(user: user);
         break;
       case UserRole.student:
-        child = BlocProvider(
-          create: (context) => StudentProfileBloc(
-            studentRepository: getIt<IStudentRepository>(),
+        featureProviders = [
+          BlocProvider<StudentProfileBloc>(
+            create: (context) => StudentProfileBloc(
+              studentRepository: getIt<IStudentRepository>(),
+            ),
           ),
-          child: StudentProfileScreen(user: user),
-        );
+        ];
+        homeWidget = StudentProfileScreen(user: user);
         break;
-      case UserRole.admin:
-        if (state is AuthAuthenticated) {
-          child = const AdminDashboardScreen();
-        } else {
-          child = _AdminRefreshRequiredScreen(
-            message: (state as AuthDegraded).message,
-          );
-        }
-        break;
+      default:
+        homeWidget = const Scaffold(body: Center(child: Text('غير مصرح')));
     }
 
-    return child;
+    return MultiBlocProvider(
+      providers: featureProviders,
+      child: MaterialApp(
+        title: 'اعداد خدام',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.light(),
+        onGenerateRoute: getIt<AppRouter>().onGenerateRoute,
+        home: homeWidget,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return MultiBlocListener(
-      listeners: [
-        BlocListener<AuthBloc, AuthState>(
-          listenWhen: (previous, current) =>
-              !_isAuthenticatedState(previous) &&
-              _isAuthenticatedState(current),
-          listener: (context, state) {
-            Navigator.of(context).popUntil((route) => route.isFirst);
-            if (state is AuthDegraded) {
-              AppSnackbars.showInfo(context, state.message);
-            }
-          },
-        ),
-        BlocListener<AuthBloc, AuthState>(
-          listenWhen: (previous, current) {
-            if (current is! AuthDegraded) return false;
-            if (!_isAuthenticatedState(previous)) return false;
-            if (previous is AuthDegraded) {
-              return previous.message != current.message;
-            }
-            return true;
-          },
-          listener: (context, state) {
-            if (state is AuthDegraded) {
-              AppSnackbars.showInfo(context, state.message);
-            }
-          },
-        ),
-        BlocListener<AuthBloc, AuthState>(
-          listener: (context, state) {
-            if (state is AuthRoleUpdated) {
-              AppSnackbars.showSuccess(
-                context,
-                'تم تحديث صلاحيات الحساب بنجاح.',
-              );
-            }
-          },
-        ),
-      ],
-      child: BlocBuilder<AuthBloc, AuthState>(
-        builder: (context, state) {
-          // Loading state
-          if (state is AuthLoading ||
-              state is AuthSigningOut ||
-              state is AuthRoleRefreshing) {
-            return const Scaffold(
+    return BlocConsumer<AuthBloc, AuthState>(
+      listenWhen: (previous, current) {
+        if (current is! AuthDegraded) return false;
+        if (!_isAuthenticatedState(previous)) return false;
+        if (previous is AuthDegraded) {
+          return previous.message != current.message;
+        }
+        return true;
+      },
+      listener: (context, state) {
+        if (state is AuthDegraded) {
+          AppSnackbars.showInfo(context, state.message);
+        } else if (state is AuthRoleUpdated) {
+          AppSnackbars.showSuccess(context, 'تم تحديث صلاحيات الحساب بنجاح.');
+        }
+      },
+      builder: (context, state) {
+        // Loading state
+        if (state is AuthLoading ||
+            state is AuthSigningOut ||
+            state is AuthRoleRefreshing) {
+          return MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.light(),
+            home: const Scaffold(
               body: Center(child: CircularProgressIndicator()),
-            );
-          }
+            ),
+          );
+        }
 
-          if (state is AuthArchived) {
-            return _ArchivedAccountScreen(
+        if (state is AuthArchived) {
+          return MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.light(),
+            home: _ArchivedAccountScreen(
               message: state.message,
               email: state.email,
-            );
-          }
+            ),
+          );
+        }
 
-          // Authenticated - route based on role
-          if (state is AuthAuthenticated || state is AuthDegraded) {
-            final role = state is AuthAuthenticated
-                ? state.user.role
-                : (state as AuthDegraded).user.role;
-            return _buildHomeForAuthenticatedUser(role, state);
-          }
+        // Authenticated - route based on role with scoped MultiBlocProvider
+        if (state is AuthAuthenticated || state is AuthDegraded) {
+          return _buildAuthenticatedApp(context, state);
+        }
 
-          // Needs verification
-          if (state is AuthNeedsVerification) {
-            return const VerifyEmailScreen();
-          }
+        // Needs verification
+        if (state is AuthNeedsVerification) {
+          return MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.light(),
+            home: const VerifyEmailScreen(),
+          );
+        }
 
-          // Needs forced password reset
-          if (state is AuthNeedsPasswordReset) {
-            return const ForcedPasswordResetScreen();
-          }
+        // Needs forced password reset
+        if (state is AuthNeedsPasswordReset) {
+          return MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.light(),
+            home: const ForcedPasswordResetScreen(),
+          );
+        }
 
-          return const LoginScreen();
-        },
-      ),
+        // Unauthenticated
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.light(),
+          onGenerateRoute: getIt<AppRouter>().onGenerateRoute,
+          home: const LoginScreen(),
+        );
+      },
     );
   }
 }
