@@ -1,6 +1,7 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/routing/app_router.dart';
+import 'package:church_management_system/core/services/lifecycle_sync_manager.dart';
 import 'package:church_management_system/core/theme/app_theme.dart';
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
 import 'package:church_management_system/features/admin/presentation/screens/admin_dashboard_screen.dart';
@@ -19,6 +20,8 @@ import 'package:church_management_system/features/student/domain/usecases/provis
 import 'package:church_management_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
 import 'package:church_management_system/features/student/presentation/bloc/student_profile/student_profile_bloc.dart';
 import 'package:church_management_system/features/student/presentation/screens/student_profile_screen.dart';
+import 'package:church_management_system/shared/widgets/offline_indicator.dart';
+import 'package:church_management_system/shared/widgets/sync_status_indicator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -74,18 +77,30 @@ class AuthGate extends StatelessWidget {
         ];
         homeWidget = StudentProfileScreen(user: user);
         break;
-      default:
-        homeWidget = const Scaffold(body: Center(child: Text('غير مصرح')));
     }
 
     return MultiBlocProvider(
       providers: featureProviders,
-      child: MaterialApp(
-        title: 'اعداد خدام',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.light(),
-        onGenerateRoute: getIt<AppRouter>().onGenerateRoute,
-        home: homeWidget,
+      child: LifecycleSyncManager(
+        child: MaterialApp(
+          title: 'اعداد خدام',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.light(),
+          onGenerateRoute: getIt<AppRouter>().onGenerateRoute,
+          home: homeWidget,
+          builder: (context, child) {
+            return Directionality(
+              textDirection: TextDirection.rtl,
+              child: Column(
+                children: [
+                  const OfflineIndicator(),
+                  const SyncStatusIndicator(),
+                  Expanded(child: child ?? const SizedBox.shrink()),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }

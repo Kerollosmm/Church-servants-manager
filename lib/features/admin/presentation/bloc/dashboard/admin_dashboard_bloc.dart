@@ -30,15 +30,15 @@ class AdminDashboardBloc
       final students = await _studentRepository.getAllStudents(
         includeArchived: false,
       );
-      final servants = await _servantRepository.getAllServants(
-        includeArchived: false,
-      );
+      final servants = await _servantRepository.getAllServants();
       final teams = await _teamRepository.getAllTeams(includeArchived: false);
 
       final kpiData = DashboardKpiData(
         totalStudents: students.length,
         totalServants: servants.length,
         totalTeams: teams.length,
+        totalSessions: 0, // TODO: Implement real session count
+        totalPresent: 0, // TODO: Implement real present count
         attendanceRate: 0.0, // TODO: Implement real attendance rate calculation
       );
 
@@ -46,7 +46,11 @@ class AdminDashboardBloc
 
       emit(AdminDashboardLoaded(kpiData: kpiData, recentActivity: activities));
     } catch (e) {
-      emit(AdminDashboardError(e.toString()));
+      emit(
+        const AdminDashboardError(
+          'تعذر تحميل بيانات لوحة التحكم. تأكد من الاتصال بالإنترنت.',
+        ),
+      );
     }
   }
 }

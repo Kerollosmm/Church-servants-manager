@@ -1,5 +1,6 @@
 import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/core/utils/list_extensions.dart';
+import 'package:church_management_system/features/team/data/datasources/team_local_datasource.dart';
 import 'package:church_management_system/features/team/data/models/team_model.dart';
 import 'package:church_management_system/features/team/domain/failures/team_failures.dart';
 import 'package:church_management_system/features/team/domain/repos/i_team_repository.dart';
@@ -11,9 +12,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 /// denormalization across students and users.
 class TeamRepository implements ITeamRepository {
   final FirebaseFirestore _firestore;
+  final TeamLocalDatasource _localDatasource;
 
-  TeamRepository({required FirebaseFirestore firestore})
-    : _firestore = firestore;
+  TeamRepository({
+    required FirebaseFirestore firestore,
+    required TeamLocalDatasource localDatasource,
+  }) : _firestore = firestore,
+       _localDatasource = localDatasource;
 
   CollectionReference<Map<String, dynamic>> get _classesCollection =>
       _firestore.collection(FirestoreCollections.classes);
@@ -103,6 +108,52 @@ class TeamRepository implements ITeamRepository {
         operation(batch);
       }
       await batch.commit();
+    }
+  }
+
+  @override
+  Future<({List<TeamModel> teams, bool isFromCache})>
+  getTeamsByGroupWithFallback(
+    String groupId, {
+    bool includeArchived = false,
+  }) async {
+    try {
+      try {
+        final cacheSnapshot = await _classesCollection
+            .where('groupId', isEqualTo: groupId)
+            .get(const GetOptions(source: Source.cache));
+
+        if (cacheSnapshot.docs.isNotEmpty) {
+          final teams = _teamsFromDocs(
+            cacheSnapshot.docs,
+            includeArchived: includeArchived,
+          );
+          return (
+            teams: teams..sort((a, b) => a.name.compareTo(b.name)),
+            isFromCache: true,
+          );
+        }
+      } catch (e) {
+        // Cache miss or other cache error is expected, fallback to server
+      }
+
+      final snapshot = await _classesCollection
+          .where('groupId', isEqualTo: groupId)
+          .get(const GetOptions());
+
+      final teams = _teamsFromDocs(
+        snapshot.docs,
+        includeArchived: includeArchived,
+      );
+      if (teams.isNotEmpty) {
+        await _localDatasource.cacheTeams(teams);
+      }
+      return (
+        teams: teams..sort((a, b) => a.name.compareTo(b.name)),
+        isFromCache: false,
+      );
+    } catch (e) {
+      throw mapExceptionToTeamFailure(e);
     }
   }
 

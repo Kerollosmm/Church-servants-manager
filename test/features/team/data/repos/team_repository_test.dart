@@ -1,5 +1,6 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
+import 'package:church_management_system/features/team/data/datasources/team_local_datasource.dart';
 import 'package:church_management_system/features/team/data/models/team_model.dart';
 import 'package:church_management_system/features/team/data/repos/team_repository.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
@@ -7,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   late FakeFirebaseFirestore firestore;
+  late TeamLocalDatasource localDatasource;
   late TeamRepository repository;
 
   StudentModel student({
@@ -39,7 +41,12 @@ void main() {
 
   setUp(() {
     firestore = FakeFirebaseFirestore();
-    repository = TeamRepository(firestore: firestore);
+    localDatasource =
+        TeamLocalDatasource(); // Can mock it if necessary but instance may suffice if testing only remote interactions or using Hive in memory
+    repository = TeamRepository(
+      firestore: firestore,
+      localDatasource: localDatasource,
+    );
   });
 
   test(
@@ -71,7 +78,7 @@ void main() {
               teamName: originalTeam.name,
             ).toMap(),
           );
-      await firestore.collection('Users').doc('user-1').set({
+      await firestore.collection('servants').doc('user-1').set({
         'uid': 'user-1',
         'name': 'Mina',
         'email': 'mina@example.com',
@@ -88,7 +95,10 @@ void main() {
           .collection('Students')
           .doc('student-1')
           .get();
-      final userDoc = await firestore.collection('Users').doc('user-1').get();
+      final userDoc = await firestore
+          .collection('servants')
+          .doc('user-1')
+          .get();
 
       expect(studentDoc.data()!['team_name'], updatedTeam.name);
       expect(studentDoc.data()!['group'], updatedTeam.groupId);

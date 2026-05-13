@@ -28,10 +28,10 @@ async function setCustomClaims(uid) {
   try {
     // 1. Fetch user data from Firestore to get the source of truth
     const db = admin.firestore();
-    const userDoc = await db.collection('Users').doc(uid).get();
+    const userDoc = await db.collection('servants').doc(uid).get();
 
     if (!userDoc.exists) {
-      console.error(`Error: User document for UID ${uid} not found in Firestore 'Users' collection.`);
+      console.error(`Error: User document for UID ${uid} not found in Firestore 'servants' collection.`);
       process.exit(1);
     }
 

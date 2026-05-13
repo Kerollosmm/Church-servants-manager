@@ -1,3 +1,5 @@
+import 'package:church_management_system/core/blocs/connectivity/connectivity_cubit.dart';
+import 'package:church_management_system/core/blocs/sync/sync_cubit.dart';
 import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/features/auth/domain/repos/auth_repository.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
@@ -17,6 +19,8 @@ class ChurchApp extends StatelessWidget {
               AuthBloc(authService: getIt<AuthRepository>())
                 ..add(const AuthEventCheckStatus()),
         ),
+        BlocProvider(create: (context) => getIt<SyncCubit>()),
+        BlocProvider(create: (context) => getIt<ConnectivityCubit>()),
       ],
       // AuthGate handles downstream routing, MaterialApps, and feature-scoped Blocs.
       child: const AuthGate(),

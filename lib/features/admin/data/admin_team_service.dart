@@ -29,7 +29,7 @@ class AdminTeamService {
   CollectionReference<Map<String, dynamic>> get _classes =>
       _firestore.collection(FirestoreCollections.classes);
   CollectionReference<Map<String, dynamic>> get _users =>
-      _firestore.collection(FirestoreCollections.users);
+      _firestore.collection(FirestoreCollections.servants);
   DocumentReference<Map<String, dynamic>> _teamRef(String teamId) =>
       _classes.doc(teamId);
 

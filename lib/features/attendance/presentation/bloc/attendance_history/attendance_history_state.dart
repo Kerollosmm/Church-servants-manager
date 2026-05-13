@@ -26,14 +26,16 @@ final class AttendanceHistoryLoaded extends AttendanceHistoryState {
     required this.teamId,
     required this.sessions,
     this.activeSession,
+    this.isFromCache = false,
   });
 
   final String teamId;
   final List<AttendanceSession> sessions;
   final AttendanceSession? activeSession;
+  final bool isFromCache;
 
   @override
-  List<Object?> get props => [teamId, sessions, activeSession];
+  List<Object?> get props => [teamId, sessions, activeSession, isFromCache];
 }
 
 final class AttendanceHistoryError extends AttendanceHistoryState {

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:church_management_system/core/models/sync_entry.dart';
@@ -56,8 +57,12 @@ class AttendanceBloc extends Bloc<AttendanceEvent, AttendanceState> {
         ),
       );
     } catch (e) {
-      developer.log('Error creating session', error: e);
-      emit(AttendanceError(message: 'حدث خطأ أثناء إنشاء الجلسة: $e'));
+      developer.log('Error creating session');
+      emit(
+        const AttendanceError(
+          message: 'تعذر إنشاء جلسة الحضور. حاول مرة أخرى.',
+        ),
+      );
     }
   }
 
@@ -90,8 +95,8 @@ class AttendanceBloc extends Bloc<AttendanceEvent, AttendanceState> {
         ),
       );
     } catch (e) {
-      developer.log('Error loading roster', error: e);
-      emit(AttendanceError(message: 'حدث خطأ أثناء تحميل القائمة: $e'));
+      developer.log('Error loading roster');
+      emit(const AttendanceError(message: 'تعذر تحميل قائمة المخدومين.'));
     }
   }
 
@@ -135,6 +140,6 @@ class AttendanceBloc extends Bloc<AttendanceEvent, AttendanceState> {
     );
 
     // Enqueue the operation and DO NOT await its completion
-    _syncService.enqueue(syncEntry);
+    unawaited(_syncService.enqueue(syncEntry));
   }
 }

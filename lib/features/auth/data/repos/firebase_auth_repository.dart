@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:church_management_system/core/constants/enums.dart';
+import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/data/services/auth_user_local_store.dart';
 import 'package:church_management_system/features/auth/data/services/auth_user_profile_store.dart';
@@ -57,8 +58,16 @@ class FirebaseAuthRepository implements AuthRepository {
       }
 
       try {
-        // One-time fetch: Retrieves from server (if online) or Hive (if offline)
-        final profile = await _userProfileStore.fetchUser(firebaseUser.uid);
+        final docRef = FirebaseFirestore.instance
+            .collection(FirestoreCollections.servants)
+            .doc(firebaseUser.uid);
+        final docSnap = await docRef.get(const GetOptions());
+
+        if (!docSnap.exists || docSnap.data() == null) {
+          throw UserNotFoundAuthException();
+        }
+
+        final profile = AuthUser.fromJson(docSnap.data()!);
 
         final mergedUser = profile.copyWith(
           uid: firebaseUser.uid,
@@ -67,21 +76,19 @@ class FirebaseAuthRepository implements AuthRepository {
               ? firebaseUser.displayName!.trim()
               : profile.name,
           isEmailVerified: firebaseUser.emailVerified,
-          // Use profile source of truth for Role & RBAC (Custom Claims deprecated)
+          // Use profile source of truth for Role & RBAC
           role: profile.role,
           isArchived: profile.isArchived,
           assignedTeamIds: profile.assignedTeamIds,
         );
 
         _lastKnownAppUser = mergedUser;
-        // Save the newly synced user configuration in local persistent storage
+        // Save the newly synced user configuration in local persistent storage (cache the resulting role in Hive)
         await _localAuthStore.saveUser(mergedUser);
         return mergedUser;
-      } catch (e, s) {
+      } catch (e) {
         developer.log(
-          'Error fetching user profile stream',
-          error: e,
-          stackTrace: s,
+          'Failed to hydrate user profile stream',
           name: 'FirebaseAuthRepository',
         );
         // Fallback: If offline and the network fails unexpectedly, return the latest cached state
@@ -100,8 +107,16 @@ class FirebaseAuthRepository implements AuthRepository {
 
   @override
   Future<void> forceRoleRefresh() async {
-    // DEPRECATED Custom Claims usage: Kept empty/no-op to satisfy the interface.
-    // Roles are now checked reactively via standard user fetch instead of token invalidation.
+    try {
+      await _identityProvider.forceTokenRefresh();
+      await _identityProvider.reloadUser();
+    } catch (e) {
+      developer.log(
+        'Failed to force role refresh',
+        error: e,
+        name: 'FirebaseAuthRepository',
+      );
+    }
   }
 
   @override
@@ -250,7 +265,6 @@ class FirebaseAuthRepository implements AuthRepository {
       _lastKnownAppUser = null;
       // Mandate: Clear local cache on sign out
       await _localAuthStore.deleteUser();
-      await FirebaseFirestore.instance.clearPersistence();
     } catch (e) {
       throw AuthErrorMapper.mapException(e);
     }

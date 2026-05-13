@@ -231,11 +231,13 @@ class DataSeeder {
 
   /// Deletes ALL documents from the Students collection in paginated batches.
   Future<void> clearStudents() async {
+    if (!kDebugMode) return;
     await _clearCollection(_students, 'students');
   }
 
   /// Deletes ALL documents from the Classes (Teams) collection in paginated batches.
   Future<void> clearTeams() async {
+    if (!kDebugMode) return;
     await _clearCollection(_classes, 'teams');
   }
 
@@ -244,6 +246,7 @@ class DataSeeder {
     CollectionReference<Map<String, dynamic>> collection,
     String label,
   ) async {
+    if (!kDebugMode) return;
     int totalDeleted = 0;
     const batchSize = 400;
     QuerySnapshot<Map<String, dynamic>> snapshot;
@@ -262,6 +265,7 @@ class DataSeeder {
 
   /// Clears all seeded data and reseeds from scratch.
   Future<void> clearAndReseed({int studentCount = 20}) async {
+    if (!kDebugMode) return;
     await clearStudents();
     await clearTeams();
     await seedTeams();

@@ -85,6 +85,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
 
   /// Fetches students using the use case.
   Future<void> _fetchStudents({
+    required Emitter<StudentDataState> emit,
     required AuthUser actor,
     String? teamId,
     bool includeArchived = false,
@@ -99,12 +100,12 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
       if (isClosed) return;
 
       if (students == null) {
-        _onDataFetched([]);
+        _onDataFetched(emit, []);
         return;
       }
 
       students.sort((a, b) => a.name.compareTo(b.name));
-      _onDataFetched(students);
+      _onDataFetched(emit, students);
     } catch (e, stackTrace) {
       if (isClosed) return;
       developer.log(
@@ -113,12 +114,15 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
         stackTrace: stackTrace,
         name: 'StudentDataBloc',
       );
-      emit(StudentDataError('$e'));
+      emit(const StudentDataError('تعذر تحميل بيانات المخدومين.'));
       _completePendingRefresh();
     }
   }
 
-  void _onDataFetched(List<StudentModel> fetchedStudents) {
+  void _onDataFetched(
+    Emitter<StudentDataState> emit,
+    List<StudentModel> fetchedStudents,
+  ) {
     final allStudents = fetchedStudents
         .where((student) => student.role == UserRole.student)
         .toList(growable: false);
@@ -148,6 +152,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     );
 
     _emitLoadedState(
+      emit,
       students: visibleStudents,
       allStudents: allStudents,
       studentsByDocId: studentsByDocId,
@@ -176,7 +181,8 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     return allStudents;
   }
 
-  void _emitLoadedState({
+  void _emitLoadedState(
+    Emitter<StudentDataState> emit, {
     required List<StudentModel> students,
     required List<StudentModel> allStudents,
     required Map<String, StudentModel> studentsByDocId,
@@ -205,6 +211,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
   }
 
   void _emitSuccessWithData(
+    Emitter<StudentDataState> emit,
     String message, {
     StudentMutationOperation? mutationOperation,
   }) {
@@ -241,6 +248,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     );
 
     _emitLoadedState(
+      emit,
       students: visibleStudents,
       allStudents: allStudents,
       studentsByDocId: studentsByDocId,
@@ -263,12 +271,16 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     return await _studentRepository.getStudentById(docId);
   }
 
-  void _emitError(String message, Object error) {
+  void _emitError(
+    Emitter<StudentDataState> emit,
+    String message,
+    Object error,
+  ) {
     developer.log(message, error: error, name: 'StudentDataBloc');
     emit(StudentDataError('$message. حاول مرة أخرى.'));
   }
 
-  void _emitNotAllowed() {
+  void _emitNotAllowed(Emitter<StudentDataState> emit) {
     emit(const StudentDataError('غير مسموح.'));
   }
 
@@ -328,6 +340,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     );
 
     await _fetchStudents(
+      emit: emit,
       actor: event.actor,
       teamId: event.teamId,
       includeArchived: event.includeArchived,
@@ -404,6 +417,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
             : students;
 
         _emitLoadedState(
+          emit,
           students: filtered,
           allStudents: allStudents,
           studentsByDocId: studentsByDocId,
@@ -413,7 +427,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
           includeArchived: nextIncludeArchived,
         );
       } catch (e) {
-        _emitError('تعذر البحث عن المخدومين', e);
+        _emitError(emit, 'تعذر البحث عن المخدومين', e);
       }
       return;
     }
@@ -449,6 +463,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
           };
 
           _emitLoadedState(
+            emit,
             students: _resolveVisibleStudents(
               allStudents: nextAllStudents,
               query: query,
@@ -461,10 +476,11 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
             includeArchived: nextIncludeArchived,
           );
         } catch (e) {
-          _emitError('تعذر تحميل بيانات المخدومين', e);
+          _emitError(emit, 'تعذر تحميل بيانات المخدومين', e);
         }
       } else {
         await _fetchStudents(
+          emit: emit,
           actor: event.actor,
           teamId: nextTeamId,
           includeArchived: nextIncludeArchived,
@@ -478,6 +494,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
       query: query,
     );
     _emitLoadedState(
+      emit,
       students: visibleStudents,
       allStudents: allStudents,
       studentsByDocId: studentsByDocId,
@@ -494,7 +511,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
   ) async {
     try {
       if (!_canMutateStudent(event.actor, event.student)) {
-        _emitNotAllowed();
+        _emitNotAllowed(emit);
         return;
       }
 
@@ -504,11 +521,11 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
         password: event.password,
       );
 
-      _emitSuccessWithData('تم إنشاء المخدوم بنجاح');
+      _emitSuccessWithData(emit, 'تم إنشاء المخدوم بنجاح');
       // Reload students
-      refresh(event.actor);
+      unawaited(refresh(event.actor));
     } catch (e) {
-      _emitError('تعذر إنشاء المخدوم', e);
+      _emitError(emit, 'تعذر إنشاء المخدوم', e);
     }
   }
 
@@ -523,7 +540,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
         return;
       }
       if (!_canMutateStudent(event.actor, existing)) {
-        _emitNotAllowed();
+        _emitNotAllowed(emit);
         return;
       }
 
@@ -533,7 +550,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
         existing: existing,
         updated: event.student,
       )) {
-        _emitNotAllowed();
+        _emitNotAllowed(emit);
         return;
       }
       if (_isInvalidServantPromotion(
@@ -559,11 +576,11 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
       } else {
         await _studentRepository.updateStudent(event.student);
       }
-      _emitSuccessWithData('تم تحديث بيانات المخدوم بنجاح');
+      _emitSuccessWithData(emit, 'تم تحديث بيانات المخدوم بنجاح');
       // Reload students
-      refresh(event.actor);
+      unawaited(refresh(event.actor));
     } catch (e) {
-      _emitError('تعذر تحديث بيانات المخدوم', e);
+      _emitError(emit, 'تعذر تحديث بيانات المخدوم', e);
     }
   }
 
@@ -578,7 +595,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
         return;
       }
       if (!_canMutateStudent(event.actor, existing)) {
-        _emitNotAllowed();
+        _emitNotAllowed(emit);
         return;
       }
 
@@ -589,12 +606,13 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
       );
 
       _emitSuccessWithData(
+        emit,
         'تمت أرشفة المخدوم بنجاح',
         mutationOperation: StudentMutationOperation.archive,
       );
-      refresh(event.actor);
+      unawaited(refresh(event.actor));
     } catch (e) {
-      _emitError('تعذر أرشفة المخدوم', e);
+      _emitError(emit, 'تعذر أرشفة المخدوم', e);
     }
   }
 
@@ -612,7 +630,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
         return;
       }
       if (event.actor.role != UserRole.admin) {
-        _emitNotAllowed();
+        _emitNotAllowed(emit);
         return;
       }
 
@@ -623,12 +641,13 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
       );
 
       _emitSuccessWithData(
+        emit,
         'تمت استعادة المخدوم بنجاح',
         mutationOperation: StudentMutationOperation.restore,
       );
-      refresh(event.actor);
+      unawaited(refresh(event.actor));
     } catch (e) {
-      _emitError('تعذر استعادة المخدوم', e);
+      _emitError(emit, 'تعذر استعادة المخدوم', e);
     }
   }
 
@@ -672,6 +691,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     );
 
     await _fetchStudents(
+      emit: emit,
       actor: event.actor,
       teamId: teamId,
       includeArchived: event.includeArchived,

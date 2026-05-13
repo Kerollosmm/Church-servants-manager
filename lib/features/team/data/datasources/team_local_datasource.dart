@@ -1,74 +1,61 @@
 import 'package:church_management_system/features/team/data/models/team_model.dart';
 import 'package:hive/hive.dart';
 
+/// Local Hive datasource for teams.
+///
+/// Provides a fast, offline-first cache for team data.
+/// Currently does not use a sync queue because offline team mutations
+/// are blocked to prevent conflict issues.
 class TeamLocalDatasource {
-  static const String _boxName = 'teams_cache';
-  static const String _syncQueueBox = 'teams_sync_queue';
+  static const String boxName = 'teams_cache_box';
+
+  Box<TeamModel>? _teamsBox;
 
   Future<void> init() async {
-    await Hive.openBox<TeamModel>(_boxName);
-    await Hive.openBox<TeamModel>(_syncQueueBox);
+    _teamsBox ??= await Hive.openBox<TeamModel>(boxName);
   }
 
-  Box<TeamModel> get _box => Hive.box<TeamModel>(_boxName);
-  Box<TeamModel> get _syncQueue => Hive.box<TeamModel>(_syncQueueBox);
+  // ---- Cache Operations ----
 
-  Future<void> saveTeam(TeamModel team) async {
-    final key = team.id;
-    await _box.put(key, team);
+  Future<void> cacheTeam(TeamModel team) async {
+    await init();
+    await _teamsBox!.put(team.id, team);
   }
 
-  Future<void> saveTeams(List<TeamModel> teams) async {
-    final entries = {for (final team in teams) team.id: team};
-    await _box.putAll(entries);
+  Future<void> cacheTeams(List<TeamModel> teams) async {
+    await init();
+    final entries = <String, TeamModel>{for (final t in teams) t.id: t};
+    await _teamsBox!.putAll(entries);
   }
 
-  TeamModel? getTeam(String id) {
-    return _box.get(id);
+  Future<TeamModel?> getCachedTeamById(String id) async {
+    await init();
+    return _teamsBox!.get(id);
   }
 
-  List<TeamModel> getCachedTeams({bool includeArchived = false}) {
-    return _box.values
-        .where((team) => includeArchived || !team.isArchived)
-        .toList()
-      ..sort((a, b) {
-        final groupCompare = a.groupId.compareTo(b.groupId);
-        if (groupCompare != 0) return groupCompare;
-        return a.name.compareTo(b.name);
-      });
+  /// Returns all cached teams, optionally filtering out archived ones.
+  Future<List<TeamModel>> getCachedTeams({bool includeArchived = false}) async {
+    await init();
+    final all = _teamsBox!.values;
+    if (includeArchived) return all.toList();
+    return all.where((t) => !t.isArchived).toList();
   }
 
-  List<TeamModel> getCachedTeamsByGroup(
+  /// Returns cached teams filtered by groupId.
+  Future<List<TeamModel>> getCachedTeamsByGroup(
     String groupId, {
     bool includeArchived = false,
-  }) {
-    return getCachedTeams(
-      includeArchived: includeArchived,
-    ).where((t) => t.groupId == groupId).toList();
+  }) async {
+    await init();
+    return _teamsBox!.values
+        .where(
+          (t) => t.groupId == groupId && (includeArchived || !t.isArchived),
+        )
+        .toList();
   }
 
-  Future<void> deleteTeam(String id) async {
-    await _box.delete(id);
-  }
-
-  Future<void> clearCache() async {
-    await _box.clear();
-  }
-
-  Future<void> queueForSync(TeamModel team) async {
-    final key = team.id;
-    await _syncQueue.put(key, team);
-  }
-
-  List<TeamModel> getPendingSyncQueue() {
-    return _syncQueue.values.toList();
-  }
-
-  Future<void> removeFromSyncQueue(String id) async {
-    await _syncQueue.delete(id);
-  }
-
-  Future<void> clearSyncQueue() async {
-    await _syncQueue.clear();
+  Future<void> removeCachedTeam(String id) async {
+    await init();
+    await _teamsBox!.delete(id);
   }
 }

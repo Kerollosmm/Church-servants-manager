@@ -1,5 +1,8 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
+import 'package:church_management_system/core/models/sync_entry.dart';
+import 'package:church_management_system/core/services/sync_service.dart'
+    hide SyncStatus;
 import 'package:church_management_system/core/utils/pagination_cursor.dart';
 import 'package:church_management_system/features/student/data/datasources/student_local_datasource.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
@@ -8,6 +11,7 @@ import 'package:church_management_system/features/student/data/services/student_
 import 'package:church_management_system/features/student/domain/failures/student_failures.dart';
 import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 /// Repository for student data operations.
 ///
@@ -18,19 +22,25 @@ class StudentDataRepository implements IStudentRepository {
   final StudentQueryService _queryService;
   final StudentLinkedUserSyncService _linkedUserSyncService;
   final StudentLocalDatasource _localDatasource;
+  final SyncService _syncService;
+  final Connectivity _connectivity;
 
   StudentDataRepository({
     required FirebaseFirestore firestore,
     StudentQueryService? queryService,
     StudentLinkedUserSyncService? linkedUserSyncService,
     StudentLocalDatasource? localDatasource,
+    SyncService? syncService,
+    Connectivity? connectivity,
   }) : _firestore = firestore,
        _queryService =
            queryService ?? StudentQueryService(firestore: firestore),
        _linkedUserSyncService =
            linkedUserSyncService ??
            StudentLinkedUserSyncService(firestore: firestore),
-       _localDatasource = localDatasource ?? StudentLocalDatasource();
+       _localDatasource = localDatasource ?? StudentLocalDatasource(),
+       _syncService = syncService ?? SyncService(),
+       _connectivity = connectivity ?? Connectivity();
 
   CollectionReference<Map<String, dynamic>> get _studentsCollection =>
       _firestore.collection(FirestoreCollections.students);
@@ -113,7 +123,7 @@ class StudentDataRepository implements IStudentRepository {
     List<String> classIds, {
     bool includeArchived = false,
   }) async {
-    return _queryService.getStudentsByClassesList(
+    return _queryService.getStudentsByClasses(
       classIds,
       includeArchived: includeArchived,
     );
@@ -189,7 +199,7 @@ class StudentDataRepository implements IStudentRepository {
       final snapshot = await firestoreQuery
           .startAt([query])
           .endAt(['$query\uf8ff'])
-          .limit(limit * 2)
+          .limit(limit)
           .get(const GetOptions());
 
       return _queryService
@@ -270,11 +280,43 @@ class StudentDataRepository implements IStudentRepository {
   @override
   Future<void> upsertStudent(StudentModel student) async {
     try {
-      final docRef = _studentsCollection.doc(student.docID);
-      await docRef.set({
-        ...student.toMap(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      final pendingStudent = student.copyWith(syncStatus: SyncStatus.pending);
+      await _localDatasource.saveStudent(pendingStudent);
+
+      final connectivityResult = await _connectivity.checkConnectivity();
+      if (connectivityResult.contains(ConnectivityResult.none)) {
+        await _syncService.enqueue(
+          SyncEntry(
+            id: 'upsert_student_${student.docID}_${DateTime.now().millisecondsSinceEpoch}',
+            actionType: 'UPSERT_STUDENT',
+            payload: {'student': student.toMap()},
+            createdAt: DateTime.now(),
+          ),
+        );
+        return;
+      }
+
+      try {
+        final docRef = _studentsCollection.doc(student.docID);
+        await docRef.set({
+          ...student.toMap(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+
+        final syncedStudent = pendingStudent.copyWith(
+          syncStatus: SyncStatus.synced,
+        );
+        await _localDatasource.saveStudent(syncedStudent);
+      } catch (networkError) {
+        await _syncService.enqueue(
+          SyncEntry(
+            id: 'upsert_student_${student.docID}_${DateTime.now().millisecondsSinceEpoch}',
+            actionType: 'UPSERT_STUDENT',
+            payload: {'student': student.toMap()},
+            createdAt: DateTime.now(),
+          ),
+        );
+      }
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
     }
@@ -286,17 +328,178 @@ class StudentDataRepository implements IStudentRepository {
     required String performedByUid,
   }) async {
     try {
-      final doc = await _studentsCollection
-          .doc(docId)
-          .get(const GetOptions());
-      final data = doc.data();
-      if (!doc.exists || data == null) {
+      final student = await getStudentById(docId);
+      if (student == null) {
         return;
       }
 
-      final student = StudentModel.fromMap(data, doc.id);
+      // Update local cache
+      final archivedStudent = student.copyWith(isArchived: true);
+      await _localDatasource.saveStudent(archivedStudent);
+
+      final connectivityResult = await _connectivity.checkConnectivity();
+      if (connectivityResult.contains(ConnectivityResult.none)) {
+        await _syncService.enqueue(
+          SyncEntry(
+            id: 'archive_student_${docId}_${DateTime.now().millisecondsSinceEpoch}',
+            actionType: 'ARCHIVE_STUDENT',
+            payload: {'docId': docId, 'performedByUid': performedByUid},
+            createdAt: DateTime.now(),
+          ),
+        );
+        return;
+      }
+
+      try {
+        final doc = _studentsCollection.doc(docId);
+        final batch = _firestore.batch()
+          ..set(doc, {
+            'isArchived': true,
+            'archivedAt': FieldValue.serverTimestamp(),
+            'archivedByUserId': performedByUid,
+            'restoredAt': FieldValue.delete(),
+            'restoredByUserId': FieldValue.delete(),
+          }, SetOptions(merge: true));
+
+        final normalizedUid = student.uid.trim();
+        if (normalizedUid.isNotEmpty) {
+          batch.set(_usersCollection.doc(normalizedUid), {
+            'isArchived': true,
+            'archivedAt': FieldValue.serverTimestamp(),
+            'restorePendingPasswordReset': false,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        }
+
+        await batch.commit();
+      } catch (networkError) {
+        await _syncService.enqueue(
+          SyncEntry(
+            id: 'archive_student_${docId}_${DateTime.now().millisecondsSinceEpoch}',
+            actionType: 'ARCHIVE_STUDENT',
+            payload: {'docId': docId, 'performedByUid': performedByUid},
+            createdAt: DateTime.now(),
+          ),
+        );
+      }
+    } catch (e) {
+      throw mapExceptionToStudentFailure(e);
+    }
+  }
+
+  @override
+  Future<void> restoreStudent(
+    String docId, {
+    required String performedByUid,
+  }) async {
+    try {
+      final student = await getStudentById(docId, includeArchived: true);
+      if (student == null) {
+        return;
+      }
+
+      // Update local cache
+      final restoredStudent = student.copyWith(isArchived: false);
+      await _localDatasource.saveStudent(restoredStudent);
+
+      final connectivityResult = await _connectivity.checkConnectivity();
+      if (connectivityResult.contains(ConnectivityResult.none)) {
+        await _syncService.enqueue(
+          SyncEntry(
+            id: 'restore_student_${docId}_${DateTime.now().millisecondsSinceEpoch}',
+            actionType: 'RESTORE_STUDENT',
+            payload: {'docId': docId, 'performedByUid': performedByUid},
+            createdAt: DateTime.now(),
+          ),
+        );
+        return;
+      }
+
+      try {
+        final doc = _studentsCollection.doc(docId);
+        final batch = _firestore.batch()
+          ..set(doc, {
+            'isArchived': false,
+            'restoredAt': FieldValue.serverTimestamp(),
+            'restoredByUserId': performedByUid,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+
+        final normalizedUid = student.uid.trim();
+        if (normalizedUid.isNotEmpty) {
+          batch.set(_usersCollection.doc(normalizedUid), {
+            'isArchived': false,
+            'restoredAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        }
+
+        await batch.commit();
+      } catch (networkError) {
+        await _syncService.enqueue(
+          SyncEntry(
+            id: 'restore_student_${docId}_${DateTime.now().millisecondsSinceEpoch}',
+            actionType: 'RESTORE_STUDENT',
+            payload: {'docId': docId, 'performedByUid': performedByUid},
+            createdAt: DateTime.now(),
+          ),
+        );
+      }
+    } catch (e) {
+      throw mapExceptionToStudentFailure(e);
+    }
+  }
+
+  /// Helper to get student IDs for given class IDs (batch query)
+  @override
+  Future<List<String>> getStudentIdsByClasses(List<String> classIds) async {
+    return _queryService.getStudentIdsByClasses(classIds);
+  }
+
+  @override
+  Future<void> syncOfflineUpdate(Map<String, dynamic> payload) async {
+    final studentData = payload['student'] as Map<String, dynamic>;
+    final student = StudentModel.fromMap(
+      studentData,
+      studentData['docID'] as String,
+    );
+    await updateStudent(student);
+  }
+
+  @override
+  Future<void> syncOfflineUpsert(Map<String, dynamic> payload) async {
+    final studentData = payload['student'] as Map<String, dynamic>;
+    final student = StudentModel.fromMap(
+      studentData,
+      studentData['docID'] as String,
+    );
+
+    try {
+      final docRef = _studentsCollection.doc(student.docID);
+      await docRef.set({
+        ...student.toMap(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      final syncedStudent = student.copyWith(syncStatus: SyncStatus.synced);
+      await _localDatasource.saveStudent(syncedStudent);
+    } catch (e) {
+      throw mapExceptionToStudentFailure(e);
+    }
+  }
+
+  @override
+  Future<void> syncOfflineArchive(Map<String, dynamic> payload) async {
+    final docId = payload['docId'] as String;
+    final performedByUid = payload['performedByUid'] as String;
+
+    final student = await getStudentById(docId, includeArchived: true);
+    if (student == null) return;
+
+    try {
+      final doc = _studentsCollection.doc(docId);
       final batch = _firestore.batch()
-        ..set(doc.reference, {
+        ..set(doc, {
           'isArchived': true,
           'archivedAt': FieldValue.serverTimestamp(),
           'archivedByUserId': performedByUid,
@@ -321,22 +524,17 @@ class StudentDataRepository implements IStudentRepository {
   }
 
   @override
-  Future<void> restoreStudent(
-    String docId, {
-    required String performedByUid,
-  }) async {
-    try {
-      final doc = await _studentsCollection
-          .doc(docId)
-          .get(const GetOptions());
-      final data = doc.data();
-      if (!doc.exists || data == null) {
-        return;
-      }
+  Future<void> syncOfflineRestore(Map<String, dynamic> payload) async {
+    final docId = payload['docId'] as String;
+    final performedByUid = payload['performedByUid'] as String;
 
-      final student = StudentModel.fromMap(data, doc.id);
+    final student = await getStudentById(docId, includeArchived: true);
+    if (student == null) return;
+
+    try {
+      final doc = _studentsCollection.doc(docId);
       final batch = _firestore.batch()
-        ..set(doc.reference, {
+        ..set(doc, {
           'isArchived': false,
           'restoredAt': FieldValue.serverTimestamp(),
           'restoredByUserId': performedByUid,
@@ -347,57 +545,12 @@ class StudentDataRepository implements IStudentRepository {
       if (normalizedUid.isNotEmpty) {
         batch.set(_usersCollection.doc(normalizedUid), {
           'isArchived': false,
-          'restorePendingPasswordReset': true,
           'restoredAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
       }
 
       await batch.commit();
-    } catch (e) {
-      throw mapExceptionToStudentFailure(e);
-    }
-  }
-
-  /// Helper to get student IDs for given class IDs (batch query)
-  @override
-  Future<List<String>> getStudentIdsByClasses(List<String> classIds) async {
-    return _queryService.getStudentIdsByClasses(classIds);
-  }
-
-  @override
-  Future<void> syncOfflineUpdate(Map<String, dynamic> payload) async {
-    try {
-      final studentId = payload['studentId'] as String;
-      final updatedData = Map<String, dynamic>.from(
-        payload['updatedData'] as Map,
-      );
-      final createdAt = DateTime.parse(payload['updatedAt'] as String);
-
-      final docRef = _studentsCollection.doc(studentId);
-
-      await _firestore.runTransaction((transaction) async {
-        final docSnapshot = await transaction.get(docRef);
-
-        if (docSnapshot.exists) {
-          final data = docSnapshot.data();
-          if (data != null) {
-            final dbTimestamp = data['updatedAt'];
-            if (dbTimestamp is Timestamp) {
-              if (dbTimestamp.toDate().isAfter(createdAt)) {
-                return; // Database is newer, abort write (LWW)
-              }
-            }
-          }
-        }
-
-        // Set merge to true in case the document somehow doesn't exist yet,
-        // though normally an update implies the student already exists.
-        transaction.set(docRef, {
-          ...updatedData,
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-      });
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
     }

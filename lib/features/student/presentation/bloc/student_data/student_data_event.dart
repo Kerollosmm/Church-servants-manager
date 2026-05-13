@@ -88,17 +88,3 @@ final class StudentsRefreshRequested extends StudentDataEvent {
 final class StudentsListeningStopped extends StudentDataEvent {
   const StudentsListeningStopped();
 }
-
-/// Internal event: fired when the Firestore stream emits new data.
-final class _StudentsStreamUpdated extends StudentDataEvent {
-  final List<StudentModel> students;
-
-  const _StudentsStreamUpdated(this.students);
-}
-
-/// Internal event: fired when the Firestore stream encounters an error.
-final class _StreamError extends StudentDataEvent {
-  final String message;
-
-  const _StreamError(this.message);
-}

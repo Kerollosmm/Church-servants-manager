@@ -6,7 +6,11 @@ import 'dart:ui';
 import 'package:church_management_system/church_app.dart';
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/di/injection.dart';
+import 'package:church_management_system/core/models/sync_entry.dart';
+import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/features/auth/data/services/auth_user_local_store.dart';
+import 'package:church_management_system/features/results/data/models/results_model.dart';
+import 'package:church_management_system/features/results/data/models/term_model.dart';
 import 'package:church_management_system/features/servant/data/models/servant_models.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/team/data/models/team_model.dart';
@@ -17,6 +21,43 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:workmanager/workmanager.dart';
+
+@pragma('vm:entry-point')
+void callbackDispatcher() {
+  Workmanager().executeTask((task, inputData) async {
+    developer.log('Background task running: $task', name: 'Workmanager');
+    try {
+      WidgetsFlutterBinding.ensureInitialized();
+      await _initializeFirebase();
+
+      // Initialize Hive
+      await Hive.initFlutter();
+      _registerHiveAdapters();
+
+      // Setup dependencies
+      configureDependencies();
+
+      // We don't need to listen to network, we just want to run the queue once.
+      // But SyncService init() triggers queue processing.
+      final syncService = getIt<SyncService>();
+      await syncService.init();
+
+      // Wait a moment for queue to process if it's async inside init
+      await Future.delayed(const Duration(seconds: 15));
+
+      return Future.value(true);
+    } catch (err, stack) {
+      developer.log(
+        'Background task failed',
+        error: err,
+        stackTrace: stack,
+        name: 'Workmanager',
+      );
+      return Future.value(false);
+    }
+  });
+}
 
 Future<void> _initializeFirebase() async {
   if (kIsWeb || Platform.isAndroid || Platform.isIOS || Platform.isMacOS) {
@@ -31,6 +72,7 @@ Future<void> _initializeFirebase() async {
 
 void _registerHiveAdapters() {
   Hive
+    ..registerAdapter(SyncEntryAdapter())
     ..registerAdapter(UserRoleAdapter())
     ..registerAdapter(AttendanceStatusAdapter())
     ..registerAdapter(EducationStageAdapter())
@@ -38,7 +80,9 @@ void _registerHiveAdapters() {
     ..registerAdapter(GroupAdapter())
     ..registerAdapter(StudentModelAdapter())
     ..registerAdapter(ServantModelAdapter())
-    ..registerAdapter(TeamModelAdapter());
+    ..registerAdapter(TeamModelAdapter())
+    ..registerAdapter(ResultsModelAdapter())
+    ..registerAdapter(TermModelAdapter());
 }
 
 void main() {
@@ -74,6 +118,21 @@ void main() {
 
         // Initialize Local Auth Store
         await getIt<AuthUserLocalStore>().init();
+
+        // Initialize Workmanager
+        await Workmanager().initialize(callbackDispatcher);
+
+        // Register periodic sync task
+        await Workmanager().registerPeriodicTask(
+          'sync_task_id',
+          'offline_sync_task',
+          frequency: const Duration(minutes: 15),
+          constraints: Constraints(networkType: NetworkType.connected),
+          existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
+        );
+
+        // Initialize Sync Engine (Foreground)
+        await getIt<SyncService>().init();
 
         runApp(const ChurchApp());
       } catch (error, stack) {
@@ -117,7 +176,6 @@ class _StartupFailureApp extends StatelessWidget {
                 const Icon(
                   Icons.error_outline,
                   size: 64,
-
                   color: Colors.redAccent,
                 ),
                 const SizedBox(height: 16),

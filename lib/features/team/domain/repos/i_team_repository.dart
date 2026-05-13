@@ -11,6 +11,9 @@ abstract class ITeamRepository {
     bool includeArchived,
   });
 
+  Future<({List<TeamModel> teams, bool isFromCache})>
+  getTeamsByGroupWithFallback(String groupId, {bool includeArchived});
+
   Future<List<TeamModel>> getTeamsByIds(
     List<String> ids, {
     bool includeArchived,

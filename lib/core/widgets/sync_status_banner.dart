@@ -21,7 +21,7 @@ class SyncStatusBanner extends StatelessWidget {
         bool showProgress = false;
 
         if (state is Syncing) {
-          backgroundColor = AppColors.primary.withOpacity(0.9);
+          backgroundColor = AppColors.primary.withValues(alpha: 0.9);
           icon = Icons.sync;
           message = 'جاري مزامنة البيانات (${state.pendingCount} متبقي)...';
           showProgress = true;
@@ -41,7 +41,7 @@ class SyncStatusBanner extends StatelessWidget {
           height: isVisible ? kToolbarHeight : 0,
           color: backgroundColor,
           child: SingleChildScrollView(
-            physics: const NeverScrollableScrollPath(),
+            physics: const NeverScrollableScrollPhysics(),
             child: SizedBox(
               height: kToolbarHeight,
               child: SafeArea(

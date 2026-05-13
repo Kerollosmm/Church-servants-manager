@@ -170,44 +170,6 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                           ),
-                          AppSpacing.gapMd,
-
-                          // Remember Me
-                          Wrap(
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            children: [
-                              ValueListenableBuilder<bool>(
-                                valueListenable: _rememberMe,
-                                builder: (context, value, _) {
-                                  return SizedBox(
-                                    height: 24,
-                                    width: 24,
-                                    child: Checkbox(
-                                      value: value,
-                                      onChanged: (v) =>
-                                          _rememberMe.value = v ?? false,
-                                      activeColor: AppColors.primary,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      side: const BorderSide(
-                                        color: AppColors.outlineVariant,
-                                        width: 1.5,
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                              const SizedBox(width: 8),
-                              const Text(
-                                'تذكرني على هذا الجهاز',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
                           AppSpacing.gapXl,
 
                           // Submit Button

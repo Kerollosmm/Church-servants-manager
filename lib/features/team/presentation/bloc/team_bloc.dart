@@ -64,7 +64,8 @@ class TeamBloc extends Bloc<TeamEvent, TeamState> {
 
   Future<void> _runTeamLoad(
     Emitter<TeamState> emit, {
-    required Future<List<TeamModel>> Function() action,
+    required Future<({List<TeamModel> teams, bool isFromCache})> Function()
+    action,
     String? selectedTeamId,
     bool includeArchived = false,
     String? loadGroupId,
@@ -73,12 +74,18 @@ class TeamBloc extends Bloc<TeamEvent, TeamState> {
   }) async {
     emit(const TeamLoading());
     try {
-      final teams = await action();
-      _currentTeams = teams;
+      final result = await action();
+      _currentTeams = result.teams;
       _selectedTeamId = selectedTeamId;
       _includeArchived = includeArchived;
       _currentLoadGroupId = loadGroupId;
-      emit(TeamLoaded(teams: teams, selectedTeamId: selectedTeamId));
+      emit(
+        TeamLoaded(
+          teams: result.teams,
+          selectedTeamId: selectedTeamId,
+          isFromCache: result.isFromCache,
+        ),
+      );
     } catch (e) {
       developer.log(errorContext, error: e, name: 'TeamBloc');
       emit(TeamError(errorMessage));
@@ -139,7 +146,7 @@ class TeamBloc extends Bloc<TeamEvent, TeamState> {
   ) async {
     await _runTeamLoad(
       emit,
-      action: () => _teamRepository.getTeamsByGroup(
+      action: () => _teamRepository.getTeamsByGroupWithFallback(
         event.groupId,
         includeArchived: event.includeArchived,
       ),
@@ -157,8 +164,12 @@ class TeamBloc extends Bloc<TeamEvent, TeamState> {
   ) async {
     await _runTeamLoad(
       emit,
-      action: () =>
-          _teamRepository.getAllTeams(includeArchived: event.includeArchived),
+      action: () async {
+        final teams = await _teamRepository.getAllTeams(
+          includeArchived: event.includeArchived,
+        );
+        return (teams: teams, isFromCache: false);
+      },
       includeArchived: event.includeArchived,
       errorContext: 'Failed to load all teams',
       errorMessage: 'تعذر تحميل الفرق. تحقق من الاتصال وحاول مرة أخرى.',
@@ -171,10 +182,13 @@ class TeamBloc extends Bloc<TeamEvent, TeamState> {
   ) async {
     await _runTeamLoad(
       emit,
-      action: () => _teamRepository.getTeamsByIds(
-        event.ids,
-        includeArchived: event.includeArchived,
-      ),
+      action: () async {
+        final teams = await _teamRepository.getTeamsByIds(
+          event.ids,
+          includeArchived: event.includeArchived,
+        );
+        return (teams: teams, isFromCache: false);
+      },
       selectedTeamId: event.defaultTeamId,
       includeArchived: event.includeArchived,
       errorContext: 'Failed to load teams by IDs',

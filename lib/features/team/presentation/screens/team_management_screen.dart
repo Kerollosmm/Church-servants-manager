@@ -7,6 +7,7 @@ import 'package:church_management_system/core/theme/app_spacing.dart';
 import 'package:church_management_system/core/widgets/app_empty_state.dart';
 import 'package:church_management_system/core/widgets/app_error_state.dart';
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
+import 'package:church_management_system/core/widgets/sync_status_banner.dart';
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
@@ -86,8 +87,9 @@ class _TeamManagementViewState extends State<_TeamManagementView>
 
   @override
   void dispose() {
-    _tabController.removeListener(_onTabChanged);
-    _tabController.dispose();
+    _tabController
+      ..removeListener(_onTabChanged)
+      ..dispose();
     super.dispose();
   }
 
@@ -248,79 +250,92 @@ class _TeamManagementViewState extends State<_TeamManagementView>
         icon: const Icon(Icons.add),
         label: const Text('إضافة فريق'),
       ),
-      body: BlocConsumer<TeamBloc, TeamState>(
-        listener: (context, state) {
-          if (state is TeamError) {
-            AppSnackbars.showError(context, state.message);
-          }
-          if (state is TeamLoaded &&
-              state.feedbackMessage != null &&
-              state.mutationStatus == TeamMutationStatus.success) {
-            AppSnackbars.showSuccess(
-              context,
-              state.feedbackMessage!,
-              backgroundColor: AppColors.secondary,
-            );
-          }
-          if (state is TeamLoaded &&
-              state.feedbackMessage != null &&
-              state.mutationStatus == TeamMutationStatus.failure) {
-            AppSnackbars.showError(context, state.feedbackMessage!);
-          }
-        },
-        builder: (context, state) {
-          if (state is TeamLoading || state is TeamInitial) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (state is TeamLoaded) {
-            final teams = state.teams;
-            if (teams.isEmpty) {
-              return AppEmptyState(
-                icon: _showArchived
-                    ? Icons.archive_outlined
-                    : Icons.group_work_outlined,
-                title: _showArchived ? 'لا توجد فرق مؤرشفة' : 'لا توجد فرق بعد',
-                subtitle: _showArchived
-                    ? 'عند أرشفة فريق سيظهر هنا.'
-                    : 'اضغط لإضافة فريق لهذه السنة.',
-                onAction: _showAddTeamDialog,
-                actionLabel: 'إضافة فريق',
-                onRefresh: _loadTeamsForCurrentTab,
-              );
-            }
-
-            return RefreshIndicator(
-              onRefresh: _loadTeamsForCurrentTab,
-              child: ListView.separated(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                itemCount: teams.length,
-                separatorBuilder: (_, _) => AppSpacing.gapSm,
-                itemBuilder: (context, index) {
-                  final team = teams[index];
-                  return _TeamCard(
-                    team: team,
-                    onEdit: () => _showEditTeamDialog(team),
-                    onDelete: () => _confirmDeleteTeam(team),
-                    onRestore: () => _restoreTeam(team),
-                    onAssignServant: () => _showAssignServantDialog(team),
-                    onManageMembers: () => _openManageMembers(team),
+      body: Column(
+        children: [
+          const SyncStatusBanner(),
+          Expanded(
+            child: BlocConsumer<TeamBloc, TeamState>(
+              listener: (context, state) {
+                if (state is TeamError) {
+                  AppSnackbars.showError(context, state.message);
+                }
+                if (state is TeamLoaded &&
+                    state.feedbackMessage != null &&
+                    state.mutationStatus == TeamMutationStatus.success) {
+                  AppSnackbars.showSuccess(
+                    context,
+                    state.feedbackMessage!,
+                    backgroundColor: AppColors.secondary,
                   );
-                },
-              ),
-            );
-          }
+                }
+                if (state is TeamLoaded &&
+                    state.feedbackMessage != null &&
+                    state.mutationStatus == TeamMutationStatus.failure) {
+                  AppSnackbars.showError(context, state.feedbackMessage!);
+                }
+              },
+              builder: (context, state) {
+                if (state is TeamLoading || state is TeamInitial) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-          if (state is TeamError) {
-            return AppErrorState(
-              message: state.message,
-              title: 'تعذر تحميل الفرق',
-              onRetry: _loadTeamsForCurrentTab,
-            );
-          }
+                if (state is TeamLoaded) {
+                  final teams = state.teams;
+                  if (teams.isEmpty) {
+                    return AppEmptyState(
+                      icon: _showArchived
+                          ? Icons.archive_outlined
+                          : Icons.group_work_outlined,
+                      title: _showArchived
+                          ? 'لا توجد فرق مؤرشفة'
+                          : 'لا توجد فرق بعد',
+                      subtitle: _showArchived
+                          ? 'عند أرشفة فريق سيظهر هنا.'
+                          : (state.isFromCache
+                                ? 'يرجى الاتصال بالإنترنت لتحميل البيانات لأول مرة.'
+                                : 'اضغط لإضافة فريق لهذه السنة.'),
+                      onAction: (!state.isFromCache && !_showArchived)
+                          ? _showAddTeamDialog
+                          : null,
+                      actionLabel: 'إضافة فريق',
+                      onRefresh: _loadTeamsForCurrentTab,
+                    );
+                  }
 
-          return const SizedBox.shrink();
-        },
+                  return RefreshIndicator(
+                    onRefresh: _loadTeamsForCurrentTab,
+                    child: ListView.separated(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      itemCount: teams.length,
+                      separatorBuilder: (_, _) => AppSpacing.gapSm,
+                      itemBuilder: (context, index) {
+                        final team = teams[index];
+                        return _TeamCard(
+                          team: team,
+                          onEdit: () => _showEditTeamDialog(team),
+                          onDelete: () => _confirmDeleteTeam(team),
+                          onRestore: () => _restoreTeam(team),
+                          onAssignServant: () => _showAssignServantDialog(team),
+                          onManageMembers: () => _openManageMembers(team),
+                        );
+                      },
+                    ),
+                  );
+                }
+
+                if (state is TeamError) {
+                  return AppErrorState(
+                    message: state.message,
+                    title: 'تعذر تحميل الفرق',
+                    onRetry: _loadTeamsForCurrentTab,
+                  );
+                }
+
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

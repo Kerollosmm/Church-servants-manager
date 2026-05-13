@@ -22,12 +22,14 @@ final class TeamLoaded extends TeamState {
   final String? selectedTeamId;
   final TeamMutationStatus mutationStatus;
   final String? feedbackMessage;
+  final bool isFromCache;
 
   const TeamLoaded({
     required this.teams,
     this.selectedTeamId,
     this.mutationStatus = TeamMutationStatus.idle,
     this.feedbackMessage,
+    this.isFromCache = false,
   });
 
   TeamLoaded copyWith({
@@ -37,6 +39,7 @@ final class TeamLoaded extends TeamState {
     TeamMutationStatus? mutationStatus,
     String? feedbackMessage,
     bool clearFeedbackMessage = false,
+    bool? isFromCache,
   }) {
     return TeamLoaded(
       teams: teams ?? this.teams,
@@ -47,6 +50,7 @@ final class TeamLoaded extends TeamState {
       feedbackMessage: clearFeedbackMessage
           ? null
           : (feedbackMessage ?? this.feedbackMessage),
+      isFromCache: isFromCache ?? this.isFromCache,
     );
   }
 
@@ -56,6 +60,7 @@ final class TeamLoaded extends TeamState {
     selectedTeamId,
     mutationStatus,
     feedbackMessage,
+    isFromCache,
   ];
 }
 

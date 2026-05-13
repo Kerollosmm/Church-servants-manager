@@ -3,10 +3,13 @@ import 'dart:developer' as developer;
 
 import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/models/sync_entry.dart';
+import 'package:church_management_system/features/attendance/data/repos/attendance_session_repository.dart';
 import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
+import 'package:church_management_system/features/results/domain/repos/i_results_repository.dart';
 import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:hive/hive.dart';
+import 'package:workmanager/workmanager.dart';
 
 /// Represents the current state of the sync engine.
 class SyncStatus {
@@ -65,14 +68,14 @@ class SyncService {
       List<ConnectivityResult> results,
     ) {
       if (!results.contains(ConnectivityResult.none)) {
-        _processQueue();
+        unawaited(processQueue());
       }
     });
 
     // Perform an initial connectivity check
     final results = await _connectivity.checkConnectivity();
     if (!results.contains(ConnectivityResult.none)) {
-      _processQueue();
+      unawaited(processQueue());
     }
   }
 
@@ -90,7 +93,22 @@ class SyncService {
       // Attempt to sync immediately if online
       final results = await _connectivity.checkConnectivity();
       if (!results.contains(ConnectivityResult.none)) {
-        _processQueue();
+        unawaited(processQueue());
+      } else {
+        // Register a one-off background task to run when connectivity returns
+        try {
+          await Workmanager().registerOneOffTask(
+            'sync_one_off_${DateTime.now().millisecondsSinceEpoch}',
+            'offline_sync_task',
+            constraints: Constraints(networkType: NetworkType.connected),
+          );
+        } catch (e) {
+          developer.log(
+            'Failed to register Workmanager task',
+            error: e,
+            name: 'SyncService',
+          );
+        }
       }
     } catch (e, stack) {
       developer.log(
@@ -103,7 +121,7 @@ class SyncService {
   }
 
   /// Processes the queue sequentially (FIFO).
-  Future<void> _processQueue() async {
+  Future<void> processQueue() async {
     if (_isProcessing) return;
 
     final box = Hive.box<SyncEntry>(_boxName);
@@ -203,21 +221,59 @@ class SyncService {
         );
         break;
 
-      case 'UPDATE_STUDENT':
-        await getIt<IStudentRepository>().syncOfflineUpdate(entry.payload);
+      case 'UPSERT_STUDENT':
+        await getIt<IStudentRepository>().syncOfflineUpsert(entry.payload);
         developer.log(
-          'Processing UPDATE_STUDENT: ${entry.payload}',
+          'Processing UPSERT_STUDENT: ${entry.payload}',
+          name: 'SyncService',
+        );
+        break;
+
+      case 'ARCHIVE_STUDENT':
+        await getIt<IStudentRepository>().syncOfflineArchive(entry.payload);
+        developer.log(
+          'Processing ARCHIVE_STUDENT: ${entry.payload}',
+          name: 'SyncService',
+        );
+        break;
+
+      case 'RESTORE_STUDENT':
+        await getIt<IStudentRepository>().syncOfflineRestore(entry.payload);
+        developer.log(
+          'Processing RESTORE_STUDENT: ${entry.payload}',
+          name: 'SyncService',
+        );
+        break;
+
+      case 'UPDATE_RESULT':
+        await getIt<IResultsRepository>().syncOfflineUpdate(entry.payload);
+        developer.log(
+          'Processing UPDATE_RESULT: ${entry.payload}',
           name: 'SyncService',
         );
         break;
 
       case 'CREATE_SESSION':
-        // TODO: Route to AttendanceSessionRepository
+        await getIt<AttendanceSessionRepository>().syncOfflineSessionCreation(
+          entry.payload,
+        );
         developer.log(
           'Processing CREATE_SESSION: ${entry.payload}',
           name: 'SyncService',
         );
         break;
+
+      case 'CLOSE_SESSION':
+        await getIt<AttendanceSessionRepository>().syncOfflineCloseSession(
+          entry.payload,
+        );
+        developer.log(
+          'Processing CLOSE_SESSION: ${entry.payload}',
+          name: 'SyncService',
+        );
+        break;
+
+
 
       // Add other feature-specific action types here
 

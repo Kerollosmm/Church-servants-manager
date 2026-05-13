@@ -72,4 +72,7 @@ abstract class IStudentRepository {
   });
 
   Future<void> syncOfflineUpdate(Map<String, dynamic> payload);
+  Future<void> syncOfflineUpsert(Map<String, dynamic> payload);
+  Future<void> syncOfflineArchive(Map<String, dynamic> payload);
+  Future<void> syncOfflineRestore(Map<String, dynamic> payload);
 }

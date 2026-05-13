@@ -1,10 +1,13 @@
 class FirestoreCollections {
-  // NOTE: Update these names if your Firestore collections use different casing.
-  static const users = 'Users';
+  // NOTE: Canonical names aligned with CSMS System Architecture Report
+  static const servants = 'servants';
+  static const users =
+      'Users'; // Deprecated, but keeping for reference if needed during migration
   static const students = 'Students';
   static const classes = 'Classes';
+  static const attendance = 'attendance';
   static const attendanceSessions = 'attendance_sessions';
   static const attendanceMarks = 'marks';
   static const invitations = 'Invitations';
-  // Servants are stored in Users collection with role == 'servant'
+  static const teamUniquenessRegistry = 'team_uniqueness_registry';
 }

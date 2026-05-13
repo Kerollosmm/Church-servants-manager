@@ -39,7 +39,11 @@ class AttendanceHistoryBloc
     emit(AttendanceHistoryLoading(teamId: normalizedTeamId));
 
     try {
-      final sessions = await _repository.getSessionsForTeam(normalizedTeamId);
+      final result = await _repository.getSessionsForTeamWithFallback(
+        normalizedTeamId,
+      );
+      final sessions = result.sessions;
+      final isFromCache = result.isFromCache;
       final now = DateTime.now();
 
       _sessions = sessions;
@@ -56,6 +60,7 @@ class AttendanceHistoryBloc
             teamId: teamId,
             sessions: _sessions,
             activeSession: _activeSession,
+            isFromCache: isFromCache,
           ),
         );
       }

@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:developer' as developer;
+
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/features/attendance/data/local/attendance_local_datasource.dart';
@@ -10,21 +12,18 @@ import 'package:church_management_system/features/attendance/domain/failures/att
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-/// Repository responsible for attendance mark CRUD operations.
-/// Handles creating, updating, and deleting individual student marks within a session.
-///
-/// Implements write-behind pattern: mutations are persisted to [AttendanceLocalDatasource]
-/// first (Hive cache + sync queue), then attempted against Firestore. Network failures
-/// are caught silently — entries remain in the queue for the sync engine to retry.
 class AttendanceMarkRepository {
   AttendanceMarkRepository({
-    FirebaseFirestore? firestore,
+    required FirebaseFirestore firestore,
     required AttendanceLocalDatasource localDatasource,
-  }) : _firestore = firestore ?? FirebaseFirestore.instance,
-       _localDatasource = localDatasource;
+    DateTime Function()? nowProvider,
+  }) : _firestore = firestore,
+       _localDatasource = localDatasource,
+       _nowProvider = nowProvider ?? DateTime.now;
 
   final FirebaseFirestore _firestore;
   final AttendanceLocalDatasource _localDatasource;
+  final DateTime Function() _nowProvider;
 
   CollectionReference<Map<String, dynamic>> get _classesCollection =>
       _firestore.collection(FirestoreCollections.classes);
@@ -51,7 +50,17 @@ class AttendanceMarkRepository {
     String teamId,
     String sessionId,
     String studentId,
-  ) => _marksCol(teamId, sessionId).doc(studentId);
+  ) => _marksCol(teamId, sessionId).doc('${studentId}_$sessionId');
+
+  Future<DocumentSnapshot<Map<String, dynamic>>> _cachedGet(
+    DocumentReference<Map<String, dynamic>> ref,
+  ) async {
+    try {
+      final cached = await ref.get(const GetOptions(source: Source.cache));
+      if (cached.exists) return cached;
+    } catch (_) {}
+    return ref.get(const GetOptions(source: Source.server));
+  }
 
   Future<void> _assertCanWriteMark({
     required String teamId,
@@ -60,22 +69,37 @@ class AttendanceMarkRepository {
     required AuthUser user,
     required DateTime now,
   }) async {
-    await assertCanWriteMark(
-      teamId: teamId,
-      sessionId: sessionId,
-      studentId: studentId,
-      user: user,
-      now: now,
-      getSession: () => _getSession(teamId, sessionId),
-      canManage: () => _canUserManageAttendance(user, teamId),
-    );
+    final normalizedStudentId = studentId.trim();
+
+    final results = await Future.wait([
+      _canUserManageAttendance(user, teamId),
+      _getSession(teamId, sessionId),
+    ]);
+
+    final canManage = results[0] as bool;
+    if (!canManage) {
+      throw const AttendancePermissionDeniedFailure();
+    }
+
+    final session = results[1] as AttendanceSession?;
+    if (session == null) {
+      throw const AttendanceSessionNotFoundFailure();
+    }
+
+    if (!session.studentIdsSnapshot.contains(normalizedStudentId)) {
+      throw const AttendanceStudentNotInSessionFailure();
+    }
+
+    if (!session.isOpenAt(now)) {
+      throw const AttendanceSessionClosedFailure();
+    }
   }
 
   Future<AttendanceSession?> _getSession(
     String teamId,
     String sessionId,
   ) async {
-    final doc = await _sessionDoc(teamId, sessionId).get();
+    final doc = await _cachedGet(_sessionDoc(teamId, sessionId));
     if (!doc.exists || doc.data() == null) return null;
     return AttendanceSession.fromMap(doc.data()!, doc.id);
   }
@@ -84,13 +108,29 @@ class AttendanceMarkRepository {
     if (user.isArchived) return false;
     if (user.role == UserRole.admin) return true;
     if (user.role != UserRole.servant) return false;
-    return user.effectiveAssignedTeamIds.contains(teamId.trim());
+
+    final normalizedTeamId = teamId.trim();
+    if (user.effectiveAssignedTeamIds.contains(normalizedTeamId)) {
+      return true;
+    }
+
+    final groupId = user.groupId;
+    if (groupId != null && groupId.isNotEmpty) {
+      try {
+        final doc = await _firestore
+            .collection(FirestoreCollections.classes)
+            .doc(normalizedTeamId)
+            .get();
+        final data = doc.data();
+        if (doc.exists && data != null) {
+          return data['groupId'] == groupId;
+        }
+      } catch (_) {}
+    }
+
+    return false;
   }
 
-  /// Creates a new attendance mark for a student.
-  ///
-  /// **Write-behind**: Hive cache + sync queue first, then Firestore.
-  /// Network failures are caught — mark stays queued for retry.
   Future<void> createMark({
     required String teamId,
     required String sessionId,
@@ -100,43 +140,34 @@ class AttendanceMarkRepository {
     required AttendanceMarkStatus status,
     String? note,
   }) async {
+    final now = _nowProvider();
+    final normalizedStudentId = studentId.trim();
+
+    // 1. Pessimistic validation.
     await _assertCanWriteMark(
       teamId: teamId,
       sessionId: sessionId,
-      studentId: studentId,
+      studentId: normalizedStudentId,
       user: markedBy,
-      now: DateTime.now(),
+      now: now,
     );
-    final normalizedStudentId = studentId.trim();
-    final effectiveStudentName = studentNameSnapshot.trim().isNotEmpty
-        ? studentNameSnapshot.trim()
-        : 'مخدوم';
-    final normalizedNote = note?.trim();
-    final now = DateTime.now();
 
-    final markData = <String, dynamic>{
-      'studentNameSnapshot': effectiveStudentName,
+    final markData = {
+      'teamId': teamId,
+      'sessionId': sessionId,
+      'studentId': normalizedStudentId,
+      'studentNameSnapshot': studentNameSnapshot,
       'status': status.name,
-      'markedByUserId': markedBy.uid,
+      'markedByUid': markedBy.uid,
       'markedByName': markedBy.name,
-      'markedAt': now.toIso8601String(),
-      'updatedAt': now.toIso8601String(),
-      if (normalizedNote != null && normalizedNote.isNotEmpty)
-        'note': normalizedNote,
+      'note': note,
+      'createdAt': now.toIso8601String(),
     };
 
-    // 1. Write to Hive cache immediately.
-    await _localDatasource.cacheMark(
-      teamId: teamId,
-      sessionId: sessionId,
-      studentId: normalizedStudentId,
-      markData: markData,
-    );
-
-    // 2. Enqueue for Firestore sync.
+    // 2. Queue for offline sync.
     await _localDatasource.enqueue(
       MarkSyncEntry(
-        id: normalizedStudentId,
+        id: '${teamId}_${sessionId}_$normalizedStudentId',
         teamId: teamId,
         sessionId: sessionId,
         studentId: normalizedStudentId,
@@ -151,7 +182,7 @@ class AttendanceMarkRepository {
       final markRef = _markDoc(teamId, sessionId, normalizedStudentId);
       final sessionRef = _sessionDoc(teamId, sessionId);
 
-      final markDoc = await markRef.get();
+      final markDoc = await _cachedGet(markRef);
       if (markDoc.exists) {
         // Already exists — remove from sync queue and return.
         await _localDatasource.removeFromQueue(
@@ -160,81 +191,72 @@ class AttendanceMarkRepository {
         return;
       }
 
-      final firestoreData = <String, dynamic>{
-        'studentNameSnapshot': effectiveStudentName,
-        'status': status.name,
-        'markedByUserId': markedBy.uid,
-        'markedByName': markedBy.name,
-        'markedAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      };
-      if (normalizedNote != null && normalizedNote.isNotEmpty) {
-        firestoreData['note'] = normalizedNote;
-      }
+      await _firestore.runTransaction((transaction) async {
+        transaction.set(markRef, {
+          'studentId': normalizedStudentId,
+          'studentNameSnapshot': studentNameSnapshot,
+          'status': status.name,
+          'markedByUserId': markedBy.uid,
+          'markedByName': markedBy.name,
+          'markedAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+          'note': note,
+        });
 
-      final batch = _firestore.batch()
-        ..set(markRef, firestoreData, SetOptions(merge: true))
-        ..set(sessionRef, {
-          '${status.name}Count': FieldValue.increment(1),
-        }, SetOptions(merge: true));
-      await batch.commit();
+        if (status == AttendanceMarkStatus.present) {
+          transaction.update(sessionRef, {
+            'presentCount': FieldValue.increment(1),
+          });
+        }
+      });
 
-      // Synced — remove from queue.
+      // 4. Success — remove from sync queue.
       await _localDatasource.removeFromQueue(
         '${teamId}_${sessionId}_$normalizedStudentId',
       );
     } catch (error) {
       developer.log(
-        'createMark queued for retry: $teamId/$sessionId/$normalizedStudentId',
-        error: error,
+        'Offline: Mark queued for student $normalizedStudentId',
         name: 'AttendanceMarkRepository',
       );
     }
   }
 
-  /// Updates an existing attendance mark.
-  ///
-  /// **Write-behind**: Hive cache + sync queue first, then Firestore.
   Future<void> updateMark({
     required String teamId,
     required String sessionId,
     required String studentId,
-    required AttendanceMarkStatus status,
     required AuthUser markedBy,
+    required AttendanceMarkStatus status,
     String? note,
   }) async {
+    final now = _nowProvider();
+    final normalizedStudentId = studentId.trim();
+
+    // 1. Pessimistic validation.
     await _assertCanWriteMark(
       teamId: teamId,
       sessionId: sessionId,
-      studentId: studentId,
+      studentId: normalizedStudentId,
       user: markedBy,
-      now: DateTime.now(),
+      now: now,
     );
-    final normalizedStudentId = studentId.trim();
-    final normalizedNote = note?.trim();
-    final now = DateTime.now();
 
-    final markData = <String, dynamic>{
+    final markData = {
+      'teamId': teamId,
+      'sessionId': sessionId,
+      'studentId': normalizedStudentId,
       'status': status.name,
-      'markedByUserId': markedBy.uid,
+      'markedByUid': markedBy.uid,
       'markedByName': markedBy.name,
-      'updatedAt': now.toIso8601String(),
-      if (normalizedNote != null && normalizedNote.isNotEmpty)
-        'note': normalizedNote,
+      'note': note,
+      'createdAt': now.toIso8601String(),
     };
 
-    // 1. Update Hive cache.
-    await _localDatasource.cacheMark(
-      teamId: teamId,
-      sessionId: sessionId,
-      studentId: normalizedStudentId,
-      markData: markData,
-    );
-
-    // 2. Enqueue for sync.
+    // 2. Queue for offline sync.
     await _localDatasource.enqueue(
       MarkSyncEntry(
-        id: normalizedStudentId,
+        id: '${teamId}_${sessionId}_$normalizedStudentId',
         teamId: teamId,
         sessionId: sessionId,
         studentId: normalizedStudentId,
@@ -249,201 +271,107 @@ class AttendanceMarkRepository {
       final markRef = _markDoc(teamId, sessionId, normalizedStudentId);
       final sessionRef = _sessionDoc(teamId, sessionId);
 
-      final markDoc = await markRef.get();
+      final markDoc = await _cachedGet(markRef);
       if (!markDoc.exists) return;
 
       final oldStatusStr = markDoc.data()?['status'] as String?;
       final oldStatus = AttendanceMarkStatus.values.firstWhere(
         (e) => e.name == oldStatusStr,
-        orElse: () => AttendanceMarkStatus.present,
+        orElse: () => AttendanceMarkStatus.absent,
       );
-
-      final batch = _firestore.batch();
-      if (oldStatus != status) {
-        batch.set(sessionRef, {
-          '${oldStatus.name}Count': FieldValue.increment(-1),
-          '${status.name}Count': FieldValue.increment(1),
-        }, SetOptions(merge: true));
-      }
-
-      batch.set(markRef, {
-        'status': status.name,
-        'markedByUserId': markedBy.uid,
-        'markedByName': markedBy.name,
-        'updatedAt': FieldValue.serverTimestamp(),
-        'note': normalizedNote == null || normalizedNote.isEmpty
-            ? FieldValue.delete()
-            : normalizedNote,
-      }, SetOptions(merge: true));
-      await batch.commit();
-
-      // Synced — remove from queue.
-      await _localDatasource.removeFromQueue(
-        '${teamId}_${sessionId}_$normalizedStudentId',
-      );
-    } catch (error) {
-      developer.log(
-        'updateMark queued for retry: $teamId/$sessionId/$normalizedStudentId',
-        error: error,
-        name: 'AttendanceMarkRepository',
-      );
-    }
-  }
-
-  /// Deletes an attendance mark (toggle-off behavior per FR-08.7).
-  ///
-  /// **Write-behind**: removes from Hive cache, enqueues delete, then attempts
-  /// Firestore transaction. Session counts may temporarily drift while offline.
-  Future<void> deleteMark({
-    required String teamId,
-    required String sessionId,
-    required String studentId,
-    required AuthUser requestedBy,
-  }) async {
-    await _assertCanWriteMark(
-      teamId: teamId,
-      sessionId: sessionId,
-      studentId: studentId,
-      user: requestedBy,
-      now: DateTime.now(),
-    );
-    final normalizedStudentId = studentId.trim();
-
-    // 1. Remove from Hive cache.
-    await _localDatasource.removeCachedMark(
-      teamId: teamId,
-      sessionId: sessionId,
-      studentId: normalizedStudentId,
-    );
-
-    // 2. Enqueue delete for sync.
-    await _localDatasource.enqueue(
-      MarkSyncEntry(
-        id: normalizedStudentId,
-        teamId: teamId,
-        sessionId: sessionId,
-        studentId: normalizedStudentId,
-        operation: MarkSyncOperation.delete,
-        queuedAt: DateTime.now(),
-      ),
-    );
-
-    // 3. Attempt Firestore transaction.
-    try {
-      final markRef = _markDoc(teamId, sessionId, normalizedStudentId);
-      final sessionRef = _sessionDoc(teamId, sessionId);
 
       await _firestore.runTransaction((transaction) async {
-        final markDoc = await transaction.get(markRef);
-        if (!markDoc.exists) return;
+        transaction.update(markRef, {
+          'status': status.name,
+          'markedByUserId': markedBy.uid,
+          'markedByName': markedBy.name,
+          'updatedAt': FieldValue.serverTimestamp(),
+          'note': note,
+        });
 
-        final oldStatusStr = markDoc.data()?['status'] as String?;
-        final oldStatus = AttendanceMarkStatus.values.firstWhere(
-          (e) => e.name == oldStatusStr,
-          orElse: () => AttendanceMarkStatus.present,
-        );
-
-        transaction
-          ..update(sessionRef, {
-            '${oldStatus.name}Count': FieldValue.increment(-1),
-          })
-          ..delete(markRef);
+        // Update aggregation if status changed.
+        if (oldStatus != status) {
+          if (status == AttendanceMarkStatus.present) {
+            transaction.update(sessionRef, {
+              'presentCount': FieldValue.increment(1),
+            });
+          } else if (oldStatus == AttendanceMarkStatus.present) {
+            transaction.update(sessionRef, {
+              'presentCount': FieldValue.increment(-1),
+            });
+          }
+        }
       });
 
-      // Synced — remove from queue.
+      // 4. Success — remove from sync queue.
       await _localDatasource.removeFromQueue(
         '${teamId}_${sessionId}_$normalizedStudentId',
       );
     } catch (error) {
       developer.log(
-        'deleteMark queued for retry: $teamId/$sessionId/$normalizedStudentId',
-        error: error,
+        'Offline: Update queued for student $normalizedStudentId',
         name: 'AttendanceMarkRepository',
       );
     }
   }
 
-  /// Gets all marks for a session.
-  Future<Map<String, AttendanceMark>> getMarksForSession({
-    required String teamId,
-    required String sessionId,
-  }) async {
-    final snapshot = await _marksCol(
-      teamId,
-      sessionId,
-    ).get(const GetOptions());
-    final marks = <String, AttendanceMark>{};
-    for (final doc in snapshot.docs) {
-      try {
-        marks[doc.id] = AttendanceMark.fromMap(doc.data(), doc.id);
-      } catch (error) {
-        developer.log(
-          'skipped malformed mark ${doc.reference.path}',
-          error: error,
-          name: 'AttendanceMarkRepository',
-        );
-      }
-    }
-    return marks;
-  }
-
-  /// Gets a single mark for a student in a session.
   Future<AttendanceMark?> getMarkForStudent({
     required String teamId,
     required String sessionId,
     required String studentId,
   }) async {
     final normalizedStudentId = studentId.trim();
-    final doc = await _markDoc(
-      teamId,
-      sessionId,
-      normalizedStudentId,
-    ).get(const GetOptions());
+
+    final cachedData = _localDatasource.getCachedMark(
+      teamId: teamId,
+      sessionId: sessionId,
+      studentId: normalizedStudentId,
+    );
+
+    if (cachedData != null) {
+      unawaited(
+        _markDoc(teamId, sessionId, normalizedStudentId)
+            .get(const GetOptions(source: Source.server))
+            .then((doc) {
+              final data = doc.data();
+              if (doc.exists && data != null) {
+                _localDatasource.cacheMark(
+                  teamId: teamId,
+                  sessionId: sessionId,
+                  studentId: normalizedStudentId,
+                  markData: data,
+                );
+              }
+            })
+            .catchError((_) {}),
+      );
+
+      try {
+        return AttendanceMark.fromMap(cachedData, normalizedStudentId);
+      } catch (_) {}
+    }
+
+    final doc = await _cachedGet(
+      _markDoc(teamId, sessionId, normalizedStudentId),
+    );
     final data = doc.data();
     if (!doc.exists || data == null) return null;
     try {
-      return AttendanceMark.fromMap(data, doc.id);
+      final mark = AttendanceMark.fromMap(data, doc.id);
+      await _localDatasource.cacheMark(
+        teamId: teamId,
+        sessionId: sessionId,
+        studentId: normalizedStudentId,
+        markData: data,
+      );
+      return mark;
     } catch (error) {
       developer.log(
-        'skipped malformed mark ${doc.reference.path}',
+        'malformed mark for student $normalizedStudentId',
         error: error,
         name: 'AttendanceMarkRepository',
       );
       return null;
-    }
-  }
-
-  /// Validates that a mark can be written (session is writable, student is in roster).
-  Future<void> assertCanWriteMark({
-    required String teamId,
-    required String sessionId,
-    required String studentId,
-    required AuthUser user,
-    required DateTime now,
-    required Future<AttendanceSession?> Function() getSession,
-    required Future<bool> Function() canManage,
-  }) async {
-    final normalizedStudentId = studentId.trim();
-
-    final results = await Future.wait([canManage(), getSession()]);
-
-    final hasPermission = results[0] as bool;
-    final session = results[1] as AttendanceSession?;
-
-    if (!hasPermission) {
-      throw const AttendancePermissionDeniedFailure();
-    }
-
-    if (session == null) {
-      throw const AttendanceSessionNotFoundFailure();
-    }
-
-    if (!session.studentIdsSnapshot.contains(normalizedStudentId)) {
-      throw const AttendanceStudentNotInSessionFailure();
-    }
-
-    if (!session.isOpenAt(now)) {
-      throw const AttendanceSessionClosedFailure();
     }
   }
 }

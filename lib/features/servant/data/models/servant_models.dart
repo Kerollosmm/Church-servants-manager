@@ -1,5 +1,6 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/utils/json_converters.dart';
+import 'package:church_management_system/core/utils/pagination_cursor.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:hive/hive.dart';
 
@@ -153,4 +154,17 @@ class ServantModel with _$ServantModel {
   }
 
   bool get isActive => !isArchived;
+}
+
+/// Pagination container for servants.
+class ServantsPage {
+  final List<ServantModel> servants;
+  final PaginationCursor? lastDocument;
+  final bool hasMore;
+
+  const ServantsPage({
+    required this.servants,
+    this.lastDocument,
+    required this.hasMore,
+  });
 }

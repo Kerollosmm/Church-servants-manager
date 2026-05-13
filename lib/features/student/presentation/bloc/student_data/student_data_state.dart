@@ -65,6 +65,7 @@ final class StudentDataLoaded extends StudentDataState {
   final bool includeArchived;
   final StudentMutationStatus mutationStatus;
   final StudentMutationOperation? mutationOperation;
+  final bool isFromCache;
 
   /// Optional one-shot message signaling a successful CRUD operation.
   final String? successMessage;
@@ -80,6 +81,7 @@ final class StudentDataLoaded extends StudentDataState {
     this.mutationStatus = StudentMutationStatus.idle,
     this.mutationOperation,
     this.successMessage,
+    this.isFromCache = false,
   });
 
   StudentDataLoaded copyWith({
@@ -93,6 +95,7 @@ final class StudentDataLoaded extends StudentDataState {
     StudentMutationStatus? mutationStatus,
     StudentMutationOperation? mutationOperation,
     String? successMessage,
+    bool? isFromCache,
     bool clearMutation = false,
   }) {
     return StudentDataLoaded(
@@ -112,6 +115,7 @@ final class StudentDataLoaded extends StudentDataState {
       successMessage: clearMutation
           ? null
           : (successMessage ?? this.successMessage),
+      isFromCache: isFromCache ?? this.isFromCache,
     );
   }
 
@@ -133,6 +137,7 @@ final class StudentDataLoaded extends StudentDataState {
     mutationStatus,
     mutationOperation,
     successMessage,
+    isFromCache,
   ];
 }
 

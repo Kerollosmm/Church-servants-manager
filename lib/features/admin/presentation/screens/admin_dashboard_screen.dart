@@ -2,7 +2,9 @@ import 'package:church_management_system/core/constants/routes.dart' as routes;
 import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/routing/route_args.dart';
 import 'package:church_management_system/core/theme/app_colors.dart';
-import 'package:church_management_system/features/admin/presentation/bloc/admin_dashboard_bloc.dart';
+import 'package:church_management_system/features/admin/presentation/bloc/dashboard/admin_dashboard_bloc.dart';
+import 'package:church_management_system/features/admin/presentation/bloc/dashboard/admin_dashboard_event.dart';
+import 'package:church_management_system/features/admin/presentation/bloc/dashboard/admin_dashboard_state.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -26,7 +28,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   void initState() {
     super.initState();
     _bloc = getIt<AdminDashboardBloc>();
-    _bloc.add(LoadStats(widget.teamId));
+    _bloc.add(const LoadDashboardData());
   }
 
   @override
@@ -55,7 +57,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           appBar: _buildAppBar(context),
           body: RefreshIndicator(
             onRefresh: () async {
-              _bloc.add(ForceRefreshStats(widget.teamId));
+              _bloc.add(const LoadDashboardData());
               // Wait a short delay for UX or until state isn't loading if we wanted.
               // We'll just return immediately for simplicity since BLoC handles state.
               await Future.delayed(const Duration(milliseconds: 300));
@@ -117,7 +119,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                       const SizedBox(height: 16),
                                       ElevatedButton(
                                         onPressed: () {
-                                          _bloc.add(LoadStats(widget.teamId));
+                                          _bloc.add(const LoadDashboardData());
                                         },
                                         child: const Text('إعادة المحاولة'),
                                       ),
@@ -246,13 +248,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             children: [
               _StatCard(
                 title: 'إجمالي الجلسات\nهذا الأسبوع',
-                value: state.stats.totalSessions.toString(),
+                value: state.kpiData.totalSessions.toString(),
                 icon: Icons.event,
                 trendColor: AppColors.success,
               ),
               _StatCard(
                 title: 'إجمالي الحضور',
-                value: state.stats.totalPresent.toString(),
+                value: '${state.kpiData.attendanceRate.toStringAsFixed(1)}%',
                 icon: Icons.people,
                 trendColor: AppColors.success,
               ),
@@ -261,7 +263,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           const SizedBox(height: 16),
           Center(
             child: Text(
-              'آخر تحديث: ${_formatDate(state.stats.updatedAt)}',
+              'آخر تحديث: ${_formatDate(DateTime.now())}',
               style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
             ),
           ),

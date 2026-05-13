@@ -8,6 +8,7 @@ import 'package:church_management_system/core/widgets/app_empty_state.dart';
 import 'package:church_management_system/core/widgets/app_error_state.dart';
 import 'package:church_management_system/core/widgets/common/app_info_banner.dart';
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
+import 'package:church_management_system/core/widgets/sync_status_banner.dart';
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
@@ -237,6 +238,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
 
                     return Column(
                       children: [
+                        const SyncStatusBanner(),
                         Padding(
                           padding: const EdgeInsets.fromLTRB(
                             AppSpacing.md,
@@ -314,10 +316,21 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                                   final sessions = state.sessions;
 
                                   if (sessions.isEmpty) {
+                                    final canCreate =
+                                        actor.role == UserRole.admin ||
+                                        actor.role == UserRole.servant;
                                     return AppEmptyState(
+                                      icon: Icons.history_outlined,
                                       title: 'لا توجد جلسات حضور',
-                                      subtitle:
-                                          'أنشئ جلسة جديدة لبدء تسجيل الحضور لهذا الفريق.',
+                                      subtitle: state.isFromCache
+                                          ? 'يرجى الاتصال بالإنترنت لتحميل البيانات لأول مرة.'
+                                          : 'أنشئ جلسة جديدة لبدء تسجيل الحضور لهذا الفريق.',
+                                      onAction:
+                                          (!state.isFromCache && canCreate)
+                                          ? () =>
+                                                _openCreateScreen(innerContext)
+                                          : null,
+                                      actionLabel: 'جلسة جديدة',
                                       onRefresh: () => context
                                           .read<AttendanceHistoryCubit>()
                                           .loadForTeam(_selectedTeamId!),
@@ -336,76 +349,114 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                                           (a, b) =>
                                               b.startsAt.compareTo(a.startsAt),
                                         );
-                                  return ListView.builder(
-                                    padding: const EdgeInsets.all(
-                                      AppSpacing.md,
-                                    ),
-                                    itemCount:
-                                        (activeSession != null ? 1 : 0) +
-                                        historySessions.length,
-                                    itemBuilder: (context, index) {
-                                      if (activeSession != null && index == 0) {
-                                        return Padding(
-                                          padding: const EdgeInsets.only(
-                                            bottom: AppSpacing.md,
+                                  return Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      if (state.isFromCache)
+                                        Padding(
+                                          padding: const EdgeInsets.fromLTRB(
+                                            AppSpacing.md,
+                                            AppSpacing.md,
+                                            AppSpacing.md,
+                                            0,
                                           ),
-                                          child: _ActiveSessionCard(
-                                            teamName: _teamName(
-                                              teams,
-                                              _selectedTeamId,
-                                            ),
-                                            session: activeSession,
-                                            canClose:
-                                                actor.role == UserRole.admin,
-                                            onOpen: () {
-                                              Navigator.pushNamed(
-                                                context,
-                                                attendanceTaking,
-                                                arguments: AttendanceTakingArgs(
-                                                  actor: actor,
-                                                  teamId: activeSession.teamId,
-                                                  sessionId: activeSession.id,
+                                          child: AppInfoBanner(
+                                            icon: Icons.cloud_off,
+                                            backgroundColor:
+                                                Colors.amber.shade100,
+                                            foregroundColor:
+                                                Colors.amber.shade900,
+                                            message:
+                                                'عرض البيانات المخزنة محلياً. قد لا تكون محدثة.',
+                                          ),
+                                        ),
+                                      Expanded(
+                                        child: ListView.builder(
+                                          padding: const EdgeInsets.all(
+                                            AppSpacing.md,
+                                          ),
+                                          itemCount:
+                                              (activeSession != null ? 1 : 0) +
+                                              historySessions.length,
+                                          itemBuilder: (context, index) {
+                                            if (activeSession != null &&
+                                                index == 0) {
+                                              return Padding(
+                                                padding: const EdgeInsets.only(
+                                                  bottom: AppSpacing.md,
+                                                ),
+                                                child: _ActiveSessionCard(
+                                                  teamName: _teamName(
+                                                    teams,
+                                                    _selectedTeamId,
+                                                  ),
+                                                  session: activeSession,
+                                                  canClose:
+                                                      actor.role ==
+                                                      UserRole.admin,
+                                                  onOpen: () {
+                                                    Navigator.pushNamed(
+                                                      context,
+                                                      attendanceTaking,
+                                                      arguments:
+                                                          AttendanceTakingArgs(
+                                                            actor: actor,
+                                                            teamId:
+                                                                activeSession
+                                                                    .teamId,
+                                                            sessionId:
+                                                                activeSession
+                                                                    .id,
+                                                          ),
+                                                    );
+                                                  },
+                                                  onClose:
+                                                      actor.role ==
+                                                          UserRole.admin
+                                                      ? () =>
+                                                            _closeActiveSession(
+                                                              actor,
+                                                              activeSession,
+                                                              context,
+                                                            )
+                                                      : null,
                                                 ),
                                               );
-                                            },
-                                            onClose:
-                                                actor.role == UserRole.admin
-                                                ? () => _closeActiveSession(
-                                                    actor,
-                                                    activeSession,
+                                            }
+
+                                            final sessionIndex =
+                                                activeSession != null
+                                                ? index - 1
+                                                : index;
+                                            final session =
+                                                historySessions[sessionIndex];
+
+                                            return Padding(
+                                              padding: const EdgeInsets.only(
+                                                bottom: AppSpacing.md,
+                                              ),
+                                              child: _SessionHistoryCard(
+                                                session: session,
+                                                onTap: () {
+                                                  Navigator.pushNamed(
                                                     context,
-                                                  )
-                                                : null,
-                                          ),
-                                        );
-                                      }
-
-                                      final sessionIndex = activeSession != null
-                                          ? index - 1
-                                          : index;
-                                      final session =
-                                          historySessions[sessionIndex];
-
-                                      return Padding(
-                                        padding: const EdgeInsets.only(
-                                          bottom: AppSpacing.md,
-                                        ),
-                                        child: _SessionHistoryCard(
-                                          session: session,
-                                          onTap: () {
-                                            Navigator.pushNamed(
-                                              context,
-                                              attendanceTaking,
-                                              arguments: AttendanceTakingArgs(
-                                                actor: actor,
-                                                teamId: session.teamId,
-                                                sessionId: session.id,
+                                                    attendanceTaking,
+                                                    arguments:
+                                                        AttendanceTakingArgs(
+                                                          actor: actor,
+                                                          teamId:
+                                                              session.teamId,
+                                                          sessionId: session.id,
+                                                        ),
+                                                  );
+                                                },
                                               ),
                                             );
                                           },
                                         ),
-                                      );
-                                    },
+                                      ),
+                                    ],
                                   );
                                 },
                               ),

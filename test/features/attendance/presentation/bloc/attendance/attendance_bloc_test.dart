@@ -124,9 +124,14 @@ void main() {
           ),
         ];
 
-        expectLater(attendanceBloc.stream, emitsInOrder(expectedStates));
+        final expectation = expectLater(
+          attendanceBloc.stream,
+          emitsInOrder(expectedStates),
+        );
 
         attendanceBloc.add(tEvent);
+
+        await expectation;
 
         await Future.delayed(Duration.zero);
 
@@ -168,9 +173,14 @@ void main() {
         ),
       ];
 
-      expectLater(attendanceBloc.stream, emitsInOrder(expectedStates));
+      final expectation = expectLater(
+        attendanceBloc.stream,
+        emitsInOrder(expectedStates),
+      );
 
       attendanceBloc.add(tEvent);
+
+      await expectation;
       await Future.delayed(Duration.zero);
     });
   });

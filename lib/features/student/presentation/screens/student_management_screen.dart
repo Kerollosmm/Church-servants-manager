@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:developer' as developer;
+
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/routes.dart';
 import 'package:church_management_system/core/di/injection.dart';
@@ -8,11 +10,13 @@ import 'package:church_management_system/core/theme/app_spacing.dart';
 import 'package:church_management_system/core/utils/data_export_service.dart';
 import 'package:church_management_system/core/widgets/app_empty_state.dart';
 import 'package:church_management_system/core/widgets/app_error_state.dart';
+import 'package:church_management_system/core/widgets/common/app_info_banner.dart';
 import 'package:church_management_system/core/widgets/common/ochre_card.dart';
 import 'package:church_management_system/core/widgets/common/sanctuary_background.dart';
 import 'package:church_management_system/core/widgets/dialogs/generic_dialog.dart';
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
 import 'package:church_management_system/core/widgets/search/live_search_panel.dart';
+import 'package:church_management_system/core/widgets/sync_status_banner.dart';
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
@@ -35,6 +39,7 @@ class StudentManagementScreen extends StatefulWidget {
 
 class _StudentManagementScreenState extends State<StudentManagementScreen> {
   final TextEditingController _searchController = TextEditingController();
+  Timer? _searchDebounce;
   String? _selectedTeamId;
   bool _showArchived = false;
   late final StudentDataBloc _studentDataBloc;
@@ -69,6 +74,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _studentDataBloc.add(const StudentsListeningStopped());
     _teamCubit.close();
     _searchController.dispose();
@@ -83,7 +89,12 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
   }
 
   void _onSearchChanged(AuthUser actor, String value) {
-    _dispatchSearch(actor, value, teamId: _selectedTeamId);
+    if (_searchDebounce?.isActive ?? false) _searchDebounce!.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        _dispatchSearch(actor, value, teamId: _selectedTeamId);
+      }
+    });
   }
 
   void _clearSearch(AuthUser actor) {
@@ -173,11 +184,17 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
     final showInitialLoading =
         state is StudentDataLoading && !state.hasPreviousStudents;
 
+    final isFromCache = switch (state) {
+      StudentDataLoaded() => state.isFromCache,
+      _ => false,
+    };
+
     return _StudentListViewData(
       isLoading: isLoading,
       students: students,
       showInitialLoading: showInitialLoading,
       showEmptyState: state is StudentDataLoaded && state.students.isEmpty,
+      isFromCache: isFromCache,
     );
   }
 
@@ -308,107 +325,142 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                 builder: (context, state) {
                   final viewData = _buildViewData(state);
 
-                  return RefreshIndicator(
-                    onRefresh: () =>
-                        context.read<StudentDataBloc>().refresh(actor),
-                    child: CustomScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      slivers: [
-                        SliverPersistentHeader(
-                          pinned: true,
-                          delegate: _SearchHeaderDelegate(
-                            searchController: _searchController,
-                            isLoading: viewData.isLoading,
-                            actor: actor,
-                            assignedTeamIds: assignedTeamIds,
-                            selectedTeamId: _selectedTeamId,
-                            showArchived: _showArchived,
-                            onSearchChanged: (v) => _onSearchChanged(actor, v),
-                            onSearchSubmitted: (v) => _dispatchSearch(
-                              actor,
-                              v,
-                              teamId: _selectedTeamId,
-                            ),
-                            onSearchClear: () => _clearSearch(actor),
-                            onTeamChanged: (id) =>
-                                _onTeamFilterChanged(actor, id),
-                            onArchiveToggle: () {
-                              setState(() => _showArchived = !_showArchived);
-                              context.read<StudentDataBloc>().add(
-                                StudentsLoadRequested(
+                  return Column(
+                    children: [
+                      const SyncStatusBanner(),
+                      Expanded(
+                        child: RefreshIndicator(
+                          onRefresh: () =>
+                              context.read<StudentDataBloc>().refresh(actor),
+                          child: CustomScrollView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            slivers: [
+                              SliverPersistentHeader(
+                                pinned: true,
+                                delegate: _SearchHeaderDelegate(
+                                  searchController: _searchController,
+                                  isLoading: viewData.isLoading,
                                   actor: actor,
-                                  teamId: _selectedTeamId,
-                                  includeArchived: _showArchived,
+                                  assignedTeamIds: assignedTeamIds,
+                                  selectedTeamId: _selectedTeamId,
+                                  showArchived: _showArchived,
+                                  onSearchChanged: (v) =>
+                                      _onSearchChanged(actor, v),
+                                  onSearchSubmitted: (v) => _dispatchSearch(
+                                    actor,
+                                    v,
+                                    teamId: _selectedTeamId,
+                                  ),
+                                  onSearchClear: () => _clearSearch(actor),
+                                  onTeamChanged: (id) =>
+                                      _onTeamFilterChanged(actor, id),
+                                  onArchiveToggle: () {
+                                    setState(
+                                      () => _showArchived = !_showArchived,
+                                    );
+                                    context.read<StudentDataBloc>().add(
+                                      StudentsLoadRequested(
+                                        actor: actor,
+                                        teamId: _selectedTeamId,
+                                        includeArchived: _showArchived,
+                                      ),
+                                    );
+                                  },
                                 ),
-                              );
-                            },
-                          ),
-                        ),
-                        if (viewData.showInitialLoading)
-                          const SliverFillRemaining(
-                            hasScrollBody: false,
-                            child: Center(child: CircularProgressIndicator()),
-                          )
-                        else if (state is StudentDataError)
-                          SliverFillRemaining(
-                            hasScrollBody: false,
-                            child: AppErrorState(
-                              message: state.message,
-                              onRetry: () =>
-                                  context.read<StudentDataBloc>().add(
-                                    StudentsLoadRequested(
-                                      actor: actor,
-                                      teamId: _selectedTeamId,
-                                      includeArchived: _showArchived,
+                              ),
+                              if (viewData.showInitialLoading)
+                                const SliverFillRemaining(
+                                  hasScrollBody: false,
+                                  child: Center(
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                )
+                              else if (state is StudentDataError)
+                                SliverFillRemaining(
+                                  hasScrollBody: false,
+                                  child: AppErrorState(
+                                    message: state.message,
+                                    onRetry: () =>
+                                        context.read<StudentDataBloc>().add(
+                                          StudentsLoadRequested(
+                                            actor: actor,
+                                            teamId: _selectedTeamId,
+                                            includeArchived: _showArchived,
+                                          ),
+                                        ),
+                                  ),
+                                )
+                              else if (viewData.showEmptyState)
+                                SliverFillRemaining(
+                                  hasScrollBody: false,
+                                  child: AppEmptyState(
+                                    title: _showArchived
+                                        ? 'لا يوجد مخدومون مؤرشفون'
+                                        : 'لا يوجد مخدومون',
+                                    subtitle: viewData.isFromCache
+                                        ? 'يرجى الاتصال بالإنترنت لتحميل البيانات لأول مرة.'
+                                        : (_showArchived
+                                              ? 'عند أرشفة مخدوم سيظهر هنا.'
+                                              : 'جرّب بحثا مختلفا أو أضف مخدوما جديدا.'),
+                                    onAction:
+                                        _canManage(actor) &&
+                                            !viewData.isFromCache
+                                        ? () => _openStudentEditor(actor)
+                                        : null,
+                                    actionLabel: 'إضافة مخدوم',
+                                    onRefresh: () => context
+                                        .read<StudentDataBloc>()
+                                        .refresh(actor),
+                                  ),
+                                )
+                              else ...[
+                                if (viewData.isFromCache)
+                                  SliverToBoxAdapter(
+                                    child: Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        AppSpacing.md,
+                                        AppSpacing.md,
+                                        AppSpacing.md,
+                                        0,
+                                      ),
+                                      child: AppInfoBanner(
+                                        icon: Icons.cloud_off,
+                                        backgroundColor: Colors.amber.shade100,
+                                        foregroundColor: Colors.amber.shade900,
+                                        message:
+                                            'عرض البيانات المخزنة محلياً. قد لا تكون محدثة.',
+                                      ),
                                     ),
                                   ),
-                            ),
-                          )
-                        else if (viewData.showEmptyState)
-                          SliverFillRemaining(
-                            hasScrollBody: false,
-                            child: AppEmptyState(
-                              title: _showArchived
-                                  ? 'لا يوجد مخدومون مؤرشفون'
-                                  : 'لا يوجد مخدومون',
-                              subtitle: _showArchived
-                                  ? 'عند أرشفة مخدوم سيظهر هنا.'
-                                  : 'جرّب بحثا مختلفا أو أضف مخدوما جديدا.',
-                              onAction: _canManage(actor)
-                                  ? () => _openStudentEditor(actor)
-                                  : null,
-                              actionLabel: 'إضافة مخدوم',
-                              onRefresh: () => context
-                                  .read<StudentDataBloc>()
-                                  .refresh(actor),
-                            ),
-                          )
-                        else
-                          SliverList(
-                            delegate: SliverChildBuilderDelegate((
-                              context,
-                              index,
-                            ) {
-                              final student = viewData.students[index];
-                              return Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  AppSpacing.md,
-                                  0,
-                                  AppSpacing.md,
-                                  AppSpacing.md,
+                                SliverList(
+                                  delegate: SliverChildBuilderDelegate((
+                                    context,
+                                    index,
+                                  ) {
+                                    final student = viewData.students[index];
+                                    return Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        AppSpacing.md,
+                                        AppSpacing.md,
+                                        AppSpacing.md,
+                                        0,
+                                      ),
+                                      child: _StudentCard(
+                                        key: ValueKey(student.docID),
+                                        actor: actor,
+                                        student: student,
+                                        onTap: () =>
+                                            _openStudentDetail(actor, student),
+                                      ),
+                                    );
+                                  }, childCount: viewData.students.length),
                                 ),
-                                child: _StudentCard(
-                                  key: ValueKey(student.docID),
-                                  actor: actor,
-                                  student: student,
-                                  onTap: () =>
-                                      _openStudentDetail(actor, student),
-                                ),
-                              );
-                            }, childCount: viewData.students.length),
+                              ],
+                            ],
                           ),
-                      ],
-                    ),
+                        ),
+                      ),
+                    ],
                   );
                 },
               ),
@@ -542,12 +594,14 @@ class _StudentListViewData {
   final List<StudentModel> students;
   final bool showInitialLoading;
   final bool showEmptyState;
+  final bool isFromCache;
 
   const _StudentListViewData({
     required this.isLoading,
     required this.students,
     required this.showInitialLoading,
     required this.showEmptyState,
+    required this.isFromCache,
   });
 }
 

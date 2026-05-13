@@ -2,14 +2,59 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ──────────────────────────────────────────────────────────────────
-    // CANONICAL PERMISSION MATRIX ENFORCEMENT (Zero-Cost RBAC)
-    // ──────────────────────────────────────────────────────────────────
-    // SPARK PLAN OPTIMIZATION: Using Custom Claims via request.auth.token
-    // to eliminate getUserData() document reads.
-    // ──────────────────────────────────────────────────────────────────
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: servants
+    // Document ID: {auth.uid}
+    // Fields:
+    //   - uid: string (required, immutable)
+    //   - name: string (required)
+    //   - email: string (required)
+    //   - role: string (required, "admin" | "servant" | "student" | "viewer")
+    //   - isArchived: bool (optional)
+    //   - groupId: string (optional)
+    //   - assignedTeamIds: list<string> (optional)
+    //   - assignedTeamId: string (optional, legacy)
+    //
+    // Collection: Students
+    // Document ID: auto-generated or same as uid
+    // Fields:
+    //   - uid: string (required)
+    //   - name: string (required)
+    //   - group: string (required)
+    //   - classId: string (required)
+    //   - isArchived: bool (required)
+    //
+    // Collection: Classes
+    // Document ID: auto-generated
+    // Fields:
+    //   - name: string (required)
+    //   - groupId: string (required)
+    //   - isArchived: bool (required)
+    //
+    // Collection: attendance
+    // Document ID: {date}_{time}_{slug}
+    // Fields:
+    //   - teamId: string (required, immutable)
+    //   - startsAt: timestamp (required)
+    //   - endsAt: timestamp (required)
+    //   - isClosed: bool (required)
+    //   - studentIdsSnapshot: list<string> (required)
+    //
+    // Collection: attendance/{sessionId}/marks
+    // Document ID: {studentId}_{sessionId}
+    // Fields:
+    //   - studentId: string (required, immutable)
+    //   - status: string (required, "present" | "absent" | "late")
+    //   - markedByUserId: string (required)
+    //
+    // ===============================================================
 
-    // ─── Helper Functions ──────────────────────────────────────────
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
 
     function isSignedIn() {
       return request.auth != null;
@@ -19,17 +64,24 @@ service cloud.firestore {
       return request.auth.uid;
     }
 
-    // Role-based checks using Custom Claims (Zero Cost)
+    function getUserData() {
+      return get(/databases/$(database)/documents/servants/$(callerUid())).data;
+    }
+
     function isAdmin() {
-      return isSignedIn() && request.auth.token.role == 'admin';
+      return isSignedIn() && getUserData().role == 'admin';
     }
 
     function isServant() {
-      return isSignedIn() && (request.auth.token.role == 'servant' || request.auth.token.role == 'admin');
+      return isSignedIn() && (getUserData().role == 'servant' || getUserData().role == 'admin');
     }
 
-    function isStudent() {
-      return isSignedIn() && request.auth.token.role == 'student';
+    function isOwner(userId) {
+      return isSignedIn() && callerUid() == userId;
+    }
+
+    function isImmutable(field) {
+      return !(field in request.resource.data) || request.resource.data[field] == resource.data[field];
     }
 
     // ─── Collection/Team Helpers ──────────────────────────────────
@@ -39,32 +91,28 @@ service cloud.firestore {
     }
 
     function servantCanManageTeam(classId) {
-      // Use Custom Claims for assignment checks if available
+      let userData = getUserData();
       return isServant() && (
-        request.auth.token.get('assignedTeamId', null) == classId || 
-        classId in request.auth.token.get('assignedTeamIds', []) ||
-        (request.auth.token.get('groupId', null) != null && getClassData(classId).get('groupId', null) == request.auth.token.get('groupId', null))
+        userData.get('assignedTeamId', null) == classId || 
+        classId in userData.get('assignedTeamIds', []) ||
+        (userData.get('groupId', null) != null && getClassData(classId).get('groupId', null) == userData.get('groupId', null))
       );
     }
 
     // ─── Student Helpers ──────────────────────────────────────────
 
     function servantCanReadStudent(studentData) {
-      let token = request.auth.token;
-      let assignedTeams = token.get('assignedTeamIds', []) + (token.get('assignedTeamId', null) != null ? [token.get('assignedTeamId', null)] : []);
+      let userData = getUserData();
+      let assignedTeamId = userData.get('assignedTeamId', null);
+      let assignedTeamIds = userData.get('assignedTeamIds', []);
+      let groupId = userData.get('groupId', null);
+      
       return isServant() && studentData != null && (
-        (
-          assignedTeams.size() > 0 && 
-          studentData.get('classId', null) != null && 
-          studentData.get('classId', null) in assignedTeams
-        ) ||
-        (
-          token.get('groupId', null) != null && 
-          studentData.get('group', null) == token.get('groupId', null)
-        )
+        (assignedTeamId != null && studentData.get('classId', null) == assignedTeamId) ||
+        (studentData.get('classId', null) in assignedTeamIds) ||
+        (groupId != null && studentData.get('group', null) == groupId)
       );
     }
-
 
     function servantCanManageStudent(studentData) {
       return isServant() && studentData != null && 
@@ -72,231 +120,130 @@ service cloud.firestore {
              servantCanReadStudent(studentData);
     }
 
-    // ─── Session Helpers ──────────────────────────────────────────
-
-    function sessionAcceptsLiveMarks(session) {
-      return session != null &&
-        session.get('isClosed', false) != true &&
-        request.time >= session.startsAt - duration.value(5, 'm') &&
-        request.time < session.endsAt;
-    }
-
-    function sessionAcceptsAdminCorrection(session) {
-      return session != null &&
-        isAdmin() &&
-        session.get('isReopenedForAdminEdit', false) == true;
-    }
-
-    // ─── Validation Functions ─────────────────────────────────────
-
-    function validSelfUserUpdate(userId) {
-      return callerUid() == userId &&
-        request.resource.data.uid == resource.data.uid &&
-        request.resource.data.role == resource.data.role &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'name', 'email', 'isEmailVerified', 'updatedAt', 'phone', 'avatarUrl', 'requiresTokenRefresh'
-        ]);
-    }
-
-    function isPrivilegedFieldUpdate() {
-      let affected = request.resource.data.diff(resource.data).affectedKeys();
-      return affected.hasAny([
-        'role', 'isArchived', 'assignedTeamIds', 'assignedTeamId', 
-        'requiresTokenRefresh', 'attendanceSummary', 
-        'groupAttendanceSummary'
-      ]);
-    }
-
-    function isStudentInClass(classId) {
-      let token = request.auth.token;
-      return isStudent() && (
-        classId in token.get('assignedTeamIds', []) || 
-        token.get('assignedTeamId', '') == classId
-      );
-    }
-
-    function isStudentInSessionRoster(classId, sessionId, studentId) {
-      let session = get(/databases/$(database)/documents/Classes/$(classId)/attendance_sessions/$(sessionId)).data;
+    function isStudentInSessionRoster(sessionId, studentId) {
+      let session = get(/databases/$(database)/documents/attendance/$(sessionId)).data;
       return studentId in session.get('studentIdsSnapshot', []);
     }
 
-    function noteIsUnchanged() {
-      // If the existing document has a note, the incoming write must keep it identical
-      return !('note' in resource.data) ||
-             ('note' in request.resource.data && request.resource.data.note == resource.data.note);
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    // Default Deny
+    match /{document=**} {
+      allow read, write: if false;
     }
 
-    function markBelongsToCallerOrSystem(studentDocId) {
-      // Document ID format: studentId_servantId
-      // Allow if servantId part == callerUid OR == 'system' (for closeSession auto-marks)
-      let parts = studentDocId.split('_');
-      return parts.size() >= 2 && (parts[1] == callerUid() || parts[1] == 'system');
-    }
-
-    // ─── Users Collection ─────────────────────────────────────────
-    match /Users/{userId} {
-      allow read: if isSignedIn() && (
-        callerUid() == userId || 
-        isAdmin()
-      );
-
+    // ─── Servants Collection ──────────────────────────────────────
+    match /servants/{userId} {
+      // Check isOwner first to short-circuit and avoid calling isAdmin() (which calls getUserData())
+      allow read: if isSignedIn() && (userId == callerUid() || isAdmin());
+      
       allow create: if isSignedIn() && (
-        isAdmin() || 
-        (
-          callerUid() == userId && 
-          request.resource.data.keys().hasOnly(['uid', 'email', 'name', 'role', 'phone', 'avatarUrl', 'createdAt', 'updatedAt', 'isEmailVerified', 'restorePendingPasswordReset']) &&
-          (
-            request.resource.data.role == 'student' ||
-            (
-              exists(/databases/$(database)/documents/Invitations/$(request.auth.token.email.lower())) &&
-              request.resource.data.role == get(/databases/$(database)/documents/Invitations/$(request.auth.token.email.lower())).data.role
-            )
-          )
-        )
+        isAdmin() || (userId == callerUid() && request.resource.data.role == 'student')
       );
 
       allow update: if isSignedIn() && (
-        isAdmin() || (validSelfUserUpdate(userId) && !isPrivilegedFieldUpdate())
+        isAdmin() || (
+          userId == callerUid() && 
+          isImmutable('role') && 
+          isImmutable('uid') &&
+          isImmutable('isArchived') &&
+          isImmutable('assignedTeamIds')
+        )
       );
 
       allow delete: if isAdmin();
-    }
-
-    // ─── Invitations Collection ───────────────────────────────────
-    match /Invitations/{email} {
-      allow read: if isSignedIn() && (
-        isAdmin() || 
-        (email.lower() == request.auth.token.email.lower())
-      );
-      
-      allow update: if isSignedIn() && (
-        isAdmin() || 
-        (
-          email.lower() == request.auth.token.email.lower() &&
-          resource.data.status == 'pending' &&
-          request.resource.data.status == 'claimed' &&
-          request.resource.data.claimedByUid == callerUid() &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'claimedAt', 'claimedByUid'])
-        )
-      );
-
-      allow create, delete: if isAdmin();
     }
 
     // ─── Students Collection ──────────────────────────────────────
     match /Students/{studentId} {
       allow read: if isSignedIn() && (
-        isAdmin() ||
-        servantCanReadStudent(resource.data) ||
-        (isStudent() && resource.data.uid == callerUid())
+        isOwner(studentId) || 
+        isOwner(resource.data.uid) ||
+        isAdmin() || 
+        servantCanReadStudent(resource.data)
       );
 
       allow create: if isSignedIn() && (
         isAdmin() || 
-        (isServant() && servantCanManageStudent(request.resource.data)) ||
-        (
-          // Allow student self-bootstrap during onboarding
-          studentId == callerUid() &&
-          request.resource.data.uid == callerUid() &&
-          request.resource.data.role == 'student' &&
-          request.resource.data.keys().hasOnly(['uid', 'email', 'name', 'role', 'phone', 'birthDate', 'address', 'parentPhone', 'school', 'grade', 'gender', 'createdAt', 'updatedAt', 'isArchived'])
-        )
+        (isServant() && servantCanManageStudent(request.resource.data))
       );
 
       allow update: if isSignedIn() && (
-        isAdmin() || (
-          isServant() && 
-          servantCanManageStudent(resource.data) && 
-          !isPrivilegedFieldUpdate() &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'name', 'phone', 'birthDate', 'address', 'parentPhone', 'avatarUrl', 'notes', 'grade'
-          ])
-        )
+        isAdmin() ||
+        (isServant() && servantCanManageStudent(resource.data) &&
+        !isPrivilegedFieldUpdate() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'name', 'phone', 'birthDate', 'address', 'parentPhone', 'avatarUrl', 'notes', 'grade'
+        ]))
       );
 
       allow delete: if isAdmin();
     }
 
-    // ─── Classes (Teams) Collection ───────────────────────────────
+    // ─── Classes Collection ───────────────────────────────────────
     match /Classes/{classId} {
-      allow read: if isSignedIn() && (
-        isAdmin() || isServant() || isStudentInClass(classId)
-      );
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
 
-      allow create, update, delete: if isAdmin();
+    // ─── Attendance Collection ────────────────────────────────────
+    match /attendance/{sessionId} {
+      allow read: if isSignedIn() && (isAdmin() || servantCanManageTeam(resource.data.teamId));
+      allow create: if isSignedIn() && (isAdmin() || servantCanManageTeam(request.resource.data.teamId));
+      allow update, delete: if isAdmin();
 
-      // Attendance Sessions
-      match /attendance_sessions/{sessionId} {
-        allow read: if isSignedIn() && (isAdmin() || servantCanManageTeam(classId));
+      match /marks/{studentDocId} {
+        allow read: if isSignedIn() && (
+          isAdmin() || 
+          servantCanManageTeam(get(/databases/$(database)/documents/attendance/$(sessionId)).data.teamId) ||
+          isOwner(studentDocId.split('_')[0])
+        );
         
-        allow create: if isSignedIn() && (isAdmin() || servantCanManageTeam(classId));
-
-        allow update: if isAdmin();
+        allow create, update: if isSignedIn() && (
+          isAdmin() || 
+          (
+            servantCanManageTeam(get(/databases/$(database)/documents/attendance/$(sessionId)).data.teamId) &&
+            isStudentInSessionRoster(sessionId, studentDocId.split('_')[0])
+          )
+        );
+        
         allow delete: if isAdmin();
-
-        // Attendance Marks
-        match /marks/{studentDocId} {
-          allow read: if isSignedIn() && (isAdmin() || servantCanManageTeam(classId));
-
-          allow create: if isSignedIn() && (
-            isAdmin() || 
-            (
-              servantCanManageTeam(classId) && 
-              markBelongsToCallerOrSystem(studentDocId) &&
-              isStudentInSessionRoster(classId, sessionId, studentDocId.split('_')[0]) &&
-              (
-                sessionAcceptsLiveMarks(get(/databases/$(database)/documents/Classes/$(classId)/attendance_sessions/$(sessionId)).data) ||
-                sessionAcceptsAdminCorrection(get(/databases/$(database)/documents/Classes/$(classId)/attendance_sessions/$(sessionId)).data)
-              )
-            )
-          );
-
-          allow update: if isSignedIn() && (
-            isAdmin() || 
-            (
-              servantCanManageTeam(classId) && 
-              markBelongsToCallerOrSystem(studentDocId) &&
-              isStudentInSessionRoster(classId, sessionId, studentDocId.split('_')[0]) &&
-              noteIsUnchanged() &&
-              (
-                sessionAcceptsLiveMarks(get(/databases/$(database)/documents/Classes/$(classId)/attendance_sessions/$(sessionId)).data) ||
-                sessionAcceptsAdminCorrection(get(/databases/$(database)/documents/Classes/$(classId)/attendance_sessions/$(sessionId)).data)
-              )
-            )
-          );
-
-          allow delete: if isAdmin();
-        }
       }
     }
 
-    // ─── Attendance Records (Offline Sync) ────────────────────────
-    match /attendanceRecords/{recordId} {
-      allow read: if isSignedIn() && (
-        isAdmin() || 
-        (isServant() && resource.data.servantId == callerUid())
-      );
-      
-      allow write: if isSignedIn() && (
-        isAdmin() || 
-        (
-          isServant() && 
-          request.resource.data.servantId == callerUid() &&
-          servantCanManageTeam(request.resource.data.classId) &&
-          isStudentInSessionRoster(request.resource.data.classId, request.resource.data.sessionId, request.resource.data.studentId)
-        )
-      );
+    // ─── Results Collection ───────────────────────────────────────
+    match /results/{studentId} {
+      allow read: if isSignedIn() && (isOwner(studentId) || isAdmin());
+      allow write: if isAdmin();
+
+      match /terms/{termId} {
+        allow read: if isSignedIn() && (isOwner(studentId) || isAdmin() || isServant());
+        allow write: if isAdmin();
+      }
     }
 
-    // ─── Team Uniqueness Registry ─────────────────────────────────
+    // ─── Uniqueness Registry ──────────────────────────────────────
     match /team_uniqueness_registry/{registryId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
     }
 
-    // ─── Default Deny Rule ────────────────────────────────────────
-    match /{document=**} {
-      allow read, write: if false;
+    // ─── Invitations ──────────────────────────────────────────────
+    match /Invitations/{email} {
+      allow read, write: if isAdmin();
+    }
+
+    // ─── Admin ────────────────────────────────────────────────────
+    match /admin/{document=**} {
+      allow read, write: if isAdmin();
+    }
+
+    // ─── Audit Logs ───────────────────────────────────────────────
+    match /audit_logs/{logId} {
+      allow read: if isAdmin();
+      allow write: if false; // System-level writes only (or via Admin SDK)
     }
   }
 }

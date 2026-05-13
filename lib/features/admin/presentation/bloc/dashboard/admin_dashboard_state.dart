@@ -25,12 +25,16 @@ class DashboardKpiData extends Equatable {
   final int totalStudents;
   final int totalServants;
   final int totalTeams;
+  final int totalSessions;
+  final int totalPresent;
   final double attendanceRate;
 
   const DashboardKpiData({
     required this.totalStudents,
     required this.totalServants,
     required this.totalTeams,
+    required this.totalSessions,
+    required this.totalPresent,
     required this.attendanceRate,
   });
 
@@ -39,6 +43,8 @@ class DashboardKpiData extends Equatable {
     totalStudents,
     totalServants,
     totalTeams,
+    totalSessions,
+    totalPresent,
     attendanceRate,
   ];
 }

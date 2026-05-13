@@ -7,7 +7,6 @@ import 'package:church_management_system/features/attendance/data/repos/attendan
 import 'package:church_management_system/features/attendance/domain/failures/attendance_failures.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
-import 'package:church_management_system/features/student/data/services/student_query_service.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -88,12 +87,7 @@ void main() {
   }
 
   Future<void> seedSession(AttendanceSession value) async {
-    await firestore
-        .collection('Classes')
-        .doc(value.teamId)
-        .collection('attendance_sessions')
-        .doc(value.id)
-        .set(value.toMap());
+    await firestore.collection('attendance').doc(value.id).set(value.toMap());
   }
 
   setUp(() async {
@@ -107,7 +101,6 @@ void main() {
     });
     repository = AttendanceRepository(
       firestore: firestore,
-      studentQueryService: StudentQueryService(firestore: firestore),
       nowProvider: () => currentTime,
     );
   });
@@ -117,7 +110,7 @@ void main() {
   });
 
   test(
-    'createSession writes to the team attendance path with frozen roster',
+    'createSession writes to the top-level attendance collection with frozen roster',
     () async {
       await seedStudent(student(id: 'student-1', name: 'Mina'));
       await seedStudent(
@@ -134,9 +127,7 @@ void main() {
       );
 
       final doc = await firestore
-          .collection('Classes')
-          .doc('team-1')
-          .collection('attendance_sessions')
+          .collection('attendance')
           .doc(session.id)
           .get();
 
@@ -210,7 +201,7 @@ void main() {
   });
 
   test(
-    'markStudentPresent uses studentId_servantId as document id and remains idempotent',
+    'markStudentPresent uses studentId_sessionId as document id and remains idempotent',
     () async {
       await seedStudent(student(id: 'student-1', name: 'Mina'));
       final session = await repository.createSession(
@@ -238,15 +229,13 @@ void main() {
       );
 
       final marks = await firestore
-          .collection('Classes')
-          .doc('team-1')
-          .collection('attendance_sessions')
+          .collection('attendance')
           .doc(session.id)
           .collection('marks')
           .get();
 
       expect(marks.docs.length, 1);
-      expect(marks.docs.single.id, 'student-1_servant-1');
+      expect(marks.docs.single.id, 'student-1_${session.id}');
     },
   );
 
@@ -259,7 +248,7 @@ void main() {
     );
     await seedSession(closedSession);
 
-    expect(
+    await expectLater(
       () => repository.markStudentPresent(
         teamId: 'team-1',
         sessionId: closedSession.id,
@@ -301,12 +290,10 @@ void main() {
     );
 
     await firestore
-        .collection('Classes')
-        .doc('team-1')
-        .collection('attendance_sessions')
+        .collection('attendance')
         .doc(session.id)
         .collection('marks')
-        .doc('student-1_servant-1')
+        .doc('student-1_${session.id}')
         .set({
           'studentId': 'student-1',
           'studentNameSnapshot': 'Mina',
@@ -372,18 +359,14 @@ void main() {
 
       // Verify session is closed.
       final sessionDoc = await firestore
-          .collection('Classes')
-          .doc('team-1')
-          .collection('attendance_sessions')
+          .collection('attendance')
           .doc(session.id)
           .get();
       expect(sessionDoc.data()!['isClosed'], isTrue);
 
       // Verify both students have marks.
       final marks = await firestore
-          .collection('Classes')
-          .doc('team-1')
-          .collection('attendance_sessions')
+          .collection('attendance')
           .doc(session.id)
           .collection('marks')
           .get();

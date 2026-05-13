@@ -42,6 +42,7 @@ final class ServantDataLoaded extends ServantDataState {
     this.includeArchived = false,
     this.mutationStatus = ServantMutationStatus.idle,
     this.feedbackMessage,
+    this.isFromCache = false,
   });
 
   final List<ServantModel> servants;
@@ -52,6 +53,7 @@ final class ServantDataLoaded extends ServantDataState {
   final bool includeArchived;
   final ServantMutationStatus mutationStatus;
   final String? feedbackMessage;
+  final bool isFromCache;
 
   int get count => servants.length;
 
@@ -69,6 +71,7 @@ final class ServantDataLoaded extends ServantDataState {
     ServantMutationStatus? mutationStatus,
     String? feedbackMessage,
     bool clearFeedbackMessage = false,
+    bool? isFromCache,
   }) {
     return ServantDataLoaded(
       servants: servants ?? this.servants,
@@ -85,6 +88,7 @@ final class ServantDataLoaded extends ServantDataState {
       feedbackMessage: clearFeedbackMessage
           ? null
           : (feedbackMessage ?? this.feedbackMessage),
+      isFromCache: isFromCache ?? this.isFromCache,
     );
   }
 
@@ -98,6 +102,7 @@ final class ServantDataLoaded extends ServantDataState {
     includeArchived,
     mutationStatus,
     feedbackMessage,
+    isFromCache,
   ];
 }
 

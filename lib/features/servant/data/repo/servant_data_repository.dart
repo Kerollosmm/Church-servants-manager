@@ -1,7 +1,7 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/core/utils/pagination_cursor.dart';
-import 'package:church_management_system/features/servant/data/datasources/servant_local_datasource.dart';
+import 'package:church_management_system/features/servant/data/local/servant_local_datasource.dart';
 import 'package:church_management_system/features/servant/data/models/servant_models.dart';
 import 'package:church_management_system/features/servant/domain/failures/servant_failures.dart';
 import 'package:church_management_system/features/servant/domain/repos/i_servant_repository.dart';
@@ -9,18 +9,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 typedef _ServantDoc = QueryDocumentSnapshot<Map<String, dynamic>>;
 
-/// A paginated result of servant data from [ServantDataRepository].
-class ServantsPage {
-  final List<ServantModel> servants;
-  final PaginationCursor? lastDocument;
-  final bool hasMore;
 
-  const ServantsPage({
-    required this.servants,
-    required this.lastDocument,
-    required this.hasMore,
-  });
-}
 
 /// Repository for managing servant data.
 /// Servants are stored in the Users collection with role == 'servant'.
@@ -307,7 +296,7 @@ class ServantDataRepository implements IServantRepository {
         clientUpdatedAt: DateTime.now(),
       );
 
-      await _localDatasource.saveServant(finalServant);
+      await _localDatasource.cacheServant(finalServant);
       await _localDatasource.queueForSync(finalServant);
 
       try {
@@ -315,7 +304,7 @@ class ServantDataRepository implements IServantRepository {
         final syncedServant = finalServant.copyWith(
           syncStatus: SyncStatus.synced,
         );
-        await _localDatasource.saveServant(syncedServant);
+        await _localDatasource.cacheServant(syncedServant);
         await _localDatasource.removeFromSyncQueue(docRef.id);
       } catch (networkError) {
         // Retain pending status locally.
@@ -335,7 +324,7 @@ class ServantDataRepository implements IServantRepository {
         clientUpdatedAt: DateTime.now(),
       );
 
-      await _localDatasource.saveServant(finalServant);
+      await _localDatasource.cacheServant(finalServant);
       await _localDatasource.queueForSync(finalServant);
 
       try {
@@ -348,7 +337,7 @@ class ServantDataRepository implements IServantRepository {
         final syncedServant = finalServant.copyWith(
           syncStatus: SyncStatus.synced,
         );
-        await _localDatasource.saveServant(syncedServant);
+        await _localDatasource.cacheServant(syncedServant);
         await _localDatasource.removeFromSyncQueue(servant.docID);
       } catch (networkError) {
         // Retain pending status locally.
@@ -369,14 +358,14 @@ class ServantDataRepository implements IServantRepository {
     Map<String, dynamic> fields,
   ) async {
     try {
-      final existing = await _localDatasource.getServant(docId);
+      final existing = await _localDatasource.getCachedServantById(docId);
       if (existing != null) {
         final updatedData = {...existing.toMap(), ...fields};
         final updated = ServantModel.fromMap(updatedData, docId).copyWith(
           syncStatus: SyncStatus.pending,
           clientUpdatedAt: DateTime.now(),
         );
-        await _localDatasource.saveServant(updated);
+        await _localDatasource.cacheServant(updated);
         await _localDatasource.queueForSync(updated);
       }
 
@@ -388,7 +377,7 @@ class ServantDataRepository implements IServantRepository {
             updatedData,
             docId,
           ).copyWith(syncStatus: SyncStatus.synced);
-          await _localDatasource.saveServant(synced);
+          await _localDatasource.cacheServant(synced);
           await _localDatasource.removeFromSyncQueue(docId);
         }
       } catch (networkError) {
@@ -412,7 +401,7 @@ class ServantDataRepository implements IServantRepository {
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
-      final existing = await _localDatasource.getServant(docId);
+      final existing = await _localDatasource.getCachedServantById(docId);
       if (existing != null) {
         final updated = existing.copyWith(
           isArchived: true,
@@ -421,7 +410,7 @@ class ServantDataRepository implements IServantRepository {
           syncStatus: SyncStatus.pending,
           clientUpdatedAt: DateTime.now(),
         );
-        await _localDatasource.saveServant(updated);
+        await _localDatasource.cacheServant(updated);
         await _localDatasource.queueForSync(updated);
       }
 
@@ -432,7 +421,7 @@ class ServantDataRepository implements IServantRepository {
             isArchived: true,
             syncStatus: SyncStatus.synced,
           );
-          await _localDatasource.saveServant(synced);
+          await _localDatasource.cacheServant(synced);
           await _localDatasource.removeFromSyncQueue(docId);
         }
       } catch (networkError) {
@@ -461,7 +450,7 @@ class ServantDataRepository implements IServantRepository {
       if (assignedTeamId != null) fields['assignedTeamId'] = assignedTeamId;
       if (assignedTeamIds != null) fields['assignedTeamIds'] = assignedTeamIds;
 
-      final existing = await _localDatasource.getServant(docId);
+      final existing = await _localDatasource.getCachedServantById(docId);
       if (existing != null) {
         final updated = existing.copyWith(
           isArchived: false,
@@ -472,7 +461,7 @@ class ServantDataRepository implements IServantRepository {
           syncStatus: SyncStatus.pending,
           clientUpdatedAt: DateTime.now(),
         );
-        await _localDatasource.saveServant(updated);
+        await _localDatasource.cacheServant(updated);
         await _localDatasource.queueForSync(updated);
       }
 
@@ -483,7 +472,7 @@ class ServantDataRepository implements IServantRepository {
             isArchived: false,
             syncStatus: SyncStatus.synced,
           );
-          await _localDatasource.saveServant(synced);
+          await _localDatasource.cacheServant(synced);
           await _localDatasource.removeFromSyncQueue(docId);
         }
       } catch (networkError) {

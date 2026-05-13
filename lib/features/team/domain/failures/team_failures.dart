@@ -15,9 +15,20 @@ class TeamNotFoundFailure extends TeamFailure {
   const TeamNotFoundFailure([super.message = 'Team not found']);
 }
 
+class TeamAlreadyExistsFailure extends TeamFailure {
+  const TeamAlreadyExistsFailure([super.message = 'Team already exists']);
+}
+
 /// Thrown when the user does not have permission.
 class TeamPermissionDeniedFailure extends TeamFailure {
   const TeamPermissionDeniedFailure([super.message = 'Permission denied']);
+}
+
+/// Thrown when attempting to mutate teams offline (not supported yet due to complex transactions).
+class TeamOfflineMutationBlockedFailure extends TeamFailure {
+  const TeamOfflineMutationBlockedFailure([
+    super.message = 'Team modifications require an active internet connection.',
+  ]);
 }
 
 /// Thrown when a Firestore/Network error occurs.

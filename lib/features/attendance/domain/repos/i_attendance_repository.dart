@@ -34,6 +34,9 @@ abstract class IAttendanceRepository {
 
   Future<List<AttendanceSession>> getSessionsForTeam(String teamId);
 
+  Future<({List<AttendanceSession> sessions, bool isFromCache})>
+  getSessionsForTeamWithFallback(String teamId);
+
   Future<AttendanceSession?> getActiveSessionForTeam(String teamId);
 
   Future<AttendanceSession?> getSessionById({
