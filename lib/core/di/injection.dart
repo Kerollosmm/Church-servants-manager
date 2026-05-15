@@ -46,16 +46,36 @@ final getIt = GetIt.instance;
 
 /// Call once before [runApp].
 void configureDependencies() {
+  _registerCore();
+  _registerServices();
+  _registerRepositories();
+  _registerUseCases();
+  _registerBlocs();
+  _registerRouting();
+}
+
+void _registerCore() {
   // ---- External ----
   getIt
     ..registerLazySingleton<FirebaseFirestore>(() => FirebaseFirestore.instance)
     // ---- Core Services ----
-    ..registerLazySingleton<SyncService>(SyncService.new)
+    ..registerLazySingleton<SyncService>(
+      () => SyncService(
+        attendanceRepository: getIt<IAttendanceRepository>(),
+        studentRepository: getIt<IStudentRepository>(),
+        resultsRepository: getIt<IResultsRepository>(),
+        sessionRepository: getIt<AttendanceSessionRepository>(),
+      ),
+    )
     ..registerFactory<SyncCubit>(
       () => SyncCubit(syncService: getIt<SyncService>()),
     )
-    ..registerLazySingleton<ConnectivityCubit>(ConnectivityCubit.new)
-    // ---- Services (Low-level) ----
+    ..registerLazySingleton<ConnectivityCubit>(ConnectivityCubit.new);
+}
+
+void _registerServices() {
+  // ---- Services (Low-level) ----
+  getIt
     ..registerLazySingleton<FirebaseIdentityProvider>(
       () => FirebaseIdentityProvider(auth: FirebaseAuth.instance),
     )
@@ -71,8 +91,12 @@ void configureDependencies() {
     )
     ..registerLazySingleton<StudentLinkedUserSyncService>(
       () => StudentLinkedUserSyncService(firestore: getIt()),
-    )
-    // ---- Repositories ----
+    );
+}
+
+void _registerRepositories() {
+  // ---- Repositories ----
+  getIt
     ..registerLazySingleton<IAttendanceRepository>(
       () => AttendanceRepository(firestore: getIt()),
     )
@@ -100,7 +124,11 @@ void configureDependencies() {
     ..registerLazySingleton<AttendanceSessionLocalDatasource>(
       AttendanceSessionLocalDatasource.new,
     )
-    ..registerLazySingleton<StudentLocalDatasource>(StudentLocalDatasource.new)
+    ..registerLazySingleton<StudentLocalDatasource>(() {
+      final ds = StudentLocalDatasource();
+      ds.init();
+      return ds;
+    })
     ..registerLazySingleton<IStudentRepository>(
       () => StudentDataRepository(
         firestore: getIt(),
@@ -127,6 +155,7 @@ void configureDependencies() {
         identityProvider: getIt<FirebaseIdentityProvider>(),
         userProfileStore: getIt<AuthUserProfileStore>(),
         localAuthStore: getIt<AuthUserLocalStore>(),
+        firestore: getIt<FirebaseFirestore>(),
       ),
     )
     ..registerLazySingleton<StudentDataRepository>(
@@ -141,8 +170,12 @@ void configureDependencies() {
     )
     ..registerLazySingleton<TeamRepository>(
       () => getIt<ITeamRepository>() as TeamRepository,
-    )
-    // ---- Domain Services / Use Cases ----
+    );
+}
+
+void _registerUseCases() {
+  // ---- Domain Services / Use Cases ----
+  getIt
     ..registerLazySingleton<AdminTeamService>(
       () => AdminTeamService(firestore: getIt()),
     )
@@ -177,15 +210,22 @@ void configureDependencies() {
         servantRepository: getIt<IServantRepository>(),
         provisioningService: getIt<AdminUserProvisioningService>(),
       ),
-    )
-    // ---- Dashboard Blocs ----
-    ..registerFactory<AdminDashboardBloc>(
-      () => AdminDashboardBloc(
-        getIt<IStudentRepository>(),
-        getIt<IServantRepository>(),
-        getIt<ITeamRepository>(),
-      ),
-    )
-    // ---- Routing ----
-    ..registerLazySingleton<AppRouter>(AppRouter.new);
+    );
+}
+
+void _registerBlocs() {
+  // ---- Dashboard Blocs ----
+  getIt.registerFactory<AdminDashboardBloc>(
+    () => AdminDashboardBloc(
+      getIt<IStudentRepository>(),
+      getIt<IServantRepository>(),
+      getIt<ITeamRepository>(),
+      getIt<IAttendanceRepository>(),
+    ),
+  );
+}
+
+void _registerRouting() {
+  // ---- Routing ----
+  getIt.registerLazySingleton<AppRouter>(AppRouter.new);
 }

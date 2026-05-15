@@ -121,161 +121,170 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
                 ? loadedState.session.title!
                 : 'تسجيل الحضور';
 
-            return Scaffold(
-              appBar: AppBar(
-                title: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title),
-                    if (loadedState != null &&
-                        loadedState.pendingLocalMarks.isNotEmpty)
-                      Text(
-                        '${loadedState.pendingLocalMarks.length} في الانتظار',
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: Theme.of(context).colorScheme.primary,
-                          fontWeight: FontWeight.bold,
+            return Directionality(
+              textDirection: TextDirection.rtl,
+              child: Scaffold(
+                appBar: AppBar(
+                  title: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title),
+                      if (loadedState != null &&
+                          loadedState.pendingLocalMarks.isNotEmpty)
+                        Text(
+                          '${loadedState.pendingLocalMarks.length} في الانتظار',
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(
+                                color: Theme.of(context).colorScheme.primary,
+                                fontWeight: FontWeight.bold,
+                              ),
                         ),
+                    ],
+                  ),
+                  bottom:
+                      loadedState != null &&
+                          loadedState.mutationStatus ==
+                              MutationStatus.inProgress
+                      ? const PreferredSize(
+                          preferredSize: Size.fromHeight(4),
+                          child: LinearProgressIndicator(),
+                        )
+                      : null,
+                  actions: [
+                    if (loadedState != null && loadedState.isSessionOpen)
+                      IconButton(
+                        tooltip: 'تحديد الباقي حاضر',
+                        icon: const Icon(Icons.done_all_outlined),
+                        onPressed:
+                            loadedState.mutationStatus ==
+                                MutationStatus.inProgress
+                            ? null
+                            : () => context.read<AttendanceTakingBloc>().add(
+                                MarkAllRemainingPresentEvent(
+                                  actor: widget.args.actor,
+                                ),
+                              ),
+                      ),
+                    if (widget.args.actor.role == UserRole.admin &&
+                        loadedState != null &&
+                        loadedState.isSessionOpen)
+                      IconButton(
+                        tooltip: 'إغلاق الجلسة',
+                        icon: const Icon(Icons.lock_outline),
+                        onPressed:
+                            loadedState.mutationStatus ==
+                                MutationStatus.inProgress
+                            ? null
+                            : () => _closeSession(loadedState, context),
                       ),
                   ],
                 ),
-                bottom:
+                bottomNavigationBar:
                     loadedState != null &&
-                        loadedState.mutationStatus == MutationStatus.inProgress
-                    ? const PreferredSize(
-                        preferredSize: Size.fromHeight(4),
-                        child: LinearProgressIndicator(),
+                        loadedState.pendingLocalMarks.isNotEmpty
+                    ? SafeArea(
+                        child: Padding(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          child: FilledButton.icon(
+                            style: FilledButton.styleFrom(
+                              minimumSize: const Size.fromHeight(56),
+                              backgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.primary,
+                            ),
+                            onPressed:
+                                loadedState.mutationStatus ==
+                                    MutationStatus.inProgress
+                                ? null
+                                : () =>
+                                      context.read<AttendanceTakingBloc>().add(
+                                        SubmitSessionEvent(
+                                          actor: widget.args.actor,
+                                        ),
+                                      ),
+                            icon: const Icon(Icons.check_circle_outline),
+                            label: Text(
+                              'تأكيد الحضور (${loadedState.pendingLocalMarks.length})',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
                       )
                     : null,
-                actions: [
-                  if (loadedState != null && loadedState.isSessionOpen)
-                    IconButton(
-                      tooltip: 'تحديد الباقي حاضر',
-                      icon: const Icon(Icons.done_all_outlined),
-                      onPressed:
-                          loadedState.mutationStatus ==
-                              MutationStatus.inProgress
-                          ? null
-                          : () => context.read<AttendanceTakingBloc>().add(
-                              MarkAllRemainingPresentEvent(
-                                actor: widget.args.actor,
-                              ),
-                            ),
-                    ),
-                  if (widget.args.actor.role == UserRole.admin &&
-                      loadedState != null &&
-                      loadedState.isSessionOpen)
-                    IconButton(
-                      tooltip: 'إغلاق الجلسة',
-                      icon: const Icon(Icons.lock_outline),
-                      onPressed:
-                          loadedState.mutationStatus ==
-                              MutationStatus.inProgress
-                          ? null
-                          : () => _closeSession(loadedState, context),
-                    ),
-                ],
-              ),
-              bottomNavigationBar:
-                  loadedState != null &&
-                      loadedState.pendingLocalMarks.isNotEmpty
-                  ? SafeArea(
-                      child: Padding(
-                        padding: const EdgeInsets.all(AppSpacing.md),
-                        child: FilledButton.icon(
-                          style: FilledButton.styleFrom(
-                            minimumSize: const Size.fromHeight(56),
-                            backgroundColor: Theme.of(
-                              context,
-                            ).colorScheme.primary,
-                          ),
-                          onPressed:
-                              loadedState.mutationStatus ==
-                                  MutationStatus.inProgress
-                              ? null
-                              : () => context.read<AttendanceTakingBloc>().add(
-                                  SubmitSessionEvent(actor: widget.args.actor),
-                                ),
-                          icon: const Icon(Icons.check_circle_outline),
-                          label: Text(
-                            'تأكيد الحضور (${loadedState.pendingLocalMarks.length})',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    )
-                  : null,
-              body: switch (state) {
-                AttendanceTakingLoading() => const Center(
-                  child: CircularProgressIndicator(),
-                ),
-                AttendanceTakingError() => Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    child: Text(state.message, textAlign: TextAlign.center),
+                body: switch (state) {
+                  AttendanceTakingLoading() => const Center(
+                    child: CircularProgressIndicator(),
                   ),
-                ),
-                AttendanceTakingLoaded() => Builder(
-                  builder: (context) {
-                    final loaded = state;
-                    return Column(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.all(AppSpacing.md),
-                          child: Column(
-                            children: [
-                              AppInfoBanner(
-                                icon: loaded.session.isOpenAt(now)
-                                    ? Icons.schedule
-                                    : Icons.lock_clock,
-                                message: loaded.session.isOpenAt(now)
-                                    ? 'الجلسة مفتوحة الآن. يمكنك تحديد حاضر أو متأخر فقط.'
-                                    : 'الجلسة مغلقة الآن. أي مخدوم غير محدد يظهر كغائب تلقائيا.',
-                              ),
-                              AppSpacing.gapSm,
-                              _SessionHeaderCard(session: loaded.session),
-                            ],
-                          ),
-                        ),
-                        Expanded(
-                          child: loaded.roster.isEmpty
-                              ? const Center(
-                                  child: Text(
-                                    'لا يوجد مخدومون ضمن هذه الجلسة.',
-                                  ),
-                                )
-                              : ListView.separated(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    AppSpacing.md,
-                                    0,
-                                    AppSpacing.md,
-                                    AppSpacing.md,
-                                  ),
-                                  itemBuilder: (context, index) {
-                                    final item = loaded.roster[index];
-                                    return _RosterItemCard(
-                                      item: item,
-                                      actor: widget.args.actor,
-                                      isMutationInProgress:
-                                          loaded.mutationStatus ==
-                                          MutationStatus.inProgress,
-                                      isSessionOpen: loaded.isSessionOpen,
-                                      effectivePendingMark: loaded
-                                          .effectiveMarksMap[item.studentId],
-                                    );
-                                  },
-                                  separatorBuilder: (_, _) => AppSpacing.gapSm,
-                                  itemCount: loaded.roster.length,
+                  AttendanceTakingError() => Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      child: Text(state.message, textAlign: TextAlign.center),
+                    ),
+                  ),
+                  AttendanceTakingLoaded() => Builder(
+                    builder: (context) {
+                      final loaded = state;
+                      return Column(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.all(AppSpacing.md),
+                            child: Column(
+                              children: [
+                                AppInfoBanner(
+                                  icon: loaded.session.isOpenAt(now)
+                                      ? Icons.schedule
+                                      : Icons.lock_clock,
+                                  message: loaded.session.isOpenAt(now)
+                                      ? 'الجلسة مفتوحة الآن. يمكنك تحديد حاضر أو متأخر فقط.'
+                                      : 'الجلسة مغلقة الآن. أي مخدوم غير محدد يظهر كغائب تلقائيا.',
                                 ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-                _ => const SizedBox.shrink(),
-              },
+                                AppSpacing.gapSm,
+                                _SessionHeaderCard(session: loaded.session),
+                              ],
+                            ),
+                          ),
+                          Expanded(
+                            child: loaded.roster.isEmpty
+                                ? const Center(
+                                    child: Text(
+                                      'لا يوجد مخدومون ضمن هذه الجلسة.',
+                                    ),
+                                  )
+                                : ListView.separated(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      AppSpacing.md,
+                                      0,
+                                      AppSpacing.md,
+                                      AppSpacing.md,
+                                    ),
+                                    itemBuilder: (context, index) {
+                                      final item = loaded.roster[index];
+                                      return _RosterItemCard(
+                                        item: item,
+                                        actor: widget.args.actor,
+                                        isMutationInProgress:
+                                            loaded.mutationStatus ==
+                                            MutationStatus.inProgress,
+                                        isSessionOpen: loaded.isSessionOpen,
+                                        effectivePendingMark: loaded
+                                            .effectiveMarksMap[item.studentId],
+                                      );
+                                    },
+                                    separatorBuilder: (_, _) =>
+                                        AppSpacing.gapSm,
+                                    itemCount: loaded.roster.length,
+                                  ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                  _ => const SizedBox.shrink(),
+                },
+              ),
             );
           },
         ),

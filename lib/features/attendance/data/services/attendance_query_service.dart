@@ -58,17 +58,32 @@ class AttendanceQueryService {
     return ref.get(const GetOptions(source: Source.server));
   }
 
+  Future<bool> _hasCacheForCollection(
+    CollectionReference<Map<String, dynamic>> collection,
+  ) async {
+    try {
+      final snapshot = await collection
+          .limit(1)
+          .get(const GetOptions(source: Source.cache));
+      return snapshot.docs.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<List<AttendanceSession>> getSessionsForTeam(String teamId) async {
     final query = _sessionsCol
         .where('teamId', isEqualTo: teamId)
         .orderBy('startsAt', descending: true)
         .limit(50);
 
-    // Cache-first
-    try {
-      final cached = await query.get(const GetOptions(source: Source.cache));
-      if (cached.docs.isNotEmpty) return _mapSessionsSnapshot(cached);
-    } catch (_) {}
+    final hasCache = await _hasCacheForCollection(_sessionsCol);
+    if (hasCache) {
+      try {
+        final cached = await query.get(const GetOptions(source: Source.cache));
+        if (cached.docs.isNotEmpty) return _mapSessionsSnapshot(cached);
+      } catch (_) {}
+    }
 
     final snapshot = await query.get(const GetOptions(source: Source.server));
     return _mapSessionsSnapshot(snapshot);
@@ -81,14 +96,18 @@ class AttendanceQueryService {
         .orderBy('startsAt', descending: true)
         .limit(10);
 
-    // Cache-first
+    final hasCache = await _hasCacheForCollection(_sessionsCol);
     QuerySnapshot<Map<String, dynamic>> snapshot;
-    try {
-      final cached = await query.get(const GetOptions(source: Source.cache));
-      snapshot = cached.docs.isNotEmpty
-          ? cached
-          : await query.get(const GetOptions(source: Source.server));
-    } catch (_) {
+    if (hasCache) {
+      try {
+        final cached = await query.get(const GetOptions(source: Source.cache));
+        snapshot = cached.docs.isNotEmpty
+            ? cached
+            : await query.get(const GetOptions(source: Source.server));
+      } catch (_) {
+        snapshot = await query.get(const GetOptions(source: Source.server));
+      }
+    } else {
       snapshot = await query.get(const GetOptions(source: Source.server));
     }
 

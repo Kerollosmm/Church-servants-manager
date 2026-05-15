@@ -13,6 +13,7 @@ import 'package:church_management_system/features/attendance/domain/repos/i_atte
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/student/data/services/student_query_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 
 class AttendanceRepository implements IAttendanceRepository {
@@ -25,6 +26,8 @@ class AttendanceRepository implements IAttendanceRepository {
     required FirebaseFirestore firestore,
     StudentQueryService? studentQueryService,
     DateTime Function()? nowProvider,
+    Connectivity? connectivity,
+    AttendanceSessionLocalDatasource? localDatasource,
   }) : _queryService = AttendanceQueryService(
          firestore: firestore,
          nowProvider: nowProvider,
@@ -32,8 +35,12 @@ class AttendanceRepository implements IAttendanceRepository {
        _commandService = AttendanceCommandService(
          firestore: firestore,
          nowProvider: nowProvider,
+         connectivity: connectivity,
+         studentQueryService: studentQueryService,
+         localDatasource: localDatasource,
        ),
-       _sessionLocalDatasource = AttendanceSessionLocalDatasource();
+       _sessionLocalDatasource =
+           localDatasource ?? AttendanceSessionLocalDatasource();
 
   @override
   Future<AttendanceSession> createSession({

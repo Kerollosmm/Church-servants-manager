@@ -39,11 +39,25 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<_AuthEventSessionChanged>(_onSessionChanged);
     on<_AuthEventSessionError>(_onSessionError);
 
-    _authStateSubscription = _authService.userStream.listen((user) {
-      if (state is! AuthLoading && state is! AuthInitial) {
-        add(_AuthEventSessionChanged(user));
-      }
-    }, onError: (error, stackTrace) => add(const _AuthEventSessionError()));
+    _authStateSubscription = _authService.userStream.listen(
+      (user) {
+        if (state is AuthAuthenticated ||
+            state is AuthRoleUpdated ||
+            state is AuthDegraded ||
+            state is AuthRoleRefreshing) {
+          add(_AuthEventSessionChanged(user));
+        }
+      },
+      onError: (error, stackTrace) {
+        developer.log(
+          'AuthBloc: Session stream error',
+          error: error,
+          stackTrace: stackTrace,
+          name: 'AuthBloc',
+        );
+        add(const _AuthEventSessionError());
+      },
+    );
 
     _connectivitySubscription = _connectivity.onConnectivityChanged.listen((
       results,
@@ -352,14 +366,24 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       try {
         await _authService.clearRestorePendingPasswordReset(user.uid);
-      } catch (e) {
-        // Ignore error during cleanup
+      } catch (e, stackTrace) {
+        developer.log(
+          'AuthBloc: Failed to clear restorePendingPasswordReset',
+          error: e,
+          stackTrace: stackTrace,
+          name: 'AuthBloc',
+        );
       }
 
       try {
         await _authService.signOut();
-      } catch (_) {
-        // Ignore error during cleanup
+      } catch (e, stackTrace) {
+        developer.log(
+          'AuthBloc: Failed to clear restorePendingPasswordReset',
+          error: e,
+          stackTrace: stackTrace,
+          name: 'AuthBloc',
+        );
       }
 
       emit(const AuthPasswordResetSuccess());

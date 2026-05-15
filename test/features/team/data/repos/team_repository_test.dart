@@ -158,7 +158,7 @@ void main() {
         assignedServantName: 'Servant',
       );
       await firestore.collection('Classes').doc(team.id).set(team.toMap());
-      await firestore.collection('Users').doc('servant-1').set({
+      await firestore.collection('servants').doc('servant-1').set({
         'uid': 'servant-1',
         'name': 'Servant',
         'email': 'servant@example.com',
@@ -172,7 +172,7 @@ void main() {
 
       final teamDoc = await firestore.collection('Classes').doc(team.id).get();
       final servantDoc = await firestore
-          .collection('Users')
+          .collection('servants')
           .doc('servant-1')
           .get();
 

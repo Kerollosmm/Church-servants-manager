@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:developer' as developer;
 
+import 'package:church_management_system/core/di/injection.dart';
+import 'package:church_management_system/features/attendance/data/local/attendance_local_datasource.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_roster_snapshot.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
@@ -19,8 +21,10 @@ class AttendanceTakingBloc
   AttendanceTakingBloc({
     required AttendanceRepository repository,
     DateTime Function()? nowProvider,
+    AttendanceLocalDatasource? localDatasource,
   }) : _repository = repository,
        _nowProvider = nowProvider ?? DateTime.now,
+       _localDatasource = localDatasource ?? getIt<AttendanceLocalDatasource>(),
        super(const AttendanceTakingInitial()) {
     on<InitializeSessionEvent>(_onInitializeSession);
     on<RefreshSessionEvent>(_onRefreshSession);
@@ -35,6 +39,7 @@ class AttendanceTakingBloc
 
   final AttendanceRepository _repository;
   final DateTime Function() _nowProvider;
+  final AttendanceLocalDatasource _localDatasource;
 
   bool _permissionGranted = false;
   String? _cachedTeamId;
@@ -206,6 +211,20 @@ class AttendanceTakingBloc
     }
 
     emit(cs.withPendingMark(studentId, targetStatus));
+
+    // Persist to Hive immediately for crash resilience
+    unawaited(
+      _localDatasource.cacheMark(
+        teamId: cs.session.teamId,
+        sessionId: cs.session.id,
+        studentId: studentId,
+        markData: {
+          'status': targetStatus.name,
+          'pending': true,
+          'updatedAt': DateTime.now().toIso8601String(),
+        },
+      ),
+    );
   }
 
   Future<void> _onClearStudentMark(
@@ -253,10 +272,11 @@ class AttendanceTakingBloc
       ),
     );
 
-    // On success: clear all pending marks from state
+    // On success: clear all pending marks from state and cache
     final afterState = state;
     if (afterState is AttendanceTakingLoaded) {
       emit(afterState.copyWith(pendingLocalMarks: const {}));
+      unawaited(_localDatasource.clearCache());
     }
   }
 
@@ -292,6 +312,8 @@ class AttendanceTakingBloc
       );
       return;
     }
+
+    if (currentState.mutationStatus == MutationStatus.inProgress) return;
 
     emit(
       currentState.copyWith(

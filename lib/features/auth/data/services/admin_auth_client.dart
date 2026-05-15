@@ -81,7 +81,7 @@ class FirebaseAdminAuthClient implements AdminAuthClient {
   @override
   Future<void> archiveUser({required String uid}) async {
     try {
-      await _db.collection(FirestoreCollections.users).doc(uid).update({
+      await _db.collection(FirestoreCollections.servants).doc(uid).update({
         'isArchived': true,
         'archivedAt': FieldValue.serverTimestamp(),
       });
@@ -93,7 +93,7 @@ class FirebaseAdminAuthClient implements AdminAuthClient {
   @override
   Future<void> restoreUser({required String uid}) async {
     try {
-      await _db.collection(FirestoreCollections.users).doc(uid).update({
+      await _db.collection(FirestoreCollections.servants).doc(uid).update({
         'isArchived': false,
         'restoredAt': FieldValue.serverTimestamp(),
       });
@@ -108,7 +108,7 @@ class FirebaseAdminAuthClient implements AdminAuthClient {
     required UserRole role,
   }) async {
     try {
-      await _db.collection(FirestoreCollections.users).doc(uid).update({
+      await _db.collection(FirestoreCollections.servants).doc(uid).update({
         'role': role.name,
       });
     } catch (e) {

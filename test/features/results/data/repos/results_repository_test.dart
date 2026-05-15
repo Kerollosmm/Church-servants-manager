@@ -1,14 +1,45 @@
+import 'package:church_management_system/features/results/data/datasources/results_local_datasource.dart';
+import 'package:church_management_system/features/results/data/models/results_model.dart';
 import 'package:church_management_system/features/results/data/repos/results_repository.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+
+class MockResultsLocalDatasource extends Mock
+    implements ResultsLocalDatasource {}
+
+class ResultsModelFake extends Fake implements ResultsModel {}
 
 void main() {
   late FakeFirebaseFirestore firestore;
   late ResultsRepository repository;
+  late MockResultsLocalDatasource localDatasource;
+
+  setUpAll(() {
+    registerFallbackValue(ResultsModelFake());
+  });
 
   setUp(() {
     firestore = FakeFirebaseFirestore();
-    repository = ResultsRepository(firestore: firestore);
+    localDatasource = MockResultsLocalDatasource();
+    when(() => localDatasource.cacheResults(any())).thenAnswer((_) async {
+      return;
+    });
+    when(() => localDatasource.cacheResult(any(), any())).thenAnswer((
+      _,
+    ) async {
+      return;
+    });
+    when(() => localDatasource.getCachedResultsForGroup(any())).thenAnswer(
+      (_) async => [],
+    );
+    when(() => localDatasource.getCachedResultForStudent(any())).thenAnswer(
+      (_) async => null,
+    );
+    repository = ResultsRepository(
+      firestore: firestore,
+      localDatasource: localDatasource,
+    );
   });
 
   group('ResultsRepository', () {

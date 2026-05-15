@@ -14,7 +14,7 @@ class StudentLinkedUserSyncService {
       _firestore.collection(FirestoreCollections.students);
 
   CollectionReference<Map<String, dynamic>> get _usersCollection =>
-      _firestore.collection(FirestoreCollections.users);
+      _firestore.collection(FirestoreCollections.servants);
 
   Map<String, dynamic> buildLinkedUserRolePatch({
     required StudentModel updatedStudent,

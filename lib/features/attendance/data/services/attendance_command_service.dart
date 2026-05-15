@@ -23,16 +23,19 @@ class AttendanceCommandService {
     StudentQueryService? studentQueryService,
     DateTime Function()? nowProvider,
     AttendanceSessionLocalDatasource? localDatasource,
+    Connectivity? connectivity,
   }) : _firestore = firestore,
        _studentQueryService =
            studentQueryService ?? StudentQueryService(firestore: firestore),
        _nowProvider = nowProvider ?? DateTime.now,
-       _localDatasource = localDatasource ?? AttendanceSessionLocalDatasource();
+       _localDatasource = localDatasource ?? AttendanceSessionLocalDatasource(),
+       _connectivity = connectivity ?? Connectivity();
 
   final FirebaseFirestore _firestore;
   final StudentQueryService _studentQueryService;
   final DateTime Function() _nowProvider;
   final AttendanceSessionLocalDatasource _localDatasource;
+  final Connectivity _connectivity;
 
   CollectionReference<Map<String, dynamic>> get _classesCollection =>
       _firestore.collection(FirestoreCollections.classes);
@@ -81,7 +84,7 @@ class AttendanceCommandService {
     String? title,
   }) async {
     try {
-      final connectivity = await Connectivity().checkConnectivity();
+      final connectivity = await _connectivity.checkConnectivity();
       final isOffline = connectivity.contains(ConnectivityResult.none);
 
       final normalizedTeamId = teamId.trim();
@@ -190,18 +193,44 @@ class AttendanceCommandService {
     required AuthUser createdBy,
     String? title,
   }) async {
-    final connectivity = await Connectivity().checkConnectivity();
-    if (connectivity.contains(ConnectivityResult.none)) {
-      throw const AttendanceValidationFailure(
-        'لا يمكن إنشاء جلسات حضور بدون اتصال بالإنترنت.',
-      );
-    }
+    final connectivity = await _connectivity.checkConnectivity();
+    final isOffline = connectivity.contains(ConnectivityResult.none);
 
     final successfulItems = <String>[];
     final failedItems = <String>[];
 
     final futures = teamIdsAndNames.entries.map((entry) async {
       try {
+        if (isOffline) {
+          final now = _nowProvider();
+          final sessionId = _buildSessionId(startsAt, title);
+          final candidate = AttendanceSession(
+            id: sessionId,
+            teamId: entry.key,
+            teamNameSnapshot: entry.value.trim().isEmpty
+                ? null
+                : entry.value.trim(),
+            title: title?.trim().isEmpty == true ? null : title?.trim(),
+            dateKey: AttendanceSession.buildDateKey(startsAt),
+            startsAt: startsAt,
+            endsAt: startsAt.add(Duration(minutes: durationMinutes)),
+            durationMinutes: durationMinutes,
+            createdByUserId: createdBy.uid,
+            createdByName: createdBy.name,
+            createdAt: now,
+            updatedAt: now,
+          );
+          final syncEntry = SyncEntry(
+            id: 'create_session_${candidate.id}',
+            actionType: 'CREATE_SESSION',
+            payload: candidate.toMap(),
+            createdAt: DateTime.now(),
+          );
+          await getIt<SyncService>().enqueue(syncEntry);
+          successfulItems.add(entry.key);
+          return;
+        }
+
         await createSession(
           teamId: entry.key,
           teamNameSnapshot: entry.value,
@@ -235,7 +264,7 @@ class AttendanceCommandService {
     required AuthUser closedBy,
   }) async {
     try {
-      final connectivity = await Connectivity().checkConnectivity();
+      final connectivity = await _connectivity.checkConnectivity();
       if (connectivity.contains(ConnectivityResult.none)) {
         throw const AttendanceValidationFailure(
           'لا يمكن إغلاق جلسة الحضور بدون اتصال بالإنترنت.',
@@ -333,17 +362,17 @@ class AttendanceCommandService {
             teamId,
           ).collection('stats').doc('attendance');
           transaction.set(statsRef, {
-            'totalSessions': FieldValue.increment(1),
-            'totalRosterEntries': FieldValue.increment(
-              session.studentIdsSnapshot.length,
-            ),
-            'presentCount': FieldValue.increment(presentStudentIds.length),
-            'lateCount': FieldValue.increment(lateStudentIds.length),
-            'absentCount': FieldValue.increment(
-              absentCount > 0 ? absentCount : 0,
-            ),
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true))
+              'totalSessions': FieldValue.increment(1),
+              'totalRosterEntries': FieldValue.increment(
+                session.studentIdsSnapshot.length,
+              ),
+              'presentCount': FieldValue.increment(presentStudentIds.length),
+              'lateCount': FieldValue.increment(lateStudentIds.length),
+              'absentCount': FieldValue.increment(
+                absentCount > 0 ? absentCount : 0,
+              ),
+              'updatedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true))
             ..set(_teamDoc(teamId), {
               'groupAttendanceSummary': {
                 'lastSessionDate': FieldValue.serverTimestamp(),
@@ -415,17 +444,17 @@ class AttendanceCommandService {
             teamId,
           ).collection('stats').doc('attendance');
           transaction.set(statsRef, {
-            'totalSessions': FieldValue.increment(1),
-            'totalRosterEntries': FieldValue.increment(
-              session.studentIdsSnapshot.length,
-            ),
-            'presentCount': FieldValue.increment(presentStudentIds.length),
-            'lateCount': FieldValue.increment(lateStudentIds.length),
-            'absentCount': FieldValue.increment(
-              absentCount > 0 ? absentCount : 0,
-            ),
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true))
+              'totalSessions': FieldValue.increment(1),
+              'totalRosterEntries': FieldValue.increment(
+                session.studentIdsSnapshot.length,
+              ),
+              'presentCount': FieldValue.increment(presentStudentIds.length),
+              'lateCount': FieldValue.increment(lateStudentIds.length),
+              'absentCount': FieldValue.increment(
+                absentCount > 0 ? absentCount : 0,
+              ),
+              'updatedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true))
             ..set(_teamDoc(teamId), {
               'groupAttendanceSummary': {
                 'lastSessionDate': FieldValue.serverTimestamp(),

@@ -1,4 +1,5 @@
 import 'package:church_management_system/core/constants/enums.dart';
+import 'package:church_management_system/features/attendance/data/local/attendance_local_datasource.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_roster_item.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_roster_snapshot.dart';
@@ -9,17 +10,42 @@ import 'package:church_management_system/features/attendance/presentation/bloc/a
 import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_state.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockAttendanceRepository extends Mock implements AttendanceRepository {}
+
+class MockAttendanceLocalDatasource extends Mock
+    implements AttendanceLocalDatasource {}
 
 class AuthUserFake extends Fake implements AuthUser {}
 
 void main() {
   late MockAttendanceRepository repository;
+  late MockAttendanceLocalDatasource localDatasource;
 
   setUpAll(() {
     registerFallbackValue(AuthUserFake());
+  });
+
+  setUp(() {
+    repository = MockAttendanceRepository();
+    localDatasource = MockAttendanceLocalDatasource();
+    when(
+      () => localDatasource.cacheMark(
+        teamId: any(named: 'teamId'),
+        sessionId: any(named: 'sessionId'),
+        studentId: any(named: 'studentId'),
+        markData: any(named: 'markData'),
+      ),
+    ).thenAnswer((_) async {});
+    when(() => localDatasource.clearCache()).thenAnswer((_) async {});
+
+    final getIt = GetIt.instance;
+    getIt.allowReassignment = true;
+    getIt.registerLazySingleton<AttendanceLocalDatasource>(
+      () => localDatasource,
+    );
   });
 
   final servant = const AuthUser(

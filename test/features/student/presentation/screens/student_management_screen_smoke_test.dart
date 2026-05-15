@@ -1,3 +1,4 @@
+import 'package:church_management_system/core/blocs/sync/sync_cubit.dart';
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
@@ -20,11 +21,14 @@ class MockTeamRepository extends Mock implements TeamRepository {}
 
 class MockAdminTeamService extends Mock implements AdminTeamService {}
 
+class MockSyncCubit extends Mock implements SyncCubit {}
+
 void main() {
   late MockStudentDataBloc mockStudentDataBloc;
   late MockAuthBloc mockAuthBloc;
   late MockTeamRepository mockTeamRepository;
   late MockAdminTeamService mockAdminTeamService;
+  late MockSyncCubit mockSyncCubit;
 
   setUpAll(() {
     final getIt = GetIt.instance;
@@ -39,8 +43,12 @@ void main() {
   setUp(() {
     mockStudentDataBloc = MockStudentDataBloc();
     mockAuthBloc = MockAuthBloc();
+    mockSyncCubit = MockSyncCubit();
 
-    final adminUser = AuthUser(
+    when(() => mockSyncCubit.state).thenReturn(const SyncIdle());
+    when(() => mockSyncCubit.stream).thenAnswer((_) => const Stream.empty());
+
+    final adminUser = const AuthUser(
       uid: 'admin1',
       email: 'admin@example.com',
       name: 'Admin',
@@ -62,20 +70,26 @@ void main() {
     ).thenAnswer((_) async => []);
   });
 
-  testWidgets('StudentManagementScreen renders correctly in initial state', (
-    WidgetTester tester,
-  ) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: MultiBlocProvider(
+  Widget buildTestWidget(Widget child) {
+    return MaterialApp(
+      home: Directionality(
+        textDirection: TextDirection.rtl,
+        child: MultiBlocProvider(
           providers: [
             BlocProvider<StudentDataBloc>.value(value: mockStudentDataBloc),
             BlocProvider<AuthBloc>.value(value: mockAuthBloc),
+            BlocProvider<SyncCubit>.value(value: mockSyncCubit),
           ],
-          child: const StudentManagementScreen(),
+          child: child,
         ),
       ),
     );
+  }
+
+  testWidgets('StudentManagementScreen renders correctly in initial state', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(buildTestWidget(const StudentManagementScreen()));
 
     expect(find.text('إدارة المخدومين'), findsOneWidget);
     expect(find.byType(TextField), findsOneWidget); // Search field
@@ -92,18 +106,7 @@ void main() {
       ),
     );
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: MultiBlocProvider(
-          providers: [
-            BlocProvider<StudentDataBloc>.value(value: mockStudentDataBloc),
-            BlocProvider<AuthBloc>.value(value: mockAuthBloc),
-          ],
-          child: const StudentManagementScreen(),
-        ),
-      ),
-    );
-
+    await tester.pumpWidget(buildTestWidget(const StudentManagementScreen()));
     await tester.pump();
 
     expect(find.text('لا يوجد مخدومون'), findsOneWidget);
@@ -141,18 +144,7 @@ void main() {
         ),
       );
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: MultiBlocProvider(
-            providers: [
-              BlocProvider<StudentDataBloc>.value(value: mockStudentDataBloc),
-              BlocProvider<AuthBloc>.value(value: mockAuthBloc),
-            ],
-            child: const StudentManagementScreen(),
-          ),
-        ),
-      );
-
+      await tester.pumpWidget(buildTestWidget(const StudentManagementScreen()));
       await tester.pump();
 
       expect(find.text('Ahmed Mohamed'), findsOneWidget);

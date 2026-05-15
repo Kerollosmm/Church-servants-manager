@@ -30,7 +30,7 @@ class StudentDataRepository implements IStudentRepository {
     StudentQueryService? queryService,
     StudentLinkedUserSyncService? linkedUserSyncService,
     StudentLocalDatasource? localDatasource,
-    SyncService? syncService,
+    required SyncService syncService,
     Connectivity? connectivity,
   }) : _firestore = firestore,
        _queryService =
@@ -39,13 +39,13 @@ class StudentDataRepository implements IStudentRepository {
            linkedUserSyncService ??
            StudentLinkedUserSyncService(firestore: firestore),
        _localDatasource = localDatasource ?? StudentLocalDatasource(),
-       _syncService = syncService ?? SyncService(),
+       _syncService = syncService,
        _connectivity = connectivity ?? Connectivity();
 
   CollectionReference<Map<String, dynamic>> get _studentsCollection =>
       _firestore.collection(FirestoreCollections.students);
   CollectionReference<Map<String, dynamic>> get _usersCollection =>
-      _firestore.collection(FirestoreCollections.users);
+      _firestore.collection(FirestoreCollections.servants);
 
   @override
   Future<void> syncLinkedUserRoleFromStudent({

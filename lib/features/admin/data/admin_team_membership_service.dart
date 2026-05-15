@@ -15,7 +15,7 @@ class AdminTeamMembershipService {
   CollectionReference<Map<String, dynamic>> get _classes =>
       _firestore.collection(FirestoreCollections.classes);
   CollectionReference<Map<String, dynamic>> get _users =>
-      _firestore.collection(FirestoreCollections.users);
+      _firestore.collection(FirestoreCollections.servants);
   CollectionReference<Map<String, dynamic>> get _students =>
       _firestore.collection(FirestoreCollections.students);
 

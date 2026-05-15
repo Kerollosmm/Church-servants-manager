@@ -9,8 +9,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 typedef _ServantDoc = QueryDocumentSnapshot<Map<String, dynamic>>;
 
-
-
 /// Repository for managing servant data.
 /// Servants are stored in the Users collection with role == 'servant'.
 class ServantDataRepository implements IServantRepository {
@@ -25,7 +23,7 @@ class ServantDataRepository implements IServantRepository {
 
   /// Reference to Users collection (servants are users with role == servant)
   CollectionReference<Map<String, dynamic>> get _usersCollection =>
-      _firestore.collection(FirestoreCollections.users);
+      _firestore.collection(FirestoreCollections.servants);
 
   /// Base query for all servants (users with role == servant)
   Query<Map<String, dynamic>> get _servantsQuery =>

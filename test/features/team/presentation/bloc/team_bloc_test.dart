@@ -34,8 +34,11 @@ void main() {
 
   test('loadTeamsByGroup emits loading then loaded', () async {
     when(
-      () => repository.getTeamsByGroup('year1'),
-    ).thenAnswer((_) async => [team]);
+      () => repository.getTeamsByGroupWithFallback(
+        'year1',
+        includeArchived: any(named: 'includeArchived'),
+      ),
+    ).thenAnswer((_) async => (teams: [team], isFromCache: false));
 
     final cubit = TeamBloc(
       teamRepository: repository,
@@ -121,7 +124,16 @@ void main() {
     'mutation preserves loaded teams while reporting in-progress and success',
     () async {
       when(
-        () => repository.getTeamsByGroup('year1'),
+        () => repository.getTeamsByGroupWithFallback(
+          'year1',
+          includeArchived: any(named: 'includeArchived'),
+        ),
+      ).thenAnswer((_) async => (teams: [team], isFromCache: false));
+      when(
+        () => repository.getTeamsByGroup(
+          'year1',
+          includeArchived: any(named: 'includeArchived'),
+        ),
       ).thenAnswer((_) async => [team]);
       when(() => repository.updateTeam(team)).thenAnswer((_) async {});
 
@@ -155,7 +167,8 @@ void main() {
       cubit.add(TeamUpdateRequested(team));
       await expectation;
       verify(() => repository.updateTeam(team)).called(1);
-      verify(() => repository.getTeamsByGroup('year1')).called(2);
+      verify(() => repository.getTeamsByGroup('year1')).called(1);
+      verify(() => repository.getTeamsByGroupWithFallback('year1')).called(1);
       await cubit.close();
     },
   );

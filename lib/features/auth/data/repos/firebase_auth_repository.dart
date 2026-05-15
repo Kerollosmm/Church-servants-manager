@@ -17,6 +17,7 @@ class FirebaseAuthRepository implements AuthRepository {
   final FirebaseIdentityProvider _identityProvider;
   final AuthUserProfileStore _userProfileStore;
   final AuthUserLocalStore _localAuthStore;
+  final FirebaseFirestore _firestore;
 
   AuthUser? _lastKnownAppUser;
 
@@ -24,11 +25,13 @@ class FirebaseAuthRepository implements AuthRepository {
     required FirebaseIdentityProvider identityProvider,
     required AuthUserProfileStore userProfileStore,
     required AuthUserLocalStore localAuthStore,
+    required FirebaseFirestore firestore,
     Connectivity?
     connectivity, // Kept for constructor compatibility if injected elsewhere
   }) : _identityProvider = identityProvider,
        _userProfileStore = userProfileStore,
-       _localAuthStore = localAuthStore;
+       _localAuthStore = localAuthStore,
+       _firestore = firestore;
 
   @override
   AuthUser? get currentUser {
@@ -58,7 +61,7 @@ class FirebaseAuthRepository implements AuthRepository {
       }
 
       try {
-        final docRef = FirebaseFirestore.instance
+        final docRef = _firestore
             .collection(FirestoreCollections.servants)
             .doc(firebaseUser.uid);
         final docSnap = await docRef.get(const GetOptions());

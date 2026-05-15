@@ -24,7 +24,8 @@ class ArchivedAccountAuthException implements Exception {
 // Generic Exceptions
 class GenericAuthException implements Exception {
   final String? message;
-  const GenericAuthException([this.message]);
+  final Object? innerException;
+  const GenericAuthException([this.message, this.innerException]);
 
   @override
   String toString() => message ?? 'An authentication error occurred';

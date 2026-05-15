@@ -120,6 +120,12 @@ service cloud.firestore {
              servantCanReadStudent(studentData);
     }
 
+    function isPrivilegedFieldUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny([
+        'role', 'uid', 'isArchived', 'classId', 'group', 'assignedTeamIds', 'assignedTeamId'
+      ]);
+    }
+
     function isStudentInSessionRoster(sessionId, studentId) {
       let session = get(/databases/$(database)/documents/attendance/$(sessionId)).data;
       return studentId in session.get('studentIdsSnapshot', []);
@@ -175,7 +181,7 @@ service cloud.firestore {
         (isServant() && servantCanManageStudent(resource.data) &&
         !isPrivilegedFieldUpdate() &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'name', 'phone', 'birthDate', 'address', 'parentPhone', 'avatarUrl', 'notes', 'grade'
+          'name', 'mobile', 'birthdate', 'address', 'mother_number', 'father_number', 'imageUrl', 'notes', 'grade', 'education_stage', 'school_college', 'father_of_confession', 'updatedAt'
         ]))
       );
 

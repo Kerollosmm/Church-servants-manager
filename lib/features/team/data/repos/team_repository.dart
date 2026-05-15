@@ -28,7 +28,7 @@ class TeamRepository implements ITeamRepository {
   CollectionReference<Map<String, dynamic>> get _studentsCollection =>
       _firestore.collection(FirestoreCollections.students);
   CollectionReference<Map<String, dynamic>> get _usersCollection =>
-      _firestore.collection(FirestoreCollections.users);
+      _firestore.collection(FirestoreCollections.servants);
 
   TeamModel? _teamFromData(
     Map<String, dynamic> data,
@@ -87,7 +87,7 @@ class TeamRepository implements ITeamRepository {
       });
     }
 
-    for (final chunk in userIds.chunk(30)) {
+    for (final chunk in userIds.chunk(10)) {
       final usersSnapshot = await _usersCollection
           .where(FieldPath.documentId, whereIn: chunk)
           .get();
@@ -222,7 +222,7 @@ class TeamRepository implements ITeamRepository {
   }) async {
     if (ids.isEmpty) return [];
     try {
-      final chunks = ids.chunk(30);
+      final chunks = ids.chunk(10);
       final futures = chunks.map(
         (chunk) => _classesCollection
             .where(FieldPath.documentId, whereIn: chunk)
@@ -380,8 +380,10 @@ class TeamRepository implements ITeamRepository {
           return;
         }
 
-        final assignedServantId = (teamData['assignedServantId'] as String?)
-            ?.trim();
+        final assignedServantId =
+            (teamData['assignedServantId'] as String? ??
+                    teamData['assigned_servant_id'] as String?)
+                ?.trim();
         if (assignedServantId != null && assignedServantId.isNotEmpty) {
           // We can't call another async method that does its own transaction/gets here easily,
           // so we'll handle the servant update after the transaction or implement it here.
@@ -405,7 +407,7 @@ class TeamRepository implements ITeamRepository {
               }
             }
 
-            transaction.set(servantRef, {
+            transaction.update(servantRef, {
               'assignedTeamIds': assignedIds.isEmpty
                   ? FieldValue.delete()
                   : assignedIds,
@@ -413,7 +415,7 @@ class TeamRepository implements ITeamRepository {
                   ? FieldValue.delete()
                   : assignedIds.first,
               'updatedAt': FieldValue.serverTimestamp(),
-            }, SetOptions(merge: true));
+            });
           }
         }
 

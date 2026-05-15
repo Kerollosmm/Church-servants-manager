@@ -276,30 +276,48 @@ void main() {
   test('reacts to live auth session stream updates after bootstrap', () async {
     final controller = StreamController<AuthUser?>.broadcast();
     when(() => authService.userStream).thenAnswer((_) => controller.stream);
-    when(() => authService.currentUser).thenReturn(null);
+
+    final initialUser = testUser();
+    when(() => authService.currentUser).thenReturn(initialUser);
     when(
       () => authService.getCurrentAppUser(
         forceRefresh: any(named: 'forceRefresh'),
       ),
-    ).thenAnswer((_) async => null);
+    ).thenAnswer((_) async => initialUser);
 
     final bloc = AuthBloc(authService: authService, connectivity: connectivity);
 
-    // Bootstrap the bloc
+    // Bootstrap the bloc into AuthAuthenticated state
     bloc.add(const AuthEventCheckStatus());
-    await Future<void>.delayed(Duration.zero);
-    controller.add(null);
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero); // Process AuthLoading
+    await Future<void>.delayed(Duration.zero); // Process AuthAuthenticated
 
     final expectation = expectLater(
       bloc.stream,
       emitsInOrder([
-        isA<AuthAuthenticated>().having((s) => s.user.uid, 'uid', 'u1'),
+        isA<AuthRoleUpdated>().having(
+          (s) => s.user.role,
+          'role',
+          UserRole.admin,
+        ),
+        isA<AuthAuthenticated>().having(
+          (s) => s.user.role,
+          'role',
+          UserRole.admin,
+        ),
         isA<AuthUnauthenticated>(),
       ]),
     );
 
-    controller.add(testUser());
+    final updatedUser = AuthUser(
+      uid: 'u1',
+      email: 'user@example.com',
+      name: 'Test User',
+      role: UserRole.admin,
+      isEmailVerified: true,
+    );
+
+    controller.add(updatedUser);
     controller.add(null);
 
     await expectation;

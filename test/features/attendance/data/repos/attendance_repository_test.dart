@@ -1,20 +1,40 @@
 import 'dart:async';
 
 import 'package:church_management_system/core/constants/enums.dart';
+import 'package:church_management_system/features/attendance/data/local/attendance_session_local_datasource.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
 import 'package:church_management_system/features/attendance/domain/failures/attendance_failures.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
+import 'package:church_management_system/features/student/data/services/student_query_service.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+
+class MockConnectivity extends Mock implements Connectivity {}
+
+class MockStudentQueryService extends Mock implements StudentQueryService {}
+
+class MockAttendanceSessionLocalDatasource extends Mock
+    implements AttendanceSessionLocalDatasource {}
+
+class FakeAttendanceSession extends Fake implements AttendanceSession {}
 
 void main() {
   late FakeFirebaseFirestore firestore;
   late StreamController<DateTime> clockController;
   late DateTime currentTime;
   late AttendanceRepository repository;
+  late MockConnectivity connectivity;
+  late MockStudentQueryService studentQueryService;
+  late MockAttendanceSessionLocalDatasource localDatasource;
+
+  setUpAll(() {
+    registerFallbackValue(FakeAttendanceSession());
+  });
 
   final admin = const AuthUser(
     uid: 'admin-1',
@@ -92,6 +112,34 @@ void main() {
 
   setUp(() async {
     firestore = FakeFirebaseFirestore();
+    connectivity = MockConnectivity();
+    when(
+      () => connectivity.checkConnectivity(),
+    ).thenAnswer((_) async => [ConnectivityResult.wifi]);
+    studentQueryService = MockStudentQueryService();
+    localDatasource = MockAttendanceSessionLocalDatasource();
+
+    // Mock local datasource cache method so we avoid HiveError
+    when(() => localDatasource.cacheSession(any())).thenAnswer((_) async {});
+
+    // We mock getStudentsByClass to return students that were seeded in firestore
+    when(
+      () => studentQueryService.getStudentsByClass(
+        any(),
+        includeArchived: any(named: 'includeArchived'),
+        startAfter: any(named: 'startAfter'),
+      ),
+    ).thenAnswer((invocation) async {
+      final classId = invocation.positionalArguments[0] as String;
+      final snapshot = await firestore
+          .collection('Students')
+          .where('classId', isEqualTo: classId)
+          .get();
+      return snapshot.docs
+          .map((doc) => StudentModel.fromMap(doc.data(), doc.id))
+          .toList();
+    });
+
     clockController = StreamController<DateTime>.broadcast();
     currentTime = DateTime(2026, 3, 9, 18);
     await firestore.collection('Classes').doc('team-1').set({
@@ -102,6 +150,9 @@ void main() {
     repository = AttendanceRepository(
       firestore: firestore,
       nowProvider: () => currentTime,
+      connectivity: connectivity,
+      studentQueryService: studentQueryService,
+      localDatasource: localDatasource,
     );
   });
 

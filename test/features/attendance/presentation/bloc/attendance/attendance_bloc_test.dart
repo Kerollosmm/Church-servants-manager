@@ -169,7 +169,7 @@ void main() {
       final expectedStates = [
         const AttendanceLoading(),
         const AttendanceError(
-          message: 'حدث خطأ أثناء إنشاء الجلسة: Exception: Failed',
+          message: 'تعذر إنشاء جلسة الحضور. حاول مرة أخرى.',
         ),
       ];
 

@@ -26,7 +26,9 @@ class StudentQueryService {
     try {
       final cached = await ref.get(const GetOptions(source: Source.cache));
       if (cached.exists) return cached;
-    } catch (_) {}
+    } catch (e, stack) {
+      developer.log('Cache read error', error: e, stackTrace: stack);
+    }
     return ref.get(const GetOptions(source: Source.server));
   }
 
@@ -298,7 +300,9 @@ class StudentQueryService {
 
         return (students: cached, isFromCache: true);
       }
-    } catch (_) {}
+    } catch (e, stack) {
+      developer.log('Cache read error', error: e, stackTrace: stack);
+    }
 
     final serverSnapshot = await _studentsCollection
         .where('group', isEqualTo: groupName)
@@ -373,7 +377,7 @@ class StudentQueryService {
       return students;
     }
 
-    final chunks = missingIds.chunk(30);
+    final chunks = missingIds.chunk(10);
 
     for (final chunk in chunks) {
       final snapshot = await _studentsCollection
@@ -410,7 +414,7 @@ class StudentQueryService {
     if (classIds.isEmpty) return [];
 
     final studentIds = <String>[];
-    final chunks = classIds.chunk(30);
+    final chunks = classIds.chunk(10);
     final futures = chunks.map(
       (chunk) => _firestore
           .collection(FirestoreCollections.classes)

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:developer' as developer;
 
-import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/models/sync_entry.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_session_repository.dart';
 import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
@@ -47,6 +46,10 @@ class SyncService {
   static const int _maxRetries = 5;
 
   final Connectivity _connectivity;
+  final IAttendanceRepository _attendanceRepository;
+  final IStudentRepository _studentRepository;
+  final IResultsRepository _resultsRepository;
+  final AttendanceSessionRepository _sessionRepository;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   bool _isProcessing = false;
 
@@ -55,8 +58,17 @@ class SyncService {
   /// Stream of sync status updates for the UI to listen to.
   Stream<SyncStatus> get statusStream => _statusController.stream;
 
-  SyncService({Connectivity? connectivity})
-    : _connectivity = connectivity ?? Connectivity();
+  SyncService({
+    required IAttendanceRepository attendanceRepository,
+    required IStudentRepository studentRepository,
+    required IResultsRepository resultsRepository,
+    required AttendanceSessionRepository sessionRepository,
+    Connectivity? connectivity,
+  }) : _attendanceRepository = attendanceRepository,
+       _studentRepository = studentRepository,
+       _resultsRepository = resultsRepository,
+       _sessionRepository = sessionRepository,
+       _connectivity = connectivity ?? Connectivity();
 
   /// Initializes the Hive box and starts listening to connectivity changes.
   Future<void> init() async {
@@ -98,9 +110,10 @@ class SyncService {
         // Register a one-off background task to run when connectivity returns
         try {
           await Workmanager().registerOneOffTask(
-            'sync_one_off_${DateTime.now().millisecondsSinceEpoch}',
+            'sync_offline_queue',
             'offline_sync_task',
             constraints: Constraints(networkType: NetworkType.connected),
+            existingWorkPolicy: ExistingWorkPolicy.replace,
           );
         } catch (e) {
           developer.log(
@@ -214,7 +227,7 @@ class SyncService {
   Future<void> _executeEntry(SyncEntry entry) async {
     switch (entry.actionType) {
       case 'MARK_ATTENDANCE':
-        await getIt<IAttendanceRepository>().syncOfflineMark(entry.payload);
+        await _attendanceRepository.syncOfflineMark(entry.payload);
         developer.log(
           'Processing MARK_ATTENDANCE: ${entry.payload}',
           name: 'SyncService',
@@ -222,7 +235,7 @@ class SyncService {
         break;
 
       case 'UPSERT_STUDENT':
-        await getIt<IStudentRepository>().syncOfflineUpsert(entry.payload);
+        await _studentRepository.syncOfflineUpsert(entry.payload);
         developer.log(
           'Processing UPSERT_STUDENT: ${entry.payload}',
           name: 'SyncService',
@@ -230,7 +243,7 @@ class SyncService {
         break;
 
       case 'ARCHIVE_STUDENT':
-        await getIt<IStudentRepository>().syncOfflineArchive(entry.payload);
+        await _studentRepository.syncOfflineArchive(entry.payload);
         developer.log(
           'Processing ARCHIVE_STUDENT: ${entry.payload}',
           name: 'SyncService',
@@ -238,7 +251,7 @@ class SyncService {
         break;
 
       case 'RESTORE_STUDENT':
-        await getIt<IStudentRepository>().syncOfflineRestore(entry.payload);
+        await _studentRepository.syncOfflineRestore(entry.payload);
         developer.log(
           'Processing RESTORE_STUDENT: ${entry.payload}',
           name: 'SyncService',
@@ -246,7 +259,7 @@ class SyncService {
         break;
 
       case 'UPDATE_RESULT':
-        await getIt<IResultsRepository>().syncOfflineUpdate(entry.payload);
+        await _resultsRepository.syncOfflineUpdate(entry.payload);
         developer.log(
           'Processing UPDATE_RESULT: ${entry.payload}',
           name: 'SyncService',
@@ -254,9 +267,7 @@ class SyncService {
         break;
 
       case 'CREATE_SESSION':
-        await getIt<AttendanceSessionRepository>().syncOfflineSessionCreation(
-          entry.payload,
-        );
+        await _sessionRepository.syncOfflineSessionCreation(entry.payload);
         developer.log(
           'Processing CREATE_SESSION: ${entry.payload}',
           name: 'SyncService',
@@ -264,16 +275,12 @@ class SyncService {
         break;
 
       case 'CLOSE_SESSION':
-        await getIt<AttendanceSessionRepository>().syncOfflineCloseSession(
-          entry.payload,
-        );
+        await _sessionRepository.syncOfflineCloseSession(entry.payload);
         developer.log(
           'Processing CLOSE_SESSION: ${entry.payload}',
           name: 'SyncService',
         );
         break;
-
-
 
       // Add other feature-specific action types here
 

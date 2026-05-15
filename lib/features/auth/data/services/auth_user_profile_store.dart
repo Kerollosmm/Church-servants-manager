@@ -46,7 +46,10 @@ class AuthUserProfileStore {
       final profile = AuthUser.fromJson(doc.data()!);
       return profile.copyWith(uid: uid);
     } catch (e) {
-      throw GenericAuthException('Failed to fetch user data: $e');
+      throw GenericAuthException(
+        'Failed to fetch user data',
+        e is Exception ? e : Exception(e.toString()),
+      );
     }
   }
 

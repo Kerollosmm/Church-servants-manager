@@ -5,9 +5,15 @@ import 'package:church_management_system/features/servant/data/models/servant_mo
 /// Enables dependency inversion: presentation and domain layers
 /// depend on this abstraction, not concrete Firebase implementations.
 abstract class IServantRepository {
-  Future<ServantModel?> getServantById(String docId, {bool includeArchived = false});
+  Future<ServantModel?> getServantById(
+    String docId, {
+    bool includeArchived = false,
+  });
 
-  Future<ServantModel?> getServantByUid(String uid, {bool includeArchived = false});
+  Future<ServantModel?> getServantByUid(
+    String uid, {
+    bool includeArchived = false,
+  });
 
   Future<({List<ServantModel> servants, bool isFromCache})>
   getServantsByGroupWithFallback(
@@ -42,10 +48,7 @@ abstract class IServantRepository {
 
   Future<void> upsertServant(ServantModel servant);
 
-  Future<void> updateServantFields(
-    String docId,
-    Map<String, dynamic> fields,
-  );
+  Future<void> updateServantFields(String docId, Map<String, dynamic> fields);
 
   Future<String> createServant(ServantModel servant);
 
