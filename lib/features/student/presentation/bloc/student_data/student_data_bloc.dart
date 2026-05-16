@@ -510,7 +510,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     Emitter<StudentDataState> emit,
   ) async {
     try {
-      if (!_canMutateStudent(event.actor, event.student)) {
+      if (!_canMutateStudent.canCreate(event.actor, event.student)) {
         _emitNotAllowed(emit);
         return;
       }
@@ -539,7 +539,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
         emit(const StudentDataError('لم يتم العثور على المخدوم.'));
         return;
       }
-      if (!_canMutateStudent(event.actor, existing)) {
+      if (!_canMutateStudent.canUpdate(event.actor, existing, event.student)) {
         _emitNotAllowed(emit);
         return;
       }
@@ -594,7 +594,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
         emit(const StudentDataError('لم يتم العثور على المخدوم.'));
         return;
       }
-      if (!_canMutateStudent(event.actor, existing)) {
+      if (!_canMutateStudent.canDelete(event.actor, existing)) {
         _emitNotAllowed(emit);
         return;
       }

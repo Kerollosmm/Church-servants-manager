@@ -28,13 +28,34 @@ void main() {
 
     test('returns error when too short', () {
       expect(
-        Validators.validatePassword('12345'),
-        'Password must be at least 6 characters',
+        Validators.validatePassword('P4ssw0r'),
+        'Password must be at least 8 characters',
+      );
+    });
+
+    test('returns error when missing uppercase', () {
+      expect(
+        Validators.validatePassword('p4ssw0rd'),
+        'Password must contain at least one uppercase letter, one lowercase letter, and one digit',
+      );
+    });
+
+    test('returns error when missing lowercase', () {
+      expect(
+        Validators.validatePassword('P4SSW0RD'),
+        'Password must contain at least one uppercase letter, one lowercase letter, and one digit',
+      );
+    });
+
+    test('returns error when missing digit', () {
+      expect(
+        Validators.validatePassword('Password'),
+        'Password must contain at least one uppercase letter, one lowercase letter, and one digit',
       );
     });
 
     test('returns null when valid', () {
-      expect(Validators.validatePassword('123456'), isNull);
+      expect(Validators.validatePassword('P4ssw0rd'), isNull);
     });
   });
 
@@ -106,6 +127,30 @@ void main() {
         'أدخل رقم هاتف صحيح مكون من 11 رقما',
       );
       expect(Validators.validatePhoneArabic('01234567890'), isNull);
+    });
+
+    group('Validators.validatePasswordArabic', () {
+      test('returns error when empty', () {
+        expect(Validators.validatePasswordArabic(''), 'كلمة المرور مطلوبة');
+      });
+
+      test('returns error when too short', () {
+        expect(
+          Validators.validatePasswordArabic('P4ssw0r'),
+          'يجب أن تكون كلمة المرور 8 أحرف على الأقل',
+        );
+      });
+
+      test('returns error when missing requirements', () {
+        expect(
+          Validators.validatePasswordArabic('password123'),
+          'يجب أن تحتوي كلمة المرور على حرف كبير، حرف صغير، ورقم واحد على الأقل',
+        );
+      });
+
+      test('returns null when valid', () {
+        expect(Validators.validatePasswordArabic('P4ssw0rd'), isNull);
+      });
     });
   });
 }

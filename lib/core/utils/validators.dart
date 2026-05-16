@@ -1,6 +1,9 @@
 class Validators {
   static final _emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
   static final _phoneRegex = RegExp(r'^\d{11}$');
+  static final _passwordRegex = RegExp(
+    r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$',
+  );
 
   static String? validateEmail(String? value) {
     if (value == null || value.isEmpty) {
@@ -16,8 +19,11 @@ class Validators {
     if (value == null || value.isEmpty) {
       return 'Password is required';
     }
-    if (value.length < 6) {
-      return 'Password must be at least 6 characters';
+    if (value.length < 8) {
+      return 'Password must be at least 8 characters';
+    }
+    if (!_passwordRegex.hasMatch(value)) {
+      return 'Password must contain at least one uppercase letter, one lowercase letter, and one digit';
     }
     return null;
   }
@@ -73,8 +79,11 @@ class Validators {
     if (value == null || value.isEmpty) {
       return 'كلمة المرور مطلوبة';
     }
-    if (value.length < 6) {
-      return 'يجب أن تكون كلمة المرور 6 أحرف على الأقل';
+    if (value.length < 8) {
+      return 'يجب أن تكون كلمة المرور 8 أحرف على الأقل';
+    }
+    if (!_passwordRegex.hasMatch(value)) {
+      return 'يجب أن تحتوي كلمة المرور على حرف كبير، حرف صغير، ورقم واحد على الأقل';
     }
     return null;
   }

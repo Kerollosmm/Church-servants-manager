@@ -25,17 +25,15 @@ void main() {
     when(() => localDatasource.cacheResults(any())).thenAnswer((_) async {
       return;
     });
-    when(() => localDatasource.cacheResult(any(), any())).thenAnswer((
-      _,
-    ) async {
+    when(() => localDatasource.cacheResult(any(), any())).thenAnswer((_) async {
       return;
     });
-    when(() => localDatasource.getCachedResultsForGroup(any())).thenAnswer(
-      (_) async => [],
-    );
-    when(() => localDatasource.getCachedResultForStudent(any())).thenAnswer(
-      (_) async => null,
-    );
+    when(
+      () => localDatasource.getCachedResultsForGroup(any()),
+    ).thenAnswer((_) async => []);
+    when(
+      () => localDatasource.getCachedResultForStudent(any()),
+    ).thenAnswer((_) async => null);
     repository = ResultsRepository(
       firestore: firestore,
       localDatasource: localDatasource,

@@ -161,7 +161,9 @@ void main() {
   test('create emits not-allowed when actor cannot mutate student', () async {
     final servant = actor(UserRole.servant);
     final newStudent = student();
-    when(() => canMutateStudent(servant, newStudent)).thenReturn(false);
+    when(
+      () => canMutateStudent.canCreate(servant, newStudent),
+    ).thenReturn(false);
 
     final bloc = StudentDataBloc(
       studentRepository: repository,
@@ -217,7 +219,9 @@ void main() {
     when(
       () => repository.getStudentById('s1'),
     ).thenAnswer((_) async => existing);
-    when(() => canMutateStudent(servantActor, existing)).thenReturn(true);
+    when(
+      () => canMutateStudent.canUpdate(servantActor, existing, updated),
+    ).thenReturn(true);
 
     final bloc = StudentDataBloc(
       studentRepository: repository,
@@ -252,7 +256,9 @@ void main() {
     when(
       () => repository.getStudentById('s2'),
     ).thenAnswer((_) async => existing);
-    when(() => canMutateStudent(adminActor, existing)).thenReturn(true);
+    when(
+      () => canMutateStudent.canUpdate(adminActor, existing, updated),
+    ).thenReturn(true);
 
     final bloc = StudentDataBloc(
       studentRepository: repository,
@@ -284,7 +290,7 @@ void main() {
     final admin = actor(UserRole.admin);
     final newStudent = student(id: 'local-id');
 
-    when(() => canMutateStudent(admin, newStudent)).thenReturn(true);
+    when(() => canMutateStudent.canCreate(admin, newStudent)).thenReturn(true);
     when(
       () => provisionUseCase(
         student: newStudent,
@@ -337,7 +343,9 @@ void main() {
       final admin = actor(UserRole.admin);
       final newStudent = student(id: 'local-id');
 
-      when(() => canMutateStudent(admin, newStudent)).thenReturn(true);
+      when(
+        () => canMutateStudent.canCreate(admin, newStudent),
+      ).thenReturn(true);
       when(
         () => provisionUseCase(student: newStudent),
       ).thenAnswer((_) async => 's1');
@@ -376,7 +384,9 @@ void main() {
     when(
       () => repository.getStudentById('s3'),
     ).thenAnswer((_) async => existing);
-    when(() => canMutateStudent(adminActor, existing)).thenReturn(true);
+    when(
+      () => canMutateStudent.canDelete(adminActor, existing),
+    ).thenReturn(true);
 
     when(
       () => provisionUseCase.archive(

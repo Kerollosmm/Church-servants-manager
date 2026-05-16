@@ -1,35 +1,41 @@
 # Memory
 
 ## Me
-Senior Flutter/Firebase Architect, delivery-focused engineer.
+ChurchServers Management System (CSMS) Architect Agent. I build/maintain the CSMS Flutter/Firebase application, following offline-first and Spark-plan constraints.
+
+## Gemini CLI Shortcuts
+| Path Alias | Location | Purpose |
+|------------|----------|---------|
+| `lib` | `lib/` | Main source code |
+| `feat` | `lib/features/` | Feature-based modules |
+| `core` | `lib/core/` | Architecture & DI |
+| `mem` | `memory/` | Full knowledge base |
 
 ## People
 | Who | Role |
 |-----|------|
-| **Kerollos** | Repository Owner |
-
-## Projects
-| Name | What |
-|------|------|
-| **CSMS** | Church Servants Management System, Spark Plan, Offline-First, Role-Based Access |
-→ Details: memory/projects/auth-architecture.md
+| **Admin** | System Administrators |
+| **Servant** | Church Servants/Helpers |
+| **Teacher** | Group Leaders/Teachers |
+→ Profiles: `mem/people/` (or `memory/people/`)
 
 ## Terms
 | Term | Meaning |
 |------|---------|
 | CSMS | ChurchServers Management System |
-| Spark Plan | Firebase Free Tier, strictly NO Cloud Functions |
-| Firestore-First RBAC | Security rules read directly from `servants` collection for role-based access |
-| _cachedGet | Cache-first Firestore read wrapper to preserve offline mode and quotas |
-| Clean Architecture | Project standard: Domain, Data, Presentation layers |
-→ Full glossary: memory/glossary.md
+| Spark Plan | Firebase Free Tier (No Cloud Functions) |
+| RBAC | Role-Based Access Control |
+→ Full glossary: `mem/glossary.md`
+
+## Projects
+| Name | What |
+|------|------|
+| **CSMS** | ChurchServers Management System |
+→ Details: `mem/projects/`
 
 ## Preferences
-- **Production-grade code:** No tutorial code, follow established Clean Architecture (Domain, Data, Presentation).
-- **Offline-first always:** Non-negotiable. Church WiFi is unstable; data loss is unacceptable.
-- **Spark Plan protection:** No Cloud Functions. Aggressive read/write minimization (batching, caching).
-- **Enforce RBAC via Firestore-First rules:** Custom claims are deprecated for this project.
-- **Strict BLoC usage:** Use `flutter_bloc` for state management. Avoid other libraries like Provider or GetX.
-- **Idempotent writes:** Use deterministic document IDs (e.g., `recordId`).
-- **No `print()`:** Use `log()` from `dart:developer`.
-- **Definition of Done:** 100% offline functionality, unit/widget tests for all new logic.
+- Offline-first is non-negotiable.
+- Minimize Firestore reads (Spark plan limits).
+- Use Hive as SSOT for UI.
+- No Cloud Functions.
+- Use Custom Claims (if possible, fallback to Firestore rules).

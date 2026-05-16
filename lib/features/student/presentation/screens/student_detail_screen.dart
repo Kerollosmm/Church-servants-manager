@@ -18,7 +18,11 @@ class StudentDetailScreen extends StatelessWidget {
 
   const StudentDetailScreen({super.key, required this.args});
 
-  bool _canEdit() => const CanMutateStudentUseCase()(args.actor, args.student);
+  bool _canEdit() => const CanMutateStudentUseCase().canUpdate(
+    args.actor,
+    args.student,
+    args.student,
+  );
 
   @override
   Widget build(BuildContext context) {
