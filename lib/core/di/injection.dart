@@ -124,11 +124,9 @@ void _registerRepositories() {
     ..registerLazySingleton<AttendanceSessionLocalDatasource>(
       AttendanceSessionLocalDatasource.new,
     )
-    ..registerLazySingleton<StudentLocalDatasource>(() {
-      final ds = StudentLocalDatasource();
-      ds.init();
-      return ds;
-    })
+    ..registerLazySingleton<StudentLocalDatasource>(
+      () => StudentLocalDatasource()..init(),
+    )
     ..registerLazySingleton<IStudentRepository>(
       () => StudentDataRepository(
         firestore: getIt(),
