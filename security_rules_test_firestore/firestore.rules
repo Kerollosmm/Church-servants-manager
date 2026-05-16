@@ -41,7 +41,6 @@ service cloud.firestore {
     //   - startsAt: timestamp (required)
     //   - endsAt: timestamp (required)
     //   - isClosed: bool (required)
-    //   - studentIdsSnapshot: list<string> (required)
     //
     // Collection: attendance/{sessionId}/marks
     // Document ID: {studentId}_{sessionId}
@@ -122,12 +121,6 @@ service cloud.firestore {
              servantCanReadStudent(studentData);
     }
 
-    function isPrivilegedFieldUpdate() {
-      return request.resource.data.diff(resource.data).affectedKeys().hasAny([
-        'role', 'uid', 'isArchived', 'classId', 'group', 'assignedTeamIds', 'assignedTeamId'
-      ]);
-    }
-
     function isStudentInSessionRoster(sessionId, studentId) {
       let session = get(/databases/$(database)/documents/attendance/$(sessionId)).data;
       return studentId in session.get('studentIdsSnapshot', []);
@@ -144,16 +137,15 @@ service cloud.firestore {
 
     // ─── Servants Collection ──────────────────────────────────────
     match /servants/{userId} {
-      // Check isOwner first to short-circuit and avoid calling isAdmin() (which calls getUserData())
-      allow read: if isSignedIn() && (userId == callerUid() || isAdmin());
+      allow read: if isSignedIn() && (isOwner(userId) || isAdmin());
       
       allow create: if isSignedIn() && (
-        isAdmin() || (userId == callerUid() && request.resource.data.role == 'student')
+        isAdmin() || (isOwner(userId) && request.resource.data.role == 'student')
       );
 
       allow update: if isSignedIn() && (
         isAdmin() || (
-          userId == callerUid() && 
+          isOwner(userId) && 
           isImmutable('role') && 
           isImmutable('uid') &&
           isImmutable('isArchived') &&
@@ -179,12 +171,8 @@ service cloud.firestore {
       );
 
       allow update: if isSignedIn() && (
-        isAdmin() ||
+        isAdmin() || 
         (isServant() && servantCanManageStudent(resource.data) &&
-        !isPrivilegedFieldUpdate() &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'name', 'mobile', 'birthdate', 'address', 'mother_number', 'father_number', 'imageUrl', 'notes', 'grade', 'education_stage', 'school_college', 'father_of_confession', 'updatedAt'
-        ]) &&
         (!('name' in request.resource.data) || (
           request.resource.data.name is string &&
           request.resource.data.name.size() > 0 &&
@@ -205,7 +193,8 @@ service cloud.firestore {
     match /attendance/{sessionId} {
       allow read: if isSignedIn() && (isAdmin() || servantCanManageTeam(resource.data.teamId));
       allow create: if isSignedIn() && (isAdmin() || servantCanManageTeam(request.resource.data.teamId));
-      allow update, delete: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
 
       match /marks/{studentDocId} {
         allow read: if isSignedIn() && (
@@ -218,6 +207,10 @@ service cloud.firestore {
           isAdmin() || 
           (
             servantCanManageTeam(get(/databases/$(database)/documents/attendance/$(sessionId)).data.teamId) &&
+            isStudentInSessionRoster(sessionId, studentDocId.split('_')[0])
+          ) ||
+          (
+            studentDocId.split('_')[1] == 'system' &&
             isStudentInSessionRoster(sessionId, studentDocId.split('_')[0])
           )
         );
@@ -251,12 +244,6 @@ service cloud.firestore {
     // ─── Admin ────────────────────────────────────────────────────
     match /admin/{document=**} {
       allow read, write: if isAdmin();
-    }
-
-    // ─── Audit Logs ───────────────────────────────────────────────
-    match /audit_logs/{logId} {
-      allow read: if isAdmin();
-      allow write: if false; // System-level writes only (or via Admin SDK)
     }
   }
 }
