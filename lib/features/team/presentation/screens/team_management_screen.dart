@@ -11,6 +11,7 @@ import 'package:church_management_system/core/widgets/sync_status_banner.dart';
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:church_management_system/features/servant/data/models/servant_models.dart';
 import 'package:church_management_system/features/team/data/models/team_model.dart';
 import 'package:church_management_system/features/team/data/repos/team_repository.dart';
 import 'package:church_management_system/features/team/presentation/bloc/team_bloc.dart';
@@ -202,20 +203,31 @@ class _TeamManagementViewState extends State<_TeamManagementView>
     );
   }
 
-  void _showAssignServantDialog(TeamModel team) {
+  Future<void> _showAssignServantDialog(TeamModel team) async {
     final actor = _currentActor();
     if (actor == null) {
       AppSnackbars.showError(context, 'لم يتم العثور على مستخدم مسجل الدخول.');
       return;
     }
 
-    showDialog(
+    final bloc = _teamCubit;
+    final selectedServant = await showDialog<ServantModel>(
       context: context,
       builder: (_) => BlocProvider<TeamBloc>.value(
-        value: _teamCubit,
+        value: bloc,
         child: AssignServantDialog(actor: actor, team: team),
       ),
     );
+
+    if (selectedServant != null && mounted) {
+      bloc.add(
+        ServantAssignedToTeam(
+          actor: actor,
+          team: team,
+          servant: selectedServant,
+        ),
+      );
+    }
   }
 
   @override
