@@ -1,14 +1,14 @@
 import 'package:church_management_system/features/servant/data/models/servant_models.dart';
-import 'package:church_management_system/features/servant/data/repo/servant_data_repository.dart';
+import 'package:church_management_system/features/servant/domain/repos/i_servant_repository.dart';
 import 'package:church_management_system/features/team/presentation/cubit/assign_servant_cubit.dart';
 import 'package:church_management_system/features/team/presentation/cubit/assign_servant_state.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
-class MockServantDataRepository extends Mock implements ServantDataRepository {}
+class MockServantRepository extends Mock implements IServantRepository {}
 
 void main() {
-  late MockServantDataRepository mockRepository;
+  late MockServantRepository mockRepository;
   late AssignServantCubit cubit;
 
   final servantA = ServantModel(docID: 's1', name: 'Servant A');
@@ -16,7 +16,7 @@ void main() {
   final servantADuplicate = ServantModel(docID: 's1', name: 'Servant A Copy');
 
   setUp(() {
-    mockRepository = MockServantDataRepository();
+    mockRepository = MockServantRepository();
     cubit = AssignServantCubit(servantRepository: mockRepository);
   });
 

@@ -1,12 +1,12 @@
 import 'package:church_management_system/features/servant/data/models/servant_models.dart';
-import 'package:church_management_system/features/servant/data/repo/servant_data_repository.dart';
+import 'package:church_management_system/features/servant/domain/repos/i_servant_repository.dart';
 import 'package:church_management_system/features/team/presentation/cubit/assign_servant_state.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class AssignServantCubit extends Cubit<AssignServantState> {
-  final ServantDataRepository _servantRepository;
+  final IServantRepository _servantRepository;
 
-  AssignServantCubit({required ServantDataRepository servantRepository})
+  AssignServantCubit({required IServantRepository servantRepository})
       : _servantRepository = servantRepository,
         super(const AssignServantInitial());
 

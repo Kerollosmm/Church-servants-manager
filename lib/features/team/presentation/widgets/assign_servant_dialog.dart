@@ -1,6 +1,6 @@
 import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
-import 'package:church_management_system/features/servant/data/repo/servant_data_repository.dart';
+import 'package:church_management_system/features/servant/domain/repos/i_servant_repository.dart';
 import 'package:church_management_system/features/team/data/models/team_model.dart';
 import 'package:church_management_system/features/team/presentation/cubit/assign_servant_cubit.dart';
 import 'package:church_management_system/features/team/presentation/cubit/assign_servant_state.dart';
@@ -29,7 +29,7 @@ class _AssignServantDialogState extends State<AssignServantDialog> {
   Widget build(BuildContext context) {
     return BlocProvider<AssignServantCubit>(
       create: (_) => AssignServantCubit(
-        servantRepository: getIt<ServantDataRepository>(),
+        servantRepository: getIt<IServantRepository>(),
       )..loadServants(widget.team.groupId),
       child: BlocConsumer<AssignServantCubit, AssignServantState>(
         listener: (context, state) {
