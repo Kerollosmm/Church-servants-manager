@@ -7,6 +7,7 @@ import 'package:church_management_system/church_app.dart';
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/models/sync_entry.dart';
+import 'package:church_management_system/core/services/hive_pruning_service.dart';
 import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/features/auth/data/services/auth_user_local_store.dart';
 import 'package:church_management_system/features/results/data/models/results_model.dart';
@@ -133,6 +134,9 @@ void main() {
 
         // Initialize Sync Engine (Foreground)
         await getIt<SyncService>().init();
+
+        // Run Hive pruning on startup (fire-and-forget)
+        unawaited(getIt<HivePruningService>().pruneAll());
 
         runApp(const ChurchApp());
       } catch (error, stack) {

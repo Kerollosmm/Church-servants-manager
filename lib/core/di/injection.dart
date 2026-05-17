@@ -2,6 +2,7 @@ import 'package:church_management_system/core/blocs/connectivity/connectivity_cu
 import 'package:church_management_system/core/blocs/sync/sync_cubit.dart';
 import 'package:church_management_system/core/routing/app_router.dart';
 import 'package:church_management_system/core/services/dead_letter_queue.dart';
+import 'package:church_management_system/core/services/hive_pruning_service.dart';
 import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/features/admin/data/admin_team_membership_service.dart';
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
@@ -62,6 +63,9 @@ void _registerCore() {
     ..registerLazySingleton<FirebaseFirestore>(() => FirebaseFirestore.instance)
     // ---- Core Services ----
     ..registerLazySingleton<DeadLetterQueue>(DeadLetterQueue.new)
+    ..registerLazySingleton<HivePruningService>(
+      () => HivePruningService(deadLetterQueue: getIt<DeadLetterQueue>()),
+    )
     ..registerLazySingleton<SyncService>(
       () => SyncService(
         attendanceRepository: getIt<IAttendanceRepository>(),
