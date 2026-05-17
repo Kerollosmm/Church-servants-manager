@@ -34,7 +34,7 @@ class AuthUserProfileStore {
         return cached;
       }
 
-      // Fetch profile with cache-first fallback (manual serverAndCache equivalent)
+      // Fetch profile with cache-first, server-fallback strategy
       final doc = await _cachedGet(
         _db.collection(FirestoreCollections.servants).doc(uid),
       );
