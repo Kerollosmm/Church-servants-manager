@@ -26,12 +26,17 @@ class SyncEntry extends HiveObject {
   @HiveField(4)
   int retryCount;
 
+  /// Timestamp when this entry was moved to the dead-letter queue (null if still active).
+  @HiveField(5)
+  final DateTime? failedAt;
+
   SyncEntry({
     required this.id,
     required this.actionType,
     required this.payload,
     required this.createdAt,
     this.retryCount = 0,
+    this.failedAt,
   });
 
   /// Deterministic key for deduplication.
@@ -42,5 +47,6 @@ class SyncEntry extends HiveObject {
     'payload': payload,
     'createdAt': createdAt.toIso8601String(),
     'retryCount': retryCount,
+    'failedAt': failedAt?.toIso8601String(),
   };
 }
