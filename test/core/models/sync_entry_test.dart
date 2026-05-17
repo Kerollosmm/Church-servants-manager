@@ -37,5 +37,30 @@ void main() {
       final json = entry.toJson();
       expect(json['failedAt'], now.toIso8601String());
     });
+
+    test('retryCount defaults to 0', () {
+      final entry = SyncEntry(
+        id: 'test',
+        actionType: 'MARK_ATTENDANCE',
+        payload: {'key': 'value'},
+        createdAt: DateTime(2026, 1, 1),
+      );
+      expect(entry.retryCount, 0);
+    });
+
+    test('toJson returns all fields', () {
+      final entry = SyncEntry(
+        id: 'test',
+        actionType: 'MARK_ATTENDANCE',
+        payload: {'studentId': 'abc'},
+        createdAt: DateTime(2026, 1, 1),
+      );
+      final json = entry.toJson();
+      expect(json['id'], 'test');
+      expect(json['actionType'], 'MARK_ATTENDANCE');
+      expect(json['payload'], {'studentId': 'abc'});
+      expect(json['retryCount'], 0);
+      expect(json['failedAt'], isNull);
+    });
   });
 }
