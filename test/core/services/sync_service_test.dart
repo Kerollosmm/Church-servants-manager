@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:church_management_system/core/models/sync_entry.dart';
+import 'package:church_management_system/core/services/dead_letter_queue.dart';
 import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_session_repository.dart';
 import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
@@ -23,12 +24,15 @@ class MockSessionRepository extends Mock
 
 class MockConnectivity extends Mock implements Connectivity {}
 
+class MockDeadLetterQueue extends Mock implements DeadLetterQueue {}
+
 void main() {
   late MockAttendanceRepository attendanceRepo;
   late MockStudentRepository studentRepo;
   late MockResultsRepository resultsRepo;
   late MockSessionRepository sessionRepo;
   late MockConnectivity connectivity;
+  late MockDeadLetterQueue mockDlq;
   late SyncService syncService;
 
   SyncEntry entry({required String id, String actionType = 'MARK_ATTENDANCE'}) {
@@ -47,6 +51,14 @@ void main() {
   setUpAll(() {
     Hive.init(Directory.systemTemp.createTempSync('hive_test_').path);
     Hive.registerAdapter(SyncEntryAdapter());
+    registerFallbackValue(
+      SyncEntry(
+        id: 'fallback',
+        actionType: 'MARK_ATTENDANCE',
+        payload: {},
+        createdAt: DateTime.now(),
+      ),
+    );
   });
 
   setUp(() async {
@@ -55,6 +67,9 @@ void main() {
     resultsRepo = MockResultsRepository();
     sessionRepo = MockSessionRepository();
     connectivity = MockConnectivity();
+    mockDlq = MockDeadLetterQueue();
+    when(() => mockDlq.init()).thenAnswer((_) async {});
+    when(() => mockDlq.add(any())).thenAnswer((_) async {});
 
     when(
       () => connectivity.checkConnectivity(),
@@ -68,6 +83,7 @@ void main() {
       studentRepository: studentRepo,
       resultsRepository: resultsRepo,
       sessionRepository: sessionRepo,
+      deadLetterQueue: mockDlq,
       connectivity: connectivity,
     );
 

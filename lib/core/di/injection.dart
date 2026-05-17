@@ -1,6 +1,7 @@
 import 'package:church_management_system/core/blocs/connectivity/connectivity_cubit.dart';
 import 'package:church_management_system/core/blocs/sync/sync_cubit.dart';
 import 'package:church_management_system/core/routing/app_router.dart';
+import 'package:church_management_system/core/services/dead_letter_queue.dart';
 import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/features/admin/data/admin_team_membership_service.dart';
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
@@ -60,12 +61,14 @@ void _registerCore() {
   getIt
     ..registerLazySingleton<FirebaseFirestore>(() => FirebaseFirestore.instance)
     // ---- Core Services ----
+    ..registerLazySingleton<DeadLetterQueue>(DeadLetterQueue.new)
     ..registerLazySingleton<SyncService>(
       () => SyncService(
         attendanceRepository: getIt<IAttendanceRepository>(),
         studentRepository: getIt<IStudentRepository>(),
         resultsRepository: getIt<IResultsRepository>(),
         sessionRepository: getIt<AttendanceSessionRepository>(),
+        deadLetterQueue: getIt<DeadLetterQueue>(),
       ),
     )
     ..registerFactory<SyncCubit>(
@@ -128,14 +131,12 @@ void _registerRepositories() {
     ..registerLazySingleton<AttendanceSessionLocalDatasource>(
       AttendanceSessionLocalDatasource.new,
     )
-    ..registerLazySingleton<StudentLocalDatasource>(
-      () => StudentLocalDatasource()..init(),
-    )
+    ..registerLazySingleton<StudentLocalDatasource>(StudentLocalDatasource.new)
     ..registerLazySingleton<IStudentRepository>(
       () => StudentDataRepository(
         firestore: getIt(),
         localDatasource: getIt<StudentLocalDatasource>(),
-        syncService: getIt<SyncService>(),
+        enqueue: (entry) => getIt<SyncService>().enqueue(entry),
       ),
     )
     ..registerLazySingleton<ResultsLocalDatasource>(ResultsLocalDatasource.new)

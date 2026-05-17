@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:church_management_system/core/models/sync_entry.dart';
+import 'package:church_management_system/core/services/dead_letter_queue.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_session_repository.dart';
 import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
 import 'package:church_management_system/features/results/domain/repos/i_results_repository.dart';
@@ -44,12 +45,14 @@ class SyncStatus {
 class SyncService {
   static const String _boxName = 'sync_queue_box';
   static const int _maxRetries = 5;
+  static const int _baseBackoffMs = 500;
 
   final Connectivity _connectivity;
   final IAttendanceRepository _attendanceRepository;
   final IStudentRepository _studentRepository;
   final IResultsRepository _resultsRepository;
   final AttendanceSessionRepository _sessionRepository;
+  final DeadLetterQueue _dlq;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   bool _isProcessing = false;
 
@@ -63,17 +66,20 @@ class SyncService {
     required IStudentRepository studentRepository,
     required IResultsRepository resultsRepository,
     required AttendanceSessionRepository sessionRepository,
+    required DeadLetterQueue deadLetterQueue,
     Connectivity? connectivity,
   }) : _attendanceRepository = attendanceRepository,
        _studentRepository = studentRepository,
        _resultsRepository = resultsRepository,
        _sessionRepository = sessionRepository,
+       _dlq = deadLetterQueue,
        _connectivity = connectivity ?? Connectivity();
 
   /// Initializes the Hive box and starts listening to connectivity changes.
   Future<void> init() async {
     // Note: Ensure Hive.registerAdapter(SyncEntryAdapter()) is called in main.dart
     await Hive.openBox<SyncEntry>(_boxName);
+    await _dlq.init();
 
     // Listen for network changes to auto-trigger the sync queue
     _connectivitySubscription = _connectivity.onConnectivityChanged.listen((
@@ -167,12 +173,11 @@ class SyncService {
 
         if (entry.retryCount >= _maxRetries) {
           developer.log(
-            'SyncEntry ${entry.id} reached max retries. Marking failed/deleting.',
+            'SyncEntry ${entry.id} reached max retries. Moving to DLQ.',
             name: 'SyncService',
           );
-          // To prevent blocking the queue forever, we drop the failing entry.
-          // In a fully robust system, you might move it to a 'dead-letter' box.
           await box.delete(entry.id);
+          await _dlq.add(entry);
           processedEntries++;
           _statusController.add(
             SyncStatus.processing(
@@ -200,7 +205,6 @@ class SyncService {
             error: e,
             name: 'SyncService',
           );
-          // Increment retry count and save back to Hive
           entry.retryCount++;
           await entry.save();
 
@@ -209,8 +213,10 @@ class SyncService {
               'حدث خطأ أثناء مزامنة بعض البيانات. سيتم المحاولة لاحقاً.',
             ),
           );
-          // Exponential backoff logic could optionally be inserted here.
-          // For now, we continue to the next item or break depending on the error severity.
+
+          // Exponential backoff: 500ms, 1s, 2s, 4s, 8s
+          final backoffMs = _baseBackoffMs * (1 << (entry.retryCount - 1));
+          await Future<void>.delayed(Duration(milliseconds: backoffMs));
         }
       }
 
