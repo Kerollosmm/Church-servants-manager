@@ -1,12 +1,15 @@
+import 'dart:io';
+
 import 'package:church_management_system/core/models/sync_entry.dart';
+import 'package:church_management_system/core/services/dead_letter_queue.dart';
 import 'package:church_management_system/core/services/hive_pruning_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
-import 'dart:io';
 
 void main() {
   late Directory tempDir;
   late HivePruningService pruner;
+  late DeadLetterQueue dlq;
 
   setUp(() async {
     tempDir = await Directory.systemTemp.createTemp('prune_test');
@@ -14,7 +17,9 @@ void main() {
     if (!Hive.isAdapterRegistered(100)) {
       Hive.registerAdapter(SyncEntryAdapter());
     }
-    pruner = HivePruningService();
+    dlq = DeadLetterQueue();
+    await dlq.init();
+    pruner = HivePruningService(deadLetterQueue: dlq);
   });
 
   tearDown(() async {
@@ -23,7 +28,7 @@ void main() {
   });
 
   group('HivePruningService', () {
-    test('pruneSyncQueue removes entries older than 30 days', () async {
+    test('pruneSyncQueue moves entries older than 30 days to DLQ', () async {
       final box = await Hive.openBox<SyncEntry>('sync_queue_box');
 
       await box.put('old_1', SyncEntry(
@@ -46,10 +51,14 @@ void main() {
       expect(box.containsKey('recent_1'), isTrue);
       expect(box.containsKey('old_1'), isFalse);
 
+      // Entry should be in DLQ, not lost
+      expect(dlq.length, 1);
+      expect(dlq.getAll().first.id, 'old_1');
+
       await box.close();
     });
 
-    test('pruneBox removes string-cached entries by timestamp field', () async {
+    test('pruneStringBox removes cached entries by timestamp field', () async {
       final box = await Hive.openBox<String>('attendance_marks_cache');
 
       await box.put('mark_old', '{"studentId":"s1","cachedAt":"${DateTime.now().subtract(const Duration(days: 45)).toIso8601String()}"}');
@@ -88,6 +97,11 @@ void main() {
       await box.close();
     });
 
+    test('pruneSyncQueue returns 0 when box is not open', () async {
+      final pruned = await pruner.pruneSyncQueue();
+      expect(pruned, 0);
+    });
+
     test('pruneAll runs all prunable boxes', () async {
       final syncBox = await Hive.openBox<SyncEntry>('sync_queue_box');
       await syncBox.put('old', SyncEntry(
@@ -100,6 +114,9 @@ void main() {
       final result = await pruner.pruneAll();
       expect(result.totalPruned, greaterThanOrEqualTo(1));
       expect(syncBox.isEmpty, isTrue);
+
+      // Old entry moved to DLQ
+      expect(dlq.length, greaterThanOrEqualTo(1));
 
       await syncBox.close();
     });

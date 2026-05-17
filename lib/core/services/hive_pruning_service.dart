@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 
 import 'package:church_management_system/core/models/sync_entry.dart';
+import 'package:church_management_system/core/services/dead_letter_queue.dart';
 import 'package:hive/hive.dart';
 
 /// Result of a pruning operation across all boxes.
@@ -12,32 +13,52 @@ class PruneResult {
   const PruneResult({required this.totalPruned, required this.perBox});
 }
 
-/// Deletes synced Hive entries older than a configurable age (default 30 days).
+/// Prunes Hive cache entries older than a configurable age (default 30 days).
+///
+/// Old sync queue entries are moved to [DeadLetterQueue] rather than deleted,
+/// preserving them for inspection. Cache-only boxes (attendance marks/sessions)
+/// are hard-deleted since they are replicas of Firestore data.
 ///
 /// Run on app startup or as a periodic maintenance task.
 class HivePruningService {
   static const Duration _defaultMaxAge = Duration(days: 30);
 
-  /// Prunes the typed [SyncEntry] queue box.
+  final DeadLetterQueue _dlq;
+
+  HivePruningService({required DeadLetterQueue deadLetterQueue})
+      : _dlq = deadLetterQueue;
+
+  /// Moves old sync queue entries to DLQ instead of deleting them.
   Future<int> pruneSyncQueue({Duration maxAge = _defaultMaxAge}) async {
+    if (!Hive.isBoxOpen('sync_queue_box')) {
+      developer.log(
+        'sync_queue_box not open, skipping prune',
+        name: 'HivePruningService',
+      );
+      return 0;
+    }
+
     final box = Hive.box<SyncEntry>('sync_queue_box');
     final cutoff = DateTime.now().subtract(maxAge);
-    final toRemove = <String>[];
+    final toMove = <SyncEntry>[];
 
     for (final entry in box.values) {
       if (entry.createdAt.isBefore(cutoff)) {
-        toRemove.add(entry.id);
+        toMove.add(entry);
       }
     }
 
-    if (toRemove.isNotEmpty) {
-      await box.deleteAll(toRemove);
+    if (toMove.isNotEmpty) {
+      for (final entry in toMove) {
+        await box.delete(entry.id);
+        await _dlq.add(entry);
+      }
       developer.log(
-        'Pruned ${toRemove.length} entries from sync_queue_box',
+        'Moved ${toMove.length} expired entries from sync_queue_box to DLQ',
         name: 'HivePruningService',
       );
     }
-    return toRemove.length;
+    return toMove.length;
   }
 
   /// Prunes a generic String box where entries contain a timestamp field.
