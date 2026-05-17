@@ -28,7 +28,7 @@ class SyncEntry extends HiveObject {
 
   /// Timestamp when this entry was moved to the dead-letter queue (null if still active).
   @HiveField(5)
-  final DateTime? failedAt;
+  DateTime? failedAt;
 
   SyncEntry({
     required this.id,
