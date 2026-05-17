@@ -2,7 +2,6 @@ import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
 import 'package:church_management_system/core/utils/validators.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
-import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/student/presentation/bloc/student_profile/student_profile_bloc.dart';
 import 'package:church_management_system/features/student/presentation/bloc/student_profile/student_profile_event.dart';
 import 'package:flutter/material.dart';
@@ -49,33 +48,23 @@ class _StudentProfileSetupViewState extends State<StudentProfileSetupView> {
 
     final grade = int.tryParse(_gradeController.text.trim()) ?? 1;
 
-    final newStudent = StudentModel(
-      uid: widget.user.uid,
-      docID: widget.user.uid,
-      name: widget.user.name,
-      imageUrl: null,
-      role: widget.user.role,
-      mobile: _mobileController.text.trim(),
-      group: _selectedGroup,
-      teamName: 'غير محدد',
-      classId: 'unassigned',
-      motherPhone: _motherPhoneController.text.trim(),
-      fatherPhone: _fatherPhoneController.text.trim(),
-      grade: grade,
-      educationStage: _selectedStage,
-      school: _schoolController.text.trim().isEmpty
-          ? null
-          : _schoolController.text.trim(),
-      address: _addressController.text.trim().isEmpty
-          ? null
-          : _addressController.text.trim(),
-      birthdate: null,
-      fatherOfConfession: _fatherOfConfessionController.text.trim(),
-      notes: null,
-    );
-
     context.read<StudentProfileBloc>().add(
-      SetupProfileEvent(newStudent: newStudent, actor: widget.user),
+      SetupProfileEvent.fromForm(
+        user: widget.user,
+        mobile: _mobileController.text.trim(),
+        motherPhone: _motherPhoneController.text.trim(),
+        fatherPhone: _fatherPhoneController.text.trim(),
+        fatherOfConfession: _fatherOfConfessionController.text.trim(),
+        grade: grade,
+        educationStage: _selectedStage,
+        group: _selectedGroup,
+        school: _schoolController.text.trim().isEmpty
+            ? null
+            : _schoolController.text.trim(),
+        address: _addressController.text.trim().isEmpty
+            ? null
+            : _addressController.text.trim(),
+      ),
     );
   }
 

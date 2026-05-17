@@ -1,3 +1,4 @@
+import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:equatable/equatable.dart';
@@ -23,6 +24,42 @@ class SetupProfileEvent extends StudentProfileEvent {
   final AuthUser actor;
 
   const SetupProfileEvent({required this.newStudent, required this.actor});
+
+  /// Creates a [SetupProfileEvent] from raw form fields, applying business defaults.
+  factory SetupProfileEvent.fromForm({
+    required AuthUser user,
+    required String mobile,
+    required String motherPhone,
+    required String fatherPhone,
+    required String fatherOfConfession,
+    required int grade,
+    required EducationStage educationStage,
+    required Group group,
+    String? school,
+    String? address,
+  }) {
+    final student = StudentModel(
+      uid: user.uid,
+      docID: user.uid,
+      name: user.name,
+      imageUrl: null,
+      role: user.role,
+      mobile: mobile,
+      group: group,
+      teamName: 'غير محدد',
+      classId: 'unassigned',
+      motherPhone: motherPhone,
+      fatherPhone: fatherPhone,
+      grade: grade,
+      educationStage: educationStage,
+      school: school,
+      address: address,
+      birthdate: null,
+      fatherOfConfession: fatherOfConfession,
+      notes: null,
+    );
+    return SetupProfileEvent(newStudent: student, actor: user);
+  }
 
   @override
   List<Object?> get props => [newStudent, actor];
