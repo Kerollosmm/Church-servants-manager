@@ -22,19 +22,9 @@ class AdminDashboardScreen extends StatefulWidget {
 }
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
-  late final AdminDashboardBloc _bloc;
-
   @override
   void initState() {
     super.initState();
-    _bloc = getIt<AdminDashboardBloc>();
-    _bloc.add(const LoadDashboardData());
-  }
-
-  @override
-  void dispose() {
-    _bloc.close();
-    super.dispose();
   }
 
   String _formatDate(DateTime date) {
@@ -48,56 +38,57 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider.value(
-      value: _bloc,
+    return BlocProvider<AdminDashboardBloc>(
+      create: (context) => getIt<AdminDashboardBloc>()..add(const LoadDashboardData()),
       child: Directionality(
         textDirection: TextDirection.rtl,
         child: Scaffold(
           backgroundColor: AppColors.background,
           appBar: _buildAppBar(context),
-          body: RefreshIndicator(
-            onRefresh: () async {
-              _bloc.add(const LoadDashboardData());
-              // Wait a short delay for UX or until state isn't loading if we wanted.
-              // We'll just return immediately for simplicity since BLoC handles state.
-              await Future.delayed(const Duration(milliseconds: 300));
-            },
-            child: Stack(
-              children: [
-                RepaintBoundary(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: RadialGradient(
-                        center: const Alignment(0.8, -0.6),
-                        radius: 1.5,
-                        colors: [
-                          AppColors.primary.withValues(alpha: 0.08),
-                          AppColors.background,
-                        ],
-                        stops: const [0.0, 0.6],
+          body: Builder(
+            builder: (context) => RefreshIndicator(
+              onRefresh: () async {
+                context.read<AdminDashboardBloc>().add(const LoadDashboardData());
+                // Wait a short delay for UX or until state isn't loading if we wanted.
+                // We'll just return immediately for simplicity since BLoC handles state.
+                await Future.delayed(const Duration(milliseconds: 300));
+              },
+              child: Stack(
+                children: [
+                  RepaintBoundary(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: RadialGradient(
+                          center: const Alignment(0.8, -0.6),
+                          radius: 1.5,
+                          colors: [
+                            AppColors.primary.withValues(alpha: 0.08),
+                            AppColors.background,
+                          ],
+                          stops: const [0.0, 0.6],
+                        ),
                       ),
                     ),
                   ),
-                ),
-                SafeArea(
-                  bottom: false,
-                  child: CustomScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    slivers: [
-                      _buildWelcomeSection(context),
-                      SliverToBoxAdapter(
-                        child: BlocBuilder<AdminDashboardBloc, AdminDashboardState>(
-                          builder: (context, state) {
-                            if (state is AdminDashboardLoading ||
-                                state is AdminDashboardInitial) {
-                              return const Padding(
-                                padding: EdgeInsets.all(32.0),
-                                child: Center(
-                                  child: CircularProgressIndicator(),
-                                ),
-                              );
-                            } else if (state is AdminDashboardError) {
-                              return Padding(
+                  SafeArea(
+                    bottom: false,
+                    child: CustomScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      slivers: [
+                        _buildWelcomeSection(context),
+                        SliverToBoxAdapter(
+                          child: BlocBuilder<AdminDashboardBloc, AdminDashboardState>(
+                            builder: (context, state) {
+                              if (state is AdminDashboardLoading ||
+                                  state is AdminDashboardInitial) {
+                                return const Padding(
+                                  padding: EdgeInsets.all(32.0),
+                                  child: Center(
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                );
+                              } else if (state is AdminDashboardError) {
+                                return Padding(
                                 padding: const EdgeInsets.all(16.0),
                                 child: Center(
                                   child: Column(
@@ -119,7 +110,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                       const SizedBox(height: 16),
                                       ElevatedButton(
                                         onPressed: () {
-                                          _bloc.add(const LoadDashboardData());
+                                          context.read<AdminDashboardBloc>().add(const LoadDashboardData());
                                         },
                                         child: const Text('إعادة المحاولة'),
                                       ),
@@ -143,6 +134,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 ),
               ],
             ),
+          ),
           ),
         ),
       ),

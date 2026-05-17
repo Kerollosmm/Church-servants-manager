@@ -4,6 +4,7 @@ import 'package:church_management_system/core/routing/app_router.dart';
 import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/features/admin/data/admin_team_membership_service.dart';
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
+import 'package:church_management_system/features/admin/data/services/admin_statistics_service.dart';
 import 'package:church_management_system/features/admin/presentation/bloc/dashboard/admin_dashboard_bloc.dart';
 import 'package:church_management_system/features/attendance/data/local/attendance_local_datasource.dart';
 import 'package:church_management_system/features/attendance/data/local/attendance_session_local_datasource.dart';
@@ -85,6 +86,9 @@ void _registerServices() {
         firestore: getIt(),
         localStore: getIt<AuthUserLocalStore>(),
       ),
+    )
+    ..registerLazySingleton<AdminStatisticsService>(
+      AdminStatisticsService.new,
     )
     ..registerLazySingleton<StudentQueryService>(
       () => StudentQueryService(firestore: getIt()),
@@ -218,7 +222,7 @@ void _registerBlocs() {
       getIt<IStudentRepository>(),
       getIt<IServantRepository>(),
       getIt<ITeamRepository>(),
-      getIt<IAttendanceRepository>(),
+      getIt<AdminStatisticsService>(),
     ),
   );
 }

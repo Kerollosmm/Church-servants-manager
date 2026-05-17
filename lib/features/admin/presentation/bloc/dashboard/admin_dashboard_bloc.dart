@@ -1,8 +1,8 @@
 import 'dart:developer' as developer;
 
+import 'package:church_management_system/features/admin/data/services/admin_statistics_service.dart';
 import 'package:church_management_system/features/admin/presentation/bloc/dashboard/admin_dashboard_event.dart';
 import 'package:church_management_system/features/admin/presentation/bloc/dashboard/admin_dashboard_state.dart';
-import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
 import 'package:church_management_system/features/servant/domain/repos/i_servant_repository.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
@@ -17,13 +17,13 @@ class AdminDashboardBloc
   final IStudentRepository _studentRepository;
   final IServantRepository _servantRepository;
   final ITeamRepository _teamRepository;
-  final IAttendanceRepository _attendanceRepository;
+  final AdminStatisticsService _statisticsService;
 
   AdminDashboardBloc(
     this._studentRepository,
     this._servantRepository,
     this._teamRepository,
-    this._attendanceRepository,
+    this._statisticsService,
   ) : super(AdminDashboardInitial()) {
     on<LoadDashboardData>(_onLoadDashboardData);
   }
@@ -38,30 +38,17 @@ class AdminDashboardBloc
         _studentRepository.getAllStudents(includeArchived: false),
         _servantRepository.getAllServants(),
         _teamRepository.getAllTeams(includeArchived: false),
+        _statisticsService.getGlobalDashboardStats(forceRefresh: true),
       ]);
 
       final students = results[0] as List<StudentModel>;
       final servants = results[1] as List;
       final teams = results[2] as List<TeamModel>;
+      final stats = results[3] as GlobalDashboardStats;
 
-      var totalSessions = 0;
-      var totalPresent = 0;
-      var totalRosterEntries = 0;
-
-      for (final team in teams) {
-        try {
-          final id = team.id;
-          if (id.isEmpty) continue;
-          final stats = await _attendanceRepository.getTeamAttendanceStats(
-            teamId: id,
-          );
-          totalSessions += stats.totalSessions;
-          totalPresent += stats.attendedCount;
-          totalRosterEntries += stats.totalRosterEntries;
-        } catch (_) {
-          // Skip teams with no attendance data
-        }
-      }
+      final totalSessions = stats.totalSessions;
+      final totalPresent = stats.totalPresent;
+      final totalRosterEntries = stats.totalRosterEntries;
 
       final attendanceRate = totalRosterEntries > 0
           ? (totalPresent / totalRosterEntries * 100).clamp(0.0, 100.0)
