@@ -6,7 +6,6 @@ import 'package:church_management_system/features/auth/domain/failures/auth_fail
 import 'package:church_management_system/features/auth/domain/repos/auth_repository.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:equatable/equatable.dart';
-import 'package:firebase_auth/firebase_auth.dart' show FirebaseAuth;
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 part 'auth_event.dart';
@@ -335,7 +334,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     try {
-      await FirebaseAuth.instance.currentUser?.getIdToken(true);
+      emit(const AuthRoleRefreshing());
+      await _authService.refreshCurrentAppUser();
+      // The idTokenChanges stream will emit _AuthEventSessionChanged
+      // which handles the actual state transition to AuthAuthenticated.
+      // If the stream doesn't fire (edge case), fall back manually.
+      final user = _authService.lastKnownAppUser;
+      if (user != null && state is! AuthAuthenticated) {
+        emit(AuthAuthenticated(user));
+      }
     } catch (e, stackTrace) {
       developer.log(
         'AuthBloc: Error during forced token refresh',
@@ -343,11 +350,18 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         stackTrace: stackTrace,
         name: 'AuthBloc',
       );
-      emit(
-        const AuthError(
-          'فشل تحديث البيانات. يرجى التأكد من الاتصال بالإنترنت والمحاولة مجدداً.',
-        ),
-      );
+      final cached = _authService.lastKnownAppUser;
+      if (cached != null) {
+        emit(
+          AuthDegraded(user: cached, message: _degradedPermissionsMessage),
+        );
+      } else {
+        emit(
+          const AuthError(
+            'فشل تحديث البيانات. يرجى التأكد من الاتصال بالإنترنت والمحاولة مجدداً.',
+          ),
+        );
+      }
     }
   }
 
@@ -379,7 +393,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         await _authService.signOut();
       } catch (e, stackTrace) {
         developer.log(
-          'AuthBloc: Failed to clear restorePendingPasswordReset',
+          'AuthBloc: Failed to sign out',
           error: e,
           stackTrace: stackTrace,
           name: 'AuthBloc',

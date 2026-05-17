@@ -135,7 +135,7 @@ class FirebaseAuthRepository implements AuthRepository {
         return null;
       }
 
-      // Fetch profile using serverAndCache natively (which integrates Hive check)
+      // Fetch profile with cache-first fallback
       final profile = await _userProfileStore.fetchUser(firebaseUser.uid);
 
       final mergedUser = profile.copyWith(
