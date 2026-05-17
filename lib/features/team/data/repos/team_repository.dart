@@ -442,19 +442,52 @@ class TeamRepository implements ITeamRepository {
   Future<void> restoreTeam(String id) async {
     try {
       final teamRef = _classesCollection.doc(id);
-      final teamDoc = await teamRef.get();
-      final teamData = teamDoc.data();
-      if (!teamDoc.exists || teamData == null) {
-        throw const TeamNotFoundFailure();
-      }
 
-      await teamRef.set({
-        'isArchived': false,
-        'restoredAt': FieldValue.serverTimestamp(),
-        'restoredByUserId': 'system',
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      await _firestore.runTransaction((transaction) async {
+        final teamDoc = await transaction.get(teamRef);
+        final teamData = teamDoc.data();
+        if (!teamDoc.exists || teamData == null) {
+          throw const TeamNotFoundFailure();
+        }
+
+        final team = TeamModel.fromMap(teamData, teamDoc.id);
+
+        final registryId =
+            '${team.groupId.toLowerCase().trim()}_${team.name.toLowerCase().trim()}';
+        final registryRef = _registryCollection.doc(registryId);
+
+        final regDoc = await transaction.get(registryRef);
+        if (regDoc.exists) {
+          throw StateError('يوجد فريق بنفس الاسم في هذه المجموعة بالفعل. الرجاء تغيير اسم الفريق النشط أولاً.');
+        }
+
+        transaction.set(registryRef, {
+          'teamId': team.id,
+          'groupId': team.groupId,
+          'teamName': team.name,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
+        transaction.set(teamRef, {
+          'isArchived': false,
+          'restoredAt': FieldValue.serverTimestamp(),
+          'restoredByUserId': 'system', // TODO: user context if available
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+
+        final assignedServantId = (teamData['assignedServantId'] as String?)?.trim();
+        if (assignedServantId != null && assignedServantId.isNotEmpty) {
+          final servantRef = _firestore.collection(FirestoreCollections.servants).doc(assignedServantId);
+          transaction.set(servantRef, {
+            'assignedTeamIds': FieldValue.arrayUnion([team.id]),
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        }
+      });
     } catch (e) {
+      if (e is StateError) {
+        throw TeamValidationFailure(e.message);
+      }
       throw mapExceptionToTeamFailure(e);
     }
   }
