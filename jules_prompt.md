@@ -111,6 +111,34 @@ Update existing file:
 - `fake_cloud_firestore` or similar for Firestore mocking
 - `hive` test utilities for cache testing
 
+## Project Knowledge Base
+The project uses a memory system to persist context across conversations. The memory folder is located at:
+`C:\Users\KimoStore\.openclaude\projects\C--Users-KimoStore-church-managment-system\memory\`
+
+Key memory files to reference:
+- `firebase_constraints.md`: Firebase Spark Plan constraints (no Cloud Functions, low requests)
+- `user_kerollosmm.md`: User profile (Flutter/Firebase dev, prefers local branch reviews)
+- `feedback_local_branch_review.md`: Adapt review process for git diff, not just PRs
+- `reference_gemini_plans.md`: Architectural plans and task lists
+- `reference_code_review_v1.md`: CSMS code review document with critical flaws
+- `feedback_direct_execution.md`: User prefers immediate execution, no discussion needed
+- `feedback_subagent_git_permissions.md`: Subagents cannot git commit; coordinator must commit manually
+- `feedback_subagent_test_scope.md`: Instruct subagents to test full contract, not just new feature
+- `feedback_backoff_test_delays.md`: Make backoff injectable to avoid slow tests
+- `feedback_late_final_cascade_hazard.md`: late final + async init() causes race conditions
+- `feedback_getit_circular_dependency.md`: Constructor injection causes stack overflow
+- `project_custom_claims_doc_conflict.md`: CLAUDE.md says use Custom Claims but Spark plan can't
+- `project_sprint1_foundation_hardening.md`: Sprint 1 completed 2026-05-17
+- `feedback_assert_breaks_fallback.md`: Use debugPrint not assert(false) for warnings
+- `reference_csms_architectural_mandates.md`: 6 official audit criteria
+- `project_cms_audit_2026_05_17.md`: Audit results (82% score, 4 gaps remain)
+- `project_audit_remediation_execution.md`: 9-task plan completed
+- `feedback_prune_to_dlq_not_delete.md`: Old sync queue entries must move to DLQ
+- `feedback_hive_box_open_guard.md`: Services must check isBoxOpen before calling Hive.box()
+- `feedback_clean_architecture_interface_dependency.md`: Cubits must depend on domain interfaces
+- `reference_firestore_collection_names.md`: Production uses PascalCase (Users, Classes, Students)
+- `project_google_fonts_removed.md`: google_fonts removed, use bundled fonts only
+
 ## Success Criteria
 - All test scenarios pass
 - Code coverage for admin feature increases from 6% to >80%
