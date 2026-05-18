@@ -34,11 +34,37 @@ class AdminDashboardBloc
   ) async {
     emit(AdminDashboardLoading());
     try {
+      // Fetch list data; let these fail hard so we surface real errors.
+      final studentsFuture =
+          _studentRepository.getAllStudents(includeArchived: false);
+      final servantsFuture = _servantRepository.getAllServants();
+      final teamsFuture =
+          _teamRepository.getAllTeams(includeArchived: false);
+
+      // The stats call uses collectionGroup which may fail on Spark-tier
+      // security rules or missing fields – fall back to zeros instead of
+      // killing the entire dashboard.
+      final statsFuture = _statisticsService
+          .getGlobalDashboardStats(forceRefresh: true)
+          .catchError((Object e, StackTrace st) {
+        developer.log(
+          'Stats collectionGroup failed – using defaults',
+          error: e,
+          stackTrace: st,
+        );
+        return GlobalDashboardStats(
+          totalSessions: 0,
+          totalPresent: 0,
+          totalRosterEntries: 0,
+          updatedAt: DateTime(2026),
+        );
+      });
+
       final results = await Future.wait([
-        _studentRepository.getAllStudents(includeArchived: false),
-        _servantRepository.getAllServants(),
-        _teamRepository.getAllTeams(includeArchived: false),
-        _statisticsService.getGlobalDashboardStats(forceRefresh: true),
+        studentsFuture,
+        servantsFuture,
+        teamsFuture,
+        statsFuture,
       ]);
 
       final students = results[0] as List<StudentModel>;
