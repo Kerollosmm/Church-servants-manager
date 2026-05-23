@@ -283,12 +283,58 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               children: [
                 Expanded(
                   child: _QuickActionCard(
+                    title: 'الطلاب',
+                    icon: Icons.people_alt,
+                    isPrimary: true,
+                    onPressed: () {
+                      Navigator.pushNamed(context, routes.studentList);
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _QuickActionCard(
+                    title: 'الخدام',
+                    icon: Icons.badge,
+                    isPrimary: false,
+                    onPressed: () {
+                      Navigator.pushNamed(context, routes.servantList);
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _QuickActionCard(
+                    title: 'بدء الحضور',
+                    icon: Icons.calendar_today,
+                    isPrimary: false,
+                    onPressed: () {
+                      Navigator.pushNamed(
+                        context,
+                        routes.attendanceSessionCreate,
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _QuickActionCard(
                     title: 'إضافة طالب',
                     icon: Icons.person_add,
-                    isPrimary: true,
+                    isPrimary: false,
                     onPressed: () {
                       final authState = context.read<AuthBloc>().state;
                       if (authState is AuthAuthenticated) {
+                        Navigator.pushNamed(
+                          context,
+                          routes.studentEdit,
+                          arguments: StudentEditArgs(actor: authState.user),
+                        );
+                      } else if (authState is AuthDegraded) {
                         Navigator.pushNamed(
                           context,
                           routes.studentEdit,
@@ -306,20 +352,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     isPrimary: false,
                     onPressed: () {
                       Navigator.pushNamed(context, routes.teamManagement);
-                    },
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _QuickActionCard(
-                    title: 'بدء الحضور',
-                    icon: Icons.calendar_today,
-                    isPrimary: false,
-                    onPressed: () {
-                      Navigator.pushNamed(
-                        context,
-                        routes.attendanceSessionCreate,
-                      );
                     },
                   ),
                 ),

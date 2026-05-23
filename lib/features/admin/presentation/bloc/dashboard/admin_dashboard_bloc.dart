@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 import 'package:church_management_system/features/admin/data/services/admin_statistics_service.dart';
 import 'package:church_management_system/features/admin/presentation/bloc/dashboard/admin_dashboard_event.dart';
 import 'package:church_management_system/features/admin/presentation/bloc/dashboard/admin_dashboard_state.dart';
+import 'package:church_management_system/features/servant/data/models/servant_models.dart';
 import 'package:church_management_system/features/servant/domain/repos/i_servant_repository.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
@@ -34,12 +35,38 @@ class AdminDashboardBloc
   ) async {
     emit(AdminDashboardLoading());
     try {
-      // Fetch list data; let these fail hard so we surface real errors.
-      final studentsFuture =
-          _studentRepository.getAllStudents(includeArchived: false);
-      final servantsFuture = _servantRepository.getAllServants();
-      final teamsFuture =
-          _teamRepository.getAllTeams(includeArchived: false);
+      // Fetch list data; fall back to empty lists if permissions or network
+      // prevent access – we show partial data rather than killing the dashboard.
+      final studentsFuture = _studentRepository
+          .getAllStudents(includeArchived: false)
+          .catchError((Object e, StackTrace st) {
+        developer.log(
+          'Students fetch failed – using empty list',
+          error: e,
+          stackTrace: st,
+        );
+        return <StudentModel>[];
+      });
+      final servantsFuture = _servantRepository
+          .getAllServants()
+          .catchError((Object e, StackTrace st) {
+        developer.log(
+          'Servants fetch failed – using empty list',
+          error: e,
+          stackTrace: st,
+        );
+        return <ServantModel>[];
+      });
+      final teamsFuture = _teamRepository
+          .getAllTeams(includeArchived: false)
+          .catchError((Object e, StackTrace st) {
+        developer.log(
+          'Teams fetch failed – using empty list',
+          error: e,
+          stackTrace: st,
+        );
+        return <TeamModel>[];
+      });
 
       // The stats call uses collectionGroup which may fail on Spark-tier
       // security rules or missing fields – fall back to zeros instead of
