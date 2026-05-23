@@ -34,7 +34,7 @@ void main() {
         id: 'dlq_1',
         actionType: 'MARK_ATTENDANCE',
         payload: {'studentId': 's1'},
-        createdAt: DateTime(2026, 1, 1),
+        createdAt: DateTime(2026),
       );
       await dlq.add(entry);
       expect(dlq.length, 1);
@@ -49,7 +49,7 @@ void main() {
         id: 'dlq_1',
         actionType: 'MARK_ATTENDANCE',
         payload: {},
-        createdAt: DateTime(2026, 1, 1),
+        createdAt: DateTime(2026),
       );
       final entry2 = SyncEntry(
         id: 'dlq_2',
@@ -72,7 +72,7 @@ void main() {
         id: 'dlq_remove',
         actionType: 'MARK_ATTENDANCE',
         payload: {},
-        createdAt: DateTime(2026, 1, 1),
+        createdAt: DateTime(2026),
       );
       await dlq.add(entry);
       expect(dlq.length, 1);
@@ -86,7 +86,7 @@ void main() {
         id: 'a',
         actionType: 'X',
         payload: {},
-        createdAt: DateTime(2026, 1, 1),
+        createdAt: DateTime(2026),
       ));
       await dlq.add(SyncEntry(
         id: 'b',

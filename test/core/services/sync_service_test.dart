@@ -7,6 +7,7 @@ import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_session_repository.dart';
 import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
 import 'package:church_management_system/features/results/domain/repos/i_results_repository.dart';
+import 'package:church_management_system/features/student/domain/repos/i_pastoral_repository.dart';
 import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -22,6 +23,8 @@ class MockResultsRepository extends Mock implements IResultsRepository {}
 class MockSessionRepository extends Mock
     implements AttendanceSessionRepository {}
 
+class MockPastoralRepository extends Mock implements IPastoralRepository {}
+
 class MockConnectivity extends Mock implements Connectivity {}
 
 class MockDeadLetterQueue extends Mock implements DeadLetterQueue {}
@@ -31,6 +34,7 @@ void main() {
   late MockStudentRepository studentRepo;
   late MockResultsRepository resultsRepo;
   late MockSessionRepository sessionRepo;
+  late MockPastoralRepository pastoralRepo;
   late MockConnectivity connectivity;
   late MockDeadLetterQueue mockDlq;
   late SyncService syncService;
@@ -66,6 +70,7 @@ void main() {
     studentRepo = MockStudentRepository();
     resultsRepo = MockResultsRepository();
     sessionRepo = MockSessionRepository();
+    pastoralRepo = MockPastoralRepository();
     connectivity = MockConnectivity();
     mockDlq = MockDeadLetterQueue();
     when(() => mockDlq.init()).thenAnswer((_) async {});
@@ -83,6 +88,7 @@ void main() {
       studentRepository: studentRepo,
       resultsRepository: resultsRepo,
       sessionRepository: sessionRepo,
+      pastoralRepository: pastoralRepo,
       deadLetterQueue: mockDlq,
       connectivity: connectivity,
     );
@@ -119,7 +125,11 @@ void main() {
 
     test('processes MARK_ATTENDANCE entries and removes them', () async {
       when(
-        () => attendanceRepo.syncOfflineMark(any()),
+        () => attendanceRepo.syncBatchedMarks(
+          teamId: any(named: 'teamId'),
+          sessionId: any(named: 'sessionId'),
+          payloads: any(named: 'payloads'),
+        ),
       ).thenAnswer((_) async {});
 
       await syncService.enqueue(entry(id: 'process_1'));
@@ -130,12 +140,22 @@ void main() {
 
       final box = Hive.box<SyncEntry>('sync_queue_box');
       expect(box.length, 0);
-      verify(() => attendanceRepo.syncOfflineMark(any())).called(1);
+      verify(
+        () => attendanceRepo.syncBatchedMarks(
+          teamId: any(named: 'teamId'),
+          sessionId: any(named: 'sessionId'),
+          payloads: any(named: 'payloads'),
+        ),
+      ).called(1);
     });
 
     test('increments retryCount on failure', () async {
       when(
-        () => attendanceRepo.syncOfflineMark(any()),
+        () => attendanceRepo.syncBatchedMarks(
+          teamId: any(named: 'teamId'),
+          sessionId: any(named: 'sessionId'),
+          payloads: any(named: 'payloads'),
+        ),
       ).thenThrow(Exception('Network error'));
 
       await syncService.enqueue(entry(id: 'retry_1'));
@@ -152,7 +172,11 @@ void main() {
 
     test('drops entry after max retries (5)', () async {
       when(
-        () => attendanceRepo.syncOfflineMark(any()),
+        () => attendanceRepo.syncBatchedMarks(
+          teamId: any(named: 'teamId'),
+          sessionId: any(named: 'sessionId'),
+          payloads: any(named: 'payloads'),
+        ),
       ).thenThrow(Exception('Persistent failure'));
 
       await syncService.enqueue(entry(id: 'max_retry_1'));
@@ -169,7 +193,13 @@ void main() {
 
     test('processes entries in FIFO order', () async {
       final processed = <String>[];
-      when(() => attendanceRepo.syncOfflineMark(any())).thenAnswer((_) async {
+      when(
+        () => attendanceRepo.syncBatchedMarks(
+          teamId: any(named: 'teamId'),
+          sessionId: any(named: 'sessionId'),
+          payloads: any(named: 'payloads'),
+        ),
+      ).thenAnswer((_) async {
         processed.add('MARK_ATTENDANCE');
       });
       when(() => studentRepo.syncOfflineUpsert(any())).thenAnswer((_) async {
@@ -204,7 +234,11 @@ void main() {
 
     test('streams status updates during processing', () async {
       when(
-        () => attendanceRepo.syncOfflineMark(any()),
+        () => attendanceRepo.syncBatchedMarks(
+          teamId: any(named: 'teamId'),
+          sessionId: any(named: 'sessionId'),
+          payloads: any(named: 'payloads'),
+        ),
       ).thenAnswer((_) async {});
 
       await syncService.enqueue(entry(id: 'stream_1'));

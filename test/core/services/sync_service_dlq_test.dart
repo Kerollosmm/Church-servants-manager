@@ -6,6 +6,7 @@ import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_session_repository.dart';
 import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
 import 'package:church_management_system/features/results/domain/repos/i_results_repository.dart';
+import 'package:church_management_system/features/student/domain/repos/i_pastoral_repository.dart';
 import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -20,6 +21,8 @@ class MockResultsRepository extends Mock implements IResultsRepository {}
 
 class MockSessionRepository extends Mock implements AttendanceSessionRepository {}
 
+class MockPastoralRepository extends Mock implements IPastoralRepository {}
+
 class MockConnectivity extends Mock implements Connectivity {}
 
 void main() {
@@ -30,6 +33,7 @@ void main() {
   late MockStudentRepository mockStudent;
   late MockResultsRepository mockResults;
   late MockSessionRepository mockSession;
+  late MockPastoralRepository mockPastoral;
   late MockConnectivity mockConnectivity;
 
   setUpAll(() {
@@ -43,6 +47,7 @@ void main() {
     mockStudent = MockStudentRepository();
     mockResults = MockResultsRepository();
     mockSession = MockSessionRepository();
+    mockPastoral = MockPastoralRepository();
     mockConnectivity = MockConnectivity();
 
     // Default to no connectivity so enqueue() does not trigger processQueue()
@@ -59,6 +64,7 @@ void main() {
       studentRepository: mockStudent,
       resultsRepository: mockResults,
       sessionRepository: mockSession,
+      pastoralRepository: mockPastoral,
       connectivity: mockConnectivity,
       deadLetterQueue: dlq,
     );
@@ -87,7 +93,7 @@ void main() {
         id: 'dlq_test_1',
         actionType: 'MARK_ATTENDANCE',
         payload: {'studentId': 's1', 'sessionId': 'sess1'},
-        createdAt: DateTime(2026, 1, 1),
+        createdAt: DateTime(2026),
       );
       await syncService.enqueue(entry);
 
@@ -115,7 +121,7 @@ void main() {
         id: 'backoff_test',
         actionType: 'MARK_ATTENDANCE',
         payload: {'studentId': 's1', 'sessionId': 'sess1'},
-        createdAt: DateTime(2026, 1, 1),
+        createdAt: DateTime(2026),
       );
       await syncService.enqueue(entry);
 

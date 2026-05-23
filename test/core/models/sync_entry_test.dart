@@ -8,7 +8,7 @@ void main() {
         id: 'test_1',
         actionType: 'MARK_ATTENDANCE',
         payload: {'key': 'value'},
-        createdAt: DateTime(2026, 1, 1),
+        createdAt: DateTime(2026),
       );
       expect(entry.failedAt, isNull);
     });
@@ -19,7 +19,7 @@ void main() {
         id: 'test_2',
         actionType: 'MARK_ATTENDANCE',
         payload: {'key': 'value'},
-        createdAt: DateTime(2026, 1, 1),
+        createdAt: DateTime(2026),
         failedAt: now,
       );
       expect(entry.failedAt, now);
@@ -31,7 +31,7 @@ void main() {
         id: 'test_3',
         actionType: 'MARK_ATTENDANCE',
         payload: {'key': 'value'},
-        createdAt: DateTime(2026, 1, 1),
+        createdAt: DateTime(2026),
         failedAt: now,
       );
       final json = entry.toJson();
@@ -43,7 +43,7 @@ void main() {
         id: 'test',
         actionType: 'MARK_ATTENDANCE',
         payload: {'key': 'value'},
-        createdAt: DateTime(2026, 1, 1),
+        createdAt: DateTime(2026),
       );
       expect(entry.retryCount, 0);
     });
@@ -53,7 +53,7 @@ void main() {
         id: 'test',
         actionType: 'MARK_ATTENDANCE',
         payload: {'studentId': 'abc'},
-        createdAt: DateTime(2026, 1, 1),
+        createdAt: DateTime(2026),
       );
       final json = entry.toJson();
       expect(json['id'], 'test');

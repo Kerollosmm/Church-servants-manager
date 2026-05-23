@@ -24,6 +24,7 @@ void main() {
 
   Widget createWidgetUnderTest() {
     return MaterialApp(
+      theme: ThemeData(useMaterial3: false),
       home: BlocProvider<AuthBloc>.value(
         value: mockAuthBloc,
         child: const LoginScreen(),

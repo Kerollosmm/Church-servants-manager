@@ -91,7 +91,7 @@ void main() {
   ) async {
     await tester.pumpWidget(buildTestWidget(const StudentManagementScreen()));
 
-    expect(find.text('إدارة المخدومين'), findsOneWidget);
+    expect(find.text('قائمة الطلاب'), findsOneWidget);
     expect(find.byType(TextField), findsOneWidget); // Search field
   });
 

@@ -45,7 +45,7 @@ void main() {
         createdAt: DateTime.now().subtract(const Duration(days: 10)),
       ));
 
-      final pruned = await pruner.pruneSyncQueue(maxAge: const Duration(days: 30));
+      final pruned = await pruner.pruneSyncQueue();
       expect(pruned, 1);
       expect(box.length, 1);
       expect(box.containsKey('recent_1'), isTrue);
@@ -67,7 +67,6 @@ void main() {
 
       final pruned = await pruner.pruneStringBox(
         boxName: 'attendance_marks_cache',
-        maxAge: const Duration(days: 30),
         timestampExtractor: (json) {
           final match = RegExp(r'"cachedAt":"([^"]+)"').firstMatch(json);
           return match != null ? DateTime.tryParse(match.group(1)!) : null;

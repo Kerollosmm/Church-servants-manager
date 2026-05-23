@@ -31,6 +31,7 @@ class ServantDashboardCubit extends Cubit<ServantDashboardState> {
 
     try {
       final teams = await _teamRepository.getTeamsByIds(assignedTeamIds);
+      if (isClosed) return;
       final names = <String>[];
       for (final id in assignedTeamIds) {
         String? foundName;
@@ -53,6 +54,7 @@ class ServantDashboardCubit extends Cubit<ServantDashboardState> {
         error: error,
         name: 'ServantDashboardCubit',
       );
+      if (isClosed) return;
       emit(
         const ServantDashboardState(
           errorMessage: 'Failed to load assigned teams.',

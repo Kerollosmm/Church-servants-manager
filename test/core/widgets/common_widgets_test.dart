@@ -28,6 +28,7 @@ void main() {
       bool actionCalled = false;
       await tester.pumpWidget(
         MaterialApp(
+          theme: ThemeData(useMaterial3: false),
           home: Scaffold(
             body: AppEmptyState(
               title: 'Title',
@@ -53,6 +54,7 @@ void main() {
       bool refreshCalled = false;
       await tester.pumpWidget(
         MaterialApp(
+          theme: ThemeData(useMaterial3: false),
           home: Scaffold(
             body: AppEmptyState(
               title: 'Title',
@@ -98,6 +100,7 @@ void main() {
       bool retryCalled = false;
       await tester.pumpWidget(
         MaterialApp(
+          theme: ThemeData(useMaterial3: false),
           home: Scaffold(
             body: AppErrorState(
               message: 'Error',
