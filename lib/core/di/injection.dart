@@ -6,7 +6,10 @@ import 'package:church_management_system/core/services/hive_pruning_service.dart
 import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/features/admin/data/admin_team_membership_service.dart';
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
+import 'package:church_management_system/features/admin/data/datasources/analytics_local_datasource.dart';
+import 'package:church_management_system/features/admin/data/repos/analytics_repository_impl.dart';
 import 'package:church_management_system/features/admin/data/services/admin_statistics_service.dart';
+import 'package:church_management_system/features/admin/domain/repos/i_analytics_repository.dart';
 import 'package:church_management_system/features/admin/presentation/bloc/dashboard/admin_dashboard_bloc.dart';
 import 'package:church_management_system/features/attendance/data/local/attendance_local_datasource.dart';
 import 'package:church_management_system/features/attendance/data/local/attendance_session_local_datasource.dart';
@@ -31,9 +34,11 @@ import 'package:church_management_system/features/servant/data/repo/servant_data
 import 'package:church_management_system/features/servant/domain/repos/i_servant_repository.dart';
 import 'package:church_management_system/features/servant/domain/usecases/provision_servant_with_auth_usecase.dart';
 import 'package:church_management_system/features/student/data/datasources/student_local_datasource.dart';
+import 'package:church_management_system/features/student/data/repos/pastoral_repository.dart';
 import 'package:church_management_system/features/student/data/repos/student_data_repository.dart';
 import 'package:church_management_system/features/student/data/services/student_linked_user_sync_service.dart';
 import 'package:church_management_system/features/student/data/services/student_query_service.dart';
+import 'package:church_management_system/features/student/domain/repos/i_pastoral_repository.dart';
 import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
 import 'package:church_management_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
 import 'package:church_management_system/features/student/domain/usecases/get_students_list_usecase.dart';
@@ -72,6 +77,7 @@ void _registerCore() {
         studentRepository: getIt<IStudentRepository>(),
         resultsRepository: getIt<IResultsRepository>(),
         sessionRepository: getIt<AttendanceSessionRepository>(),
+        pastoralRepository: getIt<IPastoralRepository>(),
         deadLetterQueue: getIt<DeadLetterQueue>(),
       ),
     )
@@ -98,7 +104,10 @@ void _registerServices() {
       AdminStatisticsService.new,
     )
     ..registerLazySingleton<StudentQueryService>(
-      () => StudentQueryService(firestore: getIt()),
+      () => StudentQueryService(
+        firestore: getIt(),
+        localDatasource: getIt<StudentLocalDatasource>(),
+      ),
     )
     ..registerLazySingleton<StudentLinkedUserSyncService>(
       () => StudentLinkedUserSyncService(firestore: getIt()),
@@ -139,8 +148,9 @@ void _registerRepositories() {
     ..registerLazySingleton<IStudentRepository>(
       () => StudentDataRepository(
         firestore: getIt(),
+        queryService: getIt<StudentQueryService>(),
+        syncServiceGetter: () => getIt<SyncService>(),
         localDatasource: getIt<StudentLocalDatasource>(),
-        enqueue: (entry) => getIt<SyncService>().enqueue(entry),
       ),
     )
     ..registerLazySingleton<ResultsLocalDatasource>(ResultsLocalDatasource.new)
@@ -177,6 +187,19 @@ void _registerRepositories() {
     )
     ..registerLazySingleton<TeamRepository>(
       () => getIt<ITeamRepository>() as TeamRepository,
+    )
+    ..registerLazySingleton<AttendanceRepository>(
+      () => getIt<IAttendanceRepository>() as AttendanceRepository,
+    )
+    ..registerLazySingleton<IPastoralRepository>(
+      () => PastoralRepository(firestore: getIt()),
+    )
+    ..registerLazySingleton<AnalyticsLocalDatasource>(AnalyticsLocalDatasource.new)
+    ..registerLazySingleton<IAnalyticsRepository>(
+      () => AnalyticsRepositoryImpl(
+        firestore: getIt(),
+        localDatasource: getIt<AnalyticsLocalDatasource>(),
+      ),
     );
 }
 

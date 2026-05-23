@@ -20,6 +20,19 @@ class SyncCubit extends Cubit<SyncState> {
 
   void _monitorSync() {
     _syncSubscription = _syncService.statusStream.listen((status) {
+      // DLQ eviction: a failed entry was permanently moved to the dead-letter
+      // queue. Emit a warning regardless of current state so the UI always
+      // surfaces a manual-action banner.
+      if (status.dlqEntryId != null) {
+        emit(
+          SyncDlqWarning(
+            entryId: status.dlqEntryId!,
+            actionType: status.dlqActionType ?? 'UNKNOWN',
+          ),
+        );
+        return;
+      }
+
       if (status.isSyncing) {
         emit(
           Syncing(

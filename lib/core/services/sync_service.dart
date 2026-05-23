@@ -6,6 +6,7 @@ import 'package:church_management_system/core/services/dead_letter_queue.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_session_repository.dart';
 import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
 import 'package:church_management_system/features/results/domain/repos/i_results_repository.dart';
+import 'package:church_management_system/features/student/domain/repos/i_pastoral_repository.dart';
 import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:hive/hive.dart';
@@ -19,12 +20,19 @@ class SyncStatus {
   final bool hasError;
   final String? errorMessage;
 
+  /// Non-null when a [SyncEntry] was moved to the dead-letter queue.
+  /// The UI must surface a manual-intervention warning in this case.
+  final String? dlqEntryId;
+  final String? dlqActionType;
+
   const SyncStatus({
     this.isSyncing = false,
     this.pendingCount = 0,
     this.totalCount = 0,
     this.hasError = false,
     this.errorMessage,
+    this.dlqEntryId,
+    this.dlqActionType,
   });
 
   factory SyncStatus.idle() => const SyncStatus();
@@ -36,6 +44,10 @@ class SyncStatus {
 
   factory SyncStatus.error(String message) =>
       SyncStatus(hasError: true, errorMessage: message);
+
+  /// Emitted when an entry has been evicted to the dead-letter queue.
+  factory SyncStatus.dlqEviction(String entryId, String actionType) =>
+      SyncStatus(dlqEntryId: entryId, dlqActionType: actionType);
 }
 
 /// Centralized offline sync engine.
@@ -52,6 +64,7 @@ class SyncService {
   final IStudentRepository _studentRepository;
   final IResultsRepository _resultsRepository;
   final AttendanceSessionRepository _sessionRepository;
+  final IPastoralRepository _pastoralRepository;
   final DeadLetterQueue _dlq;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   bool _isProcessing = false;
@@ -66,16 +79,22 @@ class SyncService {
     required IStudentRepository studentRepository,
     required IResultsRepository resultsRepository,
     required AttendanceSessionRepository sessionRepository,
+    required IPastoralRepository pastoralRepository,
     required DeadLetterQueue deadLetterQueue,
     Connectivity? connectivity,
   }) : _attendanceRepository = attendanceRepository,
        _studentRepository = studentRepository,
        _resultsRepository = resultsRepository,
        _sessionRepository = sessionRepository,
+       _pastoralRepository = pastoralRepository,
        _dlq = deadLetterQueue,
        _connectivity = connectivity ?? Connectivity();
 
   /// Initializes the Hive box and starts listening to connectivity changes.
+  ///
+  /// Call this from the foreground app. For background Workmanager tasks,
+  /// call [processQueueOnce] directly after opening Hive — it does NOT
+  /// register a connectivity listener.
   Future<void> init() async {
     // Note: Ensure Hive.registerAdapter(SyncEntryAdapter()) is called in main.dart
     await Hive.openBox<SyncEntry>(_boxName);
@@ -95,6 +114,17 @@ class SyncService {
     if (!results.contains(ConnectivityResult.none)) {
       unawaited(processQueue());
     }
+  }
+
+  /// Lightweight bootstrap used exclusively by the Workmanager background task.
+  ///
+  /// Opens the Hive boxes, processes the queue exactly once, and returns.
+  /// Does NOT register connectivity listeners (unnecessary in a background
+  /// isolate that already has a [NetworkType.connected] constraint).
+  Future<void> initAndProcessOnce() async {
+    await Hive.openBox<SyncEntry>(_boxName);
+    await _dlq.init();
+    await processQueue();
   }
 
   /// Adds a new mutation entry to the sync queue.
@@ -139,30 +169,51 @@ class SyncService {
     }
   }
 
-  /// Processes the queue sequentially (FIFO).
+  /// Processes the queue sequentially (FIFO), grouping consecutive
+  /// [MARK_ATTENDANCE] entries that share the same `(teamId, sessionId)` into
+  /// a single Firestore [WriteBatch] to minimise round-trips under the Spark
+  /// plan limits.
+  ///
+  /// **Retry & backoff:** Each entry carries a [SyncEntry.retryCount].
+  /// On failure the count is incremented and the entry is re-persisted in
+  /// Hive. The next invocation will apply an exponential delay:
+  ///   `delay = 500ms × 2^(retryCount − 1)` (capped at entry 5 → 8 s).
+  /// After 5 failures the entry is evicted to the dead-letter queue and
+  /// [SyncStatus.dlqEviction] is broadcast so the UI can warn the user.
+  ///
+  /// **LWW:** Individual `MARK_ATTENDANCE` entries rely on the per-entry LWW
+  /// check inside [IAttendanceRepository.syncOfflineMark]. The batched path
+  /// delegates to [IAttendanceRepository.syncBatchedMarks] which performs
+  /// the same check server-side via individual transactions per document.
   Future<void> processQueue() async {
     if (_isProcessing) return;
 
     final box = Hive.box<SyncEntry>(_boxName);
-    if (box.isEmpty) return; // Nothing to sync
+    if (box.isEmpty) return;
 
     _isProcessing = true;
+
+    // Snapshot length BEFORE we start — used for progress reporting.
     final int totalEntries = box.length;
     int processedEntries = 0;
 
     _statusController.add(SyncStatus.processing(totalEntries, totalEntries));
 
     try {
-      // Get all entries sorted by creation time
+      // FIFO order: sort ascending by creation time.
       final entries = box.values.toList()
         ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
-      for (final entry in entries) {
-        // Re-verify network before processing each entry
-        final results = await _connectivity.checkConnectivity();
-        if (results.contains(ConnectivityResult.none)) {
+      // Walk the FIFO list.  Consecutive MARK_ATTENDANCE entries that share
+      // the same (teamId, sessionId) are collapsed into a single batch.
+      // All other action types are dispatched individually.
+      int i = 0;
+      while (i < entries.length) {
+        // Re-verify network connectivity before every logical unit of work.
+        final connectivity = await _connectivity.checkConnectivity();
+        if (connectivity.contains(ConnectivityResult.none)) {
           developer.log(
-            'Network lost, pausing sync queue.',
+            'Network lost — pausing sync queue at index $i.',
             name: 'SyncService',
           );
           _statusController.add(
@@ -171,13 +222,20 @@ class SyncService {
           break;
         }
 
+        final entry = entries[i];
+
+        // ── DLQ eviction ────────────────────────────────────────────────────
         if (entry.retryCount >= _maxRetries) {
           developer.log(
-            'SyncEntry ${entry.id} reached max retries. Moving to DLQ.',
+            'SyncEntry ${entry.id} exceeded max retries ($_maxRetries). '
+            'Evicting to DLQ.',
             name: 'SyncService',
           );
           await box.delete(entry.id);
           await _dlq.add(entry);
+          _statusController.add(
+            SyncStatus.dlqEviction(entry.id, entry.actionType),
+          );
           processedEntries++;
           _statusController.add(
             SyncStatus.processing(
@@ -185,12 +243,85 @@ class SyncService {
               totalEntries,
             ),
           );
+          i++;
           continue;
         }
 
+        // ── MARK_ATTENDANCE batching ─────────────────────────────────────────
+        // Collect all consecutive MARK_ATTENDANCE entries that share the same
+        // (teamId, sessionId) so we can commit them in one WriteBatch.
+        if (entry.actionType == 'MARK_ATTENDANCE') {
+          final batchTeamId = entry.payload['teamId'] as String?;
+          final batchSessionId = entry.payload['sessionId'] as String?;
+
+          if (batchTeamId != null && batchSessionId != null) {
+            // Gather run of entries for the same session.
+            final batchEntries = <SyncEntry>[];
+            int j = i;
+            while (j < entries.length &&
+                entries[j].actionType == 'MARK_ATTENDANCE' &&
+                entries[j].payload['teamId'] == batchTeamId &&
+                entries[j].payload['sessionId'] == batchSessionId &&
+                entries[j].retryCount < _maxRetries) {
+              batchEntries.add(entries[j]);
+              j++;
+            }
+
+            // Attempt the batch commit.
+            try {
+              await _attendanceRepository.syncBatchedMarks(
+                teamId: batchTeamId,
+                sessionId: batchSessionId,
+                payloads: batchEntries.map((e) => e.payload).toList(),
+              );
+
+              // Success: remove all entries in the batch from the queue.
+              for (final batchEntry in batchEntries) {
+                await box.delete(batchEntry.id);
+              }
+              processedEntries += batchEntries.length;
+              developer.log(
+                'Batched ${batchEntries.length} MARK_ATTENDANCE entries for '
+                'session $batchSessionId.',
+                name: 'SyncService',
+              );
+            } catch (e) {
+              developer.log(
+                'Batch MARK_ATTENDANCE failed for session $batchSessionId. '
+                'Retrying individually. Error: $e',
+                name: 'SyncService',
+              );
+              // Increment retryCount on every entry in the failed batch.
+              for (final batchEntry in batchEntries) {
+                batchEntry.retryCount++;
+                await batchEntry.save();
+              }
+              _statusController.add(
+                SyncStatus.error(
+                  'حدث خطأ أثناء مزامنة بيانات الحضور. سيتم المحاولة لاحقاً.',
+                ),
+              );
+              // Apply exponential backoff based on the first entry's retry count.
+              final backoffMs =
+                  _baseBackoffMs *
+                  (1 << (batchEntries.first.retryCount - 1).clamp(0, 10));
+              await Future<void>.delayed(Duration(milliseconds: backoffMs));
+            }
+
+            _statusController.add(
+              SyncStatus.processing(
+                totalEntries - processedEntries,
+                totalEntries,
+              ),
+            );
+            i = j; // Advance past the entire batch window.
+            continue;
+          }
+        }
+
+        // ── All other action types — individual dispatch ──────────────────
         try {
           await _executeEntry(entry);
-          // Success: remove from queue
           await box.delete(entry.id);
           processedEntries++;
           _statusController.add(
@@ -201,8 +332,8 @@ class SyncService {
           );
         } catch (e) {
           developer.log(
-            'Failed to process SyncEntry ${entry.id}. Retry: ${entry.retryCount}',
-            error: e,
+            'Failed to process SyncEntry ${entry.id} '
+            '(retry ${entry.retryCount}): $e',
             name: 'SyncService',
           );
           entry.retryCount++;
@@ -214,13 +345,17 @@ class SyncService {
             ),
           );
 
-          // Exponential backoff: 500ms, 1s, 2s, 4s, 8s
-          final backoffMs = _baseBackoffMs * (1 << (entry.retryCount - 1));
+          // Exponential backoff: 500ms, 1s, 2s, 4s, 8s …
+          // `clamp(0, 10)` guards against negative shifts on first failure
+          // (retryCount was 0 before the increment above).
+          final backoffMs =
+              _baseBackoffMs * (1 << (entry.retryCount - 1).clamp(0, 10));
           await Future<void>.delayed(Duration(milliseconds: backoffMs));
         }
+
+        i++;
       }
 
-      // If we finished the loop and the box is empty, it was a success.
       if (box.isEmpty) {
         _statusController.add(SyncStatus.success());
       }
@@ -284,6 +419,14 @@ class SyncService {
         await _sessionRepository.syncOfflineCloseSession(entry.payload);
         developer.log(
           'Processing CLOSE_SESSION: ${entry.payload}',
+          name: 'SyncService',
+        );
+        break;
+
+      case 'CREATE_PASTORAL_RECORD':
+        await _pastoralRepository.syncOfflineCreate(entry.payload);
+        developer.log(
+          'Processing CREATE_PASTORAL_RECORD: ${entry.payload}',
           name: 'SyncService',
         );
         break;

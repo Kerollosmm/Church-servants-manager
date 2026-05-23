@@ -1,62 +1,60 @@
 import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class AppTypography {
   static TextTheme getMainTextTheme(TextTheme base) {
-    // Ochre Sanctuary uses a bilingual typographic rhythm that balances the geometric clarity of Work Sans
-    // with the elegant, traditional calligraphic roots of Noto Sans Arabic.
-    return GoogleFonts.notoSansArabicTextTheme(base).copyWith(
-      displayLarge: GoogleFonts.workSans(
+    return base.copyWith(
+      displayLarge: const TextStyle(
         fontSize: 32,
         fontWeight: FontWeight.bold,
         color: AppColors.textPrimary,
       ),
-      displayMedium: GoogleFonts.workSans(
+      displayMedium: const TextStyle(
         fontSize: 28,
         fontWeight: FontWeight.bold,
         color: AppColors.textPrimary,
       ),
-      headlineLarge: GoogleFonts.notoSansArabic(
+      headlineLarge: const TextStyle(
         // Display / Headline 1: 1.5rem (24px). Bold and grounded. Used for page titles.
         fontSize: 24,
         fontWeight: FontWeight.bold,
         color: AppColors.textPrimary,
       ),
-      headlineMedium: GoogleFonts.notoSansArabic(
+      headlineMedium: const TextStyle(
         fontSize: 20,
         fontWeight: FontWeight.w600,
         color: AppColors.textPrimary,
       ),
-      titleLarge: GoogleFonts.notoSansArabic(
+      titleLarge: const TextStyle(
         fontSize: 18,
         fontWeight: FontWeight.w600,
         color: AppColors.textPrimary,
       ),
-      bodyLarge: GoogleFonts.notoSansArabic(
+      bodyLarge: const TextStyle(
         fontSize: 16,
         color: AppColors.textPrimary,
       ),
-      bodyMedium: GoogleFonts.notoSansArabic(
+      bodyMedium: const TextStyle(
         // Body / Content: 0.875rem (14px). Optimized for legibility in dense administrative forms.
         fontSize: 14,
         color: AppColors.textSecondary,
       ),
-      labelLarge: GoogleFonts.notoSansArabic(
+      labelLarge: const TextStyle(
         fontSize: 14,
         fontWeight: FontWeight.w600,
         color: AppColors.textPrimary,
       ),
-      labelMedium: GoogleFonts.notoSansArabic(
+      labelMedium: const TextStyle(
         // Labels / Small: 0.75rem (12px). Used for metadata and helper text.
         fontSize: 12,
         fontWeight: FontWeight.w500,
         color: AppColors.textSecondary,
       ),
-      labelSmall: GoogleFonts.notoSansArabic(
+      labelSmall: const TextStyle(
         fontSize: 11,
         color: AppColors.textTertiary,
       ),
     );
   }
 }
+

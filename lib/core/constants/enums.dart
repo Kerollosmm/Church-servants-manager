@@ -77,3 +77,26 @@ extension EducationStageDisplayName on EducationStage {
     }
   }
 }
+
+@HiveType(typeId: 16)
+enum VisitationType {
+  @HiveField(0)
+  phoneCall,
+  @HiveField(1)
+  homeVisit,
+  @HiveField(2)
+  socialMedia,
+}
+
+extension VisitationTypeDisplayName on VisitationType {
+  String get displayName {
+    switch (this) {
+      case VisitationType.phoneCall:
+        return 'مكالمة هاتفية';
+      case VisitationType.homeVisit:
+        return 'زيارة منزلية';
+      case VisitationType.socialMedia:
+        return 'وسائل التواصل الاجتماعي';
+    }
+  }
+}

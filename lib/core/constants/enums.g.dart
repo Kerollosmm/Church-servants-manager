@@ -225,3 +225,47 @@ class GroupAdapter extends TypeAdapter<Group> {
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }
+
+class VisitationTypeAdapter extends TypeAdapter<VisitationType> {
+  @override
+  final int typeId = 16;
+
+  @override
+  VisitationType read(BinaryReader reader) {
+    switch (reader.readByte()) {
+      case 0:
+        return VisitationType.phoneCall;
+      case 1:
+        return VisitationType.homeVisit;
+      case 2:
+        return VisitationType.socialMedia;
+      default:
+        return VisitationType.phoneCall;
+    }
+  }
+
+  @override
+  void write(BinaryWriter writer, VisitationType obj) {
+    switch (obj) {
+      case VisitationType.phoneCall:
+        writer.writeByte(0);
+        break;
+      case VisitationType.homeVisit:
+        writer.writeByte(1);
+        break;
+      case VisitationType.socialMedia:
+        writer.writeByte(2);
+        break;
+    }
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is VisitationTypeAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}

@@ -9,10 +9,13 @@ import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/models/sync_entry.dart';
 import 'package:church_management_system/core/services/hive_pruning_service.dart';
 import 'package:church_management_system/core/services/sync_service.dart';
+import 'package:church_management_system/features/admin/data/models/analytics_summary_model.dart';
 import 'package:church_management_system/features/auth/data/services/auth_user_local_store.dart';
 import 'package:church_management_system/features/results/data/models/results_model.dart';
 import 'package:church_management_system/features/results/data/models/term_model.dart';
 import 'package:church_management_system/features/servant/data/models/servant_models.dart';
+import 'package:church_management_system/features/student/data/models/pastoral_record_model.dart';
+import 'package:church_management_system/features/student/data/models/points_ledger_entry.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/team/data/models/team_model.dart';
 import 'package:church_management_system/firebase_options.dart';
@@ -20,7 +23,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:workmanager/workmanager.dart';
 
@@ -39,13 +41,10 @@ void callbackDispatcher() {
       // Setup dependencies
       configureDependencies();
 
-      // We don't need to listen to network, we just want to run the queue once.
-      // But SyncService init() triggers queue processing.
+      // Workmanager already enforces NetworkType.connected, so we skip the
+      // connectivity listener and process the queue exactly once.
       final syncService = getIt<SyncService>();
-      await syncService.init();
-
-      // Wait a moment for queue to process if it's async inside init
-      await Future.delayed(const Duration(seconds: 15));
+      await syncService.initAndProcessOnce();
 
       return Future.value(true);
     } catch (err, stack) {
@@ -83,7 +82,11 @@ void _registerHiveAdapters() {
     ..registerAdapter(ServantModelAdapter())
     ..registerAdapter(TeamModelAdapter())
     ..registerAdapter(ResultsModelAdapter())
-    ..registerAdapter(TermModelAdapter());
+    ..registerAdapter(TermModelAdapter())
+    ..registerAdapter(VisitationTypeAdapter())
+    ..registerAdapter(PastoralRecordModelAdapter())
+    ..registerAdapter(PointsLedgerEntryAdapter())
+    ..registerAdapter(AnalyticsSummaryModelAdapter());
 }
 
 void main() {
@@ -114,7 +117,6 @@ void main() {
           persistenceEnabled: true,
           cacheSizeBytes: 100 * 1024 * 1024,
         );
-        GoogleFonts.config.allowRuntimeFetching = false;
         configureDependencies();
 
         // Initialize Local Auth Store
