@@ -43,6 +43,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     on<StudentDeleted>(_onDeleteStudent);
     on<StudentRestored>(_onRestoreStudent);
     on<StudentsRefreshRequested>(_onRefreshStudents);
+    on<StudentsListeningStopped>(_onStopListening);
   }
 
   Future<void> refresh(AuthUser actor) {
@@ -696,6 +697,13 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
       teamId: teamId,
       includeArchived: event.includeArchived,
     );
+  }
+
+  void _onStopListening(
+    StudentsListeningStopped event,
+    Emitter<StudentDataState> emit,
+  ) {
+    emit(const StudentDataInitial());
   }
 
   @override

@@ -5,31 +5,57 @@ class StudentLocalDatasource {
   static const String boxName = 'students_box';
   static const String syncQueueBoxName = 'students_sync_queue_box';
 
-  late final Box<StudentModel> _studentsBox;
-  late final Box<StudentModel> _syncQueueBox;
-  bool _initialized = false;
+  Box<StudentModel>? _studentsBox;
+  Box<StudentModel>? _syncQueueBox;
+  Future<void>? _initFuture;
 
-  Future<void> init() async {
-    if (_initialized) return;
+  Future<void> init() {
+    _initFuture ??= _doInit();
+    return _initFuture!;
+  }
+
+  Future<void> _doInit() async {
     _studentsBox = await Hive.openBox<StudentModel>(boxName);
     _syncQueueBox = await Hive.openBox<StudentModel>(syncQueueBoxName);
-    _initialized = true;
   }
 
   Future<void> saveStudent(StudentModel student) async {
-    await _studentsBox.put(student.docID, student);
+    await init();
+    await _studentsBox!.put(student.docID, student);
   }
 
   Future<StudentModel?> getStudent(String docId) async {
-    return _studentsBox.get(docId);
+    await init();
+    try {
+      return _studentsBox!.get(docId);
+    } catch (_) {
+      // Corrupted entry – remove and return null.
+      await _studentsBox!.delete(docId);
+      return null;
+    }
   }
 
   Future<List<StudentModel>> getAllStudents({
     bool includeArchived = false,
   }) async {
-    final students = _studentsBox.values.toList();
-    if (!includeArchived) {
-      return students.where((s) => !s.isArchived).toList();
+    await init();
+    final students = <StudentModel>[];
+    final corruptedKeys = <dynamic>[];
+    for (final key in _studentsBox!.keys) {
+      try {
+        final s = _studentsBox!.get(key);
+        if (s != null) {
+          if (includeArchived || !s.isArchived) {
+            students.add(s);
+          }
+        }
+      } catch (_) {
+        // Corrupted entry (e.g. null in a non-nullable bool field) – mark for removal.
+        corruptedKeys.add(key);
+      }
+    }
+    if (corruptedKeys.isNotEmpty) {
+      await _studentsBox!.deleteAll(corruptedKeys);
     }
     return students;
   }
@@ -38,11 +64,23 @@ class StudentLocalDatasource {
     String classId, {
     bool includeArchived = false,
   }) async {
-    final students = _studentsBox.values
-        .where((s) => s.classId == classId)
-        .toList();
-    if (!includeArchived) {
-      return students.where((s) => !s.isArchived).toList();
+    await init();
+    final students = <StudentModel>[];
+    final corruptedKeys = <dynamic>[];
+    for (final key in _studentsBox!.keys) {
+      try {
+        final s = _studentsBox!.get(key);
+        if (s != null && s.classId == classId) {
+          if (includeArchived || !s.isArchived) {
+            students.add(s);
+          }
+        }
+      } catch (_) {
+        corruptedKeys.add(key);
+      }
+    }
+    if (corruptedKeys.isNotEmpty) {
+      await _studentsBox!.deleteAll(corruptedKeys);
     }
     return students;
   }
@@ -51,11 +89,23 @@ class StudentLocalDatasource {
     int grade, {
     bool includeArchived = false,
   }) async {
-    final students = _studentsBox.values
-        .where((s) => s.grade == grade)
-        .toList();
-    if (!includeArchived) {
-      return students.where((s) => !s.isArchived).toList();
+    await init();
+    final students = <StudentModel>[];
+    final corruptedKeys = <dynamic>[];
+    for (final key in _studentsBox!.keys) {
+      try {
+        final s = _studentsBox!.get(key);
+        if (s != null && s.grade == grade) {
+          if (includeArchived || !s.isArchived) {
+            students.add(s);
+          }
+        }
+      } catch (_) {
+        corruptedKeys.add(key);
+      }
+    }
+    if (corruptedKeys.isNotEmpty) {
+      await _studentsBox!.deleteAll(corruptedKeys);
     }
     return students;
   }
@@ -64,11 +114,23 @@ class StudentLocalDatasource {
     String groupName, {
     bool includeArchived = false,
   }) async {
-    final students = _studentsBox.values
-        .where((s) => s.group.name == groupName)
-        .toList();
-    if (!includeArchived) {
-      return students.where((s) => !s.isArchived).toList();
+    await init();
+    final students = <StudentModel>[];
+    final corruptedKeys = <dynamic>[];
+    for (final key in _studentsBox!.keys) {
+      try {
+        final s = _studentsBox!.get(key);
+        if (s != null && s.group.name == groupName) {
+          if (includeArchived || !s.isArchived) {
+            students.add(s);
+          }
+        }
+      } catch (_) {
+        corruptedKeys.add(key);
+      }
+    }
+    if (corruptedKeys.isNotEmpty) {
+      await _studentsBox!.deleteAll(corruptedKeys);
     }
     return students;
   }
@@ -77,28 +139,40 @@ class StudentLocalDatasource {
     List<String> docIds, {
     bool includeArchived = false,
   }) async {
+    await init();
     final students = <StudentModel>[];
+    final corruptedKeys = <dynamic>[];
     for (final id in docIds) {
-      final s = _studentsBox.get(id);
-      if (s != null) {
-        if (includeArchived || !s.isArchived) {
-          students.add(s);
+      try {
+        final s = _studentsBox!.get(id);
+        if (s != null) {
+          if (includeArchived || !s.isArchived) {
+            students.add(s);
+          }
         }
+      } catch (_) {
+        corruptedKeys.add(id);
       }
+    }
+    if (corruptedKeys.isNotEmpty) {
+      await _studentsBox!.deleteAll(corruptedKeys);
     }
     return students;
   }
 
   Future<void> saveStudents(List<StudentModel> students) async {
+    await init();
     final map = {for (final s in students) s.docID: s};
-    await _studentsBox.putAll(map);
+    await _studentsBox!.putAll(map);
   }
 
   Future<void> queueForSync(StudentModel student) async {
-    await _syncQueueBox.put(student.docID, student);
+    await init();
+    await _syncQueueBox!.put(student.docID, student);
   }
 
   Future<void> removeFromSyncQueue(String docId) async {
-    await _syncQueueBox.delete(docId);
+    await init();
+    await _syncQueueBox!.delete(docId);
   }
 }

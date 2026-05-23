@@ -53,6 +53,16 @@ class StudentModel with _$StudentModel {
 
     @HiveField(25) @Default(SyncStatus.synced) SyncStatus syncStatus,
     @HiveField(26) @_TimestampConverter() DateTime? clientUpdatedAt,
+
+    /// Sector this student belongs to (e.g. 'primary_boys', 'youth').
+    /// Used for servant sector-scoped RBAC in Firestore Security Rules.
+    @HiveField(27) String? sectorId,
+
+    /// Whether the student has been flagged for pastoral visitation.
+    @HiveField(28) @Default(false) bool needsVisitation,
+
+    /// Timestamp of the student's last absence (set by attendance engine).
+    @HiveField(29) @_TimestampConverter() DateTime? lastAbsentDate,
   }) = _StudentModel;
 
   /// Creates a StudentModel from JSON.
@@ -104,6 +114,9 @@ class StudentModel with _$StudentModel {
       'group': readString('group') ?? 'year1',
       'education_stage': readString('education_stage') ?? 'highSchool',
       'syncStatus': readString('syncStatus') ?? 'synced',
+      'sectorId': readString('sectorId') ?? readString('group'),
+      'needsVisitation': data['needsVisitation'] as bool? ?? false,
+      'lastAbsentDate': data['lastAbsentDate'],
     });
   }
 
@@ -111,6 +124,14 @@ class StudentModel with _$StudentModel {
   Map<String, dynamic> toMap() => toJson();
 
   bool get isActive => !isArchived;
+
+  /// Returns true if the student needs visitation and the last absence
+  /// was more than 7 days ago, indicating the visit is overdue.
+  bool get isOverdueForVisitation {
+    if (!needsVisitation) return false;
+    if (lastAbsentDate == null) return false;
+    return DateTime.now().difference(lastAbsentDate!).inDays > 7;
+  }
 
   /// Returns true if all required fields are filled.
   bool get isProfileComplete {

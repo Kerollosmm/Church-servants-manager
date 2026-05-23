@@ -22,7 +22,7 @@ class StudentDataRepository implements IStudentRepository {
   final StudentQueryService _queryService;
   final StudentLinkedUserSyncService _linkedUserSyncService;
   final StudentLocalDatasource _localDatasource;
-  final SyncService _syncService;
+  final SyncService Function() _syncServiceGetter;
   final Connectivity _connectivity;
 
   StudentDataRepository({
@@ -30,7 +30,7 @@ class StudentDataRepository implements IStudentRepository {
     StudentQueryService? queryService,
     StudentLinkedUserSyncService? linkedUserSyncService,
     StudentLocalDatasource? localDatasource,
-    required SyncService syncService,
+    required SyncService Function() syncServiceGetter,
     Connectivity? connectivity,
   }) : _firestore = firestore,
        _queryService =
@@ -39,7 +39,7 @@ class StudentDataRepository implements IStudentRepository {
            linkedUserSyncService ??
            StudentLinkedUserSyncService(firestore: firestore),
        _localDatasource = localDatasource ?? StudentLocalDatasource(),
-       _syncService = syncService,
+       _syncServiceGetter = syncServiceGetter,
        _connectivity = connectivity ?? Connectivity();
 
   CollectionReference<Map<String, dynamic>> get _studentsCollection =>
@@ -285,7 +285,7 @@ class StudentDataRepository implements IStudentRepository {
 
       final connectivityResult = await _connectivity.checkConnectivity();
       if (connectivityResult.contains(ConnectivityResult.none)) {
-        await _syncService.enqueue(
+        await _syncServiceGetter().enqueue(
           SyncEntry(
             id: 'upsert_student_${student.docID}_${DateTime.now().millisecondsSinceEpoch}',
             actionType: 'UPSERT_STUDENT',
@@ -308,7 +308,7 @@ class StudentDataRepository implements IStudentRepository {
         );
         await _localDatasource.saveStudent(syncedStudent);
       } catch (networkError) {
-        await _syncService.enqueue(
+        await _syncServiceGetter().enqueue(
           SyncEntry(
             id: 'upsert_student_${student.docID}_${DateTime.now().millisecondsSinceEpoch}',
             actionType: 'UPSERT_STUDENT',
@@ -339,7 +339,7 @@ class StudentDataRepository implements IStudentRepository {
 
       final connectivityResult = await _connectivity.checkConnectivity();
       if (connectivityResult.contains(ConnectivityResult.none)) {
-        await _syncService.enqueue(
+        await _syncServiceGetter().enqueue(
           SyncEntry(
             id: 'archive_student_${docId}_${DateTime.now().millisecondsSinceEpoch}',
             actionType: 'ARCHIVE_STUDENT',
@@ -373,7 +373,7 @@ class StudentDataRepository implements IStudentRepository {
 
         await batch.commit();
       } catch (networkError) {
-        await _syncService.enqueue(
+        await _syncServiceGetter().enqueue(
           SyncEntry(
             id: 'archive_student_${docId}_${DateTime.now().millisecondsSinceEpoch}',
             actionType: 'ARCHIVE_STUDENT',
@@ -404,7 +404,7 @@ class StudentDataRepository implements IStudentRepository {
 
       final connectivityResult = await _connectivity.checkConnectivity();
       if (connectivityResult.contains(ConnectivityResult.none)) {
-        await _syncService.enqueue(
+        await _syncServiceGetter().enqueue(
           SyncEntry(
             id: 'restore_student_${docId}_${DateTime.now().millisecondsSinceEpoch}',
             actionType: 'RESTORE_STUDENT',
@@ -436,7 +436,7 @@ class StudentDataRepository implements IStudentRepository {
 
         await batch.commit();
       } catch (networkError) {
-        await _syncService.enqueue(
+        await _syncServiceGetter().enqueue(
           SyncEntry(
             id: 'restore_student_${docId}_${DateTime.now().millisecondsSinceEpoch}',
             actionType: 'RESTORE_STUDENT',

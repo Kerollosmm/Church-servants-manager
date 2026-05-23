@@ -11,11 +11,9 @@ import 'package:church_management_system/core/utils/data_export_service.dart';
 import 'package:church_management_system/core/widgets/app_empty_state.dart';
 import 'package:church_management_system/core/widgets/app_error_state.dart';
 import 'package:church_management_system/core/widgets/common/app_info_banner.dart';
-import 'package:church_management_system/core/widgets/common/ochre_card.dart';
 import 'package:church_management_system/core/widgets/common/sanctuary_background.dart';
 import 'package:church_management_system/core/widgets/dialogs/generic_dialog.dart';
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
-import 'package:church_management_system/core/widgets/search/live_search_panel.dart';
 import 'package:church_management_system/core/widgets/sync_status_banner.dart';
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
@@ -25,7 +23,6 @@ import 'package:church_management_system/features/student/presentation/bloc/stud
 import 'package:church_management_system/features/team/data/models/team_model.dart';
 import 'package:church_management_system/features/team/data/repos/team_repository.dart';
 import 'package:church_management_system/features/team/presentation/bloc/team_bloc.dart';
-import 'package:church_management_system/features/team/presentation/widgets/team_dropdown.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -242,6 +239,86 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
     }
   }
 
+  Widget _buildArchiveToggleCard(BuildContext context, AuthUser actor) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 8.0),
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFFFAF6EE), // Beige background
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFECE0D1)),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+          child: Row(
+            children: [
+              // Export / Download Button
+              InkWell(
+                onTap: _onExport,
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF8D6E63),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.download,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Text Details
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'تفعيل الأرشيف',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: Color(0xFF3E2723),
+                      ),
+                    ),
+                    Text(
+                      'عرض الطلاب غير النشطين',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Archive Switch
+              Switch(
+                value: _showArchived,
+                activeColor: const Color(0xFF8D6E63),
+                onChanged: (value) {
+                  setState(() {
+                    _showArchived = value;
+                  });
+                  context.read<StudentDataBloc>().add(
+                    StudentsLoadRequested(
+                      actor: actor,
+                      teamId: _selectedTeamId,
+                      includeArchived: _showArchived,
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocSelector<AuthBloc, AuthState, AuthUser?>(
@@ -263,38 +340,101 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
           child: SanctuaryBackground(
             child: Scaffold(
               backgroundColor: Colors.transparent,
-              appBar: AppBar(
-                backgroundColor: Colors.transparent,
-                elevation: 0,
-                title: Text(
-                  _showArchived
-                      ? 'المخدومون المؤرشفون'
-                      : (actor.role == UserRole.admin
-                            ? 'إدارة المخدومين'
-                            : 'مخدومي'),
+              appBar: PreferredSize(
+                preferredSize: const Size.fromHeight(96),
+                child: Container(
+                  color: Colors.transparent,
+                  padding: const EdgeInsets.fromLTRB(16, 40, 16, 8),
+                  child: Row(
+                    children: [
+                      // Far Left: Notification Bell
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withValues(alpha: 0.08),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.notifications_none_outlined,
+                          color: Color(0xFF0F172A),
+                          size: 24,
+                        ),
+                      ),
+                      const Spacer(),
+                      // Center: Title & Subtitle
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text(
+                            'قائمة الطلاب',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF0F172A),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'خدمة مدارس الأحد',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 12),
+                      // Church Logo in rounded beige box
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFAF2E6),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: const Color(0xFFECE0D1),
+                            width: 1,
+                          ),
+                        ),
+                        child: Image.asset(
+                          'assets/images/logo_elkarooz.png',
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Icon(Icons.church, color: Color(0xFF795548)),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Back Button
+                      IconButton(
+                        icon: const Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          size: 18,
+                          color: Color(0xFF0F172A),
+                        ),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
                 ),
-                actions: [
-                  IconButton(
-                    icon: const Icon(Icons.download),
-                    tooltip: 'تصدير',
-                    onPressed: _onExport,
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.refresh),
-                    tooltip: 'تحديث',
-                    onPressed: () {
-                      context.read<StudentDataBloc>().refresh(actor);
-                    },
-                  ),
-                ],
               ),
               floatingActionButton: _canManage(actor)
                   ? FloatingActionButton.extended(
+                      backgroundColor: const Color(0xFF8D6E63),
+                      foregroundColor: Colors.white,
+                      elevation: 4,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                       onPressed: () {
                         _openStudentEditor(actor);
                       },
-                      icon: const Icon(Icons.person_add),
-                      label: const Text('إضافة مخدوم'),
+                      icon: const Icon(Icons.person_add, color: Colors.white),
+                      label: const Text(
+                        'إضافة مخدوم',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
                     )
                   : null,
               body: BlocConsumer<StudentDataBloc, StudentDataState>(
@@ -354,20 +494,9 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                                   onSearchClear: () => _clearSearch(actor),
                                   onTeamChanged: (id) =>
                                       _onTeamFilterChanged(actor, id),
-                                  onArchiveToggle: () {
-                                    setState(
-                                      () => _showArchived = !_showArchived,
-                                    );
-                                    context.read<StudentDataBloc>().add(
-                                      StudentsLoadRequested(
-                                        actor: actor,
-                                        teamId: _selectedTeamId,
-                                        includeArchived: _showArchived,
-                                      ),
-                                    );
-                                  },
                                 ),
                               ),
+                              _buildArchiveToggleCard(context, actor),
                               if (viewData.showInitialLoading)
                                 const SliverFillRemaining(
                                   hasScrollBody: false,
@@ -483,7 +612,6 @@ class _SearchHeaderDelegate extends SliverPersistentHeaderDelegate {
   final ValueChanged<String> onSearchSubmitted;
   final VoidCallback onSearchClear;
   final ValueChanged<String?> onTeamChanged;
-  final VoidCallback onArchiveToggle;
 
   _SearchHeaderDelegate({
     required this.searchController,
@@ -496,13 +624,63 @@ class _SearchHeaderDelegate extends SliverPersistentHeaderDelegate {
     required this.onSearchSubmitted,
     required this.onSearchClear,
     required this.onTeamChanged,
-    required this.onArchiveToggle,
   });
 
   @override
-  double get minExtent => 200;
+  double get minExtent => 120;
   @override
-  double get maxExtent => 200;
+  double get maxExtent => 120;
+
+  Widget _buildFilterChip({
+    required BuildContext context,
+    required String label,
+    required IconData icon,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    final activeColor = const Color(0xFF8D6E63);
+    final activeTextColor = Colors.white;
+    final inactiveColor = Colors.white;
+    final inactiveTextColor = const Color(0xFF8D6E63);
+    final borderColor = const Color(0xFFECE0D1);
+
+    return Padding(
+      padding: const EdgeInsets.only(left: 8.0),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? activeColor : inactiveColor,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isSelected ? Colors.transparent : borderColor,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: isSelected ? activeTextColor : inactiveTextColor,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? activeTextColor : inactiveTextColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(
@@ -511,70 +689,114 @@ class _SearchHeaderDelegate extends SliverPersistentHeaderDelegate {
     bool overlapsContent,
   ) {
     return Container(
-      color: AppColors.background.withValues(alpha: 0.9),
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.md,
-        AppSpacing.sm,
-        AppSpacing.md,
-        AppSpacing.sm,
-      ),
+      color: AppColors.background.withValues(alpha: 0.95),
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          LiveSearchPanel(
-            controller: searchController,
-            label: 'ابحث باسم المخدوم',
-            hint: 'ابحث بالاسم',
-            clearTooltip: 'مسح',
-            liveLabel: 'متصل بـ Firestore',
-            isLoading: isLoading,
-            onChanged: onSearchChanged,
-            onSubmitted: onSearchSubmitted,
-            onClear: onSearchClear,
-          ),
-          AppSpacing.gapSm,
-          Row(
-            children: [
-              Expanded(
-                child: BlocBuilder<TeamBloc, TeamState>(
-                  builder: (context, teamState) {
-                    final teams = teamState is TeamLoaded
-                        ? teamState.teams
-                        : const <TeamModel>[];
-                    final loading =
-                        teamState is TeamLoading || teamState is TeamInitial;
-                    final errorMessage = teamState is TeamError
-                        ? teamState.message
-                        : null;
-
-                    return TeamDropdown(
-                      teams: teams,
-                      selectedTeamId: selectedTeamId,
-                      isLoading: loading,
-                      errorMessage: errorMessage,
-                      showAllOption:
-                          actor.role == UserRole.admin ||
-                          (actor.role == UserRole.servant &&
-                              assignedTeamIds.length > 1),
-                      restrictToTeamIds:
-                          actor.role == UserRole.servant &&
-                              assignedTeamIds.isNotEmpty
-                          ? assignedTeamIds
-                          : null,
-                      label: 'تصفية حسب الفريق',
-                      onChanged: onTeamChanged,
-                    );
-                  },
+          // Search Input Field
+          Container(
+            height: 48,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: const Color(0xFFECE0D1)),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                const Icon(Icons.search, color: Color(0xFFA58255)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: searchController,
+                    textInputAction: TextInputAction.search,
+                    onChanged: onSearchChanged,
+                    onSubmitted: onSearchSubmitted,
+                    decoration: const InputDecoration(
+                      hintText: 'بحث عن طالب بالاسم أو الكود...',
+                      hintStyle: TextStyle(color: Colors.grey, fontSize: 14),
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(vertical: 10),
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              FilterChip(
-                label: const Text('المؤرشف'),
-                selected: showArchived,
-                onSelected: (_) => onArchiveToggle(),
-                selectedColor: AppColors.primary.withValues(alpha: 0.2),
-                checkmarkColor: AppColors.primary,
-              ),
-            ],
+                if (isLoading)
+                  const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Color(0xFFA58255),
+                    ),
+                  )
+                else if (searchController.text.isNotEmpty)
+                  IconButton(
+                    icon: const Icon(Icons.clear, size: 18, color: Colors.grey),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: onSearchClear,
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Horizontal scrollable team chips
+          Expanded(
+            child: BlocBuilder<TeamBloc, TeamState>(
+              builder: (context, teamState) {
+                final teams = teamState is TeamLoaded
+                    ? teamState.teams
+                    : const <TeamModel>[];
+
+                final restrictedTeamIds = <String>{};
+                if (actor.role == UserRole.servant &&
+                    assignedTeamIds.isNotEmpty) {
+                  restrictedTeamIds.addAll(assignedTeamIds);
+                }
+                final visibleTeams = restrictedTeamIds.isEmpty
+                    ? teams
+                    : teams
+                        .where((t) => restrictedTeamIds.contains(t.id))
+                        .toList();
+
+                return ListView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  children: [
+                    _buildFilterChip(
+                      context: context,
+                      label: 'الكل',
+                      icon: Icons.grid_view,
+                      isSelected: selectedTeamId == null,
+                      onTap: () => onTeamChanged(null),
+                    ),
+                    ...visibleTeams.map((team) {
+                      final isSelected = selectedTeamId == team.id;
+                      IconData icon;
+                      if (team.name.contains('شمامسة')) {
+                        icon = Icons.people;
+                      } else if (team.name.contains('كورال')) {
+                        icon = Icons.music_note;
+                      } else if (team.name.contains('كشافة')) {
+                        icon = Icons.explore;
+                      } else {
+                        icon = Icons.group;
+                      }
+                      return _buildFilterChip(
+                        context: context,
+                        label: team.name,
+                        icon: icon,
+                        isSelected: isSelected,
+                        onTap: () => onTeamChanged(team.id),
+                      );
+                    }),
+                  ],
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -617,44 +839,217 @@ class _StudentCard extends StatelessWidget {
     required this.onTap,
   });
 
+  String _getGradeText(int grade, EducationStage stage) {
+    final gradeWords = {
+      1: 'الأول',
+      2: 'الثاني',
+      3: 'الثالث',
+      4: 'الرابع',
+      5: 'الخامس',
+      6: 'السادس',
+    };
+    final gradeWord = gradeWords[grade] ?? grade.toString();
+    return 'الصف $gradeWord ${stage.displayName}';
+  }
+
   @override
   Widget build(BuildContext context) {
-    return OchreCard(
-      padding: EdgeInsets.zero,
-      onTap: onTap,
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.xs,
-        ),
-        leading: CircleAvatar(
-          backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-          child: Text(
-            student.name.isNotEmpty ? student.name[0].toUpperCase() : '?',
-            style: const TextStyle(
-              color: AppColors.primary,
-              fontWeight: FontWeight.w700,
+    final activeColor = const Color(0xFF4CAF50);
+    final inactiveColor = Colors.grey;
+    final idLength = student.uid.length;
+    final displayId = student.uid.isNotEmpty
+        ? (idLength > 5 ? student.uid.substring(0, 5) : student.uid)
+        : (student.docID.length > 4
+            ? student.docID.substring(student.docID.length - 4)
+            : student.docID);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFECE0D1)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Right side: Avatar with status dot (RTL leading)
+                Stack(
+                  children: [
+                    CircleAvatar(
+                      radius: 26,
+                      backgroundColor: const Color(0xFFF5EEDC),
+                      backgroundImage:
+                          student.imageUrl != null && student.imageUrl!.isNotEmpty
+                              ? NetworkImage(student.imageUrl!)
+                              : null,
+                      child: student.imageUrl == null || student.imageUrl!.isEmpty
+                          ? Text(
+                              student.name.isNotEmpty
+                                  ? student.name[0].toUpperCase()
+                                  : '?',
+                              style: const TextStyle(
+                                color: Color(0xFF795548),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 20,
+                              ),
+                            )
+                          : null,
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        width: 14,
+                        height: 14,
+                        decoration: BoxDecoration(
+                          color:
+                              student.isArchived ? inactiveColor : activeColor,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 12),
+                // Middle: Student info
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        student.name,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: Color(0xFF3E2723),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      // Grade info
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.school,
+                            size: 14,
+                            color: Color(0xFF795548),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _getGradeText(student.grade, student.educationStage),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF795548),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      // Team/Group info
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.people,
+                            size: 14,
+                            color: Color(0xFF795548),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            student.teamName.isNotEmpty
+                                ? student.teamName
+                                : student.group.displayName,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF795548),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      // Actions indicators
+                      Row(
+                        children: [
+                          if (!student.isArchived)
+                            const Icon(
+                              Icons.verified,
+                              size: 16,
+                              color: Color(0xFFC5A070),
+                            ),
+                          const SizedBox(width: 8),
+                          Icon(
+                            Icons.history,
+                            size: 16,
+                            color: Colors.grey.shade500,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Left side: ID and "Details" button (RTL trailing)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    // ID Pill
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFAF2E6),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'ID: $displayId',
+                        style: const TextStyle(
+                          color: Color(0xFF795548),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    // Details button
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'التفاصيل',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFFA58255),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(
+                          Icons.arrow_back_ios_new_rounded,
+                          size: 12,
+                          color: Color(0xFFA58255),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-        ),
-        title: Text(
-          student.name,
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-        ),
-        subtitle: Text(
-          student.isArchived
-              ? 'مؤرشف'
-              : 'المجموعة ${student.group.displayName} • الصف ${student.grade}',
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
-        ),
-        trailing: Icon(
-          Directionality.of(context) == TextDirection.rtl
-              ? Icons.arrow_back_ios_new_rounded
-              : Icons.arrow_forward_ios_rounded,
-          color: AppColors.outline,
-          size: 14,
         ),
       ),
     );
