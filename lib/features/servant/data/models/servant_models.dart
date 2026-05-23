@@ -83,6 +83,10 @@ class ServantModel with _$ServantModel {
 
     @HiveField(21) @Default(SyncStatus.synced) SyncStatus syncStatus,
     @HiveField(22) @_TimestampConverter() DateTime? clientUpdatedAt,
+
+    /// Sectors this servant is authorised to manage (e.g. ['primary_boys', 'youth']).
+    /// Used for sector-scoped RBAC in Firestore Security Rules.
+    @HiveField(23) @Default(<String>[]) List<String> assignedSectorIds,
   }) = _ServantModel;
 
   /// Creates a ServantModel from JSON.
@@ -130,6 +134,9 @@ class ServantModel with _$ServantModel {
       'notes': readString('notes'),
       'assignedTeamId': readString('assignedTeamId'),
       'syncStatus': readString('syncStatus') ?? 'synced',
+      'assignedSectorIds': (data['assignedSectorIds'] as List<dynamic>? ?? [])
+          .whereType<String>()
+          .toList(),
     });
   }
 

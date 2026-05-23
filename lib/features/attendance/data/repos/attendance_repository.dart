@@ -253,6 +253,17 @@ class AttendanceRepository implements IAttendanceRepository {
   Future<void> syncOfflineMark(Map<String, dynamic> payload) =>
       _commandService.syncOfflineMark(payload);
 
+  @override
+  Future<void> syncBatchedMarks({
+    required String teamId,
+    required String sessionId,
+    required List<Map<String, dynamic>> payloads,
+  }) => _commandService.syncBatchedMarks(
+    teamId: teamId,
+    sessionId: sessionId,
+    payloads: payloads,
+  );
+
   Future<void> batchWriteMarks({
     required String teamId,
     required String sessionId,

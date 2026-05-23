@@ -46,7 +46,7 @@ class OchreAuthCard extends StatelessWidget {
           Padding(padding: const EdgeInsets.all(AppSpacing.xl), child: body),
 
           // Footer Section
-          ?footer,
+          if (footer != null) footer!,
 
           // Design Accent Bar
           Container(

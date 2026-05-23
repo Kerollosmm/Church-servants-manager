@@ -118,4 +118,20 @@ abstract class IAttendanceRepository {
   });
 
   Future<void> syncOfflineMark(Map<String, dynamic> payload);
+
+  /// Persists multiple offline attendance-mark payloads for the same session
+  /// in a single Firestore [WriteBatch].
+  ///
+  /// Each payload in [payloads] must contain the same fields as a single
+  /// [syncOfflineMark] call.  The implementation must apply the LWW rule
+  /// (compare payload `updatedAt` / `createdAt` against the server document)
+  /// for each mark within the batch.
+  ///
+  /// Firestore allows a maximum of 500 operations per WriteBatch; the
+  /// implementation is responsible for chunking when `payloads.length > 490`.
+  Future<void> syncBatchedMarks({
+    required String teamId,
+    required String sessionId,
+    required List<Map<String, dynamic>> payloads,
+  });
 }

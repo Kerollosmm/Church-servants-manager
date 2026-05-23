@@ -34,7 +34,13 @@ class ServantLocalDatasource {
 
   Future<ServantModel?> getCachedServantById(String docId) async {
     await init();
-    return _servantsBox!.get(docId);
+    try {
+      return _servantsBox!.get(docId);
+    } catch (_) {
+      // Corrupted entry – remove and return null.
+      await _servantsBox!.delete(docId);
+      return null;
+    }
   }
 
   /// Returns all cached servants, optionally filtering out archived ones.
@@ -42,9 +48,24 @@ class ServantLocalDatasource {
     bool includeArchived = false,
   }) async {
     await init();
-    final all = _servantsBox!.values;
-    if (includeArchived) return all.toList();
-    return all.where((s) => !s.isArchived).toList();
+    final servants = <ServantModel>[];
+    final corruptedKeys = <dynamic>[];
+    for (final key in _servantsBox!.keys) {
+      try {
+        final s = _servantsBox!.get(key);
+        if (s != null) {
+          if (includeArchived || !s.isArchived) {
+            servants.add(s);
+          }
+        }
+      } catch (_) {
+        corruptedKeys.add(key);
+      }
+    }
+    if (corruptedKeys.isNotEmpty) {
+      await _servantsBox!.deleteAll(corruptedKeys);
+    }
+    return servants;
   }
 
   /// Returns cached servants filtered by groupId (team name).
@@ -53,11 +74,24 @@ class ServantLocalDatasource {
     bool includeArchived = false,
   }) async {
     await init();
-    return _servantsBox!.values
-        .where(
-          (s) => s.teamName == groupId && (includeArchived || !s.isArchived),
-        )
-        .toList();
+    final servants = <ServantModel>[];
+    final corruptedKeys = <dynamic>[];
+    for (final key in _servantsBox!.keys) {
+      try {
+        final s = _servantsBox!.get(key);
+        if (s != null && s.teamName == groupId) {
+          if (includeArchived || !s.isArchived) {
+            servants.add(s);
+          }
+        }
+      } catch (_) {
+        corruptedKeys.add(key);
+      }
+    }
+    if (corruptedKeys.isNotEmpty) {
+      await _servantsBox!.deleteAll(corruptedKeys);
+    }
+    return servants;
   }
 
   Future<void> removeCachedServant(String docId) async {

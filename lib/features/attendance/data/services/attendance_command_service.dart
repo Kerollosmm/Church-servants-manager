@@ -600,6 +600,134 @@ class AttendanceCommandService {
     }
   }
 
+  /// Persists multiple offline mark payloads for the same [sessionId] in one
+  /// or more Firestore [WriteBatch]es (chunked at 490 ops to stay under the
+  /// 500-op limit).
+  ///
+  /// **LWW (Last-Write-Wins)**: For each payload the existing server document
+  /// is read (cache-first) before the batch is committed.  If the server's
+  /// `updatedAt` / `markedAt` timestamp is strictly newer than the payload's
+  /// `createdAt`, that mark is silently skipped — the rest of the batch
+  /// proceeds unaffected.
+  ///
+  /// **presentCount aggregation**: After all batches have been committed a
+  /// single atomic `FieldValue.increment` adjusts the session's `presentCount`
+  /// by the net delta (new presents minus lost presents) to keep the aggregate
+  /// consistent without needing a full scan.
+  Future<void> syncBatchedMarks({
+    required String teamId,
+    required String sessionId,
+    required List<Map<String, dynamic>> payloads,
+  }) async {
+    if (payloads.isEmpty) return;
+    try {
+      const int chunkSize = 490; // stay safely under Firestore's 500-op limit
+      int presentDelta = 0;
+
+      // Chunk the payloads so we never exceed the WriteBatch limit.
+      for (int offset = 0; offset < payloads.length; offset += chunkSize) {
+        final chunk = payloads.sublist(
+          offset,
+          (offset + chunkSize).clamp(0, payloads.length),
+        );
+
+        final batch = _firestore.batch();
+        bool batchHasOps = false;
+
+        for (final payload in chunk) {
+          final studentId = payload['studentId'] as String? ?? '';
+          if (studentId.isEmpty) continue;
+
+          final statusString = payload['status'] as String? ?? 'absent';
+          final markedByUid = payload['markedByUid'] as String? ?? 'system';
+          final markedByName = payload['markedByName'] as String? ?? 'النظام';
+          final rawCreatedAt = payload['createdAt'] as String?;
+          final createdAt = rawCreatedAt != null
+              ? DateTime.tryParse(rawCreatedAt) ?? DateTime.now()
+              : DateTime.now();
+
+          final markRef = _markDoc(teamId, sessionId, studentId);
+
+          // ── LWW check (cache-first read) ─────────────────────────────────
+          // We intentionally use a non-transactional get here: WriteBatch
+          // does not support reads.  The cost is a potential lost-update race
+          // if two clients write the same doc within the same millisecond
+          // offline, which is negligible in practice for a church app.
+          final existingDoc = await _cachedGet(markRef);
+          String? oldStatus;
+
+          if (existingDoc.exists) {
+            final data = existingDoc.data();
+            if (data != null) {
+              oldStatus = data['status'] as String?;
+              final dbTimestamp = data['updatedAt'] ?? data['markedAt'];
+              if (dbTimestamp is Timestamp &&
+                  dbTimestamp.toDate().isAfter(createdAt)) {
+                // Server is newer — skip this mark (LWW).
+                developer.log(
+                  'LWW: skipping mark for student $studentId '
+                  '(server is newer).',
+                  name: 'AttendanceCommandService',
+                );
+                continue;
+              }
+            }
+          }
+          // ─────────────────────────────────────────────────────────────────
+
+          final markData = <String, dynamic>{
+            'studentId': studentId,
+            'status': statusString,
+            'markedByUserId': markedByUid,
+            'markedByName': markedByName,
+            'updatedAt': FieldValue.serverTimestamp(),
+          };
+
+          if (!existingDoc.exists) {
+            markData['markedAt'] = Timestamp.fromDate(createdAt);
+            // Fetch student name from session snapshot if available.
+            // We don't fetch the session doc here to avoid extra reads; the
+            // name may already be in the payload.
+            final snapshotName = payload['studentNameSnapshot'] as String?;
+            markData['studentNameSnapshot'] = (snapshotName?.isNotEmpty == true)
+                ? snapshotName!
+                : 'مخدوم';
+          }
+
+          batch.set(markRef, markData, SetOptions(merge: true));
+          batchHasOps = true;
+
+          // Track presentCount delta.
+          if (statusString == 'present' && oldStatus != 'present') {
+            presentDelta++;
+          } else if (oldStatus == 'present' && statusString != 'present') {
+            presentDelta--;
+          }
+        }
+
+        if (batchHasOps) {
+          await batch.commit();
+          developer.log(
+            'Committed WriteBatch for ${chunk.length} marks '
+            '(session $sessionId, offset $offset).',
+            name: 'AttendanceCommandService',
+          );
+        }
+      }
+
+      // Apply the aggregated presentCount delta in a single atomic write.
+      if (presentDelta != 0) {
+        await _sessionDoc(teamId, sessionId).update({
+          'presentCount': FieldValue.increment(presentDelta),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+    } catch (error) {
+      if (error is AttendanceFailure) rethrow;
+      throw mapExceptionToAttendanceFailure(error);
+    }
+  }
+
   Future<void> _writeMark({
     required String teamId,
     required String sessionId,
