@@ -54,10 +54,22 @@ void main() {
     });
 
     test('canAccessAdminArea returns true only if admin AND fresh session', () {
-      expect(policy.canAccessAdminArea(user: adminUser, isSessionFresh: true), isTrue);
-      expect(policy.canAccessAdminArea(user: adminUser, isSessionFresh: false), isFalse);
-      expect(policy.canAccessAdminArea(user: servantUser, isSessionFresh: true), isFalse);
-      expect(policy.canAccessAdminArea(user: studentUser, isSessionFresh: true), isFalse);
+      expect(
+        policy.canAccessAdminArea(user: adminUser, isSessionFresh: true),
+        isTrue,
+      );
+      expect(
+        policy.canAccessAdminArea(user: adminUser, isSessionFresh: false),
+        isFalse,
+      );
+      expect(
+        policy.canAccessAdminArea(user: servantUser, isSessionFresh: true),
+        isFalse,
+      );
+      expect(
+        policy.canAccessAdminArea(user: studentUser, isSessionFresh: true),
+        isFalse,
+      );
     });
 
     test('canManageTeams returns true only for admin role', () {

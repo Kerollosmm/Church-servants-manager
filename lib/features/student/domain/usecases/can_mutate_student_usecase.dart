@@ -1,6 +1,6 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
-import 'package:church_management_system/features/student/data/models/student_model.dart';
+import 'package:church_management_system/features/student/domain/entities/student.dart';
 
 /// Checks whether the given [actor] has permission to
 /// create, update, or delete the given [student].
@@ -8,12 +8,12 @@ class CanMutateStudentUseCase {
   const CanMutateStudentUseCase();
 
   /// Checks if [actor] can CREATE the [student].
-  bool canCreate(AuthUser actor, StudentModel student) {
+  bool canCreate(AuthUser actor, Student student) {
     return actor.role == UserRole.admin;
   }
 
   /// Checks if [actor] can UPDATE [existing] to [updated].
-  bool canUpdate(AuthUser actor, StudentModel existing, StudentModel updated) {
+  bool canUpdate(AuthUser actor, Student existing, Student updated) {
     if (actor.role == UserRole.admin) return true;
     if (actor.role == UserRole.servant) {
       final inScope =
@@ -43,12 +43,12 @@ class CanMutateStudentUseCase {
   }
 
   /// Checks if [actor] can DELETE the [student].
-  bool canDelete(AuthUser actor, StudentModel student) {
+  bool canDelete(AuthUser actor, Student student) {
     return actor.role == UserRole.admin;
   }
 
   /// Checks if [actor] can READ the [student].
-  bool canRead(AuthUser actor, StudentModel student) {
+  bool canRead(AuthUser actor, Student student) {
     return actor.role == UserRole.admin || actor.role == UserRole.servant;
   }
 }

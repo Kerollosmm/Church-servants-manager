@@ -8,10 +8,10 @@ import 'package:church_management_system/features/student/data/datasources/stude
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/student/data/services/student_linked_user_sync_service.dart';
 import 'package:church_management_system/features/student/data/services/student_query_service.dart';
+import 'package:church_management_system/features/student/domain/entities/student.dart';
 import 'package:church_management_system/features/student/domain/failures/student_failures.dart';
 import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
 
 /// Repository for student data operations.
 ///
@@ -23,7 +23,6 @@ class StudentDataRepository implements IStudentRepository {
   final StudentLinkedUserSyncService _linkedUserSyncService;
   final StudentLocalDatasource _localDatasource;
   final SyncService Function() _syncServiceGetter;
-  final Connectivity _connectivity;
 
   StudentDataRepository({
     required FirebaseFirestore firestore,
@@ -31,7 +30,6 @@ class StudentDataRepository implements IStudentRepository {
     StudentLinkedUserSyncService? linkedUserSyncService,
     StudentLocalDatasource? localDatasource,
     required SyncService Function() syncServiceGetter,
-    Connectivity? connectivity,
   }) : _firestore = firestore,
        _queryService =
            queryService ?? StudentQueryService(firestore: firestore),
@@ -39,8 +37,7 @@ class StudentDataRepository implements IStudentRepository {
            linkedUserSyncService ??
            StudentLinkedUserSyncService(firestore: firestore),
        _localDatasource = localDatasource ?? StudentLocalDatasource(),
-       _syncServiceGetter = syncServiceGetter,
-       _connectivity = connectivity ?? Connectivity();
+       _syncServiceGetter = syncServiceGetter;
 
   CollectionReference<Map<String, dynamic>> get _studentsCollection =>
       _firestore.collection(FirestoreCollections.students);
@@ -49,12 +46,12 @@ class StudentDataRepository implements IStudentRepository {
 
   @override
   Future<void> syncLinkedUserRoleFromStudent({
-    required StudentModel updatedStudent,
+    required Student updatedStudent,
     required UserRole previousRole,
     String? updatedEmail,
   }) async {
     return _linkedUserSyncService.syncLinkedUserRoleFromStudent(
-      updatedStudent: updatedStudent,
+      updatedStudent: StudentModel.fromDomain(updatedStudent),
       previousRole: previousRole,
       updatedEmail: updatedEmail,
     );
@@ -62,109 +59,123 @@ class StudentDataRepository implements IStudentRepository {
 
   @override
   Future<void> updateStudentAndSyncLinkedUserRole({
-    required StudentModel updatedStudent,
+    required Student updatedStudent,
     required UserRole previousRole,
     String? updatedEmail,
   }) async {
     return _linkedUserSyncService.updateStudentAndSyncLinkedUserRole(
-      updatedStudent: updatedStudent,
+      updatedStudent: StudentModel.fromDomain(updatedStudent),
       previousRole: previousRole,
       updatedEmail: updatedEmail,
     );
   }
 
   @override
-  Future<StudentModel?> getStudentById(
+  Future<Student?> getStudentById(
     String docId, {
     bool includeArchived = false,
   }) async {
-    return _queryService.getStudentById(
+    final model = await _queryService.getStudentById(
       docId,
       includeArchived: includeArchived,
     );
+    return model?.toDomain();
   }
 
   @override
-  Future<StudentModel?> getStudentByUid(
+  Future<Student?> getStudentByUid(
     String uid, {
     bool includeArchived = false,
   }) async {
-    return _queryService.getStudentByUid(uid, includeArchived: includeArchived);
+    final model = await _queryService.getStudentByUid(
+      uid,
+      includeArchived: includeArchived,
+    );
+    return model?.toDomain();
   }
 
   @override
-  Future<List<StudentModel>> getAllStudents({
+  Future<List<Student>> getAllStudents({
     int limit = 10,
     PaginationCursor? cursor,
     bool includeArchived = false,
   }) async {
     final token = cursor?.token;
     final lastDoc = token is DocumentSnapshot ? token : null;
-    return _queryService.getAllStudents(
+    final models = await _queryService.getAllStudents(
       limit: limit,
       lastDocument: lastDoc,
       includeArchived: includeArchived,
     );
+    return models.map((m) => m.toDomain()).toList();
   }
 
   @override
-  Future<List<StudentModel>> getStudentsByClass(
+  Future<List<Student>> getStudentsByClass(
     String classId, {
     bool includeArchived = false,
   }) async {
-    return _queryService.getStudentsByClass(
+    final models = await _queryService.getStudentsByClass(
       classId,
       includeArchived: includeArchived,
     );
+    return models.map((m) => m.toDomain()).toList();
   }
 
   @override
-  Future<List<StudentModel>> getStudentsByClasses(
+  Future<List<Student>> getStudentsByClasses(
     List<String> classIds, {
     bool includeArchived = false,
   }) async {
-    return _queryService.getStudentsByClasses(
+    final models = await _queryService.getStudentsByClasses(
       classIds,
       includeArchived: includeArchived,
     );
+    return models.map((m) => m.toDomain()).toList();
   }
 
   @override
-  Future<List<StudentModel>> getStudentsByGrade(
+  Future<List<Student>> getStudentsByGrade(
     int grade, {
     bool includeArchived = false,
   }) async {
-    return _queryService.getStudentsByGrade(
+    final models = await _queryService.getStudentsByGrade(
       grade,
       includeArchived: includeArchived,
     );
+    return models.map((m) => m.toDomain()).toList();
   }
 
   @override
-  Future<List<StudentModel>> getStudentsByGroup(
+  Future<List<Student>> getStudentsByGroup(
     String groupName, {
     bool includeArchived = false,
   }) async {
-    return _queryService.getStudentsByGroup(
+    final models = await _queryService.getStudentsByGroup(
       groupName,
       includeArchived: includeArchived,
     );
+    return models.map((m) => m.toDomain()).toList();
   }
 
   @override
-  Future<({List<StudentModel> students, bool isFromCache})>
+  Future<({List<Student> students, bool isFromCache})>
   getStudentsByGroupWithFallback(
     String groupName, {
     bool includeArchived = false,
   }) async {
-    return _queryService.getStudentsByGroupWithFallback(
+    final result = await _queryService.getStudentsByGroupWithFallback(
       groupName,
       includeArchived: includeArchived,
+    );
+    return (
+      students: result.students.map((m) => m.toDomain()).toList(),
+      isFromCache: result.isFromCache,
     );
   }
 
   @override
-  Future<List<StudentModel>> searchStudents(
+  Future<List<Student>> searchStudents(
     String query, {
     int limit = 20,
     String? groupId,
@@ -202,48 +213,37 @@ class StudentDataRepository implements IStudentRepository {
           .limit(limit)
           .get(const GetOptions());
 
-      return _queryService
+      final models = _queryService
           .mapStudentDocs(snapshot.docs)
           .students
           .take(limit)
           .toList();
+
+      return models.map((m) => m.toDomain()).toList();
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
     }
   }
 
   @override
-  Future<String> createStudent(StudentModel student) async {
+  Future<String> createStudent(Student student) async {
     try {
       final docRef = student.docID.isNotEmpty
           ? _studentsCollection.doc(student.docID)
           : _studentsCollection.doc();
-      final finalStudent = student.copyWith(
-        docID: docRef.id,
-        syncStatus: SyncStatus.pending,
-      );
+      final finalStudent = StudentModel.fromDomain(
+        student,
+      ).copyWith(docID: docRef.id, syncStatus: SyncStatus.pending);
 
       await _localDatasource.saveStudent(finalStudent);
-      await _localDatasource.queueForSync(finalStudent);
-
-      try {
-        final batch = _firestore.batch()
-          ..set(docRef, {
-            ...finalStudent.toMap(),
-            'createdAt': FieldValue.serverTimestamp(),
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
-        await batch.commit();
-
-        final syncedStudent = finalStudent.copyWith(
-          syncStatus: SyncStatus.synced,
-        );
-        await _localDatasource.saveStudent(syncedStudent);
-        await _localDatasource.removeFromSyncQueue(docRef.id);
-      } catch (networkError) {
-        // Retain pending status locally.
-        // We don't throw a fatal error that crashes the UI.
-      }
+      await _syncServiceGetter().enqueue(
+        SyncEntry(
+          id: 'upsert_student_${docRef.id}',
+          actionType: 'UPSERT_STUDENT',
+          payload: {'student': finalStudent.toMap()},
+          createdAt: DateTime.now(),
+        ),
+      );
 
       return docRef.id;
     } catch (e) {
@@ -252,71 +252,42 @@ class StudentDataRepository implements IStudentRepository {
   }
 
   @override
-  Future<void> updateStudent(StudentModel student) async {
+  Future<void> updateStudent(Student student) async {
     try {
-      final pendingStudent = student.copyWith(syncStatus: SyncStatus.pending);
+      final pendingStudent = StudentModel.fromDomain(
+        student,
+      ).copyWith(syncStatus: SyncStatus.pending);
       await _localDatasource.saveStudent(pendingStudent);
-      await _localDatasource.queueForSync(pendingStudent);
 
-      try {
-        final docRef = _studentsCollection.doc(student.docID);
-        await docRef.update({
-          ...student.toMap(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-        final syncedStudent = pendingStudent.copyWith(
-          syncStatus: SyncStatus.synced,
-        );
-        await _localDatasource.saveStudent(syncedStudent);
-        await _localDatasource.removeFromSyncQueue(student.docID);
-      } catch (networkError) {
-        // Retain pending status locally on network failure.
-      }
+      await _syncServiceGetter().enqueue(
+        SyncEntry(
+          id: 'upsert_student_${student.docID}',
+          actionType: 'UPSERT_STUDENT',
+          payload: {'student': pendingStudent.toMap()},
+          createdAt: DateTime.now(),
+        ),
+      );
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
     }
   }
 
   @override
-  Future<void> upsertStudent(StudentModel student) async {
+  Future<void> upsertStudent(Student student) async {
     try {
-      final pendingStudent = student.copyWith(syncStatus: SyncStatus.pending);
+      final pendingStudent = StudentModel.fromDomain(
+        student,
+      ).copyWith(syncStatus: SyncStatus.pending);
       await _localDatasource.saveStudent(pendingStudent);
 
-      final connectivityResult = await _connectivity.checkConnectivity();
-      if (connectivityResult.contains(ConnectivityResult.none)) {
-        await _syncServiceGetter().enqueue(
-          SyncEntry(
-            id: 'upsert_student_${student.docID}_${DateTime.now().millisecondsSinceEpoch}',
-            actionType: 'UPSERT_STUDENT',
-            payload: {'student': student.toMap()},
-            createdAt: DateTime.now(),
-          ),
-        );
-        return;
-      }
-
-      try {
-        final docRef = _studentsCollection.doc(student.docID);
-        await docRef.set({
-          ...student.toMap(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-
-        final syncedStudent = pendingStudent.copyWith(
-          syncStatus: SyncStatus.synced,
-        );
-        await _localDatasource.saveStudent(syncedStudent);
-      } catch (networkError) {
-        await _syncServiceGetter().enqueue(
-          SyncEntry(
-            id: 'upsert_student_${student.docID}_${DateTime.now().millisecondsSinceEpoch}',
-            actionType: 'UPSERT_STUDENT',
-            payload: {'student': student.toMap()},
-            createdAt: DateTime.now(),
-          ),
-        );
-      }
+      await _syncServiceGetter().enqueue(
+        SyncEntry(
+          id: 'upsert_student_${student.docID}',
+          actionType: 'UPSERT_STUDENT',
+          payload: {'student': pendingStudent.toMap()},
+          createdAt: DateTime.now(),
+        ),
+      );
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
     }
@@ -334,54 +305,19 @@ class StudentDataRepository implements IStudentRepository {
       }
 
       // Update local cache
-      final archivedStudent = student.copyWith(isArchived: true);
+      final archivedStudent = StudentModel.fromDomain(
+        student,
+      ).copyWith(isArchived: true);
       await _localDatasource.saveStudent(archivedStudent);
 
-      final connectivityResult = await _connectivity.checkConnectivity();
-      if (connectivityResult.contains(ConnectivityResult.none)) {
-        await _syncServiceGetter().enqueue(
-          SyncEntry(
-            id: 'archive_student_${docId}_${DateTime.now().millisecondsSinceEpoch}',
-            actionType: 'ARCHIVE_STUDENT',
-            payload: {'docId': docId, 'performedByUid': performedByUid},
-            createdAt: DateTime.now(),
-          ),
-        );
-        return;
-      }
-
-      try {
-        final doc = _studentsCollection.doc(docId);
-        final batch = _firestore.batch()
-          ..set(doc, {
-            'isArchived': true,
-            'archivedAt': FieldValue.serverTimestamp(),
-            'archivedByUserId': performedByUid,
-            'restoredAt': FieldValue.delete(),
-            'restoredByUserId': FieldValue.delete(),
-          }, SetOptions(merge: true));
-
-        final normalizedUid = student.uid.trim();
-        if (normalizedUid.isNotEmpty) {
-          batch.set(_usersCollection.doc(normalizedUid), {
-            'isArchived': true,
-            'archivedAt': FieldValue.serverTimestamp(),
-            'restorePendingPasswordReset': false,
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
-        }
-
-        await batch.commit();
-      } catch (networkError) {
-        await _syncServiceGetter().enqueue(
-          SyncEntry(
-            id: 'archive_student_${docId}_${DateTime.now().millisecondsSinceEpoch}',
-            actionType: 'ARCHIVE_STUDENT',
-            payload: {'docId': docId, 'performedByUid': performedByUid},
-            createdAt: DateTime.now(),
-          ),
-        );
-      }
+      await _syncServiceGetter().enqueue(
+        SyncEntry(
+          id: 'archive_student_${docId}_${DateTime.now().millisecondsSinceEpoch}',
+          actionType: 'ARCHIVE_STUDENT',
+          payload: {'docId': docId, 'performedByUid': performedByUid},
+          createdAt: DateTime.now(),
+        ),
+      );
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
     }
@@ -399,52 +335,19 @@ class StudentDataRepository implements IStudentRepository {
       }
 
       // Update local cache
-      final restoredStudent = student.copyWith(isArchived: false);
+      final restoredStudent = StudentModel.fromDomain(
+        student,
+      ).copyWith(isArchived: false);
       await _localDatasource.saveStudent(restoredStudent);
 
-      final connectivityResult = await _connectivity.checkConnectivity();
-      if (connectivityResult.contains(ConnectivityResult.none)) {
-        await _syncServiceGetter().enqueue(
-          SyncEntry(
-            id: 'restore_student_${docId}_${DateTime.now().millisecondsSinceEpoch}',
-            actionType: 'RESTORE_STUDENT',
-            payload: {'docId': docId, 'performedByUid': performedByUid},
-            createdAt: DateTime.now(),
-          ),
-        );
-        return;
-      }
-
-      try {
-        final doc = _studentsCollection.doc(docId);
-        final batch = _firestore.batch()
-          ..set(doc, {
-            'isArchived': false,
-            'restoredAt': FieldValue.serverTimestamp(),
-            'restoredByUserId': performedByUid,
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
-
-        final normalizedUid = student.uid.trim();
-        if (normalizedUid.isNotEmpty) {
-          batch.set(_usersCollection.doc(normalizedUid), {
-            'isArchived': false,
-            'restoredAt': FieldValue.serverTimestamp(),
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
-        }
-
-        await batch.commit();
-      } catch (networkError) {
-        await _syncServiceGetter().enqueue(
-          SyncEntry(
-            id: 'restore_student_${docId}_${DateTime.now().millisecondsSinceEpoch}',
-            actionType: 'RESTORE_STUDENT',
-            payload: {'docId': docId, 'performedByUid': performedByUid},
-            createdAt: DateTime.now(),
-          ),
-        );
-      }
+      await _syncServiceGetter().enqueue(
+        SyncEntry(
+          id: 'restore_student_${docId}_${DateTime.now().millisecondsSinceEpoch}',
+          actionType: 'RESTORE_STUDENT',
+          payload: {'docId': docId, 'performedByUid': performedByUid},
+          createdAt: DateTime.now(),
+        ),
+      );
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
     }
@@ -463,7 +366,7 @@ class StudentDataRepository implements IStudentRepository {
       studentData,
       studentData['docID'] as String,
     );
-    await updateStudent(student);
+    await updateStudent(student.toDomain());
   }
 
   @override

@@ -11,9 +11,9 @@ import 'package:church_management_system/core/widgets/sync_status_banner.dart';
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:church_management_system/features/servant/data/models/servant_models.dart';
-import 'package:church_management_system/features/team/data/models/team_model.dart';
+import 'package:church_management_system/features/servant/domain/entities/servant.dart';
 import 'package:church_management_system/features/team/data/repos/team_repository.dart';
+import 'package:church_management_system/features/team/domain/entities/team.dart';
 import 'package:church_management_system/features/team/presentation/bloc/team_bloc.dart';
 import 'package:church_management_system/features/team/presentation/widgets/assign_servant_dialog.dart';
 import 'package:flutter/material.dart';
@@ -124,13 +124,13 @@ class _TeamManagementViewState extends State<_TeamManagementView>
       hintText: 'مثال: فريق مارمرقس',
       onSave: (name) {
         _teamCubit.add(
-          TeamCreateRequested(TeamModel(id: '', name: name, groupId: groupId)),
+          TeamCreateRequested(Team(id: '', name: name, groupId: groupId)),
         );
       },
     );
   }
 
-  void _showEditTeamDialog(TeamModel team) {
+  void _showEditTeamDialog(Team team) {
     _showTeamNameDialog(
       title: 'تعديل الفريق',
       actionLabel: 'حفظ',
@@ -160,7 +160,7 @@ class _TeamManagementViewState extends State<_TeamManagementView>
     );
   }
 
-  void _confirmDeleteTeam(TeamModel team) {
+  void _confirmDeleteTeam(Team team) {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -186,11 +186,11 @@ class _TeamManagementViewState extends State<_TeamManagementView>
     );
   }
 
-  void _restoreTeam(TeamModel team) {
+  void _restoreTeam(Team team) {
     _teamCubit.add(TeamRestoreRequested(team.id, team.groupId));
   }
 
-  void _openManageMembers(TeamModel team) {
+  void _openManageMembers(Team team) {
     final actor = _currentActor();
     if (actor == null) {
       AppSnackbars.showError(context, 'لم يتم العثور على مستخدم مسجل الدخول.');
@@ -203,7 +203,7 @@ class _TeamManagementViewState extends State<_TeamManagementView>
     );
   }
 
-  Future<void> _showAssignServantDialog(TeamModel team) async {
+  Future<void> _showAssignServantDialog(Team team) async {
     final actor = _currentActor();
     if (actor == null) {
       AppSnackbars.showError(context, 'لم يتم العثور على مستخدم مسجل الدخول.');
@@ -211,7 +211,7 @@ class _TeamManagementViewState extends State<_TeamManagementView>
     }
 
     final bloc = _teamCubit;
-    final selectedServant = await showDialog<ServantModel>(
+    final selectedServant = await showDialog<Servant>(
       context: context,
       builder: (_) => BlocProvider<TeamBloc>.value(
         value: bloc,
@@ -420,7 +420,7 @@ class _TeamNameDialogContentState extends State<_TeamNameDialogContent> {
 }
 
 class _TeamCard extends StatelessWidget {
-  final TeamModel team;
+  final Team team;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final VoidCallback onRestore;

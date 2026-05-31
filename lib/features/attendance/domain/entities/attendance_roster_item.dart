@@ -1,8 +1,7 @@
-import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
-import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
-import 'package:equatable/equatable.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_enums.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_session.dart';
 
-class AttendanceRosterItem extends Equatable {
+class AttendanceRosterItem {
   const AttendanceRosterItem({
     required this.studentId,
     required this.studentName,
@@ -86,18 +85,35 @@ class AttendanceRosterItem extends Equatable {
   }
 
   @override
-  List<Object?> get props => [
-    studentId,
-    studentName,
-    teamId,
-    sessionId,
-    manualStatus,
-    effectiveStatus,
-    isMarked,
-    markedAt,
-    markedByName,
-    isSessionOpen,
-    canEdit,
-    sortOrder,
-  ];
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AttendanceRosterItem &&
+          runtimeType == other.runtimeType &&
+          studentId == other.studentId &&
+          studentName == other.studentName &&
+          teamId == other.teamId &&
+          sessionId == other.sessionId &&
+          manualStatus == other.manualStatus &&
+          effectiveStatus == other.effectiveStatus &&
+          isMarked == other.isMarked &&
+          markedAt == other.markedAt &&
+          markedByName == other.markedByName &&
+          isSessionOpen == other.isSessionOpen &&
+          canEdit == other.canEdit &&
+          sortOrder == other.sortOrder;
+
+  @override
+  int get hashCode =>
+      studentId.hashCode ^
+      studentName.hashCode ^
+      teamId.hashCode ^
+      sessionId.hashCode ^
+      manualStatus.hashCode ^
+      effectiveStatus.hashCode ^
+      isMarked.hashCode ^
+      markedAt.hashCode ^
+      markedByName.hashCode ^
+      isSessionOpen.hashCode ^
+      canEdit.hashCode ^
+      sortOrder.hashCode;
 }

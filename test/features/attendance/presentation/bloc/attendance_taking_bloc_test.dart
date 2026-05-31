@@ -1,10 +1,12 @@
 import 'package:church_management_system/core/constants/enums.dart';
+import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/features/attendance/data/local/attendance_local_datasource.dart';
-import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
-import 'package:church_management_system/features/attendance/data/models/attendance_roster_item.dart';
-import 'package:church_management_system/features/attendance/data/models/attendance_roster_snapshot.dart';
+import 'package:church_management_system/features/attendance/data/models/attendance_mark.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_enums.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_roster_item.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_roster_snapshot.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_bloc.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_event.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_state.dart';
@@ -18,25 +20,32 @@ class MockAttendanceRepository extends Mock implements AttendanceRepository {}
 class MockAttendanceLocalDatasource extends Mock
     implements AttendanceLocalDatasource {}
 
+class MockSyncService extends Mock implements SyncService {}
+
 class AuthUserFake extends Fake implements AuthUser {}
+
+class FakeAttendanceMark extends Fake implements AttendanceMark {}
 
 void main() {
   late MockAttendanceRepository repository;
   late MockAttendanceLocalDatasource localDatasource;
+  late MockSyncService mockSyncService;
 
   setUpAll(() {
     registerFallbackValue(AuthUserFake());
+    registerFallbackValue(FakeAttendanceMark());
   });
 
   setUp(() {
     repository = MockAttendanceRepository();
     localDatasource = MockAttendanceLocalDatasource();
+    mockSyncService = MockSyncService();
     when(
       () => localDatasource.cacheMark(
         teamId: any(named: 'teamId'),
         sessionId: any(named: 'sessionId'),
         studentId: any(named: 'studentId'),
-        markData: any(named: 'markData'),
+        mark: any(named: 'mark'),
       ),
     ).thenAnswer((_) async {});
     when(() => localDatasource.clearCache()).thenAnswer((_) async {});
@@ -140,6 +149,8 @@ void main() {
     test('emits Loading then Loaded on initialize', () async {
       final bloc = AttendanceTakingBloc(
         repository: repository,
+        localDatasource: localDatasource,
+        syncService: mockSyncService,
         nowProvider: () => DateTime(2026, 3, 9, 18, 10),
       );
 
@@ -199,6 +210,8 @@ void main() {
 
       final bloc = AttendanceTakingBloc(
         repository: repository,
+        localDatasource: localDatasource,
+        syncService: mockSyncService,
         nowProvider: () => DateTime(2026, 3, 9, 18, 10),
       );
       when(
@@ -265,6 +278,8 @@ void main() {
 
         final bloc = AttendanceTakingBloc(
           repository: repository,
+          localDatasource: localDatasource,
+          syncService: mockSyncService,
           nowProvider: () => DateTime(2026, 3, 9, 18, 10),
         );
         when(
@@ -337,6 +352,8 @@ void main() {
 
       final bloc = AttendanceTakingBloc(
         repository: repository,
+        localDatasource: localDatasource,
+        syncService: mockSyncService,
         nowProvider: () => DateTime(2026, 3, 9, 18, 10),
       );
       when(
@@ -404,6 +421,8 @@ void main() {
 
         final bloc = AttendanceTakingBloc(
           repository: repository,
+          localDatasource: localDatasource,
+          syncService: mockSyncService,
           nowProvider: () => DateTime(2026, 3, 9, 18, 10),
         );
         when(
@@ -463,6 +482,8 @@ void main() {
 
       final bloc = AttendanceTakingBloc(
         repository: repository,
+        localDatasource: localDatasource,
+        syncService: mockSyncService,
         nowProvider: () => DateTime(2026, 3, 9, 18, 10),
       );
       when(

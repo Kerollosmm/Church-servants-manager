@@ -2,6 +2,7 @@ import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/student/data/repos/student_data_repository.dart';
+import 'package:church_management_system/features/student/domain/entities/student.dart';
 import 'package:church_management_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
 import 'package:church_management_system/features/student/domain/usecases/get_students_list_usecase.dart';
 import 'package:church_management_system/features/student/domain/usecases/provision_student_with_auth_usecase.dart';
@@ -35,7 +36,7 @@ void main() {
     groupId: 'year1',
   );
 
-  StudentModel student({String id = 's1', UserRole role = UserRole.student}) {
+  Student student({String id = 's1', UserRole role = UserRole.student}) {
     return StudentModel(
       uid: id,
       docID: id,
@@ -55,7 +56,7 @@ void main() {
       fatherOfConfession: 'Fr.',
       notes: null,
       classId: 'team1',
-    );
+    ).toDomain();
   }
 
   setUpAll(() {
@@ -112,7 +113,7 @@ void main() {
           teamId: 'team1',
           includeArchived: any(named: 'includeArchived'),
         ),
-      ).thenAnswer((_) async => <StudentModel>[student()]);
+      ).thenAnswer((_) async => [student()]);
 
       when(
         () => getStudentsList.call(
@@ -120,7 +121,7 @@ void main() {
           teamId: 'team2',
           includeArchived: any(named: 'includeArchived'),
         ),
-      ).thenAnswer((_) async => <StudentModel>[student(id: 's2')]);
+      ).thenAnswer((_) async => [student(id: 's2')]);
 
       final bloc = StudentDataBloc(
         studentRepository: repository,

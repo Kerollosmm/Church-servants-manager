@@ -12,7 +12,10 @@ class TeamLocalDatasource {
   Box<TeamModel>? _teamsBox;
 
   Future<void> init() async {
-    _teamsBox ??= await Hive.openBox<TeamModel>(boxName);
+    _teamsBox ??= await Hive.openBox<TeamModel>(
+      boxName,
+      compactionStrategy: (entries, deletedEntries) => deletedEntries > 50,
+    );
   }
 
   // ---- Cache Operations ----

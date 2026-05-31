@@ -28,8 +28,8 @@ void main() {
         averageAttendanceRate: 0.85,
         pendingVisitationsCount: 3,
         topActiveServants: {'Alice': 10, 'Bob': 7},
-        lastComputedAt: DateTime(2026, 5, 20, 10, 0),
-        fetchedAt: DateTime(2026, 5, 20, 11, 0),
+        lastComputedAt: DateTime(2026, 5, 20, 10),
+        fetchedAt: DateTime(2026, 5, 20, 11),
       );
 
       final json = original.toJson();
@@ -38,7 +38,10 @@ void main() {
       expect(restored.sectorId, original.sectorId);
       expect(restored.totalStudentsCount, original.totalStudentsCount);
       expect(restored.averageAttendanceRate, original.averageAttendanceRate);
-      expect(restored.pendingVisitationsCount, original.pendingVisitationsCount);
+      expect(
+        restored.pendingVisitationsCount,
+        original.pendingVisitationsCount,
+      );
       expect(restored.topActiveServants, original.topActiveServants);
       expect(restored.lastComputedAt, original.lastComputedAt);
       expect(restored.fetchedAt, original.fetchedAt);
@@ -50,7 +53,7 @@ void main() {
         'averageAttendanceRate': 0.92,
         'pendingVisitationsCount': 5,
         'topActiveServants': {'John': 15, 'Jane': 12},
-        'lastComputedAt': DateTime(2026, 5, 20, 9, 0).toIso8601String(),
+        'lastComputedAt': DateTime(2026, 5, 20, 9).toIso8601String(),
       };
 
       final model = AnalyticsSummaryModel.fromMap(data, 'test-sector');
@@ -70,8 +73,8 @@ void main() {
         averageAttendanceRate: 0.85,
         pendingVisitationsCount: 3,
         topActiveServants: {'Alice': 10},
-        lastComputedAt: DateTime(2026, 5, 20, 10, 0),
-        fetchedAt: DateTime(2026, 5, 20, 11, 0),
+        lastComputedAt: DateTime(2026, 5, 20, 10),
+        fetchedAt: DateTime(2026, 5, 20, 11),
       );
 
       final map = model.toMap();
@@ -85,8 +88,8 @@ void main() {
     test('topActiveServantsTyped returns typed Map<String, int>', () {
       final model = AnalyticsSummaryModel(
         sectorId: 'sector-1',
-        lastComputedAt: DateTime(2026, 5, 20, 10, 0),
-        fetchedAt: DateTime(2026, 5, 20, 11, 0),
+        lastComputedAt: DateTime(2026, 5, 20, 10),
+        fetchedAt: DateTime(2026, 5, 20, 11),
         topActiveServants: {'Alice': 10, 'Bob': 7},
       );
 
@@ -100,8 +103,8 @@ void main() {
     test('default values are correct', () {
       final model = AnalyticsSummaryModel(
         sectorId: 'sector-1',
-        lastComputedAt: DateTime(2026, 5, 20, 10, 0),
-        fetchedAt: DateTime(2026, 5, 20, 11, 0),
+        lastComputedAt: DateTime(2026, 5, 20, 10),
+        fetchedAt: DateTime(2026, 5, 20, 11),
       );
 
       expect(model.totalStudentsCount, 0);
@@ -119,8 +122,8 @@ void main() {
         averageAttendanceRate: 0.78,
         pendingVisitationsCount: 2,
         topActiveServants: {'Servant1': 20, 'Servant2': 15},
-        lastComputedAt: DateTime(2026, 5, 20, 10, 0),
-        fetchedAt: DateTime(2026, 5, 20, 11, 0),
+        lastComputedAt: DateTime(2026, 5, 20, 10),
+        fetchedAt: DateTime(2026, 5, 20, 11),
       );
 
       await box.put('hive-sector', original);
@@ -130,7 +133,10 @@ void main() {
       expect(restored!.sectorId, original.sectorId);
       expect(restored.totalStudentsCount, original.totalStudentsCount);
       expect(restored.averageAttendanceRate, original.averageAttendanceRate);
-      expect(restored.pendingVisitationsCount, original.pendingVisitationsCount);
+      expect(
+        restored.pendingVisitationsCount,
+        original.pendingVisitationsCount,
+      );
       expect(restored.topActiveServants, original.topActiveServants);
       expect(restored.lastComputedAt, original.lastComputedAt);
       expect(restored.fetchedAt, original.fetchedAt);

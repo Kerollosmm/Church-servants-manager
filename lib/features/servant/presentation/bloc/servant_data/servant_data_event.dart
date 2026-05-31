@@ -41,7 +41,7 @@ class ServantsSearchRequested extends ServantDataEvent {
 
 class ServantCreateRequested extends ServantDataEvent {
   final AuthUser actor;
-  final ServantModel servant;
+  final Servant servant;
   final String? email;
   final String? password;
 
@@ -58,7 +58,7 @@ class ServantCreateRequested extends ServantDataEvent {
 
 class ServantUpdateRequested extends ServantDataEvent {
   final AuthUser actor;
-  final ServantModel servant;
+  final Servant servant;
 
   const ServantUpdateRequested({required this.actor, required this.servant});
 

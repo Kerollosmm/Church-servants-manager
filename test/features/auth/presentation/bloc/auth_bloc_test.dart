@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:church_management_system/core/constants/enums.dart';
+import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/data/repos/firebase_auth_repository.dart';
 import 'package:church_management_system/features/auth/domain/failures/auth_failures.dart';
@@ -13,9 +14,12 @@ class MockAuthService extends Mock implements FirebaseAuthRepository {}
 
 class MockConnectivity extends Mock implements Connectivity {}
 
+class MockSyncService extends Mock implements SyncService {}
+
 void main() {
   late MockAuthService authService;
   late MockConnectivity connectivity;
+  late MockSyncService syncService;
 
   AuthUser testUser({bool isEmailVerified = true}) {
     return AuthUser(
@@ -30,10 +34,14 @@ void main() {
   setUp(() {
     authService = MockAuthService();
     connectivity = MockConnectivity();
+    syncService = MockSyncService();
     when(() => authService.userStream).thenAnswer((_) => const Stream.empty());
     when(
       () => connectivity.onConnectivityChanged,
     ).thenAnswer((_) => const Stream.empty());
+    when(
+      () => syncService.setAuthenticatedUser(any()),
+    ).thenAnswer((_) async {});
   });
 
   test('emits loading then authenticated on successful sign in', () async {
@@ -41,7 +49,11 @@ void main() {
       () => authService.signIn(email: 'user@example.com', password: 'password'),
     ).thenAnswer((_) async => testUser());
 
-    final bloc = AuthBloc(authService: authService, connectivity: connectivity);
+    final bloc = AuthBloc(
+      authService: authService,
+      connectivity: connectivity,
+      syncService: syncService,
+    );
     final expectation = expectLater(
       bloc.stream,
       emitsInOrder([
@@ -67,6 +79,7 @@ void main() {
       final bloc = AuthBloc(
         authService: authService,
         connectivity: connectivity,
+        syncService: syncService,
       );
       final expectation = expectLater(
         bloc.stream,
@@ -85,7 +98,11 @@ void main() {
     when(() => authService.userStream).thenAnswer((_) => Stream.value(null));
     when(() => authService.currentUser).thenReturn(null);
 
-    final bloc = AuthBloc(authService: authService, connectivity: connectivity);
+    final bloc = AuthBloc(
+      authService: authService,
+      connectivity: connectivity,
+      syncService: syncService,
+    );
     final expectation = expectLater(
       bloc.stream,
       emitsInOrder([isA<AuthLoading>(), isA<AuthUnauthenticated>()]),
@@ -115,7 +132,11 @@ void main() {
       () => authService.getCurrentAppUser(forceRefresh: true),
     ).thenAnswer((_) async => fullUser);
 
-    final bloc = AuthBloc(authService: authService, connectivity: connectivity);
+    final bloc = AuthBloc(
+      authService: authService,
+      connectivity: connectivity,
+      syncService: syncService,
+    );
     final expectation = expectLater(
       bloc.stream,
       emitsInOrder([
@@ -156,6 +177,7 @@ void main() {
       final bloc = AuthBloc(
         authService: authService,
         connectivity: connectivity,
+        syncService: syncService,
       );
       final expectation = expectLater(
         bloc.stream,
@@ -195,6 +217,7 @@ void main() {
       final bloc = AuthBloc(
         authService: authService,
         connectivity: connectivity,
+        syncService: syncService,
       );
       final expectation = expectLater(
         bloc.stream,
@@ -222,7 +245,11 @@ void main() {
       () => authService.refreshCurrentAppUser(),
     ).thenAnswer((_) async => refreshedUser);
 
-    final bloc = AuthBloc(authService: authService, connectivity: connectivity);
+    final bloc = AuthBloc(
+      authService: authService,
+      connectivity: connectivity,
+      syncService: syncService,
+    );
     final expectation = expectLater(
       bloc.stream,
       emitsInOrder([
@@ -255,7 +282,11 @@ void main() {
       () => authService.getCurrentAppUser(forceRefresh: true),
     ).thenAnswer((_) async => archivedUser);
 
-    final bloc = AuthBloc(authService: authService, connectivity: connectivity);
+    final bloc = AuthBloc(
+      authService: authService,
+      connectivity: connectivity,
+      syncService: syncService,
+    );
     final expectation = expectLater(
       bloc.stream,
       emitsInOrder([
@@ -285,7 +316,11 @@ void main() {
       ),
     ).thenAnswer((_) async => initialUser);
 
-    final bloc = AuthBloc(authService: authService, connectivity: connectivity);
+    final bloc = AuthBloc(
+      authService: authService,
+      connectivity: connectivity,
+      syncService: syncService,
+    );
 
     // Bootstrap the bloc into AuthAuthenticated state
     bloc.add(const AuthEventCheckStatus());

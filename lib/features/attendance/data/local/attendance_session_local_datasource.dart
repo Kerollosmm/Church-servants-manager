@@ -13,20 +13,25 @@ class AttendanceSessionLocalDatasource {
   Box<String>? _sessionsBox;
 
   Future<void> init() async {
-    _sessionsBox ??= await Hive.openBox<String>(boxName);
+    _sessionsBox ??= await Hive.openBox<String>(
+      boxName,
+      compactionStrategy: (entries, deletedEntries) => deletedEntries > 50,
+    );
   }
 
   // ---- Cache Operations ----
 
   Future<void> cacheSession(AttendanceSession session) async {
     await init();
-    await _sessionsBox!.put(session.id, jsonEncode(session.toMap()));
+    final model = AttendanceSessionModel.fromDomain(session);
+    await _sessionsBox!.put(session.id, jsonEncode(model.toMap()));
   }
 
   Future<void> cacheSessions(List<AttendanceSession> sessions) async {
     await init();
     final entries = <String, String>{
-      for (final s in sessions) s.id: jsonEncode(s.toMap()),
+      for (final s in sessions)
+        s.id: jsonEncode(AttendanceSessionModel.fromDomain(s).toMap()),
     };
     await _sessionsBox!.putAll(entries);
   }
@@ -37,7 +42,7 @@ class AttendanceSessionLocalDatasource {
     if (data == null) return null;
     try {
       final map = jsonDecode(data) as Map<String, dynamic>;
-      return AttendanceSession.fromMap(map, sessionId);
+      return AttendanceSessionModel.fromMap(map, sessionId).toDomain();
     } catch (_) {
       return null;
     }
@@ -51,7 +56,10 @@ class AttendanceSessionLocalDatasource {
     for (final data in all) {
       try {
         final map = jsonDecode(data) as Map<String, dynamic>;
-        final session = AttendanceSession.fromMap(map, map['id'] ?? '');
+        final session = AttendanceSessionModel.fromMap(
+          map,
+          map['id'] ?? '',
+        ).toDomain();
         if (session.teamId == teamId && !session.isClosed) {
           sessions.add(session);
         }
@@ -69,7 +77,10 @@ class AttendanceSessionLocalDatasource {
     for (final data in all) {
       try {
         final map = jsonDecode(data) as Map<String, dynamic>;
-        final session = AttendanceSession.fromMap(map, map['id'] ?? '');
+        final session = AttendanceSessionModel.fromMap(
+          map,
+          map['id'] ?? '',
+        ).toDomain();
         if (session.teamId == teamId) {
           sessions.add(session);
         }
@@ -90,7 +101,10 @@ class AttendanceSessionLocalDatasource {
     for (final data in all) {
       try {
         final map = jsonDecode(data) as Map<String, dynamic>;
-        final session = AttendanceSession.fromMap(map, map['id'] ?? '');
+        final session = AttendanceSessionModel.fromMap(
+          map,
+          map['id'] ?? '',
+        ).toDomain();
         if (session.teamId == teamId && session.dateKey == dateKey) {
           sessions.add(session);
         }

@@ -1,6 +1,6 @@
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
-import 'package:church_management_system/features/student/data/models/student_model.dart';
-import 'package:church_management_system/features/team/data/models/team_model.dart';
+import 'package:church_management_system/features/student/domain/entities/student.dart';
+import 'package:church_management_system/features/team/domain/entities/team.dart';
 import 'package:equatable/equatable.dart';
 
 abstract class TeamMembersEvent extends Equatable {
@@ -44,8 +44,8 @@ class ToggleSelectionEvent extends TeamMembersEvent {
 
 class SaveMembersEvent extends TeamMembersEvent {
   final AuthUser actor;
-  final TeamModel team;
-  final List<StudentModel> selectedStudents;
+  final Team team;
+  final List<Student> selectedStudents;
 
   const SaveMembersEvent({
     required this.actor,

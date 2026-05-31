@@ -1,11 +1,11 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/models/sync_entry.dart';
 import 'package:church_management_system/core/services/sync_service.dart';
-import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
-import 'package:church_management_system/features/attendance/data/models/attendance_roster_item.dart';
-import 'package:church_management_system/features/attendance/data/models/attendance_roster_snapshot.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_enums.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_roster_item.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_roster_snapshot.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/attendance/attendance_bloc.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:flutter_test/flutter_test.dart';

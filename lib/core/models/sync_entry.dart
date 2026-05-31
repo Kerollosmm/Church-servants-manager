@@ -30,6 +30,14 @@ class SyncEntry extends HiveObject {
   @HiveField(5)
   DateTime? failedAt;
 
+  /// User who initiated this mutation (for scoping and isolation)
+  @HiveField(6)
+  final String? userId;
+
+  /// The last error message when a sync attempt failed
+  @HiveField(7)
+  String? lastErrorMessage;
+
   SyncEntry({
     required this.id,
     required this.actionType,
@@ -37,6 +45,8 @@ class SyncEntry extends HiveObject {
     required this.createdAt,
     this.retryCount = 0,
     this.failedAt,
+    this.userId,
+    this.lastErrorMessage,
   });
 
   /// Deterministic key for deduplication.
@@ -48,5 +58,7 @@ class SyncEntry extends HiveObject {
     'createdAt': createdAt.toIso8601String(),
     'retryCount': retryCount,
     'failedAt': failedAt?.toIso8601String(),
+    'userId': userId,
+    'lastErrorMessage': lastErrorMessage,
   };
 }

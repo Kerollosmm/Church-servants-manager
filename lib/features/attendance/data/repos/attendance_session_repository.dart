@@ -4,6 +4,7 @@ import 'dart:developer' as developer;
 import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/models/sync_entry.dart';
+import 'package:church_management_system/core/services/cache_tracker.dart';
 import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/features/attendance/data/local/attendance_session_local_datasource.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
@@ -45,7 +46,9 @@ class AttendanceSessionRepository {
     final sessions = <AttendanceSession>[];
     for (final doc in snapshot.docs) {
       try {
-        sessions.add(AttendanceSession.fromMap(doc.data(), doc.id));
+        sessions.add(
+          AttendanceSessionModel.fromMap(doc.data(), doc.id).toDomain(),
+        );
       } catch (error) {
         developer.log(
           'skipped malformed attendance session ${doc.reference.path}',
@@ -61,17 +64,23 @@ class AttendanceSessionRepository {
   Future<List<AttendanceSession>> getActiveSessions(String teamId) async {
     final cached = await _localDatasource.getCachedActiveSessions(teamId);
     if (cached.isNotEmpty) {
-      unawaited(
-        _sessionsCol
-            .where('teamId', isEqualTo: teamId)
-            .where('isClosed', isEqualTo: false)
-            .get(const GetOptions(source: Source.server))
-            .then((snapshot) {
-              final sessions = _mapSessionsSnapshot(snapshot);
-              if (sessions.isNotEmpty) _localDatasource.cacheSessions(sessions);
-            })
-            .catchError((_) {}),
-      );
+      final cacheKey = 'active_sessions_$teamId';
+      if (CacheTracker.shouldRevalidate(cacheKey)) {
+        unawaited(
+          _sessionsCol
+              .where('teamId', isEqualTo: teamId)
+              .where('isClosed', isEqualTo: false)
+              .get(const GetOptions(source: Source.server))
+              .then((snapshot) {
+                final sessions = _mapSessionsSnapshot(snapshot);
+                if (sessions.isNotEmpty) {
+                  _localDatasource.cacheSessions(sessions);
+                  CacheTracker.markFetched(cacheKey);
+                }
+              })
+              .catchError((_) {}),
+        );
+      }
       return cached..sort((a, b) => b.startsAt.compareTo(a.startsAt));
     }
 
@@ -93,16 +102,22 @@ class AttendanceSessionRepository {
   Future<List<AttendanceSession>> getAllSessions(String teamId) async {
     final cached = await _localDatasource.getCachedAllSessions(teamId);
     if (cached.isNotEmpty) {
-      unawaited(
-        _sessionsCol
-            .where('teamId', isEqualTo: teamId)
-            .get(const GetOptions(source: Source.server))
-            .then((snapshot) {
-              final sessions = _mapSessionsSnapshot(snapshot);
-              if (sessions.isNotEmpty) _localDatasource.cacheSessions(sessions);
-            })
-            .catchError((_) {}),
-      );
+      final cacheKey = 'all_sessions_$teamId';
+      if (CacheTracker.shouldRevalidate(cacheKey)) {
+        unawaited(
+          _sessionsCol
+              .where('teamId', isEqualTo: teamId)
+              .get(const GetOptions(source: Source.server))
+              .then((snapshot) {
+                final sessions = _mapSessionsSnapshot(snapshot);
+                if (sessions.isNotEmpty) {
+                  _localDatasource.cacheSessions(sessions);
+                  CacheTracker.markFetched(cacheKey);
+                }
+              })
+              .catchError((_) {}),
+        );
+      }
       return cached..sort((a, b) => b.startsAt.compareTo(a.startsAt));
     }
 
@@ -124,36 +139,8 @@ class AttendanceSessionRepository {
     required String sessionId,
     required bool isClosed,
   }) async {
+    // 1. Write to local Hive cache FIRST
     try {
-      final connectivity = await Connectivity().checkConnectivity();
-      if (connectivity.contains(ConnectivityResult.none)) {
-        final syncEntry = SyncEntry(
-          id: 'close_session_$sessionId',
-          actionType: 'CLOSE_SESSION',
-          payload: {
-            'teamId': teamId,
-            'sessionId': sessionId,
-            'isClosed': isClosed,
-          },
-          createdAt: DateTime.now(),
-        );
-        await getIt<SyncService>().enqueue(syncEntry);
-
-        final cachedSession = await _localDatasource.getCachedSessionById(
-          sessionId,
-        );
-        if (cachedSession != null) {
-          final updated = cachedSession.copyWith(isClosed: isClosed);
-          await _localDatasource.cacheSession(updated);
-        }
-        return;
-      }
-
-      await _sessionDoc(teamId, sessionId).update({
-        'isClosed': isClosed,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
       final cachedSession = await _localDatasource.getCachedSessionById(
         sessionId,
       );
@@ -161,8 +148,51 @@ class AttendanceSessionRepository {
         final updated = cachedSession.copyWith(isClosed: isClosed);
         await _localDatasource.cacheSession(updated);
       }
+    } catch (e) {
+      developer.log(
+        'Local cache update failed in AttendanceSessionRepository',
+        error: e,
+        name: 'AttendanceSessionRepository',
+      );
+    }
+
+    // 2. Try online write or fallback to outbox queue
+    final syncEntry = SyncEntry(
+      id: 'close_session_$sessionId',
+      actionType: 'CLOSE_SESSION',
+      payload: {'teamId': teamId, 'sessionId': sessionId, 'isClosed': isClosed},
+      createdAt: DateTime.now(),
+    );
+
+    try {
+      final connectivity = await Connectivity().checkConnectivity();
+      if (connectivity.contains(ConnectivityResult.none)) {
+        await getIt<SyncService>().enqueue(syncEntry);
+        return;
+      }
+
+      await _sessionDoc(teamId, sessionId).update({
+        'isClosed': isClosed,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } on FirebaseException catch (error) {
+      if (error.code == 'unavailable' || error.code == 'deadline-exceeded') {
+        developer.log(
+          'Firestore close session failed with network error, enqueuing for offline sync',
+          error: error,
+          name: 'AttendanceSessionRepository',
+        );
+        await getIt<SyncService>().enqueue(syncEntry);
+      } else {
+        throw mapExceptionToAttendanceFailure(error);
+      }
     } catch (error) {
-      throw mapExceptionToAttendanceFailure(error);
+      developer.log(
+        'Close session failed, enqueuing for offline sync',
+        error: error,
+        name: 'AttendanceSessionRepository',
+      );
+      await getIt<SyncService>().enqueue(syncEntry);
     }
   }
 
@@ -194,7 +224,7 @@ class AttendanceSessionRepository {
       final doc = await _cachedGet(_sessionDoc(teamId, sessionId));
       final data = doc.data();
       if (!doc.exists || data == null) return null;
-      final session = AttendanceSession.fromMap(data, doc.id);
+      final session = AttendanceSessionModel.fromMap(data, doc.id).toDomain();
       await _localDatasource.cacheSession(session);
       return session;
     } catch (error) {
@@ -212,17 +242,23 @@ class AttendanceSessionRepository {
       dateKey,
     );
     if (cached.isNotEmpty) {
-      unawaited(
-        _sessionsCol
-            .where('teamId', isEqualTo: teamId)
-            .where('dateKey', isEqualTo: dateKey)
-            .get(const GetOptions(source: Source.server))
-            .then((snapshot) {
-              final sessions = _mapSessionsSnapshot(snapshot);
-              if (sessions.isNotEmpty) _localDatasource.cacheSessions(sessions);
-            })
-            .catchError((_) {}),
-      );
+      final cacheKey = 'sessions_date_${teamId}_$dateKey';
+      if (CacheTracker.shouldRevalidate(cacheKey)) {
+        unawaited(
+          _sessionsCol
+              .where('teamId', isEqualTo: teamId)
+              .where('dateKey', isEqualTo: dateKey)
+              .get(const GetOptions(source: Source.server))
+              .then((snapshot) {
+                final sessions = _mapSessionsSnapshot(snapshot);
+                if (sessions.isNotEmpty) {
+                  _localDatasource.cacheSessions(sessions);
+                  CacheTracker.markFetched(cacheKey);
+                }
+              })
+              .catchError((_) {}),
+        );
+      }
       return cached..sort((a, b) => b.startsAt.compareTo(a.startsAt));
     }
 

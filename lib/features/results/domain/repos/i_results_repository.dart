@@ -1,12 +1,12 @@
-import 'package:church_management_system/features/results/data/models/results_model.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:church_management_system/core/utils/pagination_cursor.dart';
+import 'package:church_management_system/features/results/domain/entities/result.dart';
 
 abstract class IResultsRepository {
-  Future<List<ResultsModel>> getResultsForServant(
+  Future<List<Result>> getResultsForServant(
     String groupId, {
-    DocumentSnapshot? startAfter,
+    PaginationCursor? startAfter,
   });
-  Future<ResultsModel?> getResultForStudent(String studentId);
-  Future<void> updateResult(ResultsModel result);
+  Future<Result?> getResultForStudent(String studentId);
+  Future<void> updateResult(Result result);
   Future<void> syncOfflineUpdate(Map<String, dynamic> payload);
 }

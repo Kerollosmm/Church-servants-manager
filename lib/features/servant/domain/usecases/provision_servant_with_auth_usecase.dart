@@ -1,7 +1,7 @@
 import 'dart:developer' as developer;
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
-import 'package:church_management_system/features/servant/data/models/servant_models.dart';
+import 'package:church_management_system/features/servant/domain/entities/servant.dart';
 import 'package:church_management_system/features/servant/domain/repos/i_servant_repository.dart';
 
 class ProvisionServantWithAuthUseCase {
@@ -22,7 +22,7 @@ class ProvisionServantWithAuthUseCase {
   }
 
   Future<String> call({
-    required ServantModel servant,
+    required Servant servant,
     String? email,
     String? password,
   }) async {

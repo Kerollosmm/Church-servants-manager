@@ -5,11 +5,12 @@ import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/features/attendance/data/local/attendance_local_datasource.dart';
 import 'package:church_management_system/features/attendance/data/local/mark_sync_entry.dart';
-import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_mark.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_enums.dart';
 import 'package:church_management_system/features/attendance/domain/failures/attendance_failures.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
+import 'package:church_management_system/features/auth/domain/entities/auth_user.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AttendanceMarkRepository {
@@ -101,7 +102,7 @@ class AttendanceMarkRepository {
   ) async {
     final doc = await _cachedGet(_sessionDoc(teamId, sessionId));
     if (!doc.exists || doc.data() == null) return null;
-    return AttendanceSession.fromMap(doc.data()!, doc.id);
+    return AttendanceSessionModel.fromMap(doc.data()!, doc.id).toDomain();
   }
 
   Future<bool> _canUserManageAttendance(AuthUser user, String teamId) async {
@@ -322,33 +323,34 @@ class AttendanceMarkRepository {
   }) async {
     final normalizedStudentId = studentId.trim();
 
-    final cachedData = _localDatasource.getCachedMark(
+    final cachedMark = _localDatasource.getCachedMark(
       teamId: teamId,
       sessionId: sessionId,
       studentId: normalizedStudentId,
     );
 
-    if (cachedData != null) {
+    if (cachedMark != null) {
       unawaited(
         _markDoc(teamId, sessionId, normalizedStudentId)
             .get(const GetOptions(source: Source.server))
             .then((doc) {
               final data = doc.data();
               if (doc.exists && data != null) {
-                _localDatasource.cacheMark(
-                  teamId: teamId,
-                  sessionId: sessionId,
-                  studentId: normalizedStudentId,
-                  markData: data,
-                );
+                try {
+                  final mark = AttendanceMark.fromMap(data, doc.id);
+                  _localDatasource.cacheMark(
+                    teamId: teamId,
+                    sessionId: sessionId,
+                    studentId: normalizedStudentId,
+                    mark: mark,
+                  );
+                } catch (_) {}
               }
             })
             .catchError((_) {}),
       );
 
-      try {
-        return AttendanceMark.fromMap(cachedData, normalizedStudentId);
-      } catch (_) {}
+      return cachedMark;
     }
 
     final doc = await _cachedGet(
@@ -362,7 +364,7 @@ class AttendanceMarkRepository {
         teamId: teamId,
         sessionId: sessionId,
         studentId: normalizedStudentId,
-        markData: data,
+        mark: mark,
       );
       return mark;
     } catch (error) {

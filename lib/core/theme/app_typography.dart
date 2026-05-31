@@ -30,10 +30,7 @@ class AppTypography {
         fontWeight: FontWeight.w600,
         color: AppColors.textPrimary,
       ),
-      bodyLarge: const TextStyle(
-        fontSize: 16,
-        color: AppColors.textPrimary,
-      ),
+      bodyLarge: const TextStyle(fontSize: 16, color: AppColors.textPrimary),
       bodyMedium: const TextStyle(
         // Body / Content: 0.875rem (14px). Optimized for legibility in dense administrative forms.
         fontSize: 14,
@@ -50,11 +47,7 @@ class AppTypography {
         fontWeight: FontWeight.w500,
         color: AppColors.textSecondary,
       ),
-      labelSmall: const TextStyle(
-        fontSize: 11,
-        color: AppColors.textTertiary,
-      ),
+      labelSmall: const TextStyle(fontSize: 11, color: AppColors.textTertiary),
     );
   }
 }
-

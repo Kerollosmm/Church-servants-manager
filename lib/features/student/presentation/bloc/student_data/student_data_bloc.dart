@@ -3,7 +3,7 @@ import 'dart:developer' as developer;
 
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
-import 'package:church_management_system/features/student/data/models/student_model.dart';
+import 'package:church_management_system/features/student/domain/entities/student.dart';
 import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
 import 'package:church_management_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
 import 'package:church_management_system/features/student/domain/usecases/get_students_list_usecase.dart';
@@ -122,7 +122,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
 
   void _onDataFetched(
     Emitter<StudentDataState> emit,
-    List<StudentModel> fetchedStudents,
+    List<Student> fetchedStudents,
   ) {
     final allStudents = fetchedStudents
         .where((student) => student.role == UserRole.student)
@@ -165,15 +165,15 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     _completePendingRefresh();
   }
 
-  List<StudentModel> _filterByName(List<StudentModel> students, String query) {
+  List<Student> _filterByName(List<Student> students, String query) {
     final normalized = query.toLowerCase();
     return students
         .where((s) => s.name.toLowerCase().contains(normalized))
         .toList();
   }
 
-  List<StudentModel> _resolveVisibleStudents({
-    required List<StudentModel> allStudents,
+  List<Student> _resolveVisibleStudents({
+    required List<Student> allStudents,
     String? query,
   }) {
     if (query != null && query.isNotEmpty) {
@@ -184,9 +184,9 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
 
   void _emitLoadedState(
     Emitter<StudentDataState> emit, {
-    required List<StudentModel> students,
-    required List<StudentModel> allStudents,
-    required Map<String, StudentModel> studentsByDocId,
+    required List<Student> students,
+    required List<Student> allStudents,
+    required Map<String, Student> studentsByDocId,
     String? groupId,
     String? teamId,
     String? query,
@@ -217,8 +217,8 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     StudentMutationOperation? mutationOperation,
   }) {
     final currentState = state;
-    List<StudentModel> allStudents = const [];
-    Map<String, StudentModel> studentsByDocId = const {};
+    List<Student> allStudents = const [];
+    Map<String, Student> studentsByDocId = const {};
     String? groupId;
     String? teamId;
     String? query;
@@ -263,7 +263,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     );
   }
 
-  Future<StudentModel?> _resolveExistingStudent(String docId) async {
+  Future<Student?> _resolveExistingStudent(String docId) async {
     final currentState = state;
     if (currentState is StudentDataLoaded) {
       return currentState.studentsByDocId[docId] ??
@@ -287,8 +287,8 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
 
   bool _isRoleChangeRestricted({
     required AuthUser actor,
-    required StudentModel existing,
-    required StudentModel updated,
+    required Student existing,
+    required Student updated,
   }) {
     final isRoleChange = existing.role != updated.role;
     if (!isRoleChange) {
@@ -298,8 +298,8 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
   }
 
   bool _isInvalidServantPromotion({
-    required StudentModel existing,
-    required StudentModel updated,
+    required Student existing,
+    required Student updated,
   }) {
     final isRoleChange = existing.role != updated.role;
     if (!isRoleChange) {
@@ -313,8 +313,8 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     Emitter<StudentDataState> emit,
   ) async {
     final currentState = state;
-    List<StudentModel> previousStudents = const [];
-    List<StudentModel> previousAllStudents = const [];
+    List<Student> previousStudents = const [];
+    List<Student> previousAllStudents = const [];
     bool isRefresh = false;
     String? currentQuery;
 
@@ -358,8 +358,8 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     String? previousQuery;
     String? previousTeamId;
     bool previousIncludeArchived = false;
-    List<StudentModel> allStudents = const [];
-    Map<String, StudentModel> studentsByDocId = const {};
+    List<Student> allStudents = const [];
+    Map<String, Student> studentsByDocId = const {};
 
     if (currentState is StudentDataLoaded) {
       previousQuery = currentState.currentQuery;
@@ -657,7 +657,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     Emitter<StudentDataState> emit,
   ) async {
     final currentState = state;
-    List<StudentModel> previousStudents = const [];
+    List<Student> previousStudents = const [];
     bool isRefresh = false;
     String? teamId;
     String? query;

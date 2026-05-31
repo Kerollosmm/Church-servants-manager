@@ -4,8 +4,13 @@ import 'package:church_management_system/core/models/sync_entry.dart';
 import 'package:church_management_system/core/services/dead_letter_queue.dart';
 import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_session_repository.dart';
+import 'package:church_management_system/features/attendance/data/services/attendance_season_sync_handler.dart';
+import 'package:church_management_system/features/attendance/data/services/attendance_sync_handler.dart';
 import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
+import 'package:church_management_system/features/results/data/services/result_sync_handler.dart';
 import 'package:church_management_system/features/results/domain/repos/i_results_repository.dart';
+import 'package:church_management_system/features/student/data/services/pastoral_sync_handler.dart';
+import 'package:church_management_system/features/student/data/services/student_sync_handler.dart';
 import 'package:church_management_system/features/student/domain/repos/i_pastoral_repository.dart';
 import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -19,7 +24,8 @@ class MockStudentRepository extends Mock implements IStudentRepository {}
 
 class MockResultsRepository extends Mock implements IResultsRepository {}
 
-class MockSessionRepository extends Mock implements AttendanceSessionRepository {}
+class MockSessionRepository extends Mock
+    implements AttendanceSessionRepository {}
 
 class MockPastoralRepository extends Mock implements IPastoralRepository {}
 
@@ -40,6 +46,14 @@ void main() {
     tempDir = Directory.systemTemp.createTempSync('sync_dlq_test');
     Hive.init(tempDir.path);
     Hive.registerAdapter(SyncEntryAdapter());
+    registerFallbackValue(
+      SyncEntry(
+        id: 'fallback',
+        actionType: 'MARK_ATTENDANCE',
+        payload: {},
+        createdAt: DateTime.now(),
+      ),
+    );
   });
 
   setUp(() async {
@@ -51,31 +65,41 @@ void main() {
     mockConnectivity = MockConnectivity();
 
     // Default to no connectivity so enqueue() does not trigger processQueue()
-    when(() => mockConnectivity.checkConnectivity())
-        .thenAnswer((_) async => [ConnectivityResult.none]);
-    when(() => mockConnectivity.onConnectivityChanged)
-        .thenAnswer((_) => const Stream.empty());
+    when(
+      () => mockConnectivity.checkConnectivity(),
+    ).thenAnswer((_) async => [ConnectivityResult.none]);
+    when(
+      () => mockConnectivity.onConnectivityChanged,
+    ).thenAnswer((_) => const Stream.empty());
 
     dlq = DeadLetterQueue();
     await dlq.init();
 
     syncService = SyncService(
-      attendanceRepository: mockAttendance,
-      studentRepository: mockStudent,
-      resultsRepository: mockResults,
-      sessionRepository: mockSession,
-      pastoralRepository: mockPastoral,
-      connectivity: mockConnectivity,
       deadLetterQueue: dlq,
+      connectivity: mockConnectivity,
+      handlers: {
+        'MARK_ATTENDANCE': AttendanceSyncHandler(mockAttendance),
+        'CLEAR_ATTENDANCE': AttendanceSyncHandler(mockAttendance),
+        'UPSERT_STUDENT': StudentSyncHandler(mockStudent),
+        'ARCHIVE_STUDENT': StudentSyncHandler(mockStudent),
+        'RESTORE_STUDENT': StudentSyncHandler(mockStudent),
+        'UPDATE_RESULT': ResultsSyncHandler(mockResults),
+        'CREATE_SESSION': AttendanceSessionSyncHandler(mockSession),
+        'CLOSE_SESSION': AttendanceSessionSyncHandler(mockSession),
+        'CREATE_PASTORAL_RECORD': PastoralSyncHandler(mockPastoral),
+      },
     );
     await syncService.init();
+    await syncService.setAuthenticatedUser('test_user');
   });
 
   tearDown(() async {
     syncService.dispose();
     // Clear both boxes between tests
-    final syncBox = Hive.box<SyncEntry>('sync_queue_box');
-    await syncBox.clear();
+    final testUserBox = await Hive.openBox<SyncEntry>('sync_queue_test_user');
+    await testUserBox.clear();
+    await testUserBox.close();
     await dlq.clear();
   });
 
@@ -86,8 +110,9 @@ void main() {
 
   group('SyncService DLQ integration', () {
     test('entry exceeding max retries is moved to DLQ, not deleted', () async {
-      when(() => mockAttendance.syncOfflineMark(any()))
-          .thenThrow(Exception('persistent failure'));
+      when(
+        () => mockAttendance.syncOfflineMark(any()),
+      ).thenThrow(Exception('persistent failure'));
 
       final entry = SyncEntry(
         id: 'dlq_test_1',
@@ -98,8 +123,9 @@ void main() {
       await syncService.enqueue(entry);
 
       // Enable connectivity so processQueue() actually processes entries
-      when(() => mockConnectivity.checkConnectivity())
-          .thenAnswer((_) async => [ConnectivityResult.wifi]);
+      when(
+        () => mockConnectivity.checkConnectivity(),
+      ).thenAnswer((_) async => [ConnectivityResult.wifi]);
 
       for (var i = 0; i < 6; i++) {
         await syncService.processQueue();
@@ -126,8 +152,9 @@ void main() {
       await syncService.enqueue(entry);
 
       // Enable connectivity so processQueue() actually processes entries
-      when(() => mockConnectivity.checkConnectivity())
-          .thenAnswer((_) async => [ConnectivityResult.wifi]);
+      when(
+        () => mockConnectivity.checkConnectivity(),
+      ).thenAnswer((_) async => [ConnectivityResult.wifi]);
 
       for (var i = 0; i < 5; i++) {
         await syncService.processQueue();

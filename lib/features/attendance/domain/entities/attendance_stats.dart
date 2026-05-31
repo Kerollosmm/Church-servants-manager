@@ -1,8 +1,7 @@
-import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
-import 'package:church_management_system/features/attendance/data/models/student_attendance_history_item.dart';
-import 'package:equatable/equatable.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_enums.dart';
+import 'package:church_management_system/features/attendance/domain/entities/student_attendance_history_item.dart';
 
-class StudentAttendanceStats extends Equatable {
+class StudentAttendanceStats {
   const StudentAttendanceStats({
     required this.studentId,
     this.filterTeamId,
@@ -64,17 +63,26 @@ class StudentAttendanceStats extends Equatable {
   }
 
   @override
-  List<Object?> get props => [
-    studentId,
-    filterTeamId,
-    presentCount,
-    lateCount,
-    absentCount,
-    totalSessions,
-  ];
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is StudentAttendanceStats &&
+          runtimeType == other.runtimeType &&
+          studentId == other.studentId &&
+          presentCount == other.presentCount &&
+          lateCount == other.lateCount &&
+          absentCount == other.absentCount &&
+          totalSessions == other.totalSessions;
+
+  @override
+  int get hashCode =>
+      studentId.hashCode ^
+      presentCount.hashCode ^
+      lateCount.hashCode ^
+      absentCount.hashCode ^
+      totalSessions.hashCode;
 }
 
-class TeamAttendanceStats extends Equatable {
+class TeamAttendanceStats {
   const TeamAttendanceStats({
     required this.teamId,
     required this.totalSessions,
@@ -102,13 +110,25 @@ class TeamAttendanceStats extends Equatable {
   }
 
   @override
-  List<Object?> get props => [
-    teamId,
-    totalSessions,
-    uniqueStudentsCount,
-    totalRosterEntries,
-    presentCount,
-    lateCount,
-    absentCount,
-  ];
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TeamAttendanceStats &&
+          runtimeType == other.runtimeType &&
+          teamId == other.teamId &&
+          totalSessions == other.totalSessions &&
+          uniqueStudentsCount == other.uniqueStudentsCount &&
+          totalRosterEntries == other.totalRosterEntries &&
+          presentCount == other.presentCount &&
+          lateCount == other.lateCount &&
+          absentCount == other.absentCount;
+
+  @override
+  int get hashCode =>
+      teamId.hashCode ^
+      totalSessions.hashCode ^
+      uniqueStudentsCount.hashCode ^
+      totalRosterEntries.hashCode ^
+      presentCount.hashCode ^
+      lateCount.hashCode ^
+      absentCount.hashCode;
 }

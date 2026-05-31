@@ -18,10 +18,10 @@ import 'package:church_management_system/core/widgets/sync_status_banner.dart';
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:church_management_system/features/student/data/models/student_model.dart';
+import 'package:church_management_system/features/student/domain/entities/student.dart';
 import 'package:church_management_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
-import 'package:church_management_system/features/team/data/models/team_model.dart';
 import 'package:church_management_system/features/team/data/repos/team_repository.dart';
+import 'package:church_management_system/features/team/domain/entities/team.dart';
 import 'package:church_management_system/features/team/presentation/bloc/team_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -127,10 +127,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
     }
   }
 
-  Future<void> _openStudentEditor(
-    AuthUser actor, {
-    StudentModel? student,
-  }) async {
+  Future<void> _openStudentEditor(AuthUser actor, {Student? student}) async {
     final result = await Navigator.pushNamed(
       context,
       studentEdit,
@@ -140,7 +137,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
     await context.read<StudentDataBloc>().refresh(actor);
   }
 
-  Future<void> _openStudentDetail(AuthUser actor, StudentModel student) async {
+  Future<void> _openStudentDetail(AuthUser actor, Student student) async {
     final result = await Navigator.pushNamed(
       context,
       studentDetail,
@@ -176,7 +173,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
     final students = switch (state) {
       StudentDataLoaded() => state.students,
       StudentDataLoading() => state.previousStudents,
-      _ => const <StudentModel>[],
+      _ => const <Student>[],
     };
     final showInitialLoading =
         state is StudentDataLoading && !state.hasPreviousStudents;
@@ -298,7 +295,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
               // Archive Switch
               Switch(
                 value: _showArchived,
-                activeColor: const Color(0xFF8D6E63),
+                activeThumbColor: const Color(0xFF8D6E63),
                 onChanged: (value) {
                   setState(() {
                     _showArchived = value;
@@ -393,16 +390,16 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                         decoration: BoxDecoration(
                           color: const Color(0xFFFAF2E6),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: const Color(0xFFECE0D1),
-                            width: 1,
-                          ),
+                          border: Border.all(color: const Color(0xFFECE0D1)),
                         ),
                         child: Image.asset(
                           'assets/images/logo_elkarooz.png',
                           fit: BoxFit.contain,
                           errorBuilder: (context, error, stackTrace) =>
-                              const Icon(Icons.church, color: Color(0xFF795548)),
+                              const Icon(
+                                Icons.church,
+                                color: Color(0xFF795548),
+                              ),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -749,7 +746,7 @@ class _SearchHeaderDelegate extends SliverPersistentHeaderDelegate {
               builder: (context, teamState) {
                 final teams = teamState is TeamLoaded
                     ? teamState.teams
-                    : const <TeamModel>[];
+                    : const <Team>[];
 
                 final restrictedTeamIds = <String>{};
                 if (actor.role == UserRole.servant &&
@@ -759,8 +756,8 @@ class _SearchHeaderDelegate extends SliverPersistentHeaderDelegate {
                 final visibleTeams = restrictedTeamIds.isEmpty
                     ? teams
                     : teams
-                        .where((t) => restrictedTeamIds.contains(t.id))
-                        .toList();
+                          .where((t) => restrictedTeamIds.contains(t.id))
+                          .toList();
 
                 return ListView(
                   scrollDirection: Axis.horizontal,
@@ -813,7 +810,7 @@ class _SearchHeaderDelegate extends SliverPersistentHeaderDelegate {
 
 class _StudentListViewData {
   final bool isLoading;
-  final List<StudentModel> students;
+  final List<Student> students;
   final bool showInitialLoading;
   final bool showEmptyState;
   final bool isFromCache;
@@ -829,7 +826,7 @@ class _StudentListViewData {
 
 class _StudentCard extends StatelessWidget {
   final AuthUser actor;
-  final StudentModel student;
+  final Student student;
   final VoidCallback onTap;
 
   const _StudentCard({
@@ -860,8 +857,8 @@ class _StudentCard extends StatelessWidget {
     final displayId = student.uid.isNotEmpty
         ? (idLength > 5 ? student.uid.substring(0, 5) : student.uid)
         : (student.docID.length > 4
-            ? student.docID.substring(student.docID.length - 4)
-            : student.docID);
+              ? student.docID.substring(student.docID.length - 4)
+              : student.docID);
 
     return Container(
       decoration: BoxDecoration(
@@ -893,10 +890,12 @@ class _StudentCard extends StatelessWidget {
                       radius: 26,
                       backgroundColor: const Color(0xFFF5EEDC),
                       backgroundImage:
-                          student.imageUrl != null && student.imageUrl!.isNotEmpty
-                              ? NetworkImage(student.imageUrl!)
-                              : null,
-                      child: student.imageUrl == null || student.imageUrl!.isEmpty
+                          student.imageUrl != null &&
+                              student.imageUrl!.isNotEmpty
+                          ? NetworkImage(student.imageUrl!)
+                          : null,
+                      child:
+                          student.imageUrl == null || student.imageUrl!.isEmpty
                           ? Text(
                               student.name.isNotEmpty
                                   ? student.name[0].toUpperCase()
@@ -916,8 +915,9 @@ class _StudentCard extends StatelessWidget {
                         width: 14,
                         height: 14,
                         decoration: BoxDecoration(
-                          color:
-                              student.isArchived ? inactiveColor : activeColor,
+                          color: student.isArchived
+                              ? inactiveColor
+                              : activeColor,
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.white, width: 2),
                         ),
@@ -950,7 +950,10 @@ class _StudentCard extends StatelessWidget {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            _getGradeText(student.grade, student.educationStage),
+                            _getGradeText(
+                              student.grade,
+                              student.educationStage,
+                            ),
                             style: const TextStyle(
                               fontSize: 12,
                               color: Color(0xFF795548),

@@ -1,5 +1,6 @@
 import 'package:church_management_system/core/widgets/sync_status_banner.dart';
-import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_enums.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_roster_item.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/attendance/attendance_bloc.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:flutter/material.dart';
@@ -41,6 +42,24 @@ class TakeAttendanceScreen extends StatelessWidget {
 
           Expanded(
             child: BlocBuilder<AttendanceBloc, AttendanceState>(
+              buildWhen: (previous, current) {
+                // Rebuild list only if state type changes, or roster list structure changes
+                if (previous.runtimeType != current.runtimeType) return true;
+                if (previous is AttendanceSessionActive &&
+                    current is AttendanceSessionActive) {
+                  if (previous.roster.length != current.roster.length) {
+                    return true;
+                  }
+                  for (int i = 0; i < previous.roster.length; i++) {
+                    if (previous.roster[i].studentId !=
+                        current.roster[i].studentId) {
+                      return true;
+                    }
+                  }
+                  return false;
+                }
+                return true;
+              },
               builder: (context, state) {
                 if (state is AttendanceLoading) {
                   return const Center(child: CircularProgressIndicator());
@@ -74,96 +93,11 @@ class TakeAttendanceScreen extends StatelessWidget {
                     separatorBuilder: (_, _) => const SizedBox(height: 8),
                     itemBuilder: (context, index) {
                       final item = roster[index];
-                      final isPresent =
-                          item.manualStatus == AttendanceMarkStatus.present;
 
-                      return Card(
-                        elevation: 1,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(
-                            color: isPresent
-                                ? Colors.green.shade300
-                                : Colors.grey.shade300,
-                            width: isPresent ? 2 : 1,
-                          ),
-                        ),
-                        child: ListTile(
-                          title: Text(
-                            item.studentName,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                          subtitle: item.isMarked
-                              ? Text(
-                                  'تم تسجيله بواسطة: ${item.markedByName}',
-                                  style: TextStyle(
-                                    color: Colors.grey.shade600,
-                                    fontSize: 12,
-                                  ),
-                                )
-                              : const Text(
-                                  'لم يتم التسجيل بعد',
-                                  style: TextStyle(fontSize: 12),
-                                ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              // Present Button
-                              IconButton(
-                                icon: Icon(
-                                  Icons.check_circle,
-                                  color: isPresent
-                                      ? Colors.green
-                                      : Colors.grey.shade400,
-                                  size: 32,
-                                ),
-                                onPressed: () {
-                                  final authState = context
-                                      .read<AuthBloc>()
-                                      .state;
-                                  if (authState is AuthAuthenticated) {
-                                    context.read<AttendanceBloc>().add(
-                                      ToggleAttendance(
-                                        studentId: item.studentId,
-                                        newStatus: AttendanceMarkStatus.present,
-                                        markedBy: authState.user,
-                                      ),
-                                    );
-                                  }
-                                },
-                              ),
-                              // Absent Button
-                              IconButton(
-                                icon: Icon(
-                                  Icons.cancel,
-                                  color:
-                                      item.manualStatus ==
-                                          AttendanceMarkStatus.absent
-                                      ? Colors.red
-                                      : Colors.grey.shade400,
-                                  size: 32,
-                                ),
-                                onPressed: () {
-                                  final authState = context
-                                      .read<AuthBloc>()
-                                      .state;
-                                  if (authState is AuthAuthenticated) {
-                                    context.read<AttendanceBloc>().add(
-                                      ToggleAttendance(
-                                        studentId: item.studentId,
-                                        newStatus: AttendanceMarkStatus.absent,
-                                        markedBy: authState.user,
-                                      ),
-                                    );
-                                  }
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
+                      return _RosterItemCard(
+                        studentId: item.studentId,
+                        teamId: teamId,
+                        sessionId: sessionId,
                       );
                     },
                   );
@@ -175,6 +109,113 @@ class TakeAttendanceScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _RosterItemCard extends StatelessWidget {
+  final String studentId;
+  final String teamId;
+  final String sessionId;
+
+  const _RosterItemCard({
+    required this.studentId,
+    required this.teamId,
+    required this.sessionId,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocSelector<AttendanceBloc, AttendanceState, AttendanceRosterItem?>(
+      selector: (state) {
+        if (state is! AttendanceSessionActive) return null;
+        try {
+          return state.roster.firstWhere((item) => item.studentId == studentId);
+        } catch (_) {
+          return null;
+        }
+      },
+      builder: (context, item) {
+        if (item == null) return const SizedBox.shrink();
+
+        final isPresent = item.manualStatus == AttendanceMarkStatus.present;
+        final isAbsent = item.manualStatus == AttendanceMarkStatus.absent;
+
+        return Card(
+          elevation: 1,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(
+              color: isPresent
+                  ? Colors.green.shade300
+                  : isAbsent
+                  ? Colors.red.shade300
+                  : Colors.grey.shade300,
+              width: (isPresent || isAbsent) ? 2 : 1,
+            ),
+          ),
+          child: ListTile(
+            title: Text(
+              item.studentName,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            subtitle: item.isMarked
+                ? Text(
+                    'تم تسجيله بواسطة: ${item.markedByName}',
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                  )
+                : const Text(
+                    'لم يتم التسجيل بعد',
+                    style: TextStyle(fontSize: 12),
+                  ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Present Button
+                IconButton(
+                  icon: Icon(
+                    Icons.check_circle,
+                    color: isPresent ? Colors.green : Colors.grey.shade400,
+                    size: 32,
+                  ),
+                  onPressed: () {
+                    final authState = context.read<AuthBloc>().state;
+                    if (authState is AuthAuthenticated) {
+                      context.read<AttendanceBloc>().add(
+                        ToggleAttendance(
+                          studentId: item.studentId,
+                          newStatus: AttendanceMarkStatus.present,
+                          markedBy: authState.user,
+                        ),
+                      );
+                    }
+                  },
+                ),
+                // Absent Button
+                IconButton(
+                  icon: Icon(
+                    Icons.cancel,
+                    color: isAbsent ? Colors.red : Colors.grey.shade400,
+                    size: 32,
+                  ),
+                  onPressed: () {
+                    final authState = context.read<AuthBloc>().state;
+                    if (authState is AuthAuthenticated) {
+                      context.read<AttendanceBloc>().add(
+                        ToggleAttendance(
+                          studentId: item.studentId,
+                          newStatus: AttendanceMarkStatus.absent,
+                          markedBy: authState.user,
+                        ),
+                      );
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

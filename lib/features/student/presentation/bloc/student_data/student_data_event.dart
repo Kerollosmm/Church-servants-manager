@@ -38,7 +38,7 @@ final class StudentsSearchRequested extends StudentDataEvent {
 /// Create a new student.
 final class StudentCreated extends StudentDataEvent {
   final AuthUser actor;
-  final StudentModel student;
+  final Student student;
   final String? email;
   final String? password;
 
@@ -53,7 +53,7 @@ final class StudentCreated extends StudentDataEvent {
 /// Update an existing student.
 final class StudentUpdated extends StudentDataEvent {
   final AuthUser actor;
-  final StudentModel student;
+  final Student student;
 
   const StudentUpdated({required this.actor, required this.student});
 }

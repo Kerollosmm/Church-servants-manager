@@ -10,7 +10,10 @@ class ResultsLocalDatasource {
   Box<ResultsModel>? _resultsBox;
 
   Future<void> init() async {
-    _resultsBox ??= await Hive.openBox<ResultsModel>(boxName);
+    _resultsBox ??= await Hive.openBox<ResultsModel>(
+      boxName,
+      compactionStrategy: (entries, deletedEntries) => deletedEntries > 50,
+    );
   }
 
   // ---- Cache Operations ----

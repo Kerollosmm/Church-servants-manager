@@ -19,8 +19,8 @@ final class StudentDataInitial extends StudentDataState {
 
 /// Loading state - fetching data.
 final class StudentDataLoading extends StudentDataState {
-  final List<StudentModel> previousStudents;
-  final List<StudentModel> previousAllStudents;
+  final List<Student> previousStudents;
+  final List<Student> previousAllStudents;
   final bool isRefresh;
   final bool isSearch;
   final bool includeArchived;
@@ -29,8 +29,8 @@ final class StudentDataLoading extends StudentDataState {
   final String? currentQuery;
 
   const StudentDataLoading({
-    this.previousStudents = const <StudentModel>[],
-    this.previousAllStudents = const <StudentModel>[],
+    this.previousStudents = const <Student>[],
+    this.previousAllStudents = const <Student>[],
     this.isRefresh = false,
     this.isSearch = false,
     this.includeArchived = false,
@@ -56,9 +56,9 @@ final class StudentDataLoading extends StudentDataState {
 
 /// Loaded state - students fetched successfully.
 final class StudentDataLoaded extends StudentDataState {
-  final List<StudentModel> students;
-  final List<StudentModel> allStudents;
-  final Map<String, StudentModel> studentsByDocId;
+  final List<Student> students;
+  final List<Student> allStudents;
+  final Map<String, Student> studentsByDocId;
   final String? currentFilterGroupId;
   final String? currentFilterTeamId;
   final String? currentQuery;
@@ -85,9 +85,9 @@ final class StudentDataLoaded extends StudentDataState {
   });
 
   StudentDataLoaded copyWith({
-    List<StudentModel>? students,
-    List<StudentModel>? allStudents,
-    Map<String, StudentModel>? studentsByDocId,
+    List<Student>? students,
+    List<Student>? allStudents,
+    Map<String, Student>? studentsByDocId,
     String? currentFilterGroupId,
     String? currentFilterTeamId,
     String? currentQuery,

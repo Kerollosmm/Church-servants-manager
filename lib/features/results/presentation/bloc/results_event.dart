@@ -1,4 +1,4 @@
-import 'package:church_management_system/features/results/data/models/results_model.dart';
+import 'package:church_management_system/features/results/domain/entities/result.dart';
 import 'package:equatable/equatable.dart';
 
 abstract class ResultsEvent extends Equatable {
@@ -18,7 +18,7 @@ class ResultsLoadRequested extends ResultsEvent {
 }
 
 class ResultUpdateRequested extends ResultsEvent {
-  final ResultsModel result;
+  final Result result;
 
   const ResultUpdateRequested({required this.result});
 

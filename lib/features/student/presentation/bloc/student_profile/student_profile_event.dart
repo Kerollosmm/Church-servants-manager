@@ -1,6 +1,6 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
-import 'package:church_management_system/features/student/data/models/student_model.dart';
+import 'package:church_management_system/features/student/domain/entities/student.dart';
 import 'package:equatable/equatable.dart';
 
 abstract class StudentProfileEvent extends Equatable {
@@ -20,7 +20,7 @@ class LoadProfileEvent extends StudentProfileEvent {
 }
 
 class SetupProfileEvent extends StudentProfileEvent {
-  final StudentModel newStudent;
+  final Student newStudent;
   final AuthUser actor;
 
   const SetupProfileEvent({required this.newStudent, required this.actor});
@@ -38,11 +38,10 @@ class SetupProfileEvent extends StudentProfileEvent {
     String? school,
     String? address,
   }) {
-    final student = StudentModel(
+    final student = Student(
       uid: user.uid,
       docID: user.uid,
       name: user.name,
-      imageUrl: null,
       role: user.role,
       mobile: mobile,
       group: group,
@@ -54,9 +53,7 @@ class SetupProfileEvent extends StudentProfileEvent {
       educationStage: educationStage,
       school: school,
       address: address,
-      birthdate: null,
       fatherOfConfession: fatherOfConfession,
-      notes: null,
     );
     return SetupProfileEvent(newStudent: student, actor: user);
   }

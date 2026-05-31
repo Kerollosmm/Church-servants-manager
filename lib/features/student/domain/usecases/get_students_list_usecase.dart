@@ -1,6 +1,6 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
-import 'package:church_management_system/features/student/data/models/student_model.dart';
+import 'package:church_management_system/features/student/domain/entities/student.dart';
 import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
 
 /// Returns a Future [List] of students filtered by the
@@ -11,7 +11,7 @@ class GetStudentsListUseCase {
   const GetStudentsListUseCase(this._repository);
 
   /// Returns a Future or `null` if the actor has no access.
-  Future<List<StudentModel>?> call({
+  Future<List<Student>?> call({
     required AuthUser actor,
     String? teamId,
     bool includeArchived = false,

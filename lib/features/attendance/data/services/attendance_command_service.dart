@@ -8,10 +8,11 @@ import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/core/utils/bulk_operation_result.dart';
 import 'package:church_management_system/core/utils/list_extensions.dart';
 import 'package:church_management_system/features/attendance/data/local/attendance_session_local_datasource.dart';
-import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_enums.dart';
 import 'package:church_management_system/features/attendance/domain/failures/attendance_failures.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
+import 'package:church_management_system/features/auth/domain/entities/auth_user.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/student/data/services/student_query_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -69,10 +70,13 @@ class AttendanceCommandService {
     DocumentReference<Map<String, dynamic>> ref,
   ) async {
     try {
-      final cached = await ref.get(const GetOptions(source: Source.cache));
-      if (cached.exists) return cached;
-    } catch (_) {}
-    return ref.get(const GetOptions(source: Source.server));
+      return await ref.get(const GetOptions());
+    } on FirebaseException catch (e) {
+      if (e.code == 'unavailable' || e.code == 'deadline-exceeded') {
+        return await ref.get(const GetOptions(source: Source.cache));
+      }
+      rethrow;
+    }
   }
 
   Future<AttendanceSession> createSession({
@@ -136,7 +140,7 @@ class AttendanceCommandService {
         final syncEntry = SyncEntry(
           id: 'create_session_${candidate.id}',
           actionType: 'CREATE_SESSION',
-          payload: candidate.toMap(),
+          payload: AttendanceSessionModel.fromDomain(candidate).toMap(),
           createdAt: DateTime.now(),
         );
         await getIt<SyncService>().enqueue(syncEntry);
@@ -170,7 +174,7 @@ class AttendanceCommandService {
         }
 
         transaction.set(docRef, {
-          ...candidate.toMap(),
+          ...AttendanceSessionModel.fromDomain(candidate).toMap(),
           'createdAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
         });
@@ -223,7 +227,7 @@ class AttendanceCommandService {
           final syncEntry = SyncEntry(
             id: 'create_session_${candidate.id}',
             actionType: 'CREATE_SESSION',
-            payload: candidate.toMap(),
+            payload: AttendanceSessionModel.fromDomain(candidate).toMap(),
             createdAt: DateTime.now(),
           );
           await getIt<SyncService>().enqueue(syncEntry);
@@ -276,10 +280,10 @@ class AttendanceCommandService {
       if (!sessionDoc.exists || sessionDoc.data() == null) {
         throw const AttendanceSessionNotFoundFailure();
       }
-      final session = AttendanceSession.fromMap(
+      final session = AttendanceSessionModel.fromMap(
         sessionDoc.data()!,
         sessionDoc.id,
-      );
+      ).toDomain();
 
       if (session.isClosed) {
         return;
@@ -748,10 +752,10 @@ class AttendanceCommandService {
         if (!sessionDoc.exists || sessionDoc.data() == null) {
           throw const AttendanceSessionNotFoundFailure();
         }
-        final session = AttendanceSession.fromMap(
+        final session = AttendanceSessionModel.fromMap(
           sessionDoc.data()!,
           sessionDoc.id,
-        );
+        ).toDomain();
 
         final now = _nowProvider();
         final canMark = !session.isClosed || session.isOpenAt(now);
@@ -828,10 +832,10 @@ class AttendanceCommandService {
       if (!sessionDoc.exists || sessionDoc.data() == null) {
         throw const AttendanceSessionNotFoundFailure();
       }
-      final session = AttendanceSession.fromMap(
+      final session = AttendanceSessionModel.fromMap(
         sessionDoc.data()!,
         sessionDoc.id,
-      );
+      ).toDomain();
 
       final entries = marks.entries.toList(growable: false);
       for (final chunk in entries.chunk(400)) {
@@ -870,10 +874,10 @@ class AttendanceCommandService {
       if (!sessionDoc.exists || sessionDoc.data() == null) {
         throw const AttendanceSessionNotFoundFailure();
       }
-      final session = AttendanceSession.fromMap(
+      final session = AttendanceSessionModel.fromMap(
         sessionDoc.data()!,
         sessionDoc.id,
-      );
+      ).toDomain();
 
       final existingMarksSnapshot = await _marksCol(
         teamId,
@@ -934,7 +938,7 @@ class AttendanceCommandService {
   AttendanceSession _mapSessionDoc(
     QueryDocumentSnapshot<Map<String, dynamic>> doc,
   ) {
-    return AttendanceSession.fromMap(doc.data(), doc.id);
+    return AttendanceSessionModel.fromMap(doc.data(), doc.id).toDomain();
   }
 
   List<AttendanceSession> _mapSessionsSnapshot(

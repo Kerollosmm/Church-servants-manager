@@ -1,6 +1,3 @@
-import 'dart:convert';
-import 'dart:developer' as developer;
-
 import 'package:church_management_system/features/attendance/data/local/mark_sync_entry.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_mark.dart';
 import 'package:hive/hive.dart';
@@ -9,20 +6,26 @@ import 'package:hive/hive.dart';
 ///
 /// Provides two Hive boxes:
 /// - **marks cache**: keyed by `{teamId}_{sessionId}_{studentId}` for instant
-///   reads and optimistic UI updates.
+///   reads and optimistic UI updates. Stores [AttendanceMark] objects directly.
 /// - **sync queue**: keyed by the same deduplication key, storing
-///   [MarkSyncEntry] payloads that are pending Firestore replay.
+///   [MarkSyncEntry] objects that are pending Firestore replay.
 class AttendanceLocalDatasource {
-  static const String _marksCacheBox = 'attendance_marks_cache';
-  static const String _syncQueueBox = 'attendance_marks_sync_queue';
+  static const String _marksCacheBox = 'attendance_marks_v2';
+  static const String _syncQueueBox = 'attendance_marks_sync_queue_v2';
 
   Future<void> init() async {
-    await Hive.openBox<String>(_marksCacheBox);
-    await Hive.openBox<String>(_syncQueueBox);
+    await Hive.openBox<AttendanceMark>(
+      _marksCacheBox,
+      compactionStrategy: (entries, deletedEntries) => deletedEntries > 50,
+    );
+    await Hive.openBox<MarkSyncEntry>(
+      _syncQueueBox,
+      compactionStrategy: (entries, deletedEntries) => deletedEntries > 50,
+    );
   }
 
-  Box<String> get _cache => Hive.box(_marksCacheBox);
-  Box<String> get _queue => Hive.box(_syncQueueBox);
+  Box<AttendanceMark> get _cache => Hive.box<AttendanceMark>(_marksCacheBox);
+  Box<MarkSyncEntry> get _queue => Hive.box<MarkSyncEntry>(_syncQueueBox);
 
   // ──────────────────────────────────────────────────────────────────────────
   // Mark cache
@@ -37,24 +40,18 @@ class AttendanceLocalDatasource {
     required String teamId,
     required String sessionId,
     required String studentId,
-    required Map<String, dynamic> markData,
+    required AttendanceMark mark,
   }) async {
-    await _cache.put(_key(teamId, sessionId, studentId), jsonEncode(markData));
+    await _cache.put(_key(teamId, sessionId, studentId), mark);
   }
 
   /// Returns a cached mark, or `null` if absent.
-  Map<String, dynamic>? getCachedMark({
+  AttendanceMark? getCachedMark({
     required String teamId,
     required String sessionId,
     required String studentId,
   }) {
-    final data = _cache.get(_key(teamId, sessionId, studentId));
-    if (data == null) return null;
-    try {
-      return Map<String, dynamic>.from(jsonDecode(data) as Map);
-    } catch (_) {
-      return null;
-    }
+    return _cache.get(_key(teamId, sessionId, studentId));
   }
 
   /// Returns all cached marks for a given session.
@@ -67,19 +64,10 @@ class AttendanceLocalDatasource {
     for (final key in _cache.keys) {
       final k = key as String;
       if (!k.startsWith(prefix)) continue;
-      final data = _cache.get(k);
-      if (data == null) continue;
-      try {
-        final map = Map<String, dynamic>.from(jsonDecode(data) as Map);
-        final studentId = k.substring(prefix.length);
-        marks[studentId] = AttendanceMark.fromMap(map, studentId);
-      } catch (error) {
-        developer.log(
-          'skipped malformed cached mark $k',
-          error: error,
-          name: 'AttendanceLocalDatasource',
-        );
-      }
+      final mark = _cache.get(k);
+      if (mark == null) continue;
+      final studentId = k.substring(prefix.length);
+      marks[studentId] = mark;
     }
     return marks;
   }
@@ -107,26 +95,12 @@ class AttendanceLocalDatasource {
   /// Uses [MarkSyncEntry.deduplicationKey] so that the latest mutation for a
   /// given mark always overwrites any stale entry.
   Future<void> enqueue(MarkSyncEntry entry) async {
-    await _queue.put(entry.deduplicationKey, entry.encode());
+    await _queue.put(entry.deduplicationKey, entry);
   }
 
   /// Returns all pending sync entries.
   List<MarkSyncEntry> getPendingEntries() {
-    final entries = <MarkSyncEntry>[];
-    for (final key in _queue.keys) {
-      final data = _queue.get(key);
-      if (data == null) continue;
-      try {
-        entries.add(MarkSyncEntry.decode(data));
-      } catch (error) {
-        developer.log(
-          'skipped malformed sync entry $key',
-          error: error,
-          name: 'AttendanceLocalDatasource',
-        );
-      }
-    }
-    return entries;
+    return _queue.values.toList();
   }
 
   /// Removes a synced entry from the queue.

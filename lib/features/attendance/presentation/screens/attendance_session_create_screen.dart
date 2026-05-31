@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/routes.dart';
 import 'package:church_management_system/core/di/injection.dart';
@@ -13,8 +14,8 @@ import 'package:church_management_system/features/attendance/presentation/bloc/s
 import 'package:church_management_system/features/attendance/presentation/bloc/session_admin/attendance_session_admin_state.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:church_management_system/features/team/data/models/team_model.dart';
 import 'package:church_management_system/features/team/data/repos/team_repository.dart';
+import 'package:church_management_system/features/team/domain/entities/team.dart';
 import 'package:church_management_system/features/team/presentation/bloc/team_bloc.dart';
 import 'package:church_management_system/features/team/presentation/widgets/team_dropdown.dart';
 import 'package:flutter/material.dart';
@@ -87,7 +88,7 @@ class _AttendanceSessionCreateScreenState
     });
   }
 
-  void _ensureInitialTeam(List<TeamModel> teams) {
+  void _ensureInitialTeam(List<Team> teams) {
     if (_selectedTeamId != null || teams.isEmpty) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -103,7 +104,7 @@ class _AttendanceSessionCreateScreenState
   Future<void> _submit(
     BuildContext context,
     AuthUser actor,
-    List<TeamModel> teams,
+    List<Team> teams,
   ) async {
     final teamId = _selectedTeamId;
     final durationMinutes = int.tryParse(_durationController.text.trim());
@@ -259,11 +260,11 @@ class _AttendanceSessionCreateScreenState
                   final teamCubit = context.read<TeamBloc>();
                   final teams = teamCubit.state is TeamLoaded
                       ? (teamCubit.state as TeamLoaded).teams
-                      : <TeamModel>[];
+                      : <Team>[];
 
                   final failedNames = state.result.failedItems
                       .map((id) {
-                        final team = teams.cast<TeamModel?>().firstWhere(
+                        final team = teams.cast<Team?>().firstWhere(
                           (t) => t?.id == id,
                           orElse: () => null,
                         );
@@ -288,7 +289,7 @@ class _AttendanceSessionCreateScreenState
                 builder: (context, teamState) {
                   final teams = teamState is TeamLoaded
                       ? teamState.teams
-                      : const <TeamModel>[];
+                      : const <Team>[];
                   _ensureInitialTeam(teams);
 
                   return ListView(

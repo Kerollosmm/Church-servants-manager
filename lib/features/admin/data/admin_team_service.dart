@@ -2,9 +2,9 @@ import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/features/admin/data/admin_team_membership_service.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
-import 'package:church_management_system/features/servant/data/models/servant_models.dart';
-import 'package:church_management_system/features/student/data/models/student_model.dart';
-import 'package:church_management_system/features/team/data/models/team_model.dart';
+import 'package:church_management_system/features/servant/domain/entities/servant.dart';
+import 'package:church_management_system/features/student/domain/entities/student.dart';
+import 'package:church_management_system/features/team/domain/entities/team.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Admin-only operations that touch multiple collections.
@@ -43,7 +43,7 @@ class AdminTeamService {
   }
 
   void _validateServantForTeam({
-    required TeamModel team,
+    required Team team,
     required String servantDocId,
     required Map<String, dynamic> servantData,
   }) {
@@ -115,8 +115,8 @@ class AdminTeamService {
   /// - If the team had a previous servant, removes this team from their list.
   Future<void> assignServantToTeam({
     required AuthUser actor,
-    required TeamModel team,
-    required ServantModel servant,
+    required Team team,
+    required Servant servant,
   }) async {
     _assertAdmin(actor);
 
@@ -188,7 +188,7 @@ class AdminTeamService {
   /// Remove any responsible servant from [team] and removes this team from that servant's assignment list.
   Future<void> unassignServantFromTeam({
     required AuthUser actor,
-    required TeamModel team,
+    required Team team,
   }) async {
     _assertAdmin(actor);
 
@@ -240,8 +240,8 @@ class AdminTeamService {
   /// Also maintains Classes/{teamId}.student_ids array (best-effort).
   Future<void> setStudentsForTeam({
     required AuthUser actor,
-    required TeamModel team,
-    required List<StudentModel> selectedStudents,
+    required Team team,
+    required List<Student> selectedStudents,
   }) async {
     if (team.isArchived) {
       throw StateError('Cannot manage members for an archived team');

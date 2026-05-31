@@ -1,4 +1,4 @@
-import 'package:church_management_system/features/results/data/models/results_model.dart';
+import 'package:church_management_system/features/results/domain/entities/result.dart';
 import 'package:equatable/equatable.dart';
 
 abstract class ResultsState extends Equatable {
@@ -13,7 +13,7 @@ class ResultsInitial extends ResultsState {}
 class ResultsLoading extends ResultsState {}
 
 class ResultsLoaded extends ResultsState {
-  final List<ResultsModel> results;
+  final List<Result> results;
   final bool isFromCache;
 
   const ResultsLoaded({required this.results, this.isFromCache = false});

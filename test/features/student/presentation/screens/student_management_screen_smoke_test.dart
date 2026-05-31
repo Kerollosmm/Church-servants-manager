@@ -138,9 +138,9 @@ void main() {
 
       when(() => mockStudentDataBloc.state).thenReturn(
         StudentDataLoaded(
-          students: [student],
-          allStudents: [student],
-          studentsByDocId: {'s1': student},
+          students: [student.toDomain()],
+          allStudents: [student.toDomain()],
+          studentsByDocId: {'s1': student.toDomain()},
         ),
       );
 

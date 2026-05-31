@@ -12,7 +12,10 @@ class AnalyticsLocalDatasource {
 
   Future<void> init() async {
     if (_initialized) return;
-    _box = await Hive.openBox<AnalyticsSummaryModel>(boxName);
+    _box = await Hive.openBox<AnalyticsSummaryModel>(
+      boxName,
+      compactionStrategy: (entries, deletedEntries) => deletedEntries > 50,
+    );
     _initialized = true;
   }
 

@@ -1,11 +1,20 @@
+import 'dart:developer' as developer;
+
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
+import 'package:church_management_system/core/models/sync_entry.dart';
+import 'package:church_management_system/core/services/sync_service.dart'
+    hide SyncStatus;
 import 'package:church_management_system/core/utils/pagination_cursor.dart';
 import 'package:church_management_system/features/servant/data/local/servant_local_datasource.dart';
-import 'package:church_management_system/features/servant/data/models/servant_models.dart';
+import 'package:church_management_system/features/servant/data/models/servant_models.dart'
+    hide ServantsPage;
+import 'package:church_management_system/features/servant/domain/entities/servant.dart';
+import 'package:church_management_system/features/servant/domain/entities/servant_page.dart';
 import 'package:church_management_system/features/servant/domain/failures/servant_failures.dart';
 import 'package:church_management_system/features/servant/domain/repos/i_servant_repository.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 typedef _ServantDoc = QueryDocumentSnapshot<Map<String, dynamic>>;
 
@@ -14,12 +23,18 @@ typedef _ServantDoc = QueryDocumentSnapshot<Map<String, dynamic>>;
 class ServantDataRepository implements IServantRepository {
   final FirebaseFirestore _firestore;
   final ServantLocalDatasource _localDatasource;
+  final SyncService _syncService;
+  final Connectivity _connectivity;
 
   ServantDataRepository({
     required FirebaseFirestore firestore,
     ServantLocalDatasource? localDatasource,
+    required SyncService syncService,
+    Connectivity? connectivity,
   }) : _firestore = firestore,
-       _localDatasource = localDatasource ?? ServantLocalDatasource();
+       _localDatasource = localDatasource ?? ServantLocalDatasource(),
+       _syncService = syncService,
+       _connectivity = connectivity ?? Connectivity();
 
   /// Reference to Users collection (servants are users with role == servant)
   CollectionReference<Map<String, dynamic>> get _usersCollection =>
@@ -33,7 +48,7 @@ class ServantDataRepository implements IServantRepository {
     return _servantsQuery.orderBy('name');
   }
 
-  ServantModel? _servantFromData(
+  Servant? _servantFromData(
     Map<String, dynamic> data,
     String docId,
     bool includeArchived,
@@ -42,14 +57,14 @@ class ServantDataRepository implements IServantRepository {
     if (!includeArchived && servant.isArchived) {
       return null;
     }
-    return servant;
+    return servant.toDomain();
   }
 
-  List<ServantModel> _servantsFromDocs(
+  List<Servant> _servantsFromDocs(
     List<_ServantDoc> docs,
     bool includeArchived,
   ) {
-    final servants = <ServantModel>[];
+    final servants = <Servant>[];
     for (final doc in docs) {
       final servant = _servantFromData(doc.data(), doc.id, includeArchived);
       if (servant != null) {
@@ -59,11 +74,12 @@ class ServantDataRepository implements IServantRepository {
     return servants;
   }
 
-  Map<String, dynamic> _normalizeServantWriteData(ServantModel servant) {
-    final data = servant.toMap();
-    data['role'] = servant.role.name;
+  Map<String, dynamic> _normalizeServantWriteData(Servant servant) {
+    final model = ServantModel.fromDomain(servant);
+    final data = model.toMap();
+    data['role'] = model.role.name;
 
-    if (servant.role != UserRole.servant) {
+    if (model.role != UserRole.servant) {
       // Clear servant-only scoping fields when user is no longer a servant.
       data['groupId'] = FieldValue.delete();
       data['assignedTeamIds'] = FieldValue.delete();
@@ -73,7 +89,7 @@ class ServantDataRepository implements IServantRepository {
   }
 
   @override
-  Future<ServantModel?> getServantById(
+  Future<Servant?> getServantById(
     String docId, {
     bool includeArchived = false,
   }) async {
@@ -92,7 +108,7 @@ class ServantDataRepository implements IServantRepository {
   }
 
   @override
-  Future<ServantModel?> getServantByUid(
+  Future<Servant?> getServantByUid(
     String uid, {
     bool includeArchived = false,
   }) async {
@@ -118,7 +134,7 @@ class ServantDataRepository implements IServantRepository {
   }
 
   @override
-  Future<({List<ServantModel> servants, bool isFromCache})>
+  Future<({List<Servant> servants, bool isFromCache})>
   getServantsByGroupWithFallback(
     String groupId, {
     bool includeArchived = false,
@@ -134,7 +150,7 @@ class ServantDataRepository implements IServantRepository {
           isFromCache: true,
         );
       }
-    } catch (e) {
+    } catch (_) {
       // Cache miss or other cache error is expected, fallback to server
     }
 
@@ -153,7 +169,7 @@ class ServantDataRepository implements IServantRepository {
   }
 
   @override
-  Future<List<ServantModel>> getAllServants({
+  Future<List<Servant>> getAllServants({
     int limit = 20,
     PaginationCursor? cursor,
     bool includeArchived = false,
@@ -176,7 +192,7 @@ class ServantDataRepository implements IServantRepository {
       if (cacheSnapshot.docs.isNotEmpty) {
         return _servantsFromDocs(cacheSnapshot.docs, includeArchived);
       }
-    } catch (e) {
+    } catch (_) {
       // Cache miss or other cache error is expected, fallback to server
     }
 
@@ -229,7 +245,7 @@ class ServantDataRepository implements IServantRepository {
   }
 
   @override
-  Future<List<ServantModel>> getServantsByTeam(
+  Future<List<Servant>> getServantsByTeam(
     String teamName, {
     bool includeArchived = false,
   }) async {
@@ -243,7 +259,7 @@ class ServantDataRepository implements IServantRepository {
         if (cacheSnapshot.docs.isNotEmpty) {
           return _servantsFromDocs(cacheSnapshot.docs, includeArchived);
         }
-      } catch (e) {
+      } catch (_) {
         // Cache miss or other cache error is expected, fallback to server
       }
 
@@ -259,7 +275,7 @@ class ServantDataRepository implements IServantRepository {
   }
 
   @override
-  Future<List<ServantModel>> searchServants(
+  Future<List<Servant>> searchServants(
     String query, {
     int limit = 20,
     bool includeArchived = false,
@@ -269,43 +285,93 @@ class ServantDataRepository implements IServantRepository {
         return getAllServants(limit: limit, includeArchived: includeArchived);
       }
 
+      // 1. Check local Hive cache first
+      final normalizedQuery = query.toLowerCase().trim();
+      final cachedModels = await _localDatasource.getCachedServants(
+        includeArchived: includeArchived,
+      );
+      final cachedMatches = cachedModels
+          .where((s) => s.name.toLowerCase().contains(normalizedQuery))
+          .map((m) => m.toDomain())
+          .take(limit)
+          .toList();
+
+      if (cachedMatches.isNotEmpty) {
+        developer.log(
+          'Found ${cachedMatches.length} search matches for "$query" in local cache',
+          name: 'ServantDataRepository',
+        );
+        return cachedMatches;
+      }
+
+      // 2. Debounce local search key typing before remote firestore query
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+
       final snapshot = await _sortedServantsQuery()
           .startAt([query])
           .endAt(['$query\uf8ff'])
           .limit(limit)
           .get();
 
-      return _servantsFromDocs(snapshot.docs, includeArchived);
+      final remoteResults = _servantsFromDocs(snapshot.docs, includeArchived);
+      // Cache remote results locally
+      for (final doc in snapshot.docs) {
+        try {
+          await _localDatasource.cacheServant(
+            ServantModel.fromMap(doc.data(), doc.id),
+          );
+        } catch (_) {}
+      }
+      return remoteResults;
     } catch (e) {
       throw mapExceptionToServantFailure(e);
     }
   }
 
   @override
-  Future<String> createServant(ServantModel servant) async {
+  Future<String> createServant(Servant servant) async {
     try {
       final docRef = servant.docID.isNotEmpty
           ? _usersCollection.doc(servant.docID)
           : _usersCollection.doc();
 
-      final finalServant = servant.copyWith(
+      final model = ServantModel.fromDomain(servant);
+      final finalServant = model.copyWith(
         docID: docRef.id,
         syncStatus: SyncStatus.pending,
         clientUpdatedAt: DateTime.now(),
       );
 
       await _localDatasource.cacheServant(finalServant);
-      await _localDatasource.queueForSync(finalServant);
+
+      final connectivity = await _connectivity.checkConnectivity();
+      final isOffline = connectivity.contains(ConnectivityResult.none);
+
+      if (isOffline) {
+        final syncEntry = SyncEntry(
+          id: 'create_servant_${docRef.id}',
+          actionType: 'CREATE_SERVANT',
+          payload: _normalizeServantWriteData(finalServant.toDomain()),
+          createdAt: DateTime.now(),
+        );
+        await _syncService.enqueue(syncEntry);
+        return docRef.id;
+      }
 
       try {
-        await docRef.set(_normalizeServantWriteData(finalServant));
+        await docRef.set(_normalizeServantWriteData(finalServant.toDomain()));
         final syncedServant = finalServant.copyWith(
           syncStatus: SyncStatus.synced,
         );
         await _localDatasource.cacheServant(syncedServant);
-        await _localDatasource.removeFromSyncQueue(docRef.id);
-      } catch (networkError) {
-        // Retain pending status locally.
+      } catch (e) {
+        final syncEntry = SyncEntry(
+          id: 'create_servant_${docRef.id}',
+          actionType: 'CREATE_SERVANT',
+          payload: _normalizeServantWriteData(finalServant.toDomain()),
+          createdAt: DateTime.now(),
+        );
+        await _syncService.enqueue(syncEntry);
       }
 
       return docRef.id;
@@ -315,30 +381,49 @@ class ServantDataRepository implements IServantRepository {
   }
 
   @override
-  Future<void> upsertServant(ServantModel servant) async {
+  Future<void> upsertServant(Servant servant) async {
     try {
-      final finalServant = servant.copyWith(
+      final model = ServantModel.fromDomain(servant);
+      final finalServant = model.copyWith(
         syncStatus: SyncStatus.pending,
         clientUpdatedAt: DateTime.now(),
       );
 
       await _localDatasource.cacheServant(finalServant);
-      await _localDatasource.queueForSync(finalServant);
+
+      final connectivity = await _connectivity.checkConnectivity();
+      final isOffline = connectivity.contains(ConnectivityResult.none);
+
+      if (isOffline) {
+        final syncEntry = SyncEntry(
+          id: 'upsert_servant_${servant.docID}',
+          actionType: 'CREATE_SERVANT',
+          payload: _normalizeServantWriteData(finalServant.toDomain()),
+          createdAt: DateTime.now(),
+        );
+        await _syncService.enqueue(syncEntry);
+        return;
+      }
 
       try {
         await _usersCollection
             .doc(servant.docID)
             .set(
-              _normalizeServantWriteData(finalServant),
+              _normalizeServantWriteData(finalServant.toDomain()),
               SetOptions(merge: true),
             );
         final syncedServant = finalServant.copyWith(
           syncStatus: SyncStatus.synced,
         );
         await _localDatasource.cacheServant(syncedServant);
-        await _localDatasource.removeFromSyncQueue(servant.docID);
-      } catch (networkError) {
-        // Retain pending status locally.
+      } catch (e) {
+        final syncEntry = SyncEntry(
+          id: 'upsert_servant_${servant.docID}',
+          actionType: 'CREATE_SERVANT',
+          payload: _normalizeServantWriteData(finalServant.toDomain()),
+          createdAt: DateTime.now(),
+        );
+        await _syncService.enqueue(syncEntry);
       }
     } catch (e) {
       throw mapExceptionToServantFailure(e);
@@ -346,7 +431,7 @@ class ServantDataRepository implements IServantRepository {
   }
 
   @override
-  Future<void> updateServant(ServantModel servant) async {
+  Future<void> updateServant(Servant servant) async {
     return upsertServant(servant);
   }
 
@@ -364,7 +449,20 @@ class ServantDataRepository implements IServantRepository {
           clientUpdatedAt: DateTime.now(),
         );
         await _localDatasource.cacheServant(updated);
-        await _localDatasource.queueForSync(updated);
+      }
+
+      final connectivity = await _connectivity.checkConnectivity();
+      final isOffline = connectivity.contains(ConnectivityResult.none);
+
+      if (isOffline) {
+        final syncEntry = SyncEntry(
+          id: 'update_servant_$docId',
+          actionType: 'CREATE_SERVANT',
+          payload: {'docId': docId, ...fields},
+          createdAt: DateTime.now(),
+        );
+        await _syncService.enqueue(syncEntry);
+        return;
       }
 
       try {
@@ -376,10 +474,15 @@ class ServantDataRepository implements IServantRepository {
             docId,
           ).copyWith(syncStatus: SyncStatus.synced);
           await _localDatasource.cacheServant(synced);
-          await _localDatasource.removeFromSyncQueue(docId);
         }
-      } catch (networkError) {
-        // Retain pending status locally.
+      } catch (e) {
+        final syncEntry = SyncEntry(
+          id: 'update_servant_$docId',
+          actionType: 'CREATE_SERVANT',
+          payload: {'docId': docId, ...fields},
+          createdAt: DateTime.now(),
+        );
+        await _syncService.enqueue(syncEntry);
       }
     } catch (e) {
       throw mapExceptionToServantFailure(e);
@@ -409,7 +512,6 @@ class ServantDataRepository implements IServantRepository {
           clientUpdatedAt: DateTime.now(),
         );
         await _localDatasource.cacheServant(updated);
-        await _localDatasource.queueForSync(updated);
       }
 
       try {
@@ -420,9 +522,8 @@ class ServantDataRepository implements IServantRepository {
             syncStatus: SyncStatus.synced,
           );
           await _localDatasource.cacheServant(synced);
-          await _localDatasource.removeFromSyncQueue(docId);
         }
-      } catch (networkError) {
+      } catch (_) {
         // Retain pending status locally.
       }
     } catch (e) {
@@ -460,7 +561,6 @@ class ServantDataRepository implements IServantRepository {
           clientUpdatedAt: DateTime.now(),
         );
         await _localDatasource.cacheServant(updated);
-        await _localDatasource.queueForSync(updated);
       }
 
       try {
@@ -471,9 +571,8 @@ class ServantDataRepository implements IServantRepository {
             syncStatus: SyncStatus.synced,
           );
           await _localDatasource.cacheServant(synced);
-          await _localDatasource.removeFromSyncQueue(docId);
         }
-      } catch (networkError) {
+      } catch (_) {
         // Retain pending status locally.
       }
     } catch (e) {
@@ -503,7 +602,6 @@ class ServantDataRepository implements IServantRepository {
       }
       await batch.commit();
     } catch (e) {
-      // Propagation failures are typically non-fatal but we log them in real apps.
       throw mapExceptionToServantFailure(e);
     }
   }

@@ -1,5 +1,6 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/utils/json_converters.dart';
+import 'package:church_management_system/features/student/domain/entities/student.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:hive/hive.dart';
 
@@ -141,5 +142,75 @@ class StudentModel with _$StudentModel {
         fatherPhone.trim().isNotEmpty &&
         fatherOfConfession.trim().isNotEmpty &&
         (classId?.trim().isNotEmpty ?? false);
+  }
+
+  Student toDomain() {
+    return Student(
+      uid: uid,
+      docID: docID,
+      name: name,
+      imageUrl: imageUrl,
+      role: role,
+      mobile: mobile,
+      group: group,
+      teamName: teamName,
+      motherPhone: motherPhone,
+      fatherPhone: fatherPhone,
+      grade: grade,
+      educationStage: educationStage,
+      school: school,
+      address: address,
+      birthdate: birthdate,
+      fatherOfConfession: fatherOfConfession,
+      notes: notes,
+      isArchived: isArchived,
+      archivedAt: archivedAt,
+      archivedByUserId: archivedByUserId,
+      archiveReason: archiveReason,
+      restoredAt: restoredAt,
+      restoredByUserId: restoredByUserId,
+      classId: classId,
+      attendanceSummary: attendanceSummary,
+      syncStatus: syncStatus,
+      clientUpdatedAt: clientUpdatedAt,
+      sectorId: sectorId,
+      needsVisitation: needsVisitation,
+      lastAbsentDate: lastAbsentDate,
+    );
+  }
+
+  factory StudentModel.fromDomain(Student student) {
+    return StudentModel(
+      uid: student.uid,
+      docID: student.docID,
+      name: student.name,
+      imageUrl: student.imageUrl,
+      role: student.role,
+      mobile: student.mobile,
+      group: student.group,
+      teamName: student.teamName,
+      motherPhone: student.motherPhone,
+      fatherPhone: student.fatherPhone,
+      grade: student.grade,
+      educationStage: student.educationStage,
+      school: student.school,
+      address: student.address,
+      birthdate: student.birthdate,
+      fatherOfConfession: student.fatherOfConfession,
+      notes: student.notes,
+      isArchived: student.isArchived,
+      archivedAt: student.archivedAt,
+      archivedByUserId: student.archivedByUserId,
+      archiveReason: student.archiveReason,
+      restoredAt: student.restoredAt,
+      restoredByUserId: student.restoredByUserId,
+      classId: student.classId,
+      attendanceSummary: student.attendanceSummary,
+      syncStatus: student.syncStatus,
+      clientUpdatedAt: student.clientUpdatedAt,
+      sectorId: student.sectorId,
+      needsVisitation: student.needsVisitation,
+      lastAbsentDate: student.lastAbsentDate,
+    );
   }
 }

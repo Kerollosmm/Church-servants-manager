@@ -18,7 +18,7 @@ final class TeamLoading extends TeamState {
 }
 
 final class TeamLoaded extends TeamState {
-  final List<TeamModel> teams;
+  final List<Team> teams;
   final String? selectedTeamId;
   final TeamMutationStatus mutationStatus;
   final String? feedbackMessage;
@@ -33,7 +33,7 @@ final class TeamLoaded extends TeamState {
   });
 
   TeamLoaded copyWith({
-    List<TeamModel>? teams,
+    List<Team>? teams,
     String? selectedTeamId,
     bool clearSelectedTeamId = false,
     TeamMutationStatus? mutationStatus,

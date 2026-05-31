@@ -1,5 +1,6 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/utils/json_converters.dart';
+import 'package:church_management_system/features/team/domain/entities/team.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:hive/hive.dart';
 
@@ -81,4 +82,38 @@ class TeamModel with _$TeamModel {
   }
 
   bool get isActive => !isArchived;
+
+  Team toDomain() {
+    return Team(
+      id: id,
+      name: name,
+      groupId: groupId,
+      assignedServantId: assignedServantId,
+      assignedServantName: assignedServantName,
+      isArchived: isArchived,
+      archivedAt: archivedAt,
+      archivedByUserId: archivedByUserId,
+      archiveReason: archiveReason,
+      restoredAt: restoredAt,
+      restoredByUserId: restoredByUserId,
+      syncStatus: syncStatus,
+    );
+  }
+
+  factory TeamModel.fromDomain(Team team) {
+    return TeamModel(
+      id: team.id,
+      name: team.name,
+      groupId: team.groupId,
+      assignedServantId: team.assignedServantId,
+      assignedServantName: team.assignedServantName,
+      isArchived: team.isArchived,
+      archivedAt: team.archivedAt,
+      archivedByUserId: team.archivedByUserId,
+      archiveReason: team.archiveReason,
+      restoredAt: team.restoredAt,
+      restoredByUserId: team.restoredByUserId,
+      syncStatus: team.syncStatus,
+    );
+  }
 }

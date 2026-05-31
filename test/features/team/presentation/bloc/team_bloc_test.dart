@@ -24,8 +24,12 @@ void main() {
     isEmailVerified: true,
   );
 
-  final team = TeamModel(id: 't1', name: 'Team A', groupId: 'year1');
-  final servant = ServantModel(docID: 's1', uid: 's1', name: 'Servant A');
+  final team = TeamModel(id: 't1', name: 'Team A', groupId: 'year1').toDomain();
+  final servant = ServantModel(
+    docID: 's1',
+    uid: 's1',
+    name: 'Servant A',
+  ).toDomain();
 
   setUp(() {
     repository = MockTeamRepository();

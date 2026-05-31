@@ -102,11 +102,13 @@ service cloud.firestore {
     // ───────────────────────────────────────────────────────────────
 
     function callerManagesTeam(classId) {
-      let sd = servantData();
+      let claimTeamId = request.auth.token.get('assignedTeamId', '');
+      let claimTeamIds = request.auth.token.get('assignedTeamIds', []);
       return isServantOrAdmin() && (
         isAdmin() ||
-        sd.get('assignedTeamId', null) == classId ||
-        classId in sd.get('assignedTeamIds', [])
+        classId == claimTeamId ||
+        classId in claimTeamIds ||
+        classId in servantData().get('assignedTeamIds', [])
       );
     }
 
@@ -155,8 +157,12 @@ service cloud.firestore {
       // Own profile, admin, or any signed-in servant.
       allow read: if isSignedIn() && (servantId == uid() || isServantOrAdmin());
 
-      // Only admin can create servants; servants cannot self-register.
-      allow create: if isAdmin();
+      // Only admin can create servants/admins; authenticated users can self-register with default student role.
+      allow create: if isAdmin() || (
+        isSignedIn() &&
+        servantId == uid() &&
+        request.resource.data.get('role', '') == 'student'
+      );
 
       // Servants can edit their own non-privileged fields.
       allow update: if isSignedIn() && (
@@ -348,35 +354,37 @@ service cloud.firestore {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // ATTENDANCE COLLECTION
+    // ATTENDANCE COLLECTION (canonical: /attendance/{sessionId})
     // ═══════════════════════════════════════════════════════════════
 
-    match /AttendanceSessions/{sessionId} {
+    match /attendance/{sessionId} {
       allow read: if isSignedIn() && (
         isAdmin() || callerManagesTeam(resource.data.teamId)
       );
       allow create: if isSignedIn() && (
         isAdmin() || callerManagesTeam(request.resource.data.teamId)
       );
-      allow update, delete: if isAdmin();
+      allow update: if isSignedIn() && (
+        isAdmin() || callerManagesTeam(resource.data.teamId)
+      );
+      allow delete: if isAdmin();
 
       match /records/{markId} {
-        function sessionTeamId() {
-          return get(/databases/$(database)/documents/AttendanceSessions/$(sessionId)).data.teamId;
+        function sessionData() {
+          return get(/databases/$(database)/documents/attendance/$(sessionId)).data;
         }
 
         allow read: if isSignedIn() && (
           isAdmin() ||
-          callerManagesTeam(sessionTeamId()) ||
+          callerManagesTeam(sessionData().teamId) ||
           uid() == markId.split('_')[0]
         );
 
         allow create, update: if isSignedIn() && (
           isAdmin() || (
-            callerManagesTeam(sessionTeamId()) &&
+            callerManagesTeam(sessionData().teamId) &&
             markId.split('_')[0] in
-              get(/databases/$(database)/documents/AttendanceSessions/$(sessionId))
-                .data.get('studentIdsSnapshot', [])
+              sessionData().get('studentIdsSnapshot', [])
           )
         );
 
@@ -389,14 +397,26 @@ service cloud.firestore {
     // ═══════════════════════════════════════════════════════════════
 
     match /results/{studentId} {
-      allow read: if isSignedIn() && (studentId == uid() || isAdmin());
-      allow write: if isAdmin();
+      allow read: if isSignedIn() && (
+        studentId == uid() ||
+        isAdmin() ||
+        (isServantOrAdmin() && callerManagesStudentSector(get(/databases/$(database)/documents/Students/$(studentId)).data))
+      );
+      allow write: if isAdmin() || (
+        isServantOrAdmin() &&
+        callerManagesStudentSector(get(/databases/$(database)/documents/Students/$(studentId)).data)
+      );
 
       match /terms/{termId} {
         allow read: if isSignedIn() && (
-          studentId == uid() || isAdmin() || isServantOrAdmin()
+          studentId == uid() ||
+          isAdmin() ||
+          (isServantOrAdmin() && callerManagesStudentSector(get(/databases/$(database)/documents/Students/$(studentId)).data))
         );
-        allow write: if isAdmin();
+        allow write: if isAdmin() || (
+          isServantOrAdmin() &&
+          callerManagesStudentSector(get(/databases/$(database)/documents/Students/$(studentId)).data)
+        );
       }
     }
 
@@ -442,7 +462,7 @@ service cloud.firestore {
     // COLLECTION GROUP RULES (Required for global collection group queries)
     // ═══════════════════════════════════════════════════════════════
 
-    match /{path=**}/AttendanceSessions/{sessionId} {
+    match /{path=**}/attendance/{sessionId} {
       allow read: if isSignedIn() && (
         isAdmin() || callerManagesTeam(resource.data.teamId)
       );
@@ -453,6 +473,14 @@ service cloud.firestore {
         isAdmin() ||
         resource.data.studentId == uid() ||
         callerManagesTeam(resource.data.teamId)
+      );
+    }
+
+    match /{path=**}/terms/{termId} {
+      allow read: if isSignedIn() && (
+        resource.data.studentId == uid() ||
+        isAdmin() ||
+        (isServantOrAdmin() && callerManagesStudentSector(get(/databases/$(database)/documents/Students/$(resource.data.studentId)).data))
       );
     }
   }

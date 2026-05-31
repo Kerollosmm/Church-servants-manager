@@ -107,6 +107,7 @@ class AttendanceBloc extends Bloc<AttendanceEvent, AttendanceState> {
     if (state is! AttendanceSessionActive) return;
 
     final currentState = state as AttendanceSessionActive;
+    final now = DateTime.now().toUtc();
 
     // 1. Optimistic UI Update
     final updatedRoster = currentState.roster.map((item) {
@@ -115,7 +116,7 @@ class AttendanceBloc extends Bloc<AttendanceEvent, AttendanceState> {
           manualStatus: event.newStatus,
           isMarked: true,
           markedByName: event.markedBy.name,
-          markedAt: DateTime.now(),
+          markedAt: now,
         );
       }
       return item;
@@ -126,7 +127,7 @@ class AttendanceBloc extends Bloc<AttendanceEvent, AttendanceState> {
 
     // 2. Background Sync
     final syncEntry = SyncEntry(
-      id: 'mark_attendance_${currentState.session.id}_${event.studentId}_${event.markedBy.uid}',
+      id: 'mark_${currentState.session.id}_${event.studentId}',
       actionType: 'MARK_ATTENDANCE',
       payload: {
         'teamId': currentState.session.teamId,
@@ -135,8 +136,9 @@ class AttendanceBloc extends Bloc<AttendanceEvent, AttendanceState> {
         'status': event.newStatus.name,
         'markedByUid': event.markedBy.uid,
         'markedByName': event.markedBy.name,
+        'createdAt': now.toIso8601String(),
       },
-      createdAt: DateTime.now(),
+      createdAt: now,
     );
 
     // Enqueue the operation and DO NOT await its completion

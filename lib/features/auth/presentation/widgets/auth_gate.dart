@@ -9,17 +9,9 @@ import 'package:church_management_system/features/auth/presentation/bloc/auth_bl
 import 'package:church_management_system/features/auth/presentation/screens/forced_password_reset_screen.dart';
 import 'package:church_management_system/features/auth/presentation/screens/login_screen.dart';
 import 'package:church_management_system/features/auth/presentation/screens/verify_email_screen.dart';
-import 'package:church_management_system/features/servant/domain/repos/i_servant_repository.dart';
-import 'package:church_management_system/features/servant/domain/usecases/provision_servant_with_auth_usecase.dart';
-import 'package:church_management_system/features/servant/presentation/bloc/servant_data/servant_data_bloc.dart';
 import 'package:church_management_system/features/servant/presentation/screens/servant_dashboard_screen.dart';
-import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
-import 'package:church_management_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
-import 'package:church_management_system/features/student/domain/usecases/get_students_list_usecase.dart';
-import 'package:church_management_system/features/student/domain/usecases/provision_student_with_auth_usecase.dart';
-import 'package:church_management_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
-import 'package:church_management_system/features/student/presentation/bloc/student_profile/student_profile_bloc.dart';
 import 'package:church_management_system/features/student/presentation/screens/student_profile_screen.dart';
+import 'package:church_management_system/role_user_route.dart';
 import 'package:church_management_system/shared/widgets/offline_indicator.dart';
 import 'package:church_management_system/shared/widgets/sync_status_indicator.dart';
 import 'package:flutter/material.dart';
@@ -36,29 +28,11 @@ class AuthGate extends StatelessWidget {
         ? state.user
         : (state as AuthDegraded).user;
 
-    Widget homeWidget;
-    List<BlocProvider> featureProviders = [];
+    Widget homeWidget = const SizedBox.shrink();
 
     switch (user.role) {
       case UserRole.servant:
       case UserRole.admin:
-        featureProviders = [
-          BlocProvider<StudentDataBloc>(
-            create: (context) => StudentDataBloc(
-              studentRepository: getIt<IStudentRepository>(),
-              getStudentsList: getIt<GetStudentsListUseCase>(),
-              canMutateStudent: getIt<CanMutateStudentUseCase>(),
-              provisionUseCase: getIt<ProvisionStudentWithAuthUseCase>(),
-            ),
-          ),
-          BlocProvider<ServantDataBloc>(
-            create: (context) => ServantDataBloc(
-              repository: getIt<IServantRepository>(),
-              provisionUseCase: getIt<ProvisionServantWithAuthUseCase>(),
-            ),
-          ),
-        ];
-
         homeWidget = user.role == UserRole.admin
             ? (state is AuthAuthenticated
                   ? const AdminDashboardScreen()
@@ -68,19 +42,12 @@ class AuthGate extends StatelessWidget {
             : ServantDashboardScreen(user: user);
         break;
       case UserRole.student:
-        featureProviders = [
-          BlocProvider<StudentProfileBloc>(
-            create: (context) => StudentProfileBloc(
-              studentRepository: getIt<IStudentRepository>(),
-            ),
-          ),
-        ];
         homeWidget = StudentProfileScreen(user: user);
         break;
     }
 
-    return MultiBlocProvider(
-      providers: featureProviders,
+    return RoleUserRoute(
+      user: user,
       child: LifecycleSyncManager(
         child: MaterialApp(
           title: 'اعداد خدام',

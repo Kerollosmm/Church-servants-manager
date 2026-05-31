@@ -1,7 +1,7 @@
 import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/servant/domain/repos/i_servant_repository.dart';
-import 'package:church_management_system/features/team/data/models/team_model.dart';
+import 'package:church_management_system/features/team/domain/entities/team.dart';
 import 'package:church_management_system/features/team/presentation/cubit/assign_servant_cubit.dart';
 import 'package:church_management_system/features/team/presentation/cubit/assign_servant_state.dart';
 import 'package:flutter/material.dart';
@@ -9,7 +9,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 class AssignServantDialog extends StatefulWidget {
   final AuthUser actor;
-  final TeamModel team;
+  final Team team;
 
   const AssignServantDialog({
     super.key,
@@ -28,9 +28,9 @@ class _AssignServantDialogState extends State<AssignServantDialog> {
   @override
   Widget build(BuildContext context) {
     return BlocProvider<AssignServantCubit>(
-      create: (_) => AssignServantCubit(
-        servantRepository: getIt<IServantRepository>(),
-      )..loadServants(widget.team.groupId),
+      create: (_) =>
+          AssignServantCubit(servantRepository: getIt<IServantRepository>())
+            ..loadServants(widget.team.groupId),
       child: BlocConsumer<AssignServantCubit, AssignServantState>(
         listener: (context, state) {
           if (state is AssignServantLoaded && !_selectionInitialized) {

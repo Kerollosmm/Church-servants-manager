@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:church_management_system/features/results/data/models/results_model.dart';
+import 'package:church_management_system/features/results/domain/entities/result.dart';
 import 'package:church_management_system/features/results/domain/repos/i_results_repository.dart';
 import 'package:church_management_system/features/results/presentation/bloc/results_event.dart';
 import 'package:church_management_system/features/results/presentation/bloc/results_state.dart';
@@ -43,7 +43,7 @@ class ResultsBloc extends Bloc<ResultsEvent, ResultsState> {
   ) async {
     if (state is ResultsLoaded) {
       final currentState = state as ResultsLoaded;
-      final updatedResults = List<ResultsModel>.from(currentState.results);
+      final updatedResults = List<Result>.from(currentState.results);
       final index = updatedResults.indexWhere(
         (r) => r.studentId == event.result.studentId,
       );

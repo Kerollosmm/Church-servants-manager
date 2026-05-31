@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockAuthBloc extends Mock implements AuthBloc {}
+
 class MockAdminPolicy extends Mock implements AdminPolicy {}
 
 void main() {
@@ -51,7 +52,9 @@ void main() {
   }
 
   group('AdminGate Widget', () {
-    testWidgets('shows CircularProgressIndicator when state is AuthInitial', (tester) async {
+    testWidgets('shows CircularProgressIndicator when state is AuthInitial', (
+      tester,
+    ) async {
       when(() => mockAuthBloc.state).thenReturn(const AuthInitial());
 
       await tester.pumpWidget(createWidgetUnderTest());
@@ -59,7 +62,9 @@ void main() {
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
 
-    testWidgets('shows CircularProgressIndicator when state is AuthLoading', (tester) async {
+    testWidgets('shows CircularProgressIndicator when state is AuthLoading', (
+      tester,
+    ) async {
       when(() => mockAuthBloc.state).thenReturn(const AuthLoading());
 
       await tester.pumpWidget(createWidgetUnderTest());
@@ -67,20 +72,37 @@ void main() {
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
 
-    testWidgets('shows child widget for AuthAuthenticated with Admin + Fresh Session', (tester) async {
-      when(() => mockAuthBloc.state).thenReturn(const AuthAuthenticated(adminUser));
-      when(() => mockAdminPolicy.canAccessAdminArea(user: adminUser, isSessionFresh: true))
-          .thenReturn(true);
+    testWidgets(
+      'shows child widget for AuthAuthenticated with Admin + Fresh Session',
+      (tester) async {
+        when(
+          () => mockAuthBloc.state,
+        ).thenReturn(const AuthAuthenticated(adminUser));
+        when(
+          () => mockAdminPolicy.canAccessAdminArea(
+            user: adminUser,
+            isSessionFresh: true,
+          ),
+        ).thenReturn(true);
 
-      await tester.pumpWidget(createWidgetUnderTest());
+        await tester.pumpWidget(createWidgetUnderTest());
 
-      expect(find.text('Admin Content'), findsOneWidget);
-    });
+        expect(find.text('Admin Content'), findsOneWidget);
+      },
+    );
 
-    testWidgets('shows Access Denied for AuthAuthenticated Non-Admin', (tester) async {
-      when(() => mockAuthBloc.state).thenReturn(const AuthAuthenticated(nonAdminUser));
-      when(() => mockAdminPolicy.canAccessAdminArea(user: nonAdminUser, isSessionFresh: true))
-          .thenReturn(false);
+    testWidgets('shows Access Denied for AuthAuthenticated Non-Admin', (
+      tester,
+    ) async {
+      when(
+        () => mockAuthBloc.state,
+      ).thenReturn(const AuthAuthenticated(nonAdminUser));
+      when(
+        () => mockAdminPolicy.canAccessAdminArea(
+          user: nonAdminUser,
+          isSessionFresh: true,
+        ),
+      ).thenReturn(false);
 
       await tester.pumpWidget(createWidgetUnderTest());
 
@@ -88,17 +110,28 @@ void main() {
       expect(find.text('مطلوب صلاحيات مسؤول'), findsOneWidget);
     });
 
-    testWidgets('shows Access Denied for AuthAuthenticated Admin with Stale Session', (tester) async {
-      when(() => mockAuthBloc.state).thenReturn(const AuthAuthenticated(adminUser));
-      when(() => mockAdminPolicy.canAccessAdminArea(user: adminUser, isSessionFresh: true))
-          .thenReturn(false);
+    testWidgets(
+      'shows Access Denied for AuthAuthenticated Admin with Stale Session',
+      (tester) async {
+        when(
+          () => mockAuthBloc.state,
+        ).thenReturn(const AuthAuthenticated(adminUser));
+        when(
+          () => mockAdminPolicy.canAccessAdminArea(
+            user: adminUser,
+            isSessionFresh: true,
+          ),
+        ).thenReturn(false);
 
-      await tester.pumpWidget(createWidgetUnderTest());
+        await tester.pumpWidget(createWidgetUnderTest());
 
-      expect(find.text('وصول غير مسموح'), findsOneWidget);
-    });
+        expect(find.text('وصول غير مسموح'), findsOneWidget);
+      },
+    );
 
-    testWidgets('shows Requires Fresh Session for AuthDegraded', (tester) async {
+    testWidgets('shows Requires Fresh Session for AuthDegraded', (
+      tester,
+    ) async {
       when(() => mockAuthBloc.state).thenReturn(
         const AuthDegraded(user: adminUser, message: 'Need refresh'),
       );
@@ -110,22 +143,24 @@ void main() {
     });
 
     testWidgets('shows account not available for AuthArchived', (tester) async {
-      when(() => mockAuthBloc.state).thenReturn(
-        const AuthArchived(message: 'Archived'),
-      );
+      when(
+        () => mockAuthBloc.state,
+      ).thenReturn(const AuthArchived(message: 'Archived'));
 
       await tester.pumpWidget(createWidgetUnderTest());
 
       expect(find.text('هذا الحساب غير متاح حاليا.'), findsOneWidget);
     });
 
-    testWidgets('dispatches AuthEventRefreshUser on refresh button tap', (tester) async {
+    testWidgets('dispatches AuthEventRefreshUser on refresh button tap', (
+      tester,
+    ) async {
       when(() => mockAuthBloc.state).thenReturn(
         const AuthDegraded(user: adminUser, message: 'Need refresh'),
       );
 
       await tester.pumpWidget(createWidgetUnderTest());
-      
+
       final button = find.widgetWithText(FilledButton, 'مزامنة الوصول');
       expect(button, findsOneWidget);
 

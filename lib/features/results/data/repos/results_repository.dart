@@ -3,9 +3,12 @@ import 'dart:developer' as developer;
 
 import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/models/sync_entry.dart';
+import 'package:church_management_system/core/services/cache_tracker.dart';
 import 'package:church_management_system/core/services/sync_service.dart';
+import 'package:church_management_system/core/utils/pagination_cursor.dart';
 import 'package:church_management_system/features/results/data/datasources/results_local_datasource.dart';
 import 'package:church_management_system/features/results/data/models/results_model.dart';
+import 'package:church_management_system/features/results/domain/entities/result.dart';
 import 'package:church_management_system/features/results/domain/repos/i_results_repository.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -21,45 +24,50 @@ class ResultsRepository implements IResultsRepository {
        _localDatasource = localDatasource ?? ResultsLocalDatasource();
 
   @override
-  Future<List<ResultsModel>> getResultsForServant(
+  Future<List<Result>> getResultsForServant(
     String groupId, {
-    DocumentSnapshot? startAfter,
+    PaginationCursor? startAfter,
   }) async {
+    final lastDoc = startAfter?.token as DocumentSnapshot?;
     // If not paginating, try to return cached first for instant UI
-    if (startAfter == null) {
+    if (lastDoc == null) {
       final cached = await _localDatasource.getCachedResultsForGroup(groupId);
       if (cached.isNotEmpty) {
-        unawaited(
-          _firestore
-              .collectionGroup('terms')
-              .where('groupId', isEqualTo: groupId)
-              .limit(30)
-              .get(const GetOptions(source: Source.server))
-              .then((snapshot) {
-                final results = snapshot.docs
-                    .map((doc) => ResultsModel.fromMap(doc.data(), doc.id))
-                    .toList();
-                if (results.isNotEmpty) {
-                  final resultsMap = {for (final r in results) r.studentId: r};
-                  _localDatasource.cacheResults(resultsMap);
-                }
-              })
-              .catchError((_) {}),
-        );
-        return cached;
+        final cacheKey = 'results_group_$groupId';
+        if (CacheTracker.shouldRevalidate(cacheKey)) {
+          unawaited(
+            _firestore
+                .collectionGroup('terms')
+                .where('groupId', isEqualTo: groupId)
+                .limit(30)
+                .get(const GetOptions(source: Source.server))
+                .timeout(const Duration(seconds: 10))
+                .then((snapshot) {
+                  final results = snapshot.docs
+                      .map((doc) => ResultsModel.fromMap(doc.data(), doc.id))
+                      .toList();
+                  if (results.isNotEmpty) {
+                    final resultsMap = {
+                      for (final r in results) r.studentId: r,
+                    };
+                    _localDatasource.cacheResults(resultsMap);
+                    CacheTracker.markFetched(cacheKey);
+                  }
+                })
+                .catchError((_) {}),
+          );
+        }
+        return cached.map((c) => c.toDomain()).toList();
       }
     }
 
-    // MANDATORY: Add a 'groupId' filter to all servant-level result queries
-    // to prevent fetching unauthorized student data, staying within Spark Plan limits.
-    // Note: We use collectionGroup for 'terms' as the results are now nested.
     var query = _firestore
         .collectionGroup('terms')
         .where('groupId', isEqualTo: groupId)
         .limit(30);
 
-    if (startAfter != null) {
-      query = query.startAfterDocument(startAfter);
+    if (lastDoc != null) {
+      query = query.startAfterDocument(lastDoc);
     }
 
     try {
@@ -69,89 +77,125 @@ class ResultsRepository implements IResultsRepository {
           .toList();
 
       // Cache the first page
-      if (startAfter == null && results.isNotEmpty) {
+      if (lastDoc == null && results.isNotEmpty) {
         final resultsMap = {for (final r in results) r.studentId: r};
         await _localDatasource.cacheResults(resultsMap);
       }
-      return results;
+      return results.map((r) => r.toDomain()).toList();
     } catch (_) {
-      if (startAfter == null) {
-        return await _localDatasource.getCachedResultsForGroup(groupId);
+      if (lastDoc == null) {
+        final cached = await _localDatasource.getCachedResultsForGroup(groupId);
+        return cached.map((c) => c.toDomain()).toList();
       }
       return [];
     }
   }
 
   @override
-  Future<ResultsModel?> getResultForStudent(String studentId) async {
+  Future<Result?> getResultForStudent(String studentId) async {
     final cached = await _localDatasource.getCachedResultForStudent(studentId);
     if (cached != null) {
-      unawaited(
-        _firestore
-            .collection('results')
-            .doc(studentId)
-            .collection('terms')
-            .get(const GetOptions(source: Source.server))
-            .then((termsSnapshot) {
-              if (termsSnapshot.docs.isNotEmpty) {
-                final result = ResultsModel.fromMap(
-                  termsSnapshot.docs.first.data(),
-                  termsSnapshot.docs.first.id,
-                );
-                _localDatasource.cacheResult(result.studentId, result);
-              }
-            })
-            .catchError((_) {}),
-      );
-      return cached;
+      final cacheKey = 'result_student_$studentId';
+      if (CacheTracker.shouldRevalidate(cacheKey)) {
+        unawaited(
+          _firestore
+              .collection('results')
+              .doc(studentId)
+              .collection('terms')
+              .get(const GetOptions(source: Source.server))
+              .timeout(const Duration(seconds: 10))
+              .then((termsSnapshot) {
+                if (termsSnapshot.docs.isNotEmpty) {
+                  final result = ResultsModel.fromMap(
+                    termsSnapshot.docs.first.data(),
+                    termsSnapshot.docs.first.id,
+                  );
+                  _localDatasource.cacheResult(result.studentId, result);
+                  CacheTracker.markFetched(cacheKey);
+                }
+              })
+              .catchError((_) {}),
+        );
+      }
+      return cached.toDomain();
     }
 
     try {
-      // Note: Using student-based nesting as per report
       final termsSnapshot = await _firestore
           .collection('results')
           .doc(studentId)
           .collection('terms')
           .get();
       if (termsSnapshot.docs.isEmpty) return null;
-      // For now returning first term; real app would likely need a termId
       final result = ResultsModel.fromMap(
         termsSnapshot.docs.first.data(),
         termsSnapshot.docs.first.id,
       );
       await _localDatasource.cacheResult(result.studentId, result);
-      return result;
+      return result.toDomain();
     } catch (_) {
       return null;
     }
   }
 
   @override
-  Future<void> updateResult(ResultsModel result) async {
+  Future<void> updateResult(Result result) async {
+    final model = ResultsModel.fromDomain(result);
+    // 1. Write to local Hive cache FIRST
+    try {
+      await _localDatasource.cacheResult(model.studentId, model);
+    } catch (e) {
+      developer.log(
+        'Local cache update failed in ResultsRepository',
+        error: e,
+        name: 'ResultsRepository',
+      );
+    }
+
+    // 2. Try online write or fallback to outbox queue
+    final syncEntry = SyncEntry(
+      id: 'update_result_${model.studentId}_${model.termId}',
+      actionType: 'UPDATE_RESULT',
+      payload: model.toMap(),
+      createdAt: DateTime.now(),
+    );
+
     try {
       final connectivity = await Connectivity().checkConnectivity();
       if (connectivity.contains(ConnectivityResult.none)) {
-        final syncEntry = SyncEntry(
-          id: 'update_result_${result.studentId}_${result.termId}',
-          actionType: 'UPDATE_RESULT',
-          payload: result.toMap(),
-          createdAt: DateTime.now(),
-        );
         await getIt<SyncService>().enqueue(syncEntry);
-        await _localDatasource.cacheResult(result.studentId, result);
         return;
       }
 
       await _firestore
           .collection('results')
-          .doc(result.studentId)
+          .doc(model.studentId)
           .collection('terms')
-          .doc(result.termId)
-          .set(result.toMap(), SetOptions(merge: true));
-      await _localDatasource.cacheResult(result.studentId, result);
+          .doc(model.termId)
+          .set(model.toMap(), SetOptions(merge: true));
+    } on FirebaseException catch (e) {
+      if (e.code == 'unavailable' || e.code == 'deadline-exceeded') {
+        developer.log(
+          'Firestore write failed with network error, enqueuing for offline sync',
+          error: e,
+          name: 'ResultsRepository',
+        );
+        await getIt<SyncService>().enqueue(syncEntry);
+      } else {
+        developer.log(
+          'Update result failed with firebase error',
+          error: e,
+          name: 'ResultsRepository',
+        );
+        rethrow;
+      }
     } catch (e) {
-      developer.log('Update result failed', name: 'ResultsRepository');
-      rethrow;
+      developer.log(
+        'Update result failed, enqueuing for offline sync',
+        error: e,
+        name: 'ResultsRepository',
+      );
+      await getIt<SyncService>().enqueue(syncEntry);
     }
   }
 

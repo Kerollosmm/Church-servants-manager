@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:developer' as developer;
 
-import 'package:church_management_system/features/attendance/data/models/attendance_stats.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_stats.dart';
 import 'package:church_management_system/features/attendance/domain/failures/attendance_failures.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/student_attendance/student_attendance_event.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/student_attendance/student_attendance_state.dart';

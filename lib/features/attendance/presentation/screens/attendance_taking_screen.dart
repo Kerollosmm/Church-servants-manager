@@ -1,14 +1,16 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/routing/route_args.dart';
+import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
 import 'package:church_management_system/core/widgets/common/app_info_banner.dart';
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
-import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
-import 'package:church_management_system/features/attendance/data/models/attendance_roster_item.dart';
+import 'package:church_management_system/features/attendance/data/local/attendance_local_datasource.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_enums.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_roster_item.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_bloc.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_event.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_state.dart';
@@ -45,14 +47,17 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
       providers: [
         BlocProvider<AttendanceTakingBloc>(
           create: (context) =>
-              AttendanceTakingBloc(repository: getIt<AttendanceRepository>())
-                ..add(
-                  InitializeSessionEvent(
-                    teamId: widget.args.teamId,
-                    sessionId: widget.args.sessionId,
-                    actor: widget.args.actor,
-                  ),
+              AttendanceTakingBloc(
+                repository: getIt<AttendanceRepository>(),
+                localDatasource: getIt<AttendanceLocalDatasource>(),
+                syncService: getIt<SyncService>(),
+              )..add(
+                InitializeSessionEvent(
+                  teamId: widget.args.teamId,
+                  sessionId: widget.args.sessionId,
+                  actor: widget.args.actor,
                 ),
+              ),
         ),
         BlocProvider<AttendanceSessionAdminCubit>(
           create: (context) => AttendanceSessionAdminCubit(
@@ -293,6 +298,37 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
   }
 }
 
+class _CardState {
+  final AttendanceMarkStatus? pendingMark;
+  final bool isMutationInProgress;
+  final bool isSessionOpen;
+  final AttendanceSession session;
+
+  const _CardState({
+    required this.pendingMark,
+    required this.isMutationInProgress,
+    required this.isSessionOpen,
+    required this.session,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is _CardState &&
+          runtimeType == other.runtimeType &&
+          pendingMark == other.pendingMark &&
+          isMutationInProgress == other.isMutationInProgress &&
+          isSessionOpen == other.isSessionOpen &&
+          session == other.session;
+
+  @override
+  int get hashCode =>
+      pendingMark.hashCode ^
+      isMutationInProgress.hashCode ^
+      isSessionOpen.hashCode ^
+      session.hashCode;
+}
+
 class _RosterItemCard extends StatelessWidget {
   final AttendanceRosterItem item;
   final AuthUser actor;
@@ -336,97 +372,129 @@ class _RosterItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isPending =
-        effectivePendingMark != null &&
-        item.manualStatus != effectivePendingMark;
+    return BlocSelector<
+      AttendanceTakingBloc,
+      AttendanceTakingState,
+      _CardState?
+    >(
+      selector: (state) {
+        if (state is! AttendanceTakingLoaded) return null;
+        return _CardState(
+          pendingMark: state.pendingLocalMarks[item.studentId],
+          isMutationInProgress:
+              state.mutationStatus == MutationStatus.inProgress,
+          isSessionOpen: state.isSessionOpen,
+          session: state.session,
+        );
+      },
+      builder: (context, cardState) {
+        if (cardState == null) return const SizedBox.shrink();
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+        final currentPendingMark = cardState.pendingMark;
+        final isPending =
+            currentPendingMark != null &&
+            item.manualStatus != currentPendingMark;
+
+        // Resolve optimistic status color and label dynamically
+        final effectiveMark = currentPendingMark ?? item.manualStatus;
+        final resolvedStatus = AttendanceRosterItem.resolveEffectiveStatus(
+          manualStatus: effectiveMark,
+          session: cardState.session,
+          now: DateTime.now(),
+        );
+
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Text(
-                    item.studentName,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        item.studentName,
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w700),
+                      ),
                     ),
-                  ),
+                    if (isPending) ...[
+                      const SizedBox(
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      AppSpacing.gapSm,
+                    ],
+                    Chip(
+                      label: Text(_statusLabel(resolvedStatus)),
+                      backgroundColor: _statusColor(
+                        resolvedStatus,
+                      ).withValues(alpha: 0.14),
+                      labelStyle: TextStyle(
+                        color: _statusColor(resolvedStatus),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
-                if (isPending) ...[
-                  const SizedBox(
-                    width: 12,
-                    height: 12,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+
+                if (item.markedByName != null) ...[
+                  AppSpacing.gapXs,
+                  Text(
+                    'تم التسجيل بواسطة ${item.markedByName}',
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
-                  AppSpacing.gapSm,
                 ],
-                Chip(
-                  label: Text(_statusLabel(item.effectiveStatus)),
-                  backgroundColor: _statusColor(
-                    item.effectiveStatus,
-                  ).withValues(alpha: 0.14),
-                  labelStyle: TextStyle(
-                    color: _statusColor(item.effectiveStatus),
-                    fontWeight: FontWeight.w700,
-                  ),
+
+                AppSpacing.gapMd,
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed:
+                          !cardState.isSessionOpen ||
+                              cardState.isMutationInProgress ||
+                              effectiveMark == AttendanceMarkStatus.present
+                          ? null
+                          : () => context.read<AttendanceTakingBloc>().add(
+                              MarkStudentPresentEvent(actor: actor, item: item),
+                            ),
+                      icon: const Icon(Icons.check_circle_outline),
+                      label: const Text('حاضر'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed:
+                          !cardState.isSessionOpen ||
+                              cardState.isMutationInProgress ||
+                              effectiveMark == AttendanceMarkStatus.late
+                          ? null
+                          : () => context.read<AttendanceTakingBloc>().add(
+                              MarkStudentLateEvent(actor: actor, item: item),
+                            ),
+                      icon: const Icon(Icons.alarm_on_outlined),
+                      label: const Text('متأخر'),
+                    ),
+                    if (item.isMarked || currentPendingMark != null)
+                      TextButton.icon(
+                        onPressed:
+                            !cardState.isSessionOpen ||
+                                cardState.isMutationInProgress
+                            ? null
+                            : () => context.read<AttendanceTakingBloc>().add(
+                                ClearStudentMarkEvent(actor: actor, item: item),
+                              ),
+                        icon: const Icon(Icons.clear),
+                        label: const Text('مسح التحديد'),
+                      ),
+                  ],
                 ),
               ],
             ),
-            if (item.markedByName != null) ...[
-              AppSpacing.gapXs,
-              Text(
-                'تم التسجيل بواسطة ${item.markedByName}',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
-            AppSpacing.gapMd,
-            Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.sm,
-              children: [
-                OutlinedButton.icon(
-                  onPressed:
-                      !isSessionOpen ||
-                          isMutationInProgress ||
-                          effectivePendingMark == AttendanceMarkStatus.present
-                      ? null
-                      : () => context.read<AttendanceTakingBloc>().add(
-                          MarkStudentPresentEvent(actor: actor, item: item),
-                        ),
-                  icon: const Icon(Icons.check_circle_outline),
-                  label: const Text('حاضر'),
-                ),
-                OutlinedButton.icon(
-                  onPressed:
-                      !isSessionOpen ||
-                          isMutationInProgress ||
-                          effectivePendingMark == AttendanceMarkStatus.late
-                      ? null
-                      : () => context.read<AttendanceTakingBloc>().add(
-                          MarkStudentLateEvent(actor: actor, item: item),
-                        ),
-                  icon: const Icon(Icons.alarm_on_outlined),
-                  label: const Text('متأخر'),
-                ),
-                if (item.isMarked || effectivePendingMark != null)
-                  TextButton.icon(
-                    onPressed: !isSessionOpen || isMutationInProgress
-                        ? null
-                        : () => context.read<AttendanceTakingBloc>().add(
-                            ClearStudentMarkEvent(actor: actor, item: item),
-                          ),
-                    icon: const Icon(Icons.clear),
-                    label: const Text('مسح التحديد'),
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

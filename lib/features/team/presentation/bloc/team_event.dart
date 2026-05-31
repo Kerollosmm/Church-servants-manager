@@ -47,7 +47,7 @@ class TeamLoadByIdsRequested extends TeamEvent {
 }
 
 class TeamCreateRequested extends TeamEvent {
-  final TeamModel team;
+  final Team team;
 
   const TeamCreateRequested(this.team);
 
@@ -56,7 +56,7 @@ class TeamCreateRequested extends TeamEvent {
 }
 
 class TeamUpdateRequested extends TeamEvent {
-  final TeamModel team;
+  final Team team;
 
   const TeamUpdateRequested(this.team);
 
@@ -95,8 +95,8 @@ class TeamSelected extends TeamEvent {
 
 class ServantAssignedToTeam extends TeamEvent {
   final AuthUser actor;
-  final TeamModel team;
-  final ServantModel servant;
+  final Team team;
+  final Servant servant;
 
   const ServantAssignedToTeam({
     required this.actor,
@@ -110,7 +110,7 @@ class ServantAssignedToTeam extends TeamEvent {
 
 class ServantUnassignedFromTeam extends TeamEvent {
   final AuthUser actor;
-  final TeamModel team;
+  final Team team;
 
   const ServantUnassignedFromTeam({required this.actor, required this.team});
 
@@ -120,8 +120,8 @@ class ServantUnassignedFromTeam extends TeamEvent {
 
 class TeamMembersSet extends TeamEvent {
   final AuthUser actor;
-  final TeamModel team;
-  final List<StudentModel> students;
+  final Team team;
+  final List<Student> students;
 
   const TeamMembersSet({
     required this.actor,

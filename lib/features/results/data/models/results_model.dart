@@ -1,3 +1,4 @@
+import 'package:church_management_system/features/results/domain/entities/result.dart';
 import 'package:hive/hive.dart';
 
 part 'results_model.g.dart';
@@ -41,5 +42,25 @@ class ResultsModel {
       'notes': notes,
       'groupId': groupId,
     };
+  }
+
+  Result toDomain() {
+    return Result(
+      studentId: studentId,
+      termId: termId,
+      score: score,
+      notes: notes,
+      groupId: groupId,
+    );
+  }
+
+  factory ResultsModel.fromDomain(Result result) {
+    return ResultsModel(
+      studentId: result.studentId,
+      termId: result.termId,
+      score: result.score,
+      notes: result.notes,
+      groupId: result.groupId,
+    );
   }
 }

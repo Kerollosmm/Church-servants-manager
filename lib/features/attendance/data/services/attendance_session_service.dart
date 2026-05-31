@@ -1,6 +1,6 @@
-import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
 import 'package:church_management_system/features/attendance/data/services/attendance_command_service.dart';
-import 'package:church_management_system/features/auth/data/models/auth_user.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_session.dart';
+import 'package:church_management_system/features/auth/domain/entities/auth_user.dart';
 
 /// Orchestrates attendance session lifecycle operations that span
 /// session creation with roster snapshots and session state management.

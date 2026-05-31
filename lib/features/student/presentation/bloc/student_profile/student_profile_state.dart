@@ -1,4 +1,4 @@
-import 'package:church_management_system/features/student/data/models/student_model.dart';
+import 'package:church_management_system/features/student/domain/entities/student.dart';
 import 'package:equatable/equatable.dart';
 
 sealed class StudentProfileState extends Equatable {
@@ -30,7 +30,7 @@ final class StudentProfileMissingProfile extends StudentProfileState {
 }
 
 final class StudentProfileLoaded extends StudentProfileState {
-  final StudentModel student;
+  final Student student;
 
   const StudentProfileLoaded(this.student);
 

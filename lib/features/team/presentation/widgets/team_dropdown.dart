@@ -1,13 +1,13 @@
 import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/widgets/form/app_dropdown_field.dart';
-import 'package:church_management_system/features/team/data/models/team_model.dart';
+import 'package:church_management_system/features/team/domain/entities/team.dart';
 import 'package:flutter/material.dart';
 
 /// Pure dropdown widget for selecting a team.
 class TeamDropdown extends StatelessWidget {
   static const String allTeamsSentinel = 'ALL_TEAMS';
 
-  final List<TeamModel> teams;
+  final List<Team> teams;
   final String? selectedTeamId;
   final bool isLoading;
   final String? errorMessage;

@@ -7,14 +7,14 @@ import 'package:hive/hive.dart';
 /// sync queue for mutations that need to be pushed to Firestore.
 class ServantLocalDatasource {
   static const String boxName = 'servants_box';
-  static const String syncQueueBoxName = 'servants_sync_queue_box';
 
   Box<ServantModel>? _servantsBox;
-  Box<ServantModel>? _syncQueueBox;
 
   Future<void> init() async {
-    _servantsBox ??= await Hive.openBox<ServantModel>(boxName);
-    _syncQueueBox ??= await Hive.openBox<ServantModel>(syncQueueBoxName);
+    _servantsBox ??= await Hive.openBox<ServantModel>(
+      boxName,
+      compactionStrategy: (entries, deletedEntries) => deletedEntries > 50,
+    );
   }
 
   // ---- Cache Operations ----
@@ -97,22 +97,5 @@ class ServantLocalDatasource {
   Future<void> removeCachedServant(String docId) async {
     await init();
     await _servantsBox!.delete(docId);
-  }
-
-  // ---- Sync Queue Operations ----
-
-  Future<void> queueForSync(ServantModel servant) async {
-    await init();
-    await _syncQueueBox!.put(servant.docID, servant);
-  }
-
-  Future<void> removeFromSyncQueue(String docId) async {
-    await init();
-    await _syncQueueBox!.delete(docId);
-  }
-
-  Future<List<ServantModel>> getPendingSyncEntries() async {
-    await init();
-    return _syncQueueBox!.values.toList();
   }
 }

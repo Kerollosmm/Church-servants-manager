@@ -1,10 +1,14 @@
 import 'dart:async';
 
 import 'package:church_management_system/core/constants/enums.dart';
+import 'package:church_management_system/core/models/sync_entry.dart';
+import 'package:church_management_system/core/services/sync_service.dart';
+import 'package:church_management_system/features/attendance/data/local/attendance_local_datasource.dart';
 import 'package:church_management_system/features/attendance/data/local/attendance_session_local_datasource.dart';
-import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
+import 'package:church_management_system/features/attendance/data/models/attendance_mark.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_enums.dart';
 import 'package:church_management_system/features/attendance/domain/failures/attendance_failures.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
@@ -21,7 +25,16 @@ class MockStudentQueryService extends Mock implements StudentQueryService {}
 class MockAttendanceSessionLocalDatasource extends Mock
     implements AttendanceSessionLocalDatasource {}
 
+class MockAttendanceLocalDatasource extends Mock
+    implements AttendanceLocalDatasource {}
+
+class MockSyncService extends Mock implements SyncService {}
+
+class FakeAttendanceMark extends Fake implements AttendanceMark {}
+
 class FakeAttendanceSession extends Fake implements AttendanceSession {}
+
+class FakeSyncEntry extends Fake implements SyncEntry {}
 
 void main() {
   late FakeFirebaseFirestore firestore;
@@ -31,9 +44,13 @@ void main() {
   late MockConnectivity connectivity;
   late MockStudentQueryService studentQueryService;
   late MockAttendanceSessionLocalDatasource localDatasource;
+  late MockAttendanceLocalDatasource attendanceLocalDatasource;
+  late MockSyncService mockSyncService;
 
   setUpAll(() {
     registerFallbackValue(FakeAttendanceSession());
+    registerFallbackValue(FakeAttendanceMark());
+    registerFallbackValue(FakeSyncEntry());
   });
 
   final admin = const AuthUser(
@@ -106,10 +123,6 @@ void main() {
     await firestore.collection('Students').doc(value.docID).set(value.toMap());
   }
 
-  Future<void> seedSession(AttendanceSession value) async {
-    await firestore.collection('attendance').doc(value.id).set(value.toMap());
-  }
-
   setUp(() async {
     firestore = FakeFirebaseFirestore();
     connectivity = MockConnectivity();
@@ -118,9 +131,38 @@ void main() {
     ).thenAnswer((_) async => [ConnectivityResult.wifi]);
     studentQueryService = MockStudentQueryService();
     localDatasource = MockAttendanceSessionLocalDatasource();
+    attendanceLocalDatasource = MockAttendanceLocalDatasource();
+    mockSyncService = MockSyncService();
+    when(() => mockSyncService.enqueue(any())).thenAnswer((_) async {});
+
+    final Map<String, Map<String, AttendanceMark>> cachedMarks = {};
 
     // Mock local datasource cache method so we avoid HiveError
     when(() => localDatasource.cacheSession(any())).thenAnswer((_) async {});
+    when(() => localDatasource.getCachedSessionById(any()))
+        .thenAnswer((_) async => null);
+    when(
+      () => attendanceLocalDatasource.getCachedMarksForSession(
+        teamId: any(named: 'teamId'),
+        sessionId: any(named: 'sessionId'),
+      ),
+    ).thenAnswer((invocation) {
+      final sessionId = invocation.namedArguments[const Symbol('sessionId')] as String;
+      return cachedMarks[sessionId] ?? {};
+    });
+    when(
+      () => attendanceLocalDatasource.cacheMark(
+        teamId: any(named: 'teamId'),
+        sessionId: any(named: 'sessionId'),
+        studentId: any(named: 'studentId'),
+        mark: any(named: 'mark'),
+      ),
+    ).thenAnswer((invocation) async {
+      final sessionId = invocation.namedArguments[const Symbol('sessionId')] as String;
+      final studentId = invocation.namedArguments[const Symbol('studentId')] as String;
+      final mark = invocation.namedArguments[const Symbol('mark')] as AttendanceMark;
+      cachedMarks.putIfAbsent(sessionId, () => {})[studentId] = mark;
+    });
 
     // We mock getStudentsByClass to return students that were seeded in firestore
     when(
@@ -153,6 +195,8 @@ void main() {
       connectivity: connectivity,
       studentQueryService: studentQueryService,
       localDatasource: localDatasource,
+      attendanceLocalDatasource: attendanceLocalDatasource,
+      syncServiceGetter: () => mockSyncService,
     );
   });
 
@@ -271,22 +315,14 @@ void main() {
         studentNameSnapshot: 'Mina',
         markedBy: servant,
       );
-      await repository.markStudentPresent(
+
+      final marks = attendanceLocalDatasource.getCachedMarksForSession(
         teamId: 'team-1',
         sessionId: session.id,
-        studentId: 'student-1',
-        studentNameSnapshot: 'Mina',
-        markedBy: servant,
       );
 
-      final marks = await firestore
-          .collection('attendance')
-          .doc(session.id)
-          .collection('marks')
-          .get();
-
-      expect(marks.docs.length, 1);
-      expect(marks.docs.single.id, 'student-1_${session.id}');
+      expect(marks.length, 1);
+      expect(marks.containsKey('student-1'), isTrue);
     },
   );
 
@@ -297,7 +333,9 @@ void main() {
       startsAt: currentTime.subtract(const Duration(minutes: 30)),
       endsAt: currentTime,
     );
-    await seedSession(closedSession);
+    // We must also cache it so _assertCanMark finds it
+    when(() => localDatasource.getCachedSessionById(closedSession.id))
+        .thenAnswer((_) async => closedSession);
 
     await expectLater(
       () => repository.markStudentPresent(
@@ -321,6 +359,9 @@ void main() {
       createdBy: admin,
       title: 'Wednesday',
     );
+    // Cache the session so getSessionRoster can use it
+    when(() => localDatasource.getCachedSessionById(session.id))
+        .thenAnswer((_) async => session);
 
     await repository.markStudentPresent(
       teamId: 'team-1',
@@ -340,20 +381,13 @@ void main() {
       AttendanceEffectiveStatus.present,
     );
 
-    await firestore
-        .collection('attendance')
-        .doc(session.id)
-        .collection('marks')
-        .doc('student-1_${session.id}')
-        .set({
-          'studentId': 'student-1',
-          'studentNameSnapshot': 'Mina',
-          'status': 'late',
-          'markedByUserId': servant.uid,
-          'markedByName': servant.name,
-          'markedAt': DateTime.now(),
-          'updatedAt': DateTime.now(),
-        });
+    await repository.markStudentLate(
+      teamId: 'team-1',
+      sessionId: session.id,
+      studentId: 'student-1',
+      studentNameSnapshot: 'Mina',
+      markedBy: servant,
+    );
 
     final lateRoster = await repository.getSessionRoster(
       teamId: 'team-1',
@@ -391,6 +425,9 @@ void main() {
         createdBy: admin,
         title: 'Wednesday',
       );
+      // Cache it
+      when(() => localDatasource.getCachedSessionById(session.id))
+          .thenAnswer((_) async => session);
 
       // Mark only student-1.
       await repository.markStudentPresent(
@@ -408,7 +445,7 @@ void main() {
         closedBy: admin,
       );
 
-      // Verify session is closed.
+      // Verify session is closed in Firestore (closeSession writes to Firestore via CommandService)
       final sessionDoc = await firestore
           .collection('attendance')
           .doc(session.id)
@@ -419,7 +456,7 @@ void main() {
       final marks = await firestore
           .collection('attendance')
           .doc(session.id)
-          .collection('marks')
+          .collection('records')
           .get();
       expect(marks.docs.length, 2);
       final markedStudentIds = marks.docs

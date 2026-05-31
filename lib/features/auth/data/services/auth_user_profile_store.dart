@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/data/services/auth_user_local_store.dart';
@@ -31,6 +32,8 @@ class AuthUserProfileStore {
       // Mandate: Check Hive before Firestore
       final cached = _localStore.getUser();
       if (cached != null && cached.uid == uid) {
+        // Trigger background refresh to keep cache in sync with server changes
+        unawaited(_refreshUserCache(uid));
         return cached;
       }
 
@@ -43,7 +46,7 @@ class AuthUserProfileStore {
         throw UserNotFoundAuthException();
       }
 
-      final profile = AuthUser.fromJson(doc.data()!);
+      final profile = AuthUserModel.fromJson(doc.data()!).toDomain();
       return profile.copyWith(uid: uid);
     } catch (e, stackTrace) {
       throw GenericAuthException(
@@ -67,7 +70,7 @@ class AuthUserProfileStore {
 
   Future<void> saveUser(AuthUser user, {String? initialRole}) async {
     try {
-      final data = user.toJson();
+      final data = AuthUserModel.fromDomain(user).toJson();
       if (initialRole != null) {
         data['role'] = initialRole;
       }
@@ -82,5 +85,21 @@ class AuthUserProfileStore {
 
   Future<void> deleteUser(String uid) async {
     await _db.collection(FirestoreCollections.servants).doc(uid).delete();
+  }
+
+  Future<void> _refreshUserCache(String uid) async {
+    try {
+      final doc = await _db
+          .collection(FirestoreCollections.servants)
+          .doc(uid)
+          .get(const GetOptions(source: Source.server));
+      if (doc.exists && doc.data() != null) {
+        final profile = AuthUserModel.fromJson(doc.data()!).toDomain();
+        final updatedUser = profile.copyWith(uid: uid);
+        await _localStore.saveUser(updatedUser);
+      }
+    } catch (_) {
+      // Fail silently in background
+    }
   }
 }

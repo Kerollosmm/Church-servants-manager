@@ -12,7 +12,7 @@ class PastoralRepository implements IPastoralRepository {
   final FirebaseFirestore _firestore;
 
   PastoralRepository({required FirebaseFirestore firestore})
-      : _firestore = firestore;
+    : _firestore = firestore;
 
   /// Returns the sub-collection reference for a student's pastoral records.
   CollectionReference<Map<String, dynamic>> _recordsCollection(
@@ -49,9 +49,9 @@ class PastoralRepository implements IPastoralRepository {
   Future<List<PastoralRecordModel>> getRecordsForStudent(
     String studentId,
   ) async {
-    final snapshot = await _recordsCollection(studentId)
-        .orderBy('createdAt', descending: true)
-        .get();
+    final snapshot = await _recordsCollection(
+      studentId,
+    ).orderBy('createdAt', descending: true).get();
 
     return snapshot.docs
         .map((doc) => PastoralRecordModel.fromMap(doc.data(), doc.id))

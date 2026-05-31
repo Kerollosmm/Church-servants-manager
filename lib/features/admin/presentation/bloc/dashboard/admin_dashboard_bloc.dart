@@ -3,11 +3,11 @@ import 'dart:developer' as developer;
 import 'package:church_management_system/features/admin/data/services/admin_statistics_service.dart';
 import 'package:church_management_system/features/admin/presentation/bloc/dashboard/admin_dashboard_event.dart';
 import 'package:church_management_system/features/admin/presentation/bloc/dashboard/admin_dashboard_state.dart';
-import 'package:church_management_system/features/servant/data/models/servant_models.dart';
+import 'package:church_management_system/features/servant/domain/entities/servant.dart';
 import 'package:church_management_system/features/servant/domain/repos/i_servant_repository.dart';
-import 'package:church_management_system/features/student/data/models/student_model.dart';
+import 'package:church_management_system/features/student/domain/entities/student.dart';
 import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
-import 'package:church_management_system/features/team/data/models/team_model.dart';
+import 'package:church_management_system/features/team/domain/entities/team.dart';
 import 'package:church_management_system/features/team/domain/repos/i_team_repository.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
@@ -40,33 +40,34 @@ class AdminDashboardBloc
       final studentsFuture = _studentRepository
           .getAllStudents(includeArchived: false)
           .catchError((Object e, StackTrace st) {
-        developer.log(
-          'Students fetch failed – using empty list',
-          error: e,
-          stackTrace: st,
-        );
-        return <StudentModel>[];
-      });
-      final servantsFuture = _servantRepository
-          .getAllServants()
-          .catchError((Object e, StackTrace st) {
+            developer.log(
+              'Students fetch failed – using empty list',
+              error: e,
+              stackTrace: st,
+            );
+            return <Student>[];
+          });
+      final servantsFuture = _servantRepository.getAllServants().catchError((
+        Object e,
+        StackTrace st,
+      ) {
         developer.log(
           'Servants fetch failed – using empty list',
           error: e,
           stackTrace: st,
         );
-        return <ServantModel>[];
+        return <Servant>[];
       });
       final teamsFuture = _teamRepository
           .getAllTeams(includeArchived: false)
           .catchError((Object e, StackTrace st) {
-        developer.log(
-          'Teams fetch failed – using empty list',
-          error: e,
-          stackTrace: st,
-        );
-        return <TeamModel>[];
-      });
+            developer.log(
+              'Teams fetch failed – using empty list',
+              error: e,
+              stackTrace: st,
+            );
+            return <Team>[];
+          });
 
       // The stats call uses collectionGroup which may fail on Spark-tier
       // security rules or missing fields – fall back to zeros instead of
@@ -74,18 +75,18 @@ class AdminDashboardBloc
       final statsFuture = _statisticsService
           .getGlobalDashboardStats(forceRefresh: true)
           .catchError((Object e, StackTrace st) {
-        developer.log(
-          'Stats collectionGroup failed – using defaults',
-          error: e,
-          stackTrace: st,
-        );
-        return GlobalDashboardStats(
-          totalSessions: 0,
-          totalPresent: 0,
-          totalRosterEntries: 0,
-          updatedAt: DateTime(2026),
-        );
-      });
+            developer.log(
+              'Stats collectionGroup failed – using defaults',
+              error: e,
+              stackTrace: st,
+            );
+            return GlobalDashboardStats(
+              totalSessions: 0,
+              totalPresent: 0,
+              totalRosterEntries: 0,
+              updatedAt: DateTime(2026),
+            );
+          });
 
       final results = await Future.wait([
         studentsFuture,
@@ -94,9 +95,9 @@ class AdminDashboardBloc
         statsFuture,
       ]);
 
-      final students = results[0] as List<StudentModel>;
+      final students = results[0] as List<Student>;
       final servants = results[1] as List;
-      final teams = results[2] as List<TeamModel>;
+      final teams = results[2] as List<Team>;
       final stats = results[3] as GlobalDashboardStats;
 
       final totalSessions = stats.totalSessions;

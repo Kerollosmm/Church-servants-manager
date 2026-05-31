@@ -1,6 +1,7 @@
 import 'package:church_management_system/core/utils/json_converters.dart';
-import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_enums.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:hive/hive.dart';
 
 part 'attendance_mark.freezed.dart';
 part 'attendance_mark.g.dart';
@@ -10,39 +11,42 @@ typedef _RequiredTimestampConverter = RequiredFirestoreTimestampConverter;
 // ignore_for_file: invalid_annotation_target
 
 @freezed
+@HiveType(typeId: 50)
 class AttendanceMark with _$AttendanceMark {
   const AttendanceMark._();
 
   const factory AttendanceMark({
     /// The student document ID (used as the Firestore mark document ID).
-    required String studentId,
+    @HiveField(0) required String studentId,
 
     /// The student's display name captured at mark time.
-    required String studentNameSnapshot,
+    @HiveField(1) required String studentNameSnapshot,
 
     /// Optional UID of the student's auth account (null if student has no account).
-    String? studentUid,
+    @HiveField(2) String? studentUid,
 
     /// The attendance status of the student.
-    @AttendanceMarkStatusJsonConverter() required AttendanceMarkStatus status,
+    @HiveField(3)
+    @AttendanceMarkStatusJsonConverter()
+    required AttendanceMarkStatus status,
 
     /// UID of the servant/admin who created this mark.
-    required String markedByUserId,
+    @HiveField(4) required String markedByUserId,
 
     /// Name of the servant/admin who created this mark.
-    required String markedByName,
+    @HiveField(5) required String markedByName,
 
     /// Device-side timestamp when the mark was first created.
-    @_RequiredTimestampConverter() required DateTime markedAt,
+    @HiveField(6) @_RequiredTimestampConverter() required DateTime markedAt,
 
     /// Device-side timestamp of the last update to this mark.
-    @_RequiredTimestampConverter() required DateTime updatedAt,
+    @HiveField(7) @_RequiredTimestampConverter() required DateTime updatedAt,
 
     /// Server-side timestamp set by Firestore on write (nullable).
-    @FirestoreTimestampConverter() DateTime? serverUpdatedAt,
+    @HiveField(8) @FirestoreTimestampConverter() DateTime? serverUpdatedAt,
 
     /// Optional note added by the servant when marking.
-    String? note,
+    @HiveField(9) String? note,
   }) = _AttendanceMark;
 
   factory AttendanceMark.fromJson(Map<String, dynamic> json) =>

@@ -39,7 +39,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return BlocProvider<AdminDashboardBloc>(
-      create: (context) => getIt<AdminDashboardBloc>()..add(const LoadDashboardData()),
+      create: (context) =>
+          getIt<AdminDashboardBloc>()..add(const LoadDashboardData()),
       child: Directionality(
         textDirection: TextDirection.rtl,
         child: Scaffold(
@@ -48,7 +49,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           body: Builder(
             builder: (context) => RefreshIndicator(
               onRefresh: () async {
-                context.read<AdminDashboardBloc>().add(const LoadDashboardData());
+                context.read<AdminDashboardBloc>().add(
+                  const LoadDashboardData(),
+                );
                 // Wait a short delay for UX or until state isn't loading if we wanted.
                 // We'll just return immediately for simplicity since BLoC handles state.
                 await Future.delayed(const Duration(milliseconds: 300));
@@ -77,64 +80,75 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       slivers: [
                         _buildWelcomeSection(context),
                         SliverToBoxAdapter(
-                          child: BlocBuilder<AdminDashboardBloc, AdminDashboardState>(
-                            builder: (context, state) {
-                              if (state is AdminDashboardLoading ||
-                                  state is AdminDashboardInitial) {
-                                return const Padding(
-                                  padding: EdgeInsets.all(32.0),
-                                  child: Center(
-                                    child: CircularProgressIndicator(),
-                                  ),
-                                );
-                              } else if (state is AdminDashboardError) {
-                                return Padding(
-                                padding: const EdgeInsets.all(16.0),
-                                child: Center(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      const Icon(
-                                        Icons.warning_amber_rounded,
-                                        size: 48,
-                                        color: AppColors.error,
+                          child:
+                              BlocBuilder<
+                                AdminDashboardBloc,
+                                AdminDashboardState
+                              >(
+                                builder: (context, state) {
+                                  if (state is AdminDashboardLoading ||
+                                      state is AdminDashboardInitial) {
+                                    return const Padding(
+                                      padding: EdgeInsets.all(32.0),
+                                      child: Center(
+                                        child: CircularProgressIndicator(),
                                       ),
-                                      const SizedBox(height: 16),
-                                      Text(
-                                        'حدث خطأ أثناء تحميل البيانات:\n${state.message}',
-                                        textAlign: TextAlign.center,
-                                        style: const TextStyle(
-                                          color: AppColors.error,
+                                    );
+                                  } else if (state is AdminDashboardError) {
+                                    return Padding(
+                                      padding: const EdgeInsets.all(16.0),
+                                      child: Center(
+                                        child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            const Icon(
+                                              Icons.warning_amber_rounded,
+                                              size: 48,
+                                              color: AppColors.error,
+                                            ),
+                                            const SizedBox(height: 16),
+                                            Text(
+                                              'حدث خطأ أثناء تحميل البيانات:\n${state.message}',
+                                              textAlign: TextAlign.center,
+                                              style: const TextStyle(
+                                                color: AppColors.error,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 16),
+                                            ElevatedButton(
+                                              onPressed: () {
+                                                context
+                                                    .read<AdminDashboardBloc>()
+                                                    .add(
+                                                      const LoadDashboardData(),
+                                                    );
+                                              },
+                                              child: const Text(
+                                                'إعادة المحاولة',
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                      const SizedBox(height: 16),
-                                      ElevatedButton(
-                                        onPressed: () {
-                                          context.read<AdminDashboardBloc>().add(const LoadDashboardData());
-                                        },
-                                        child: const Text('إعادة المحاولة'),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            } else if (state is AdminDashboardLoaded) {
-                              return _buildStatsContent(context, state);
-                            }
-                            return const SizedBox.shrink();
-                          },
+                                    );
+                                  } else if (state is AdminDashboardLoaded) {
+                                    return _buildStatsContent(context, state);
+                                  }
+                                  return const SizedBox.shrink();
+                                },
+                              ),
                         ),
-                      ),
-                      _buildQuickActions(context),
-                      const SliverPadding(
-                        padding: EdgeInsets.only(bottom: 100),
-                      ),
-                    ],
+                        _buildQuickActions(context),
+                        const SliverPadding(
+                          padding: EdgeInsets.only(bottom: 100),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
           ),
         ),
       ),

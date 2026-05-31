@@ -1,15 +1,16 @@
 import 'dart:async';
 import 'dart:developer' as developer;
 
-import 'package:church_management_system/core/di/injection.dart';
+import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/features/attendance/data/local/attendance_local_datasource.dart';
-import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
-import 'package:church_management_system/features/attendance/data/models/attendance_roster_snapshot.dart';
+import 'package:church_management_system/features/attendance/data/models/attendance_mark.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_enums.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_roster_snapshot.dart';
 import 'package:church_management_system/features/attendance/domain/failures/attendance_failures.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_event.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_state.dart';
-import 'package:church_management_system/features/auth/data/models/auth_user.dart';
+import 'package:church_management_system/features/auth/domain/entities/auth_user.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 /// Bloc for managing attendance-taking UI state during a session.
@@ -20,11 +21,12 @@ class AttendanceTakingBloc
     extends Bloc<AttendanceTakingEvent, AttendanceTakingState> {
   AttendanceTakingBloc({
     required AttendanceRepository repository,
+    required AttendanceLocalDatasource localDatasource,
+    required SyncService syncService,
     DateTime Function()? nowProvider,
-    AttendanceLocalDatasource? localDatasource,
   }) : _repository = repository,
+       _localDatasource = localDatasource,
        _nowProvider = nowProvider ?? DateTime.now,
-       _localDatasource = localDatasource ?? getIt<AttendanceLocalDatasource>(),
        super(const AttendanceTakingInitial()) {
     on<InitializeSessionEvent>(_onInitializeSession);
     on<RefreshSessionEvent>(_onRefreshSession);
@@ -38,8 +40,8 @@ class AttendanceTakingBloc
   }
 
   final AttendanceRepository _repository;
-  final DateTime Function() _nowProvider;
   final AttendanceLocalDatasource _localDatasource;
+  final DateTime Function() _nowProvider;
 
   bool _permissionGranted = false;
   String? _cachedTeamId;
@@ -213,16 +215,21 @@ class AttendanceTakingBloc
     emit(cs.withPendingMark(studentId, targetStatus));
 
     // Persist to Hive immediately for crash resilience
+    final now = DateTime.now();
     unawaited(
       _localDatasource.cacheMark(
         teamId: cs.session.teamId,
         sessionId: cs.session.id,
         studentId: studentId,
-        markData: {
-          'status': targetStatus.name,
-          'pending': true,
-          'updatedAt': DateTime.now().toIso8601String(),
-        },
+        mark: AttendanceMark(
+          studentId: studentId,
+          studentNameSnapshot: cs.session.studentNameSnapshots[studentId] ?? '',
+          status: targetStatus,
+          markedByUserId: '',
+          markedByName: '',
+          markedAt: now,
+          updatedAt: now,
+        ),
       ),
     );
   }
@@ -351,8 +358,11 @@ class AttendanceTakingBloc
     }
   }
 
+  Timer? _resetTimer;
+
   void _scheduleReset(Duration delay) {
-    Future<void>.delayed(delay).then((_) {
+    _resetTimer?.cancel();
+    _resetTimer = Timer(delay, () {
       if (isClosed) return;
       add(const ResetMutationStatusEvent());
     });
@@ -371,6 +381,7 @@ class AttendanceTakingBloc
 
   @override
   Future<void> close() async {
+    _resetTimer?.cancel();
     _permissionGranted = false;
     _cachedTeamId = null;
     _cachedSessionId = null;

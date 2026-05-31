@@ -1,7 +1,6 @@
-import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
-import 'package:equatable/equatable.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_enums.dart';
 
-class StudentAttendanceHistoryItem extends Equatable {
+class StudentAttendanceHistoryItem {
   const StudentAttendanceHistoryItem({
     required this.sessionId,
     required this.teamId,
@@ -29,17 +28,19 @@ class StudentAttendanceHistoryItem extends Equatable {
   final String? markedByName;
 
   @override
-  List<Object?> get props => [
-    sessionId,
-    teamId,
-    teamNameSnapshot,
-    title,
-    dateKey,
-    sessionStartsAt,
-    sessionEndsAt,
-    effectiveStatus,
-    isSessionClosed,
-    markedAt,
-    markedByName,
-  ];
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is StudentAttendanceHistoryItem &&
+          runtimeType == other.runtimeType &&
+          sessionId == other.sessionId &&
+          teamId == other.teamId &&
+          effectiveStatus == other.effectiveStatus &&
+          isSessionClosed == other.isSessionClosed;
+
+  @override
+  int get hashCode =>
+      sessionId.hashCode ^
+      teamId.hashCode ^
+      effectiveStatus.hashCode ^
+      isSessionClosed.hashCode;
 }

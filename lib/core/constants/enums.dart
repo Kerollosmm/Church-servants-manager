@@ -12,16 +12,6 @@ enum UserRole {
   admin,
 }
 
-@HiveType(typeId: 12)
-enum AttendanceStatus {
-  @HiveField(0)
-  present,
-  @HiveField(1)
-  absent,
-  @HiveField(2)
-  late,
-}
-
 @HiveType(typeId: 13)
 enum EducationStage {
   @HiveField(0)

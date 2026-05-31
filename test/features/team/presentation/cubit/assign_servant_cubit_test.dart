@@ -11,9 +11,12 @@ void main() {
   late MockServantRepository mockRepository;
   late AssignServantCubit cubit;
 
-  final servantA = ServantModel(docID: 's1', name: 'Servant A');
-  final servantB = ServantModel(docID: 's2', name: 'Servant B');
-  final servantADuplicate = ServantModel(docID: 's1', name: 'Servant A Copy');
+  final servantA = ServantModel(docID: 's1', name: 'Servant A').toDomain();
+  final servantB = ServantModel(docID: 's2', name: 'Servant B').toDomain();
+  final servantADuplicate = ServantModel(
+    docID: 's1',
+    name: 'Servant A Copy',
+  ).toDomain();
 
   setUp(() {
     mockRepository = MockServantRepository();

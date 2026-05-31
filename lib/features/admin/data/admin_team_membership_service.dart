@@ -3,7 +3,8 @@ import 'package:church_management_system/core/constants/firestore_collections.da
 import 'package:church_management_system/core/utils/list_extensions.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
-import 'package:church_management_system/features/team/data/models/team_model.dart';
+import 'package:church_management_system/features/student/domain/entities/student.dart';
+import 'package:church_management_system/features/team/domain/entities/team.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AdminTeamMembershipService {
@@ -36,8 +37,8 @@ class AdminTeamMembershipService {
 
   Future<void> setStudentsForTeam({
     required AuthUser actor,
-    required TeamModel team,
-    required List<StudentModel> selectedStudents,
+    required Team team,
+    required List<Student> selectedStudents,
   }) async {
     _assertAdmin(actor);
 
@@ -70,10 +71,10 @@ class AdminTeamMembershipService {
         .toSet();
   }
 
-  Future<List<StudentModel>> _loadStudentsByIds(List<String> ids) async {
-    if (ids.isEmpty) return const <StudentModel>[];
+  Future<List<Student>> _loadStudentsByIds(List<String> ids) async {
+    if (ids.isEmpty) return const <Student>[];
 
-    final result = <StudentModel>[];
+    final result = <Student>[];
     final slices = ids.chunk(10);
 
     const concurrencyLimit = 5;
@@ -93,9 +94,9 @@ class AdminTeamMembershipService {
 
       for (final snap in snaps) {
         for (final doc in snap.docs) {
-          final student = StudentModel.fromMap(doc.data(), doc.id);
-          if (student.isArchived) continue;
-          result.add(student);
+          final model = StudentModel.fromMap(doc.data(), doc.id);
+          if (model.isArchived) continue;
+          result.add(model.toDomain());
         }
       }
     }
@@ -104,9 +105,9 @@ class AdminTeamMembershipService {
   }
 
   List<void Function(WriteBatch)> _buildSetTeamMembersOps({
-    required TeamModel team,
-    required List<StudentModel> toAdd,
-    required List<StudentModel> toRemove,
+    required Team team,
+    required List<Student> toAdd,
+    required List<Student> toRemove,
     required List<String> selectedIds,
   }) {
     final ops = <void Function(WriteBatch)>[];

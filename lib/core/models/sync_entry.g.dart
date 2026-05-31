@@ -23,13 +23,15 @@ class SyncEntryAdapter extends TypeAdapter<SyncEntry> {
       createdAt: fields[3] as DateTime,
       retryCount: fields[4] as int,
       failedAt: fields[5] as DateTime?,
+      userId: fields[6] as String?,
+      lastErrorMessage: fields[7] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, SyncEntry obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(8)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -41,7 +43,11 @@ class SyncEntryAdapter extends TypeAdapter<SyncEntry> {
       ..writeByte(4)
       ..write(obj.retryCount)
       ..writeByte(5)
-      ..write(obj.failedAt);
+      ..write(obj.failedAt)
+      ..writeByte(6)
+      ..write(obj.userId)
+      ..writeByte(7)
+      ..write(obj.lastErrorMessage);
   }
 
   @override

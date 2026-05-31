@@ -70,7 +70,10 @@ void main() {
     });
 
     test('returns StudentDetailScreen for valid arguments', () {
-      final args = StudentDetailArgs(actor: mockActor, student: mockStudent);
+      final args = StudentDetailArgs(
+        actor: mockActor,
+        student: mockStudent.toDomain(),
+      );
       final route = appRouter.onGenerateRoute(
         RouteSettings(name: routes.studentDetail, arguments: args),
       );
@@ -86,7 +89,10 @@ void main() {
     });
 
     test('returns ServantDetailScreen for valid arguments', () {
-      final args = ServantDetailArgs(actor: mockActor, servant: mockServant);
+      final args = ServantDetailArgs(
+        actor: mockActor,
+        servant: mockServant.toDomain(),
+      );
       final route = appRouter.onGenerateRoute(
         RouteSettings(name: routes.servantDetail, arguments: args),
       );
@@ -94,7 +100,7 @@ void main() {
     });
 
     test('returns TeamMembersScreen for valid arguments', () {
-      final args = TeamMembersArgs(actor: mockActor, team: mockTeam);
+      final args = TeamMembersArgs(actor: mockActor, team: mockTeam.toDomain());
       final route = appRouter.onGenerateRoute(
         RouteSettings(name: routes.teamMembers, arguments: args),
       );

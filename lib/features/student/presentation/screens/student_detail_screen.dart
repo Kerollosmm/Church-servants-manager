@@ -6,7 +6,7 @@ import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/widgets/common/app_info_banner.dart';
 import 'package:church_management_system/core/widgets/common/sanctuary_background.dart';
 import 'package:church_management_system/core/widgets/dialogs/generic_dialog.dart';
-import 'package:church_management_system/features/student/data/models/student_model.dart';
+import 'package:church_management_system/features/student/domain/entities/student.dart';
 import 'package:church_management_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
 import 'package:church_management_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
 import 'package:flutter/material.dart';
@@ -20,10 +20,10 @@ class StudentDetailScreen extends StatelessWidget {
   const StudentDetailScreen({super.key, required this.args});
 
   bool _canEdit() => const CanMutateStudentUseCase().canUpdate(
-        args.actor,
-        args.student,
-        args.student,
-      );
+    args.actor,
+    args.student,
+    args.student,
+  );
 
   String _getGradeText(int grade, EducationStage stage) {
     final gradeWords = {
@@ -79,7 +79,9 @@ class StudentDetailScreen extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.primary.withValues(alpha: 0.05)),
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.05),
+            ),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.01),
@@ -88,9 +90,7 @@ class StudentDetailScreen extends StatelessWidget {
               ),
             ],
           ),
-          child: Column(
-            children: children,
-          ),
+          child: Column(children: children),
         ),
       ],
     );
@@ -107,11 +107,7 @@ class StudentDetailScreen extends StatelessWidget {
       padding: const EdgeInsets.all(16.0),
       child: Row(
         children: [
-          Icon(
-            icon,
-            size: 22,
-            color: AppColors.primary.withValues(alpha: 0.6),
-          ),
+          Icon(icon, size: 22, color: AppColors.primary.withValues(alpha: 0.6)),
           const SizedBox(width: 12),
           Text(
             label,
@@ -133,10 +129,7 @@ class StudentDetailScreen extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
-          if (trailing != null) ...[
-            const SizedBox(width: 8),
-            trailing,
-          ],
+          if (trailing != null) ...[const SizedBox(width: 8), trailing],
         ],
       ),
     );
@@ -150,7 +143,7 @@ class StudentDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildProfileCard(BuildContext context, StudentModel student) {
+  Widget _buildProfileCard(BuildContext context, Student student) {
     final canEdit = _canEdit();
     final canRestore = args.actor.role == UserRole.admin && student.isArchived;
     final canArchive = canEdit && !student.isArchived;
@@ -187,7 +180,8 @@ class StudentDetailScreen extends StatelessWidget {
                   ),
                   padding: const EdgeInsets.all(4),
                   child: ClipOval(
-                    child: student.imageUrl != null && student.imageUrl!.isNotEmpty
+                    child:
+                        student.imageUrl != null && student.imageUrl!.isNotEmpty
                         ? CachedNetworkImage(
                             imageUrl: student.imageUrl!,
                             fit: BoxFit.cover,
@@ -209,10 +203,7 @@ class StudentDetailScreen extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: AppColors.primary,
                       shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Colors.white,
-                        width: 2,
-                      ),
+                      border: Border.all(color: Colors.white, width: 2),
                     ),
                     child: const Icon(
                       Icons.photo_camera,
@@ -240,11 +231,7 @@ class StudentDetailScreen extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.school,
-                size: 16,
-                color: AppColors.primary,
-              ),
+              const Icon(Icons.school, size: 16, color: AppColors.primary),
               const SizedBox(width: 8),
               Text(
                 _getGradeText(student.grade, student.educationStage),
@@ -276,27 +263,30 @@ class StudentDetailScreen extends StatelessWidget {
                         if (shouldArchive != true) return;
                         if (!context.mounted) return;
                         context.read<StudentDataBloc>().add(
-                              StudentDeleted(
-                                actor: args.actor,
-                                docId: student.docID,
-                              ),
-                            );
+                          StudentDeleted(
+                            actor: args.actor,
+                            docId: student.docID,
+                          ),
+                        );
                       } else if (canRestore) {
                         final shouldRestore = await showGenericDialog<bool>(
                           context: context,
                           title: 'استعادة المخدوم؟',
                           content:
                               'سيتم استعادة ${student.name} وإرسال بريد إعادة تعيين كلمة المرور للحساب المرتبط إن وجد.',
-                          optionBuilder: () => {'إلغاء': false, 'استعادة': true},
+                          optionBuilder: () => {
+                            'إلغاء': false,
+                            'استعادة': true,
+                          },
                         );
                         if (shouldRestore != true) return;
                         if (!context.mounted) return;
                         context.read<StudentDataBloc>().add(
-                              StudentRestored(
-                                actor: args.actor,
-                                docId: student.docID,
-                              ),
-                            );
+                          StudentRestored(
+                            actor: args.actor,
+                            docId: student.docID,
+                          ),
+                        );
                       }
                     },
                     borderRadius: BorderRadius.circular(8),
@@ -310,13 +300,17 @@ class StudentDetailScreen extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
-                            student.isArchived ? Icons.unarchive : Icons.archive,
+                            student.isArchived
+                                ? Icons.unarchive
+                                : Icons.archive,
                             color: Colors.white,
                             size: 18,
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            student.isArchived ? 'استعادة الملف' : 'أرشفة الملف',
+                            student.isArchived
+                                ? 'استعادة الملف'
+                                : 'أرشفة الملف',
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
@@ -393,7 +387,7 @@ class StudentDetailScreen extends StatelessWidget {
   Widget _buildAttendanceSummaryCard(
     BuildContext context,
     Map<String, dynamic>? summary,
-    StudentModel student,
+    Student student,
   ) {
     final total = summary?['totalSessions'] as int? ?? 0;
     final present = summary?['totalPresent'] as int? ?? 0;
@@ -434,7 +428,10 @@ class StudentDetailScreen extends StatelessWidget {
               ),
               const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(9999),
@@ -465,7 +462,9 @@ class StudentDetailScreen extends StatelessWidget {
                       value: percentage,
                       strokeWidth: 8,
                       backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                      valueColor: const AlwaysStoppedAnimation(AppColors.primary),
+                      valueColor: const AlwaysStoppedAnimation(
+                        AppColors.primary,
+                      ),
                     ),
                   ),
                   Text(
@@ -517,8 +516,12 @@ class StudentDetailScreen extends StatelessWidget {
                       child: LinearProgressIndicator(
                         value: percentage,
                         minHeight: 6,
-                        backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                        valueColor: const AlwaysStoppedAnimation(AppColors.primary),
+                        backgroundColor: AppColors.primary.withValues(
+                          alpha: 0.1,
+                        ),
+                        valueColor: const AlwaysStoppedAnimation(
+                          AppColors.primary,
+                        ),
                       ),
                     ),
                   ],
@@ -548,7 +551,9 @@ class StudentDetailScreen extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                border: Border.all(
+                  color: AppColors.primary.withValues(alpha: 0.2),
+                ),
               ),
               alignment: Alignment.center,
               child: const Text(
@@ -585,15 +590,9 @@ class StudentDetailScreen extends StatelessWidget {
         decoration: BoxDecoration(
           color: const Color(0xFFE8F5E9),
           shape: BoxShape.circle,
-          border: Border.all(
-            color: const Color(0xFFC8E6C9),
-          ),
+          border: Border.all(color: const Color(0xFFC8E6C9)),
         ),
-        child: const Icon(
-          Icons.phone,
-          color: Color(0xFF2E7D32),
-          size: 16,
-        ),
+        child: const Icon(Icons.phone, color: Color(0xFF2E7D32), size: 16),
       ),
     );
   }
@@ -632,10 +631,7 @@ class StudentDetailScreen extends StatelessWidget {
               elevation: 0,
               titleSpacing: 0,
               leading: IconButton(
-                icon: const Icon(
-                  Icons.arrow_forward,
-                  color: Color(0xFF0F172A),
-                ),
+                icon: const Icon(Icons.arrow_forward, color: Color(0xFF0F172A)),
                 onPressed: () => Navigator.pop(context),
               ),
               title: const Text(
@@ -664,10 +660,7 @@ class StudentDetailScreen extends StatelessWidget {
                     },
                   ),
                 IconButton(
-                  icon: const Icon(
-                    Icons.more_vert,
-                    color: Color(0xFF94A3B8),
-                  ),
+                  icon: const Icon(Icons.more_vert, color: Color(0xFF94A3B8)),
                   onPressed: () {},
                 ),
               ],
@@ -729,10 +722,7 @@ class StudentDetailScreen extends StatelessWidget {
                           const SizedBox(height: 2),
                           const Text(
                             'كنيسة الملاك ميخائيل',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey,
-                            ),
+                            style: TextStyle(fontSize: 11, color: Colors.grey),
                           ),
                         ],
                       ),
@@ -778,8 +768,8 @@ class StudentDetailScreen extends StatelessWidget {
                   message: student.isArchived
                       ? 'هذا المخدوم مؤرشف حاليا.'
                       : canEdit
-                          ? 'صلاحيات الإدارة متاحة'
-                          : 'عرض فقط',
+                      ? 'صلاحيات الإدارة متاحة'
+                      : 'عرض فقط',
                 ),
                 const SizedBox(height: 40),
               ],

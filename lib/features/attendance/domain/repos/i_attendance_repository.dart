@@ -1,12 +1,11 @@
 import 'package:church_management_system/core/utils/bulk_operation_result.dart';
-import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
-import 'package:church_management_system/features/attendance/data/models/attendance_roster_item.dart';
-import 'package:church_management_system/features/attendance/data/models/attendance_roster_snapshot.dart';
-import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
-import 'package:church_management_system/features/attendance/data/models/attendance_stats.dart';
-import 'package:church_management_system/features/attendance/data/models/student_attendance_history_item.dart';
-import 'package:church_management_system/features/auth/data/models/auth_user.dart';
-import 'package:flutter/material.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_enums.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_roster_item.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_roster_snapshot.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_session.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_stats.dart';
+import 'package:church_management_system/features/attendance/domain/entities/student_attendance_history_item.dart';
+import 'package:church_management_system/features/auth/domain/entities/auth_user.dart';
 
 abstract class IAttendanceRepository {
   Future<AttendanceSession> createSession({
@@ -93,18 +92,21 @@ abstract class IAttendanceRepository {
   Future<List<StudentAttendanceHistoryItem>> getStudentAttendanceHistory({
     required String studentId,
     String? teamId,
-    DateTimeRange? range,
+    DateTime? startDate,
+    DateTime? endDate,
   });
 
   Future<StudentAttendanceStats> getStudentAttendanceStats({
     required String studentId,
     String? teamId,
-    DateTimeRange? range,
+    DateTime? startDate,
+    DateTime? endDate,
   });
 
   Future<TeamAttendanceStats> getTeamAttendanceStats({
     required String teamId,
-    DateTimeRange? range,
+    DateTime? startDate,
+    DateTime? endDate,
   });
 
   Future<bool> canUserManageAttendance({

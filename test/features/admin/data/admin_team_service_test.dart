@@ -97,10 +97,16 @@ void main() {
         expect(
           () => service.assignServantToTeam(
             actor: servantActor,
-            team: team,
-            servant: servant,
+            team: team.toDomain(),
+            servant: servant.toDomain(),
           ),
-          throwsA(isA<StateError>().having((e) => e.message, 'message', contains('admin only'))),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('admin only'),
+            ),
+          ),
         );
       });
 
@@ -108,16 +114,28 @@ void main() {
         final team = createTeam(isArchived: true);
         final servant = createServant();
 
-        await mockFirestore.collection('Classes').doc(team.id).set(team.toMap());
-        await mockFirestore.collection('servants').doc(servant.docID).set(createServantJson());
+        await mockFirestore
+            .collection('Classes')
+            .doc(team.id)
+            .set(team.toMap());
+        await mockFirestore
+            .collection('Users')
+            .doc(servant.docID)
+            .set(createServantJson());
 
         expect(
           () => service.assignServantToTeam(
             actor: admin,
-            team: team,
-            servant: servant,
+            team: team.toDomain(),
+            servant: servant.toDomain(),
           ),
-          throwsA(isA<StateError>().having((e) => e.message, 'message', contains('archived team'))),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('archived team'),
+            ),
+          ),
         );
       });
 
@@ -125,18 +143,28 @@ void main() {
         final team = createTeam();
         final servant = createServant();
 
-        await mockFirestore.collection('Classes').doc(team.id).set(team.toMap());
-        await mockFirestore.collection('servants').doc(servant.docID).set(
-          createServantJson(role: 'student'),
-        );
+        await mockFirestore
+            .collection('Classes')
+            .doc(team.id)
+            .set(team.toMap());
+        await mockFirestore
+            .collection('Users')
+            .doc(servant.docID)
+            .set(createServantJson(role: 'student'));
 
         expect(
           () => service.assignServantToTeam(
             actor: admin,
-            team: team,
-            servant: servant,
+            team: team.toDomain(),
+            servant: servant.toDomain(),
           ),
-          throwsA(isA<StateError>().having((e) => e.message, 'message', contains('not a servant'))),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('not a servant'),
+            ),
+          ),
         );
       });
 
@@ -144,18 +172,28 @@ void main() {
         final team = createTeam();
         final servant = createServant(isArchived: true);
 
-        await mockFirestore.collection('Classes').doc(team.id).set(team.toMap());
-        await mockFirestore.collection('servants').doc(servant.docID).set(
-          createServantJson(isArchived: true),
-        );
+        await mockFirestore
+            .collection('Classes')
+            .doc(team.id)
+            .set(team.toMap());
+        await mockFirestore
+            .collection('Users')
+            .doc(servant.docID)
+            .set(createServantJson(isArchived: true));
 
         expect(
           () => service.assignServantToTeam(
             actor: admin,
-            team: team,
-            servant: servant,
+            team: team.toDomain(),
+            servant: servant.toDomain(),
           ),
-          throwsA(isA<StateError>().having((e) => e.message, 'message', contains('servant is archived'))),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('servant is archived'),
+            ),
+          ),
         );
       });
 
@@ -163,18 +201,28 @@ void main() {
         final team = createTeam();
         final servant = createServant(groupId: 'year2');
 
-        await mockFirestore.collection('Classes').doc(team.id).set(team.toMap());
-        await mockFirestore.collection('servants').doc(servant.docID).set(
-          createServantJson(groupId: 'year2'),
-        );
+        await mockFirestore
+            .collection('Classes')
+            .doc(team.id)
+            .set(team.toMap());
+        await mockFirestore
+            .collection('Users')
+            .doc(servant.docID)
+            .set(createServantJson(groupId: 'year2'));
 
         expect(
           () => service.assignServantToTeam(
             actor: admin,
-            team: team,
-            servant: servant,
+            team: team.toDomain(),
+            servant: servant.toDomain(),
           ),
-          throwsA(isA<StateError>().having((e) => e.message, 'message', contains('Cannot assign servant from group'))),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('Cannot assign servant from group'),
+            ),
+          ),
         );
       });
 
@@ -182,22 +230,32 @@ void main() {
         final team = createTeam(id: 't1');
         final servant = createServant(docID: 's1');
 
-        await mockFirestore.collection('Classes').doc(team.id).set(team.toMap());
-        await mockFirestore.collection('servants').doc(servant.docID).set(
-          createServantJson(docID: 's1'),
-        );
+        await mockFirestore
+            .collection('Classes')
+            .doc(team.id)
+            .set(team.toMap());
+        await mockFirestore
+            .collection('Users')
+            .doc(servant.docID)
+            .set(createServantJson(docID: 's1'));
 
         await service.assignServantToTeam(
           actor: admin,
-          team: team,
-          servant: servant,
+          team: team.toDomain(),
+          servant: servant.toDomain(),
         );
 
-        final teamDoc = await mockFirestore.collection('Classes').doc(team.id).get();
+        final teamDoc = await mockFirestore
+            .collection('Classes')
+            .doc(team.id)
+            .get();
         expect(teamDoc.data()?['assignedServantId'], 's1');
         expect(teamDoc.data()?['assignedServantName'], 'Servant 1');
 
-        final servantDoc = await mockFirestore.collection('servants').doc(servant.docID).get();
+        final servantDoc = await mockFirestore
+            .collection('Users')
+            .doc(servant.docID)
+            .get();
         expect(servantDoc.data()?['assignedTeamIds'], contains('t1'));
       });
 
@@ -210,82 +268,122 @@ void main() {
           'assignedServantId': 's1',
           'assignedServantName': 'Servant 1',
         });
-        await mockFirestore.collection('servants').doc(servant.docID).set(
-          createServantJson(docID: 's1', assignedTeamIds: ['t1']),
-        );
+        await mockFirestore
+            .collection('Users')
+            .doc(servant.docID)
+            .set(createServantJson(docID: 's1', assignedTeamIds: ['t1']));
 
         await service.assignServantToTeam(
           actor: admin,
-          team: team,
-          servant: servant,
+          team: team.toDomain(),
+          servant: servant.toDomain(),
         );
 
-        final servantDoc = await mockFirestore.collection('servants').doc(servant.docID).get();
+        final servantDoc = await mockFirestore
+            .collection('Users')
+            .doc(servant.docID)
+            .get();
         // Should only contain it once
         expect(servantDoc.data()?['assignedTeamIds'], ['t1']);
       });
-      
+
       test('updates previous servant when new servant is assigned', () async {
         final team = createTeam(id: 't1');
-        final oldServant = createServant(docID: 's1', assignedTeamIds: ['t1', 't2']);
+        final oldServant = createServant(
+          docID: 's1',
+          assignedTeamIds: ['t1', 't2'],
+        );
         final newServant = createServant(docID: 's2');
 
         await mockFirestore.collection('Classes').doc(team.id).set({
           ...team.toMap(),
           'assignedServantId': 's1',
         });
-        await mockFirestore.collection('servants').doc(oldServant.docID).set(
-          createServantJson(docID: 's1', assignedTeamIds: ['t1', 't2']),
-        );
-        await mockFirestore.collection('servants').doc(newServant.docID).set(
-          createServantJson(docID: 's2'),
-        );
+        await mockFirestore
+            .collection('Users')
+            .doc(oldServant.docID)
+            .set(createServantJson(docID: 's1', assignedTeamIds: ['t1', 't2']));
+        await mockFirestore
+            .collection('Users')
+            .doc(newServant.docID)
+            .set(createServantJson(docID: 's2'));
 
         await service.assignServantToTeam(
           actor: admin,
-          team: team,
-          servant: newServant,
+          team: team.toDomain(),
+          servant: newServant.toDomain(),
         );
 
-        final oldServantDoc = await mockFirestore.collection('servants').doc(oldServant.docID).get();
+        final oldServantDoc = await mockFirestore
+            .collection('Users')
+            .doc(oldServant.docID)
+            .get();
         expect(oldServantDoc.data()?['assignedTeamIds'], ['t2']); // t1 removed
-        
-        final newServantDoc = await mockFirestore.collection('servants').doc(newServant.docID).get();
+
+        final newServantDoc = await mockFirestore
+            .collection('Users')
+            .doc(newServant.docID)
+            .get();
         expect(newServantDoc.data()?['assignedTeamIds'], ['t1']); // t1 added
       });
     });
 
     group('unassignServantFromTeam', () {
-      test('successfully removes servant from team and updates servant doc', () async {
-        final team = createTeam(id: 't1');
-        final servant = createServant(docID: 's1', assignedTeamIds: ['t1']);
+      test(
+        'successfully removes servant from team and updates servant doc',
+        () async {
+          final team = createTeam(id: 't1');
+          final servant = createServant(docID: 's1', assignedTeamIds: ['t1']);
 
-        await mockFirestore.collection('Classes').doc(team.id).set({
-          ...team.toMap(),
-          'assignedServantId': 's1',
-          'assignedServantName': 'Servant 1',
-        });
-        await mockFirestore.collection('servants').doc(servant.docID).set(
-          createServantJson(docID: 's1', assignedTeamIds: ['t1']),
-        );
+          await mockFirestore.collection('Classes').doc(team.id).set({
+            ...team.toMap(),
+            'assignedServantId': 's1',
+            'assignedServantName': 'Servant 1',
+          });
+          await mockFirestore
+              .collection('Users')
+              .doc(servant.docID)
+              .set(createServantJson(docID: 's1', assignedTeamIds: ['t1']));
 
-        await service.unassignServantFromTeam(actor: admin, team: team);
+          await service.unassignServantFromTeam(
+            actor: admin,
+            team: team.toDomain(),
+          );
 
-        final teamDoc = await mockFirestore.collection('Classes').doc(team.id).get();
-        expect(teamDoc.data()?.containsKey('assignedServantId'), isFalse);
-        expect(teamDoc.data()?.containsKey('assignedServantName'), isFalse);
+          final teamDoc = await mockFirestore
+              .collection('Classes')
+              .doc(team.id)
+              .get();
+          expect(teamDoc.data()?.containsKey('assignedServantId'), isFalse);
+          expect(teamDoc.data()?.containsKey('assignedServantName'), isFalse);
 
-        final servantDoc = await mockFirestore.collection('servants').doc(servant.docID).get();
-        expect(servantDoc.data()?.containsKey('assignedTeamIds'), isFalse); // Empty list causes field deletion
-      });
+          final servantDoc = await mockFirestore
+              .collection('Users')
+              .doc(servant.docID)
+              .get();
+          expect(
+            servantDoc.data()?.containsKey('assignedTeamIds'),
+            isFalse,
+          ); // Empty list causes field deletion
+        },
+      );
 
       test('no-op when no previous servant exists', () async {
         final team = createTeam(id: 't1');
-        await mockFirestore.collection('Classes').doc(team.id).set(team.toMap());
+        await mockFirestore
+            .collection('Classes')
+            .doc(team.id)
+            .set(team.toMap());
 
-        await service.unassignServantFromTeam(actor: admin, team: team);
+        await service.unassignServantFromTeam(
+          actor: admin,
+          team: team.toDomain(),
+        );
 
-        final teamDoc = await mockFirestore.collection('Classes').doc(team.id).get();
+        final teamDoc = await mockFirestore
+            .collection('Classes')
+            .doc(team.id)
+            .get();
         expect(teamDoc.data()?.containsKey('assignedServantId'), isFalse);
       });
     });

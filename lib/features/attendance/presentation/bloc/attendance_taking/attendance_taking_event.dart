@@ -1,5 +1,5 @@
-import 'package:church_management_system/features/attendance/data/models/attendance_roster_item.dart';
-import 'package:church_management_system/features/auth/data/models/auth_user.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_roster_item.dart';
+import 'package:church_management_system/features/auth/domain/entities/auth_user.dart';
 import 'package:equatable/equatable.dart';
 
 sealed class AttendanceTakingEvent extends Equatable {

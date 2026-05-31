@@ -19,8 +19,8 @@ class AnalyticsRepositoryImpl implements IAnalyticsRepository {
   AnalyticsRepositoryImpl({
     required FirebaseFirestore firestore,
     required AnalyticsLocalDatasource localDatasource,
-  })  : _firestore = firestore,
-        _localDatasource = localDatasource;
+  }) : _firestore = firestore,
+       _localDatasource = localDatasource;
 
   @override
   Future<AnalyticsSummaryModel> getSectorAnalytics(

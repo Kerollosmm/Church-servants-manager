@@ -37,7 +37,7 @@ void main() {
       fatherOfConfession: 'Fr. Test',
       notes: null,
       classId: 'team1',
-    );
+    ).toDomain();
 
     final tStudentsList = [tStudent];
 

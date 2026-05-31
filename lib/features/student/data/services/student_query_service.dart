@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:developer' as developer;
 import 'package:church_management_system/core/constants/firestore_collections.dart';
+import 'package:church_management_system/core/services/cache_tracker.dart';
 import 'package:church_management_system/core/utils/list_extensions.dart';
 import 'package:church_management_system/features/student/data/datasources/student_local_datasource.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
@@ -78,19 +79,25 @@ class StudentQueryService {
         if (cached.isNotEmpty) {
           cached.sort((a, b) => a.name.compareTo(b.name));
 
-          var query = _studentsCollection.orderBy('name').limit(limit);
-          if (!includeArchived) {
-            query = query.where('isArchived', isEqualTo: false);
+          final cacheKey = 'students_all_${includeArchived}_$limit';
+          if (CacheTracker.shouldRevalidate(cacheKey)) {
+            var query = _studentsCollection.orderBy('name').limit(limit);
+            if (!includeArchived) {
+              query = query.where('isArchived', isEqualTo: false);
+            }
+            unawaited(
+              query
+                  .get(const GetOptions(source: Source.server))
+                  .then((snapshot) {
+                    final result = mapStudentDocs(snapshot.docs).students;
+                    if (result.isNotEmpty) {
+                      _localDatasource.saveStudents(result);
+                      CacheTracker.markFetched(cacheKey);
+                    }
+                  })
+                  .catchError((_) {}),
+            );
           }
-          unawaited(
-            query
-                .get(const GetOptions(source: Source.server))
-                .then((snapshot) {
-                  final result = mapStudentDocs(snapshot.docs).students;
-                  if (result.isNotEmpty) _localDatasource.saveStudents(result);
-                })
-                .catchError((_) {}),
-          );
 
           return cached;
         }
@@ -127,23 +134,29 @@ class StudentQueryService {
           includeArchived: includeArchived,
         );
         if (cached.isNotEmpty) {
-          Query<Map<String, dynamic>> serverQuery = _studentsCollection.where(
-            'classId',
-            isEqualTo: classId,
-          );
-          if (!includeArchived) {
-            serverQuery = serverQuery.where('isArchived', isEqualTo: false);
+          final cacheKey = 'students_class_${classId}_$includeArchived';
+          if (CacheTracker.shouldRevalidate(cacheKey)) {
+            Query<Map<String, dynamic>> serverQuery = _studentsCollection.where(
+              'classId',
+              isEqualTo: classId,
+            );
+            if (!includeArchived) {
+              serverQuery = serverQuery.where('isArchived', isEqualTo: false);
+            }
+            unawaited(
+              serverQuery
+                  .limit(30)
+                  .get(const GetOptions(source: Source.server))
+                  .then((serverSnapshot) {
+                    final result = mapStudentDocs(serverSnapshot.docs).students;
+                    if (result.isNotEmpty) {
+                      _localDatasource.saveStudents(result);
+                      CacheTracker.markFetched(cacheKey);
+                    }
+                  })
+                  .catchError((_) {}),
+            );
           }
-          unawaited(
-            serverQuery
-                .limit(30)
-                .get(const GetOptions(source: Source.server))
-                .then((serverSnapshot) {
-                  final result = mapStudentDocs(serverSnapshot.docs).students;
-                  if (result.isNotEmpty) _localDatasource.saveStudents(result);
-                })
-                .catchError((_) {}),
-          );
 
           return cached;
         }
@@ -197,21 +210,27 @@ class StudentQueryService {
         includeArchived: includeArchived,
       );
       if (cached.isNotEmpty) {
-        var query = _studentsCollection
-            .where('grade', isEqualTo: grade)
-            .limit(100);
-        if (!includeArchived) {
-          query = query.where('isArchived', isEqualTo: false);
+        final cacheKey = 'students_grade_${grade}_$includeArchived';
+        if (CacheTracker.shouldRevalidate(cacheKey)) {
+          var query = _studentsCollection
+              .where('grade', isEqualTo: grade)
+              .limit(100);
+          if (!includeArchived) {
+            query = query.where('isArchived', isEqualTo: false);
+          }
+          unawaited(
+            query
+                .get(const GetOptions(source: Source.server))
+                .then((snapshot) {
+                  final result = mapStudentDocs(snapshot.docs).students;
+                  if (result.isNotEmpty) {
+                    _localDatasource.saveStudents(result);
+                    CacheTracker.markFetched(cacheKey);
+                  }
+                })
+                .catchError((_) {}),
+          );
         }
-        unawaited(
-          query
-              .get(const GetOptions(source: Source.server))
-              .then((snapshot) {
-                final result = mapStudentDocs(snapshot.docs).students;
-                if (result.isNotEmpty) _localDatasource.saveStudents(result);
-              })
-              .catchError((_) {}),
-        );
         return cached;
       }
 
@@ -240,21 +259,27 @@ class StudentQueryService {
         includeArchived: includeArchived,
       );
       if (cached.isNotEmpty) {
-        var query = _studentsCollection
-            .where('group', isEqualTo: groupName)
-            .limit(100);
-        if (!includeArchived) {
-          query = query.where('isArchived', isEqualTo: false);
+        final cacheKey = 'students_group_${groupName}_$includeArchived';
+        if (CacheTracker.shouldRevalidate(cacheKey)) {
+          var query = _studentsCollection
+              .where('group', isEqualTo: groupName)
+              .limit(100);
+          if (!includeArchived) {
+            query = query.where('isArchived', isEqualTo: false);
+          }
+          unawaited(
+            query
+                .get(const GetOptions(source: Source.server))
+                .then((snapshot) {
+                  final result = mapStudentDocs(snapshot.docs).students;
+                  if (result.isNotEmpty) {
+                    _localDatasource.saveStudents(result);
+                    CacheTracker.markFetched(cacheKey);
+                  }
+                })
+                .catchError((_) {}),
+          );
         }
-        unawaited(
-          query
-              .get(const GetOptions(source: Source.server))
-              .then((snapshot) {
-                final result = mapStudentDocs(snapshot.docs).students;
-                if (result.isNotEmpty) _localDatasource.saveStudents(result);
-              })
-              .catchError((_) {}),
-        );
         return cached;
       }
 
@@ -284,19 +309,26 @@ class StudentQueryService {
         includeArchived: includeArchived,
       );
       if (cached.isNotEmpty) {
-        unawaited(
-          _studentsCollection
-              .where('group', isEqualTo: groupName)
-              .get(const GetOptions(source: Source.server))
-              .then((serverSnapshot) {
-                final result = _applyArchivedFilter(
-                  mapStudentDocs(serverSnapshot.docs).students,
-                  includeArchived,
-                );
-                if (result.isNotEmpty) _localDatasource.saveStudents(result);
-              })
-              .catchError((_) {}),
-        );
+        final cacheKey =
+            'students_group_fallback_${groupName}_$includeArchived';
+        if (CacheTracker.shouldRevalidate(cacheKey)) {
+          unawaited(
+            _studentsCollection
+                .where('group', isEqualTo: groupName)
+                .get(const GetOptions(source: Source.server))
+                .then((serverSnapshot) {
+                  final result = _applyArchivedFilter(
+                    mapStudentDocs(serverSnapshot.docs).students,
+                    includeArchived,
+                  );
+                  if (result.isNotEmpty) {
+                    _localDatasource.saveStudents(result);
+                    CacheTracker.markFetched(cacheKey);
+                  }
+                })
+                .catchError((_) {}),
+          );
+        }
 
         return (students: cached, isFromCache: true);
       }

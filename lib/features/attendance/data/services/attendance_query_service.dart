@@ -3,18 +3,18 @@ import 'dart:developer' as developer;
 
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
-import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_mark.dart';
-import 'package:church_management_system/features/attendance/data/models/attendance_roster_item.dart';
-import 'package:church_management_system/features/attendance/data/models/attendance_roster_snapshot.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
-import 'package:church_management_system/features/attendance/data/models/attendance_stats.dart';
-import 'package:church_management_system/features/attendance/data/models/student_attendance_history_item.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_enums.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_roster_item.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_roster_snapshot.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_stats.dart';
+import 'package:church_management_system/features/attendance/domain/entities/student_attendance_history_item.dart';
 import 'package:church_management_system/features/attendance/domain/failures/attendance_failures.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
+import 'package:church_management_system/features/auth/domain/entities/auth_user.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/material.dart';
 
 class AttendanceQueryService {
   AttendanceQueryService({
@@ -52,10 +52,13 @@ class AttendanceQueryService {
     DocumentReference<Map<String, dynamic>> ref,
   ) async {
     try {
-      final cached = await ref.get(const GetOptions(source: Source.cache));
-      if (cached.exists) return cached;
-    } catch (_) {}
-    return ref.get(const GetOptions(source: Source.server));
+      return await ref.get(const GetOptions());
+    } on FirebaseException catch (e) {
+      if (e.code == 'unavailable' || e.code == 'deadline-exceeded') {
+        return await ref.get(const GetOptions(source: Source.cache));
+      }
+      rethrow;
+    }
   }
 
   Future<bool> _hasCacheForCollection(
@@ -129,7 +132,7 @@ class AttendanceQueryService {
       final doc = await _cachedGet(_sessionDoc(teamId, sessionId));
       final data = doc.data();
       if (!doc.exists || data == null) return null;
-      return AttendanceSession.fromMap(data, doc.id);
+      return AttendanceSessionModel.fromMap(data, doc.id).toDomain();
     } catch (error) {
       throw mapExceptionToAttendanceFailure(error);
     }
@@ -234,12 +237,14 @@ class AttendanceQueryService {
   Future<List<StudentAttendanceHistoryItem>> getStudentAttendanceHistory({
     required String studentId,
     String? teamId,
-    DateTimeRange? range,
+    DateTime? startDate,
+    DateTime? endDate,
   }) async {
     final sessions = await _loadStudentSessions(
       studentId: studentId,
       teamId: teamId,
-      range: range,
+      startDate: startDate,
+      endDate: endDate,
     );
 
     if (sessions.isEmpty) {
@@ -308,13 +313,15 @@ class AttendanceQueryService {
   Future<StudentAttendanceStats> getStudentAttendanceStats({
     required String studentId,
     String? teamId,
-    DateTimeRange? range,
+    DateTime? startDate,
+    DateTime? endDate,
   }) async {
     try {
       final history = await getStudentAttendanceHistory(
         studentId: studentId,
         teamId: teamId,
-        range: range,
+        startDate: startDate,
+        endDate: endDate,
       );
 
       return StudentAttendanceStats.fromHistory(
@@ -330,10 +337,11 @@ class AttendanceQueryService {
 
   Future<TeamAttendanceStats> getTeamAttendanceStats({
     required String teamId,
-    DateTimeRange? range,
+    DateTime? startDate,
+    DateTime? endDate,
   }) async {
     try {
-      if (range != null) {
+      if (startDate != null || endDate != null) {
         // Range-based queries aren't supported with the aggregate document approach,
         // and falling back to a full collection scan violates quota constraints.
         developer.log(
@@ -434,7 +442,9 @@ class AttendanceQueryService {
     final sessions = <AttendanceSession>[];
     for (final doc in snapshot.docs) {
       try {
-        sessions.add(AttendanceSession.fromMap(doc.data(), doc.id));
+        sessions.add(
+          AttendanceSessionModel.fromMap(doc.data(), doc.id).toDomain(),
+        );
       } catch (error) {
         developer.log(
           'skipped malformed attendance session ${doc.reference.path}',
@@ -510,18 +520,24 @@ class AttendanceQueryService {
   Future<List<AttendanceSession>> _loadStudentSessions({
     required String studentId,
     String? teamId,
-    DateTimeRange? range,
+    DateTime? startDate,
+    DateTime? endDate,
   }) async {
     final snapshot = await _studentSessionsQuery(
       studentId: studentId,
       teamId: teamId,
     ).get();
     final sessions = _mapSessionsSnapshot(snapshot);
-    if (range == null) return sessions;
+    if (startDate == null && endDate == null) return sessions;
     return sessions
         .where((session) {
-          return !session.startsAt.isBefore(range.start) &&
-              !session.startsAt.isAfter(range.end);
+          if (startDate != null && session.startsAt.isBefore(startDate)) {
+            return false;
+          }
+          if (endDate != null && session.startsAt.isAfter(endDate)) {
+            return false;
+          }
+          return true;
         })
         .toList(growable: false);
   }

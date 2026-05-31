@@ -1,15 +1,28 @@
 import 'package:church_management_system/core/constants/enums.dart';
+import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/team/data/datasources/team_local_datasource.dart';
 import 'package:church_management_system/features/team/data/models/team_model.dart';
 import 'package:church_management_system/features/team/data/repos/team_repository.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
+import 'package:mocktail/mocktail.dart';
+
+class MockTeamLocalDatasource extends Mock implements TeamLocalDatasource {}
+
+class FakeTeamModel extends Fake implements TeamModel {}
+
+class MockSyncService extends Mock implements SyncService {}
 
 void main() {
   late FakeFirebaseFirestore firestore;
-  late TeamLocalDatasource localDatasource;
+  late MockTeamLocalDatasource localDatasource;
   late TeamRepository repository;
+
+  setUpAll(() {
+    registerFallbackValue(FakeTeamModel());
+  });
 
   StudentModel student({
     required String id,
@@ -40,12 +53,28 @@ void main() {
   }
 
   setUp(() {
+    final getIt = GetIt.instance;
+    getIt.allowReassignment = true;
+    final mockSyncService = MockSyncService();
+    when(() => mockSyncService.dequeue(any())).thenAnswer((_) async {});
+    getIt.registerLazySingleton<SyncService>(() => mockSyncService);
+
     firestore = FakeFirebaseFirestore();
-    localDatasource =
-        TeamLocalDatasource(); // Can mock it if necessary but instance may suffice if testing only remote interactions or using Hive in memory
+    localDatasource = MockTeamLocalDatasource();
+
+    // Stub local datasource methods to be no-ops for remote integration tests
+    when(() => localDatasource.cacheTeam(any())).thenAnswer((_) async {});
+    when(
+      () => localDatasource.getCachedTeamById(any()),
+    ).thenAnswer((_) async => null);
+    when(
+      () => localDatasource.removeCachedTeam(any()),
+    ).thenAnswer((_) async {});
+
     repository = TeamRepository(
       firestore: firestore,
       localDatasource: localDatasource,
+      syncService: MockSyncService(),
     );
   });
 
@@ -78,7 +107,7 @@ void main() {
               teamName: originalTeam.name,
             ).toMap(),
           );
-      await firestore.collection('servants').doc('user-1').set({
+      await firestore.collection('Users').doc('user-1').set({
         'uid': 'user-1',
         'name': 'Mina',
         'email': 'mina@example.com',
@@ -89,16 +118,13 @@ void main() {
         'isEmailVerified': false,
       });
 
-      await repository.updateTeam(updatedTeam);
+      await repository.updateTeam(updatedTeam.toDomain());
 
       final studentDoc = await firestore
           .collection('Students')
           .doc('student-1')
           .get();
-      final userDoc = await firestore
-          .collection('servants')
-          .doc('user-1')
-          .get();
+      final userDoc = await firestore.collection('Users').doc('user-1').get();
 
       expect(studentDoc.data()!['team_name'], updatedTeam.name);
       expect(studentDoc.data()!['group'], updatedTeam.groupId);
@@ -158,7 +184,7 @@ void main() {
         assignedServantName: 'Servant',
       );
       await firestore.collection('Classes').doc(team.id).set(team.toMap());
-      await firestore.collection('servants').doc('servant-1').set({
+      await firestore.collection('Users').doc('servant-1').set({
         'uid': 'servant-1',
         'name': 'Servant',
         'email': 'servant@example.com',
@@ -172,7 +198,7 @@ void main() {
 
       final teamDoc = await firestore.collection('Classes').doc(team.id).get();
       final servantDoc = await firestore
-          .collection('servants')
+          .collection('Users')
           .doc('servant-1')
           .get();
 

@@ -21,8 +21,8 @@ AnalyticsSummaryModel buildTestSummary({
     averageAttendanceRate: averageAttendanceRate,
     pendingVisitationsCount: pendingVisitationsCount,
     topActiveServants: topActiveServants,
-    lastComputedAt: lastComputedAt ?? DateTime(2026, 5, 20, 10, 0),
-    fetchedAt: fetchedAt ?? DateTime(2026, 5, 20, 11, 0),
+    lastComputedAt: lastComputedAt ?? DateTime(2026, 5, 20, 10),
+    fetchedAt: fetchedAt ?? DateTime(2026, 5, 20, 11),
   );
 }
 
@@ -94,18 +94,16 @@ void main() {
       expect(result.totalStudentsCount, 99);
       expect(result.averageAttendanceRate, 0.73);
       expect(result.pendingVisitationsCount, 5);
-      expect(result.lastComputedAt, DateTime(2026, 5, 20, 10, 0));
-      expect(result.fetchedAt, DateTime(2026, 5, 20, 11, 0));
+      expect(result.lastComputedAt, DateTime(2026, 5, 20, 10));
+      expect(result.fetchedAt, DateTime(2026, 5, 20, 11));
     });
 
     test('saveSummary overwrites existing model for same sectorId', () async {
       final original = buildTestSummary(
-        sectorId: 'sector-1',
         totalStudentsCount: 10,
         averageAttendanceRate: 0.5,
       );
       final updated = buildTestSummary(
-        sectorId: 'sector-1',
         totalStudentsCount: 200,
         averageAttendanceRate: 0.95,
       );

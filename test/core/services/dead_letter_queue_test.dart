@@ -82,18 +82,22 @@ void main() {
     });
 
     test('clear removes all entries', () async {
-      await dlq.add(SyncEntry(
-        id: 'a',
-        actionType: 'X',
-        payload: {},
-        createdAt: DateTime(2026),
-      ));
-      await dlq.add(SyncEntry(
-        id: 'b',
-        actionType: 'Y',
-        payload: {},
-        createdAt: DateTime(2026, 1, 2),
-      ));
+      await dlq.add(
+        SyncEntry(
+          id: 'a',
+          actionType: 'X',
+          payload: {},
+          createdAt: DateTime(2026),
+        ),
+      );
+      await dlq.add(
+        SyncEntry(
+          id: 'b',
+          actionType: 'Y',
+          payload: {},
+          createdAt: DateTime(2026, 1, 2),
+        ),
+      );
       expect(dlq.length, 2);
 
       await dlq.clear();

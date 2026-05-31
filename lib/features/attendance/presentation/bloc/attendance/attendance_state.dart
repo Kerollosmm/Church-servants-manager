@@ -1,5 +1,5 @@
-import 'package:church_management_system/features/attendance/data/models/attendance_roster_item.dart';
-import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_roster_item.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_session.dart';
 import 'package:equatable/equatable.dart';
 
 abstract class AttendanceState extends Equatable {

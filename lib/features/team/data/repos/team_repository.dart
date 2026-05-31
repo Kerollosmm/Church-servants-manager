@@ -1,52 +1,65 @@
+import 'dart:async';
+import 'dart:developer' as developer;
+
+import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
+import 'package:church_management_system/core/models/sync_entry.dart';
+import 'package:church_management_system/core/services/sync_service.dart'
+    hide SyncStatus;
 import 'package:church_management_system/core/utils/list_extensions.dart';
 import 'package:church_management_system/features/team/data/datasources/team_local_datasource.dart';
 import 'package:church_management_system/features/team/data/models/team_model.dart';
+import 'package:church_management_system/features/team/domain/entities/team.dart';
 import 'package:church_management_system/features/team/domain/failures/team_failures.dart';
 import 'package:church_management_system/features/team/domain/repos/i_team_repository.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Repository for team (class) data operations.
 ///
-/// Handles team CRUD, member assignment, and name
-/// denormalization across students and users.
+/// Refactored to support offline-first local cache fallback,
+/// outbound sync queue enqueuing, and transactional safety.
 class TeamRepository implements ITeamRepository {
   final FirebaseFirestore _firestore;
   final TeamLocalDatasource _localDatasource;
+  final SyncService _syncService;
 
   TeamRepository({
     required FirebaseFirestore firestore,
     required TeamLocalDatasource localDatasource,
+    required SyncService syncService,
   }) : _firestore = firestore,
-       _localDatasource = localDatasource;
+       _localDatasource = localDatasource,
+       _syncService = syncService;
 
   CollectionReference<Map<String, dynamic>> get _classesCollection =>
       _firestore.collection(FirestoreCollections.classes);
 
   CollectionReference<Map<String, dynamic>> get _registryCollection =>
-      _firestore.collection('team_uniqueness_registry');
+      _firestore.collection(FirestoreCollections.teamUniquenessRegistry);
+
   CollectionReference<Map<String, dynamic>> get _studentsCollection =>
       _firestore.collection(FirestoreCollections.students);
+
   CollectionReference<Map<String, dynamic>> get _usersCollection =>
       _firestore.collection(FirestoreCollections.servants);
 
-  TeamModel? _teamFromData(
+  Team? _teamFromData(
     Map<String, dynamic> data,
     String docId, {
     bool includeArchived = false,
   }) {
-    final team = TeamModel.fromMap(data, docId);
-    if (!includeArchived && team.isArchived) {
+    final teamModel = TeamModel.fromMap(data, docId);
+    if (!includeArchived && teamModel.isArchived) {
       return null;
     }
-    return team;
+    return teamModel.toDomain();
   }
 
-  List<TeamModel> _teamsFromDocs(
+  List<Team> _teamsFromDocs(
     List<QueryDocumentSnapshot<Map<String, dynamic>>> docs, {
     bool includeArchived = false,
   }) {
-    final teams = <TeamModel>[];
+    final teams = <Team>[];
     for (final doc in docs) {
       final team = _teamFromData(
         doc.data(),
@@ -61,250 +74,782 @@ class TeamRepository implements ITeamRepository {
   }
 
   Future<void> _syncTeamNameReferences(TeamModel team) async {
-    final studentsSnapshot = await _studentsCollection
-        .where('classId', isEqualTo: team.id)
-        .get();
+    try {
+      final studentsSnapshot = await _studentsCollection
+          .where('classId', isEqualTo: team.id)
+          .get(const GetOptions(source: Source.server));
 
-    if (studentsSnapshot.docs.isEmpty) {
-      return;
-    }
+      if (studentsSnapshot.docs.isEmpty) {
+        return;
+      }
 
-    final userIds = <String>[];
-    for (final studentDoc in studentsSnapshot.docs) {
-      final uid = (studentDoc.data()['uid'] as String?)?.trim();
-      if (uid == null || uid.isEmpty || userIds.contains(uid)) continue;
-      userIds.add(uid);
-    }
+      final userIds = <String>[];
+      for (final studentDoc in studentsSnapshot.docs) {
+        final uid = (studentDoc.data()['uid'] as String?)?.trim();
+        if (uid == null || uid.isEmpty || userIds.contains(uid)) continue;
+        userIds.add(uid);
+      }
 
-    final operations = <void Function(WriteBatch)>[];
-    for (final studentDoc in studentsSnapshot.docs) {
-      operations.add((batch) {
-        batch.set(studentDoc.reference, {
-          'team_name': team.name,
-          'group': team.groupId,
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-      });
-    }
-
-    for (final chunk in userIds.chunk(10)) {
-      final usersSnapshot = await _usersCollection
-          .where(FieldPath.documentId, whereIn: chunk)
-          .get();
-      for (final userDoc in usersSnapshot.docs) {
+      final operations = <void Function(WriteBatch)>[];
+      for (final studentDoc in studentsSnapshot.docs) {
         operations.add((batch) {
-          batch.set(userDoc.reference, {
+          batch.set(studentDoc.reference, {
             'team_name': team.name,
-            'groupId': team.groupId,
+            'group': team.groupId,
             'updatedAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
         });
       }
-    }
 
-    for (final chunk in operations.chunk(400)) {
-      final batch = _firestore.batch();
-      for (final operation in chunk) {
-        operation(batch);
+      for (final chunk in userIds.chunk(10)) {
+        final usersSnapshot = await _usersCollection
+            .where(FieldPath.documentId, whereIn: chunk)
+            .get(const GetOptions(source: Source.server));
+        for (final userDoc in usersSnapshot.docs) {
+          operations.add((batch) {
+            batch.set(userDoc.reference, {
+              'team_name': team.name,
+              'groupId': team.groupId,
+              'updatedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+          });
+        }
       }
-      await batch.commit();
+
+      for (final chunk in operations.chunk(400)) {
+        final batch = _firestore.batch();
+        for (final operation in chunk) {
+          operation(batch);
+        }
+        await batch.commit();
+      }
+    } catch (e) {
+      developer.log('Failed to sync team name references', error: e);
     }
   }
 
+  Future<void> _refreshTeamsByGroupCache(
+    String groupId,
+    bool includeArchived,
+  ) async {
+    try {
+      final snapshot = await _classesCollection
+          .where('groupId', isEqualTo: groupId)
+          .get(const GetOptions(source: Source.server));
+      final teams = _teamsFromDocs(
+        snapshot.docs,
+        includeArchived: includeArchived,
+      );
+      if (teams.isNotEmpty) {
+        final models = teams.map(TeamModel.fromDomain).toList();
+        await _localDatasource.cacheTeams(models);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _refreshAllTeamsCache(bool includeArchived) async {
+    try {
+      final baseQuery = includeArchived
+          ? _classesCollection
+          : _classesCollection.where('isArchived', isEqualTo: false);
+      final snapshot = await baseQuery.get(
+        const GetOptions(source: Source.server),
+      );
+      final teams = _teamsFromDocs(
+        snapshot.docs,
+        includeArchived: includeArchived,
+      );
+      if (teams.isNotEmpty) {
+        final models = teams.map(TeamModel.fromDomain).toList();
+        await _localDatasource.cacheTeams(models);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _refreshTeamByIdCache(String docId) async {
+    try {
+      final doc = await _classesCollection
+          .doc(docId)
+          .get(const GetOptions(source: Source.server));
+      if (doc.exists && doc.data() != null) {
+        final teamModel = TeamModel.fromMap(doc.data()!, doc.id);
+        await _localDatasource.cacheTeam(teamModel);
+      }
+    } catch (_) {}
+  }
+
+  void _sortTeams(List<Team> teams) {
+    teams.sort((a, b) {
+      final groupCompare = a.groupId.compareTo(b.groupId);
+      if (groupCompare != 0) return groupCompare;
+      return a.name.compareTo(b.name);
+    });
+  }
+
   @override
-  Future<({List<TeamModel> teams, bool isFromCache})>
-  getTeamsByGroupWithFallback(
+  Future<({List<Team> teams, bool isFromCache})> getTeamsByGroupWithFallback(
     String groupId, {
     bool includeArchived = false,
   }) async {
     try {
-      try {
-        final cacheSnapshot = await _classesCollection
-            .where('groupId', isEqualTo: groupId)
-            .get(const GetOptions(source: Source.cache));
-
-        if (cacheSnapshot.docs.isNotEmpty) {
-          final teams = _teamsFromDocs(
-            cacheSnapshot.docs,
-            includeArchived: includeArchived,
-          );
-          return (
-            teams: teams..sort((a, b) => a.name.compareTo(b.name)),
-            isFromCache: true,
-          );
-        }
-      } catch (e) {
-        // Cache miss or other cache error is expected, fallback to server
+      final cached = await _localDatasource.getCachedTeamsByGroup(
+        groupId,
+        includeArchived: includeArchived,
+      );
+      if (cached.isNotEmpty) {
+        unawaited(_refreshTeamsByGroupCache(groupId, includeArchived));
+        final domainTeams = cached.map((m) => m.toDomain()).toList();
+        domainTeams.sort((a, b) => a.name.compareTo(b.name));
+        return (teams: domainTeams, isFromCache: true);
       }
+    } catch (_) {}
 
+    try {
       final snapshot = await _classesCollection
           .where('groupId', isEqualTo: groupId)
-          .get(const GetOptions());
+          .get(const GetOptions(source: Source.server));
 
       final teams = _teamsFromDocs(
         snapshot.docs,
         includeArchived: includeArchived,
       );
       if (teams.isNotEmpty) {
-        await _localDatasource.cacheTeams(teams);
+        final models = teams.map(TeamModel.fromDomain).toList();
+        await _localDatasource.cacheTeams(models);
       }
-      return (
-        teams: teams..sort((a, b) => a.name.compareTo(b.name)),
-        isFromCache: false,
-      );
+      teams.sort((a, b) => a.name.compareTo(b.name));
+      return (teams: teams, isFromCache: false);
     } catch (e) {
-      throw mapExceptionToTeamFailure(e);
+      final fallback = await _localDatasource.getCachedTeamsByGroup(
+        groupId,
+        includeArchived: includeArchived,
+      );
+      final domainTeams = fallback.map((m) => m.toDomain()).toList();
+      domainTeams.sort((a, b) => a.name.compareTo(b.name));
+      return (teams: domainTeams, isFromCache: true);
     }
   }
 
   @override
-  Future<List<TeamModel>> getTeamsByGroup(
+  Future<List<Team>> getTeamsByGroup(
     String groupId, {
     bool includeArchived = false,
   }) async {
     try {
-      try {
-        final cacheSnapshot = await _classesCollection
-            .where('groupId', isEqualTo: groupId)
-            .get(const GetOptions(source: Source.cache));
-
-        if (cacheSnapshot.docs.isNotEmpty) {
-          return _teamsFromDocs(
-            cacheSnapshot.docs,
-            includeArchived: includeArchived,
-          )..sort((a, b) => a.name.compareTo(b.name));
-        }
-      } catch (e) {
-        // Cache miss or other cache error is expected, fallback to server
+      final cached = await _localDatasource.getCachedTeamsByGroup(
+        groupId,
+        includeArchived: includeArchived,
+      );
+      if (cached.isNotEmpty) {
+        unawaited(_refreshTeamsByGroupCache(groupId, includeArchived));
+        final domainTeams = cached.map((m) => m.toDomain()).toList();
+        domainTeams.sort((a, b) => a.name.compareTo(b.name));
+        return domainTeams;
       }
+    } catch (_) {}
 
+    try {
       final snapshot = await _classesCollection
           .where('groupId', isEqualTo: groupId)
-          .get(const GetOptions());
+          .get(const GetOptions(source: Source.server));
 
       final teams = _teamsFromDocs(
         snapshot.docs,
         includeArchived: includeArchived,
       );
+      if (teams.isNotEmpty) {
+        final models = teams.map(TeamModel.fromDomain).toList();
+        await _localDatasource.cacheTeams(models);
+      }
       return teams..sort((a, b) => a.name.compareTo(b.name));
     } catch (e) {
-      throw mapExceptionToTeamFailure(e);
+      final fallback = await _localDatasource.getCachedTeamsByGroup(
+        groupId,
+        includeArchived: includeArchived,
+      );
+      final domainTeams = fallback.map((m) => m.toDomain()).toList();
+      domainTeams.sort((a, b) => a.name.compareTo(b.name));
+      return domainTeams;
     }
   }
 
   @override
-  Future<List<TeamModel>> getAllTeams({bool includeArchived = false}) async {
+  Future<List<Team>> getAllTeams({bool includeArchived = false}) async {
+    try {
+      final cached = await _localDatasource.getCachedTeams(
+        includeArchived: includeArchived,
+      );
+      if (cached.isNotEmpty) {
+        unawaited(_refreshAllTeamsCache(includeArchived));
+        final domainTeams = cached.map((m) => m.toDomain()).toList();
+        _sortTeams(domainTeams);
+        return domainTeams;
+      }
+    } catch (_) {}
+
     try {
       final baseQuery = includeArchived
           ? _classesCollection
           : _classesCollection.where('isArchived', isEqualTo: false);
 
-      final snapshot = await baseQuery.get();
+      final snapshot = await baseQuery.get(
+        const GetOptions(source: Source.server),
+      );
 
       final teams = _teamsFromDocs(
         snapshot.docs,
         includeArchived: includeArchived,
       );
-      return teams..sort((a, b) {
-        final groupCompare = a.groupId.compareTo(b.groupId);
-        if (groupCompare != 0) return groupCompare;
-        return a.name.compareTo(b.name);
-      });
+      if (teams.isNotEmpty) {
+        final models = teams.map(TeamModel.fromDomain).toList();
+        await _localDatasource.cacheTeams(models);
+      }
+      _sortTeams(teams);
+      return teams;
     } catch (e) {
-      throw mapExceptionToTeamFailure(e);
+      final fallback = await _localDatasource.getCachedTeams(
+        includeArchived: includeArchived,
+      );
+      final domainTeams = fallback.map((m) => m.toDomain()).toList();
+      _sortTeams(domainTeams);
+      return domainTeams;
     }
   }
 
   @override
-  Future<List<TeamModel>> getTeamsByIds(
+  Future<List<Team>> getTeamsByIds(
     List<String> ids, {
     bool includeArchived = false,
   }) async {
     if (ids.isEmpty) return [];
+
+    final localTeams = <Team>[];
+    final missingIds = <String>[];
+
+    for (final id in ids) {
+      final cached = await _localDatasource.getCachedTeamById(id);
+      if (cached != null) {
+        if (includeArchived || !cached.isArchived) {
+          localTeams.add(cached.toDomain());
+        }
+      } else {
+        missingIds.add(id);
+      }
+    }
+
+    if (missingIds.isEmpty) {
+      return localTeams;
+    }
+
     try {
-      final chunks = ids.chunk(10);
+      final chunks = missingIds.chunk(10);
       final futures = chunks.map(
         (chunk) => _classesCollection
             .where(FieldPath.documentId, whereIn: chunk)
-            .get(),
+            .get(const GetOptions(source: Source.server)),
       );
       final results = await Future.wait(futures);
       final docs = results.expand((snap) => snap.docs).toList();
-      return _teamsFromDocs(docs, includeArchived: includeArchived);
+      final fetched = _teamsFromDocs(docs, includeArchived: includeArchived);
+
+      if (fetched.isNotEmpty) {
+        final models = fetched.map(TeamModel.fromDomain).toList();
+        await _localDatasource.cacheTeams(models);
+      }
+
+      return [...localTeams, ...fetched];
     } catch (e) {
-      throw mapExceptionToTeamFailure(e);
+      return localTeams;
     }
   }
 
   @override
-  Future<TeamModel?> getTeamById(
-    String id, {
-    bool includeArchived = false,
-  }) async {
+  Future<Team?> getTeamById(String id, {bool includeArchived = false}) async {
     try {
-      final doc = await _classesCollection.doc(id).get();
+      final cached = await _localDatasource.getCachedTeamById(id);
+      if (cached != null) {
+        unawaited(_refreshTeamByIdCache(id));
+        return cached.toDomain();
+      }
+    } catch (_) {}
+
+    try {
+      final doc = await _classesCollection
+          .doc(id)
+          .get(const GetOptions(source: Source.server));
       if (doc.exists && doc.data() != null) {
-        return _teamFromData(
-          doc.data()!,
-          doc.id,
-          includeArchived: includeArchived,
-        );
+        final teamModel = TeamModel.fromMap(doc.data()!, doc.id);
+        await _localDatasource.cacheTeam(teamModel);
+        return teamModel.toDomain();
       }
       return null;
     } catch (e) {
-      throw mapExceptionToTeamFailure(e);
+      final fallback = await _localDatasource.getCachedTeamById(id);
+      return fallback?.toDomain();
     }
   }
 
   @override
-  Future<String> createTeam(TeamModel team) async {
+  Future<String> createTeam(Team team) async {
     try {
+      final generatedId = team.id.isNotEmpty
+          ? team.id
+          : _classesCollection.doc().id;
       final registryId =
           '${team.groupId.toLowerCase().trim()}_${team.name.toLowerCase().trim()}';
       final registryRef = _registryCollection.doc(registryId);
 
-      final docRef = await _firestore.runTransaction((transaction) async {
-        final regDoc = await transaction.get(registryRef);
-        if (regDoc.exists) {
-          throw StateError('يوجد فريق بنفس الاسم في هذه المجموعة بالفعل');
+      final model = TeamModel.fromDomain(
+        team,
+      ).copyWith(id: generatedId, syncStatus: SyncStatus.pending);
+
+      // Write to Hive first
+      await _localDatasource.cacheTeam(model);
+
+      // Enqueue to Workmanager sync queue via SyncService
+      final syncEntry = SyncEntry(
+        id: 'create_team_$generatedId',
+        actionType: 'CREATE_TEAM',
+        payload: {'team': model.toMap(), 'registryId': registryId},
+        createdAt: DateTime.now(),
+      );
+
+      try {
+        await _syncService.enqueue(syncEntry);
+      } catch (e) {
+        developer.log('Failed to enqueue create team sync entry', error: e);
+      }
+
+      // Try write online immediately
+      try {
+        await _firestore.runTransaction((transaction) async {
+          final regDoc = await transaction.get(registryRef);
+          if (regDoc.exists) {
+            throw StateError('يوجد فريق بنفس الاسم في هذه المجموعة بالفعل');
+          }
+
+          final newDocRef = _classesCollection.doc(generatedId);
+          transaction
+            ..set(newDocRef, {
+              ...model.toMap(),
+              'updatedAt': FieldValue.serverTimestamp(),
+            })
+            ..set(registryRef, {
+              'teamId': generatedId,
+              'groupId': team.groupId,
+              'teamName': team.name,
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+        });
+
+        // Mark synced in local database
+        final syncedModel = model.copyWith(syncStatus: SyncStatus.synced);
+        await _localDatasource.cacheTeam(syncedModel);
+
+        // Evict from sync queue immediately
+        await _syncService.dequeue('create_team_$generatedId');
+      } catch (e) {
+        if (e is StateError) {
+          throw TeamValidationFailure(e.message);
+        }
+        developer.log(
+          'Create team online transaction failed, relying on offline sync queue',
+          error: e,
+        );
+      }
+
+      return generatedId;
+    } catch (e) {
+      if (e is TeamValidationFailure) rethrow;
+      throw mapExceptionToTeamFailure(e);
+    }
+  }
+
+  @override
+  Future<void> updateTeam(Team team) async {
+    try {
+      final model = TeamModel.fromDomain(
+        team,
+      ).copyWith(syncStatus: SyncStatus.pending);
+
+      // Write to Hive first
+      await _localDatasource.cacheTeam(model);
+
+      final syncEntry = SyncEntry(
+        id: 'update_team_${team.id}',
+        actionType: 'UPDATE_TEAM',
+        payload: model.toMap(),
+        createdAt: DateTime.now(),
+      );
+
+      try {
+        await _syncService.enqueue(syncEntry);
+      } catch (e) {
+        developer.log('Failed to enqueue update team sync entry', error: e);
+      }
+
+      try {
+        final teamRef = _classesCollection.doc(team.id);
+
+        final currentDoc = await teamRef.get(
+          const GetOptions(source: Source.server),
+        );
+        if (!currentDoc.exists || currentDoc.data() == null) {
+          throw const TeamNotFoundFailure();
+        }
+        final existing = TeamModel.fromMap(currentDoc.data()!, currentDoc.id);
+        final nameOrGroupChanged =
+            team.name != existing.name || team.groupId != existing.groupId;
+
+        await _firestore.runTransaction((transaction) async {
+          final freshDoc = await transaction.get(teamRef);
+          if (!freshDoc.exists || freshDoc.data() == null) {
+            throw const TeamNotFoundFailure();
+          }
+
+          final freshExisting = TeamModel.fromMap(
+            freshDoc.data()!,
+            freshDoc.id,
+          );
+
+          if (freshExisting.name != team.name ||
+              freshExisting.groupId != team.groupId) {
+            final newRegistryId =
+                '${team.groupId.toLowerCase().trim()}_${team.name.toLowerCase().trim()}';
+            final oldRegistryId =
+                '${freshExisting.groupId.toLowerCase().trim()}_${freshExisting.name.toLowerCase().trim()}';
+
+            final newRegDoc = await transaction.get(
+              _registryCollection.doc(newRegistryId),
+            );
+
+            if (newRegDoc.exists) {
+              final regTeamId = newRegDoc.data()?['teamId'];
+              if (regTeamId != team.id) {
+                throw StateError('يوجد فريق بنفس الاسم في هذه المجموعة بالفعل');
+              }
+            }
+
+            if (oldRegistryId != newRegistryId) {
+              transaction.delete(_registryCollection.doc(oldRegistryId));
+            }
+            transaction.set(_registryCollection.doc(newRegistryId), {
+              'teamId': team.id,
+              'groupId': team.groupId,
+              'teamName': team.name,
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+          }
+
+          transaction.update(teamRef, {
+            ...model.toMap(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        });
+
+        if (nameOrGroupChanged) {
+          await _syncTeamNameReferences(model);
         }
 
-        final newDocRef = _classesCollection.doc();
-        transaction
-          ..set(newDocRef, {
-            ...team.toMap(),
-            'updatedAt': FieldValue.serverTimestamp(),
-          })
-          ..set(registryRef, {
-            'teamId': newDocRef.id,
+        final syncedModel = model.copyWith(syncStatus: SyncStatus.synced);
+        await _localDatasource.cacheTeam(syncedModel);
+
+        // Evict from sync queue immediately
+        await _syncService.dequeue('update_team_${team.id}');
+      } catch (e) {
+        if (e is TeamNotFoundFailure) rethrow;
+        if (e is StateError) {
+          throw TeamValidationFailure(e.message);
+        }
+        developer.log(
+          'Update team online transaction failed, relying on offline sync queue',
+          error: e,
+        );
+      }
+    } catch (e) {
+      if (e is TeamFailure) rethrow;
+      throw mapExceptionToTeamFailure(e);
+    }
+  }
+
+  @override
+  Future<void> deleteTeam(String id) async {
+    try {
+      final existingModel = await _localDatasource.getCachedTeamById(id);
+      if (existingModel != null) {
+        final updated = existingModel.copyWith(
+          isArchived: true,
+          archivedAt: DateTime.now(),
+          archiveReason: 'Archived from app',
+          assignedServantId: null,
+          assignedServantName: null,
+          syncStatus: SyncStatus.pending,
+        );
+        await _localDatasource.cacheTeam(updated);
+      }
+
+      final syncEntry = SyncEntry(
+        id: 'delete_team_$id',
+        actionType: 'DELETE_TEAM',
+        payload: {'id': id},
+        createdAt: DateTime.now(),
+      );
+
+      try {
+        await _syncService.enqueue(syncEntry);
+      } catch (e) {
+        developer.log('Failed to enqueue delete team sync entry', error: e);
+      }
+
+      try {
+        final teamRef = _classesCollection.doc(id);
+
+        await _firestore.runTransaction((transaction) async {
+          final teamDoc = await transaction.get(teamRef);
+          final teamData = teamDoc.data();
+          if (!teamDoc.exists || teamData == null) {
+            throw const TeamNotFoundFailure();
+          }
+
+          final team = TeamModel.fromMap(teamData, teamDoc.id);
+          if (team.isArchived) {
+            return;
+          }
+
+          final assignedServantId =
+              (teamData['assignedServantId'] as String? ??
+                      teamData['assigned_servant_id'] as String?)
+                  ?.trim();
+          if (assignedServantId != null && assignedServantId.isNotEmpty) {
+            final servantRef = _usersCollection.doc(assignedServantId);
+            final servantDoc = await transaction.get(servantRef);
+            final servantData = servantDoc.data();
+
+            if (servantDoc.exists && servantData != null) {
+              final assignedIds = <String>[];
+              final rawIds = servantData['assignedTeamIds'];
+              if (rawIds is Iterable) {
+                for (final value in rawIds) {
+                  final normalized = value?.toString().trim() ?? '';
+                  if (normalized.isEmpty ||
+                      normalized == id ||
+                      assignedIds.contains(normalized)) {
+                    continue;
+                  }
+                  assignedIds.add(normalized);
+                }
+              }
+
+              transaction.update(servantRef, {
+                'assignedTeamIds': assignedIds.isEmpty
+                    ? FieldValue.delete()
+                    : assignedIds,
+                'assignedTeamId': assignedIds.isEmpty
+                    ? FieldValue.delete()
+                    : assignedIds.first,
+                'updatedAt': FieldValue.serverTimestamp(),
+              });
+            }
+          }
+
+          final registryId = '${team.groupId}_${team.name}';
+          transaction
+            ..delete(_registryCollection.doc(registryId))
+            ..set(teamRef, {
+              'isArchived': true,
+              'archivedAt': FieldValue.serverTimestamp(),
+              'archiveReason': 'Archived from app',
+              'assignedServantId': FieldValue.delete(),
+              'assignedServantName': FieldValue.delete(),
+              'updatedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+        });
+
+        if (existingModel != null) {
+          final synced = existingModel.copyWith(
+            isArchived: true,
+            archivedAt: DateTime.now(),
+            archiveReason: 'Archived from app',
+            assignedServantId: null,
+            assignedServantName: null,
+            syncStatus: SyncStatus.synced,
+          );
+          await _localDatasource.cacheTeam(synced);
+        }
+
+        // Evict from sync queue immediately
+        await _syncService.dequeue('delete_team_$id');
+      } catch (e) {
+        if (e is TeamNotFoundFailure) rethrow;
+        developer.log(
+          'Delete team online transaction failed, relying on offline sync queue',
+          error: e,
+        );
+      }
+    } catch (e) {
+      if (e is TeamFailure) rethrow;
+      throw mapExceptionToTeamFailure(e);
+    }
+  }
+
+  @override
+  Future<void> restoreTeam(String id) async {
+    try {
+      final existingModel = await _localDatasource.getCachedTeamById(id);
+      if (existingModel != null) {
+        final updated = existingModel.copyWith(
+          isArchived: false,
+          restoredAt: DateTime.now(),
+          restoredByUserId: 'system',
+          syncStatus: SyncStatus.pending,
+        );
+        await _localDatasource.cacheTeam(updated);
+      }
+
+      final syncEntry = SyncEntry(
+        id: 'restore_team_$id',
+        actionType: 'RESTORE_TEAM',
+        payload: {'id': id},
+        createdAt: DateTime.now(),
+      );
+
+      try {
+        await _syncService.enqueue(syncEntry);
+      } catch (e) {
+        developer.log('Failed to enqueue restore team sync entry', error: e);
+      }
+
+      try {
+        final teamRef = _classesCollection.doc(id);
+
+        await _firestore.runTransaction((transaction) async {
+          final teamDoc = await transaction.get(teamRef);
+          final teamData = teamDoc.data();
+          if (!teamDoc.exists || teamData == null) {
+            throw const TeamNotFoundFailure();
+          }
+
+          final team = TeamModel.fromMap(teamData, teamDoc.id);
+
+          final registryId =
+              '${team.groupId.toLowerCase().trim()}_${team.name.toLowerCase().trim()}';
+          final registryRef = _registryCollection.doc(registryId);
+
+          final regDoc = await transaction.get(registryRef);
+          if (regDoc.exists) {
+            throw StateError(
+              'يوجد فريق بنفس الاسم في هذه المجموعة بالفعل. الرجاء تغيير اسم الفريق النشط أولاً.',
+            );
+          }
+
+          transaction.set(registryRef, {
+            'teamId': team.id,
             'groupId': team.groupId,
             'teamName': team.name,
             'updatedAt': FieldValue.serverTimestamp(),
           });
 
-        return newDocRef;
-      });
-      return docRef.id;
-    } catch (e) {
-      if (e is StateError) {
-        throw TeamValidationFailure(e.message);
+          transaction.set(teamRef, {
+            'isArchived': false,
+            'restoredAt': FieldValue.serverTimestamp(),
+            'restoredByUserId': 'system',
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+
+          final assignedServantId = (teamData['assignedServantId'] as String?)
+              ?.trim();
+          if (assignedServantId != null && assignedServantId.isNotEmpty) {
+            final servantRef = _usersCollection.doc(assignedServantId);
+            transaction.set(servantRef, {
+              'assignedTeamIds': FieldValue.arrayUnion([team.id]),
+              'updatedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+          }
+        });
+
+        if (existingModel != null) {
+          final synced = existingModel.copyWith(
+            isArchived: false,
+            restoredAt: DateTime.now(),
+            restoredByUserId: 'system',
+            syncStatus: SyncStatus.synced,
+          );
+          await _localDatasource.cacheTeam(synced);
+        }
+
+        // Evict from sync queue immediately
+        await _syncService.dequeue('restore_team_$id');
+      } catch (e) {
+        if (e is StateError) {
+          throw TeamValidationFailure(e.message);
+        }
+        developer.log(
+          'Restore team online transaction failed, relying on offline sync queue',
+          error: e,
+        );
       }
+    } catch (e) {
+      if (e is TeamFailure) rethrow;
       throw mapExceptionToTeamFailure(e);
     }
   }
 
   @override
-  Future<void> updateTeam(TeamModel team) async {
+  Future<void> syncOfflineCreate(Map<String, dynamic> payload) async {
     try {
-      final teamRef = _classesCollection.doc(team.id);
+      final teamData = payload['team'] as Map<String, dynamic>;
+      final registryId = payload['registryId'] as String;
+      final teamId = teamData['id'] as String;
 
-      final currentDoc = await teamRef.get();
+      final model = TeamModel.fromMap(teamData, teamId);
+      final registryRef = _registryCollection.doc(registryId);
+
+      await _firestore.runTransaction((transaction) async {
+        final regDoc = await transaction.get(registryRef);
+        if (regDoc.exists) {
+          final existingTeamId = regDoc.data()?['teamId'];
+          if (existingTeamId != teamId) {
+            throw StateError('يوجد فريق بنفس الاسم في هذه المجموعة بالفعل');
+          }
+        }
+
+        final newDocRef = _classesCollection.doc(teamId);
+        transaction
+          ..set(newDocRef, {
+            ...model.toMap(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true))
+          ..set(registryRef, {
+            'teamId': teamId,
+            'groupId': model.groupId,
+            'teamName': model.name,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+      });
+
+      final syncedModel = model.copyWith(syncStatus: SyncStatus.synced);
+      await _localDatasource.cacheTeam(syncedModel);
+    } catch (e) {
+      throw mapExceptionToTeamFailure(e);
+    }
+  }
+
+  @override
+  Future<void> syncOfflineUpdate(Map<String, dynamic> payload) async {
+    try {
+      final teamId = payload['id'] as String;
+      final model = TeamModel.fromMap(payload, teamId);
+      final teamRef = _classesCollection.doc(teamId);
+
+      final currentDoc = await teamRef.get(
+        const GetOptions(source: Source.server),
+      );
       if (!currentDoc.exists || currentDoc.data() == null) {
         throw const TeamNotFoundFailure();
       }
       final existing = TeamModel.fromMap(currentDoc.data()!, currentDoc.id);
       final nameOrGroupChanged =
-          team.name != existing.name || team.groupId != existing.groupId;
+          model.name != existing.name || model.groupId != existing.groupId;
 
       await _firestore.runTransaction((transaction) async {
         final freshDoc = await transaction.get(teamRef);
@@ -314,11 +859,10 @@ class TeamRepository implements ITeamRepository {
 
         final freshExisting = TeamModel.fromMap(freshDoc.data()!, freshDoc.id);
 
-        // If name or group changed, handle uniqueness registry
-        if (freshExisting.name != team.name ||
-            freshExisting.groupId != team.groupId) {
+        if (freshExisting.name != model.name ||
+            freshExisting.groupId != model.groupId) {
           final newRegistryId =
-              '${team.groupId.toLowerCase().trim()}_${team.name.toLowerCase().trim()}';
+              '${model.groupId.toLowerCase().trim()}_${model.name.toLowerCase().trim()}';
           final oldRegistryId =
               '${freshExisting.groupId.toLowerCase().trim()}_${freshExisting.name.toLowerCase().trim()}';
 
@@ -328,44 +872,43 @@ class TeamRepository implements ITeamRepository {
 
           if (newRegDoc.exists) {
             final regTeamId = newRegDoc.data()?['teamId'];
-            if (regTeamId != team.id) {
+            if (regTeamId != model.id) {
               throw StateError('يوجد فريق بنفس الاسم في هذه المجموعة بالفعل');
             }
           }
 
-          // Release old registry and claim new one
           if (oldRegistryId != newRegistryId) {
             transaction.delete(_registryCollection.doc(oldRegistryId));
           }
           transaction.set(_registryCollection.doc(newRegistryId), {
-            'teamId': team.id,
-            'groupId': team.groupId,
-            'teamName': team.name,
+            'teamId': model.id,
+            'groupId': model.groupId,
+            'teamName': model.name,
             'updatedAt': FieldValue.serverTimestamp(),
-          });
+          }, SetOptions(merge: true));
         }
 
         transaction.update(teamRef, {
-          ...team.toMap(),
+          ...model.toMap(),
           'updatedAt': FieldValue.serverTimestamp(),
         });
       });
 
-      // Sync team name references only when name or group changed
       if (nameOrGroupChanged) {
-        await _syncTeamNameReferences(team);
+        await _syncTeamNameReferences(model);
       }
+
+      final syncedModel = model.copyWith(syncStatus: SyncStatus.synced);
+      await _localDatasource.cacheTeam(syncedModel);
     } catch (e) {
-      if (e is StateError) {
-        throw TeamValidationFailure(e.message);
-      }
       throw mapExceptionToTeamFailure(e);
     }
   }
 
   @override
-  Future<void> deleteTeam(String id) async {
+  Future<void> syncOfflineDelete(Map<String, dynamic> payload) async {
     try {
+      final id = payload['id'] as String;
       final teamRef = _classesCollection.doc(id);
 
       await _firestore.runTransaction((transaction) async {
@@ -385,9 +928,6 @@ class TeamRepository implements ITeamRepository {
                     teamData['assigned_servant_id'] as String?)
                 ?.trim();
         if (assignedServantId != null && assignedServantId.isNotEmpty) {
-          // We can't call another async method that does its own transaction/gets here easily,
-          // so we'll handle the servant update after the transaction or implement it here.
-          // Since we want atomicity, let's implement it here.
           final servantRef = _usersCollection.doc(assignedServantId);
           final servantDoc = await transaction.get(servantRef);
           final servantData = servantDoc.data();
@@ -419,7 +959,6 @@ class TeamRepository implements ITeamRepository {
           }
         }
 
-        // Cleanup registry
         final registryId = '${team.groupId}_${team.name}';
         transaction
           ..delete(_registryCollection.doc(registryId))
@@ -432,15 +971,28 @@ class TeamRepository implements ITeamRepository {
             'updatedAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
       });
+
+      final existingModel = await _localDatasource.getCachedTeamById(id);
+      if (existingModel != null) {
+        final synced = existingModel.copyWith(
+          isArchived: true,
+          archivedAt: DateTime.now(),
+          archiveReason: 'Archived from app',
+          assignedServantId: null,
+          assignedServantName: null,
+          syncStatus: SyncStatus.synced,
+        );
+        await _localDatasource.cacheTeam(synced);
+      }
     } catch (e) {
-      if (e is TeamFailure) rethrow;
       throw mapExceptionToTeamFailure(e);
     }
   }
 
   @override
-  Future<void> restoreTeam(String id) async {
+  Future<void> syncOfflineRestore(Map<String, dynamic> payload) async {
     try {
+      final id = payload['id'] as String;
       final teamRef = _classesCollection.doc(id);
 
       await _firestore.runTransaction((transaction) async {
@@ -458,7 +1010,12 @@ class TeamRepository implements ITeamRepository {
 
         final regDoc = await transaction.get(registryRef);
         if (regDoc.exists) {
-          throw StateError('يوجد فريق بنفس الاسم في هذه المجموعة بالفعل. الرجاء تغيير اسم الفريق النشط أولاً.');
+          final existingTeamId = regDoc.data()?['teamId'];
+          if (existingTeamId != id) {
+            throw StateError(
+              'يوجد فريق بنفس الاسم في هذه المجموعة بالفعل. الرجاء تغيير اسم الفريق النشط أولاً.',
+            );
+          }
         }
 
         transaction.set(registryRef, {
@@ -466,28 +1023,37 @@ class TeamRepository implements ITeamRepository {
           'groupId': team.groupId,
           'teamName': team.name,
           'updatedAt': FieldValue.serverTimestamp(),
-        });
+        }, SetOptions(merge: true));
 
         transaction.set(teamRef, {
           'isArchived': false,
           'restoredAt': FieldValue.serverTimestamp(),
-          'restoredByUserId': 'system', // TODO: user context if available
+          'restoredByUserId': 'system',
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
 
-        final assignedServantId = (teamData['assignedServantId'] as String?)?.trim();
+        final assignedServantId = (teamData['assignedServantId'] as String?)
+            ?.trim();
         if (assignedServantId != null && assignedServantId.isNotEmpty) {
-          final servantRef = _firestore.collection(FirestoreCollections.servants).doc(assignedServantId);
+          final servantRef = _usersCollection.doc(assignedServantId);
           transaction.set(servantRef, {
             'assignedTeamIds': FieldValue.arrayUnion([team.id]),
             'updatedAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
         }
       });
-    } catch (e) {
-      if (e is StateError) {
-        throw TeamValidationFailure(e.message);
+
+      final existingModel = await _localDatasource.getCachedTeamById(id);
+      if (existingModel != null) {
+        final synced = existingModel.copyWith(
+          isArchived: false,
+          restoredAt: DateTime.now(),
+          restoredByUserId: 'system',
+          syncStatus: SyncStatus.synced,
+        );
+        await _localDatasource.cacheTeam(synced);
       }
+    } catch (e) {
       throw mapExceptionToTeamFailure(e);
     }
   }

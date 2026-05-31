@@ -1,4 +1,4 @@
-import 'package:church_management_system/features/servant/data/models/servant_models.dart';
+import 'package:church_management_system/features/servant/domain/entities/servant.dart';
 
 abstract class AssignServantState {
   const AssignServantState();
@@ -13,7 +13,7 @@ class AssignServantLoading extends AssignServantState {
 }
 
 class AssignServantLoaded extends AssignServantState {
-  final List<ServantModel> servants;
+  final List<Servant> servants;
   const AssignServantLoaded(this.servants);
 }
 

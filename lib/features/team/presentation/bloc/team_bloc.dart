@@ -1,10 +1,11 @@
 import 'dart:developer' as developer;
+
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
-import 'package:church_management_system/features/servant/data/models/servant_models.dart';
-import 'package:church_management_system/features/student/data/models/student_model.dart';
-import 'package:church_management_system/features/team/data/models/team_model.dart';
+import 'package:church_management_system/features/servant/domain/entities/servant.dart';
+import 'package:church_management_system/features/student/domain/entities/student.dart';
 import 'package:church_management_system/features/team/data/repos/team_repository.dart';
+import 'package:church_management_system/features/team/domain/entities/team.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -17,7 +18,7 @@ part 'team_state.dart';
 class TeamBloc extends Bloc<TeamEvent, TeamState> {
   final TeamRepository _teamRepository;
   final AdminTeamService _adminTeamService;
-  List<TeamModel> _currentTeams = const [];
+  List<Team> _currentTeams = const [];
   String? _selectedTeamId;
   bool _includeArchived = false;
   String? _currentLoadGroupId;
@@ -64,8 +65,7 @@ class TeamBloc extends Bloc<TeamEvent, TeamState> {
 
   Future<void> _runTeamLoad(
     Emitter<TeamState> emit, {
-    required Future<({List<TeamModel> teams, bool isFromCache})> Function()
-    action,
+    required Future<({List<Team> teams, bool isFromCache})> Function() action,
     String? selectedTeamId,
     bool includeArchived = false,
     String? loadGroupId,

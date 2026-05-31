@@ -10,6 +10,9 @@ import 'package:church_management_system/core/models/sync_entry.dart';
 import 'package:church_management_system/core/services/hive_pruning_service.dart';
 import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/features/admin/data/models/analytics_summary_model.dart';
+import 'package:church_management_system/features/attendance/data/local/mark_sync_entry.dart';
+import 'package:church_management_system/features/attendance/data/models/attendance_mark.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_enums.dart';
 import 'package:church_management_system/features/auth/data/services/auth_user_local_store.dart';
 import 'package:church_management_system/features/results/data/models/results_model.dart';
 import 'package:church_management_system/features/results/data/models/term_model.dart';
@@ -20,6 +23,7 @@ import 'package:church_management_system/features/student/data/models/student_mo
 import 'package:church_management_system/features/team/data/models/team_model.dart';
 import 'package:church_management_system/firebase_options.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -34,9 +38,37 @@ void callbackDispatcher() {
       WidgetsFlutterBinding.ensureInitialized();
       await _initializeFirebase();
 
+      final payloadUid = inputData?['userId'] as String?;
+      final currentUid = FirebaseAuth.instance.currentUser?.uid;
+      if (payloadUid == null ||
+          currentUid == null ||
+          currentUid != payloadUid) {
+        developer.log(
+          'Background task userId mismatch: payload=$payloadUid, current=$currentUid. Safely aborting task.',
+          name: 'Workmanager',
+        );
+        return Future.value(true); // Terminate safely without processing queue
+      }
+
       // Initialize Hive
       await Hive.initFlutter();
       _registerHiveAdapters();
+
+      // Clean up orphaned box structures
+      try {
+        await Hive.deleteBoxFromDisk('students_sync_queue_box');
+        await Hive.deleteBoxFromDisk('servants_sync_queue_box');
+        await Hive.deleteBoxFromDisk('attendance_marks_cache');
+        await Hive.deleteBoxFromDisk('attendance_marks_sync_queue');
+        await Hive.deleteBoxFromDisk('attendance_marks_v2');
+        await Hive.deleteBoxFromDisk('attendance_marks_sync_queue_v2');
+      } catch (e) {
+        developer.log(
+          'Failed to delete orphaned boxes in background',
+          error: e,
+          name: 'Workmanager',
+        );
+      }
 
       // Setup dependencies
       configureDependencies();
@@ -74,7 +106,6 @@ void _registerHiveAdapters() {
   Hive
     ..registerAdapter(SyncEntryAdapter())
     ..registerAdapter(UserRoleAdapter())
-    ..registerAdapter(AttendanceStatusAdapter())
     ..registerAdapter(EducationStageAdapter())
     ..registerAdapter(SyncStatusAdapter())
     ..registerAdapter(GroupAdapter())
@@ -86,7 +117,12 @@ void _registerHiveAdapters() {
     ..registerAdapter(VisitationTypeAdapter())
     ..registerAdapter(PastoralRecordModelAdapter())
     ..registerAdapter(PointsLedgerEntryAdapter())
-    ..registerAdapter(AnalyticsSummaryModelAdapter());
+    ..registerAdapter(AnalyticsSummaryModelAdapter())
+    // New typed adapters for attendance schema migration
+    ..registerAdapter(AttendanceMarkStatusAdapter())
+    ..registerAdapter(AttendanceMarkAdapter())
+    ..registerAdapter(MarkSyncOperationAdapter())
+    ..registerAdapter(MarkSyncEntryAdapter());
 }
 
 void main() {
@@ -97,6 +133,33 @@ void main() {
       // Mandate: Initialize Hive for offline-first storage
       await Hive.initFlutter();
       _registerHiveAdapters();
+
+      // Clean up orphaned box structures
+      try {
+        await Hive.deleteBoxFromDisk('students_sync_queue_box');
+        await Hive.deleteBoxFromDisk('servants_sync_queue_box');
+      } catch (e) {
+        developer.log(
+          'Failed to delete orphaned boxes',
+          error: e,
+          name: 'Main',
+        );
+      }
+
+      // Schema migration: delete old string-based attendance boxes
+      // and open new typed boxes
+      try {
+        await Hive.deleteBoxFromDisk('attendance_marks_cache');
+        await Hive.deleteBoxFromDisk('attendance_marks_sync_queue');
+        await Hive.deleteBoxFromDisk('attendance_marks_v2');
+        await Hive.deleteBoxFromDisk('attendance_marks_sync_queue_v2');
+      } catch (e) {
+        developer.log(
+          'Failed to migrate attendance boxes',
+          error: e,
+          name: 'Main',
+        );
+      }
 
       FlutterError.onError = (details) {
         FlutterError.presentError(details);

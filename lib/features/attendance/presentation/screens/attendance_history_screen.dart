@@ -18,8 +18,8 @@ import 'package:church_management_system/features/attendance/presentation/bloc/s
 import 'package:church_management_system/features/attendance/presentation/bloc/session_admin/attendance_session_admin_state.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:church_management_system/features/team/data/models/team_model.dart';
 import 'package:church_management_system/features/team/data/repos/team_repository.dart';
+import 'package:church_management_system/features/team/domain/entities/team.dart';
 import 'package:church_management_system/features/team/presentation/bloc/team_bloc.dart';
 import 'package:church_management_system/features/team/presentation/widgets/team_dropdown.dart';
 import 'package:flutter/material.dart';
@@ -61,7 +61,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
 
   void _ensureInitialTeamSelection(
     AuthUser actor,
-    List<TeamModel> teams,
+    List<Team> teams,
     BuildContext context,
   ) {
     if (_selectedTeamId != null || teams.isEmpty) return;
@@ -69,7 +69,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
         ? actor.effectiveAssignedTeamIds.toSet()
         : null;
 
-    TeamModel? candidate;
+    Team? candidate;
     try {
       candidate = teams.firstWhere(
         (team) => allowedTeamIds == null || allowedTeamIds.contains(team.id),
@@ -91,7 +91,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
     });
   }
 
-  String _teamName(List<TeamModel> teams, String? teamId) {
+  String _teamName(List<Team> teams, String? teamId) {
     for (final team in teams) {
       if (team.id == teamId) return team.name;
     }
@@ -233,7 +233,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                   builder: (context, teamState) {
                     final teams = teamState is TeamLoaded
                         ? teamState.teams
-                        : const <TeamModel>[];
+                        : const <Team>[];
                     _ensureInitialTeamSelection(actor, teams, context);
 
                     return Column(

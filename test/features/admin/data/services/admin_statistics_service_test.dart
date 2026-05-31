@@ -38,7 +38,10 @@ void main() {
       expect(deserialized.totalSessions, 5);
       expect(deserialized.totalPresent, 45);
       // Millisecond precision check
-      expect(deserialized.updatedAt.millisecondsSinceEpoch, now.millisecondsSinceEpoch);
+      expect(
+        deserialized.updatedAt.millisecondsSinceEpoch,
+        now.millisecondsSinceEpoch,
+      );
     });
 
     test('GlobalDashboardStats serialization', () {
@@ -59,25 +62,37 @@ void main() {
       expect(deserialized.totalSessions, 10);
       expect(deserialized.totalPresent, 150);
       expect(deserialized.totalRosterEntries, 200);
-      expect(deserialized.updatedAt.millisecondsSinceEpoch, now.millisecondsSinceEpoch);
+      expect(
+        deserialized.updatedAt.millisecondsSinceEpoch,
+        now.millisecondsSinceEpoch,
+      );
     });
   });
 
   group('AdminStatisticsService Firestore Queries', () {
-    test('getGlobalDashboardStats handles empty firestore gracefully', () async {
-      final stats = await service.getGlobalDashboardStats(forceRefresh: true);
+    test(
+      'getGlobalDashboardStats handles empty firestore gracefully',
+      () async {
+        final stats = await service.getGlobalDashboardStats(forceRefresh: true);
 
-      expect(stats.totalSessions, 0);
-      expect(stats.totalPresent, 0);
-      expect(stats.totalRosterEntries, 0);
-    });
+        expect(stats.totalSessions, 0);
+        expect(stats.totalPresent, 0);
+        expect(stats.totalRosterEntries, 0);
+      },
+    );
 
-    test('getWeeklyAttendanceStats handles empty firestore gracefully', () async {
-      final stats = await service.getWeeklyAttendanceStats('team1', forceRefresh: true);
+    test(
+      'getWeeklyAttendanceStats handles empty firestore gracefully',
+      () async {
+        final stats = await service.getWeeklyAttendanceStats(
+          'team1',
+          forceRefresh: true,
+        );
 
-      expect(stats.totalSessions, 0);
-      expect(stats.totalPresent, 0);
-    });
+        expect(stats.totalSessions, 0);
+        expect(stats.totalPresent, 0);
+      },
+    );
 
     // We skip complex aggregation tests because `fake_cloud_firestore` doesn't fully support
     // `getSum` and `aggregate` queries yet. The service throws errors or returns default
@@ -85,23 +100,29 @@ void main() {
   });
 
   group('AdminStatisticsService Caching Logic', () {
-    test('Returns cached GlobalDashboardStats if valid and no forceRefresh', () async {
-      // Setup cache
-      final box = await Hive.openBox<String>('admin_stats_box');
-      final cachedStats = GlobalDashboardStats(
-        totalSessions: 42,
-        totalPresent: 100,
-        totalRosterEntries: 150,
-        updatedAt: DateTime.now().subtract(const Duration(minutes: 10)),
-      );
-      await box.put('global_dashboard_stats', jsonEncode(cachedStats.toMap()));
+    test(
+      'Returns cached GlobalDashboardStats if valid and no forceRefresh',
+      () async {
+        // Setup cache
+        final box = await Hive.openBox<String>('admin_stats_box');
+        final cachedStats = GlobalDashboardStats(
+          totalSessions: 42,
+          totalPresent: 100,
+          totalRosterEntries: 150,
+          updatedAt: DateTime.now().subtract(const Duration(minutes: 10)),
+        );
+        await box.put(
+          'global_dashboard_stats',
+          jsonEncode(cachedStats.toMap()),
+        );
 
-      // Fetch
-      final stats = await service.getGlobalDashboardStats();
+        // Fetch
+        final stats = await service.getGlobalDashboardStats();
 
-      expect(stats.totalSessions, 42);
-      expect(stats.totalPresent, 100);
-    });
+        expect(stats.totalSessions, 42);
+        expect(stats.totalPresent, 100);
+      },
+    );
 
     test('Ignores cache if forceRefresh is true', () async {
       // Setup cache

@@ -16,14 +16,14 @@ class MockUser extends Mock implements User {
 }
 
 void main() {
-  group('AuthUser.fromFirebaseToken', () {
+  group('AuthUserModel.fromFirebaseToken', () {
     test('parses custom claims correctly for admin', () {
       final mockUser = MockUser();
       final claims = {
         'role': 'admin',
         'teams': ['teamA'],
       };
-      final authUser = AuthUser.fromFirebaseToken(mockUser, claims);
+      final authUser = AuthUserModel.fromFirebaseToken(mockUser, claims);
       expect(authUser.role, UserRole.admin);
       expect(authUser.assignedTeamIds, ['teamA']);
     });
@@ -34,19 +34,19 @@ void main() {
         'role': 'servant',
         'teams': ['teamB'],
       };
-      final authUser = AuthUser.fromFirebaseToken(mockUser, claims);
+      final authUser = AuthUserModel.fromFirebaseToken(mockUser, claims);
       expect(authUser.role, UserRole.servant);
       expect(authUser.assignedTeamIds, ['teamB']);
     });
 
     test('falls back to default role for missing or null role claim', () {
       final mockUser = MockUser();
-      final authUserNullRole = AuthUser.fromFirebaseToken(mockUser, {
+      final authUserNullRole = AuthUserModel.fromFirebaseToken(mockUser, {
         'role': null,
       });
       expect(authUserNullRole.role, UserRole.student);
 
-      final authUserMissingRole = AuthUser.fromFirebaseToken(mockUser, {});
+      final authUserMissingRole = AuthUserModel.fromFirebaseToken(mockUser, {});
       expect(authUserMissingRole.role, UserRole.student);
     });
 
@@ -54,7 +54,7 @@ void main() {
       'falls back to default role for invalid role string without throwing',
       () {
         final mockUser = MockUser();
-        final authUser = AuthUser.fromFirebaseToken(mockUser, {
+        final authUser = AuthUserModel.fromFirebaseToken(mockUser, {
           'role': 'invalid_role',
         });
         expect(authUser.role, UserRole.student);
@@ -63,14 +63,14 @@ void main() {
 
     test('falls back to default role for non-string role claim type', () {
       final mockUser = MockUser();
-      final authUser = AuthUser.fromFirebaseToken(mockUser, {'role': 123});
+      final authUser = AuthUserModel.fromFirebaseToken(mockUser, {'role': 123});
       expect(authUser.role, UserRole.student);
     });
 
     test('parses legacy singular assignedTeamId claim', () {
       final mockUser = MockUser();
       final claims = {'role': 'servant', 'assignedTeamId': 'legacy-team-1'};
-      final authUser = AuthUser.fromFirebaseToken(mockUser, claims);
+      final authUser = AuthUserModel.fromFirebaseToken(mockUser, claims);
       expect(authUser.assignedTeamId, 'legacy-team-1');
       expect(authUser.effectiveAssignedTeamIds, ['legacy-team-1']);
     });
@@ -84,7 +84,7 @@ void main() {
           'assignedTeamIds': ['new-team-1'],
           'assignedTeamId': 'legacy-team-1',
         };
-        final authUser = AuthUser.fromFirebaseToken(mockUser, claims);
+        final authUser = AuthUserModel.fromFirebaseToken(mockUser, claims);
         expect(authUser.assignedTeamIds, contains('new-team-1'));
         expect(authUser.assignedTeamId, 'legacy-team-1');
         expect(
@@ -96,10 +96,10 @@ void main() {
 
     test('handles missing or null teams claim', () {
       final mockUser = MockUser();
-      final authUser = AuthUser.fromFirebaseToken(mockUser, {});
+      final authUser = AuthUserModel.fromFirebaseToken(mockUser, {});
       expect(authUser.assignedTeamIds, isEmpty);
 
-      final authUserNullTeams = AuthUser.fromFirebaseToken(mockUser, {
+      final authUserNullTeams = AuthUserModel.fromFirebaseToken(mockUser, {
         'teams': null,
       });
       expect(authUserNullTeams.assignedTeamIds, isEmpty);
@@ -107,25 +107,28 @@ void main() {
 
     test('parses isArchived claim correctly', () {
       final mockUser = MockUser();
-      final authUserArchived = AuthUser.fromFirebaseToken(mockUser, {
+      final authUserArchived = AuthUserModel.fromFirebaseToken(mockUser, {
         'isArchived': true,
       });
       expect(authUserArchived.isArchived, true);
 
-      final authUserNotArchived = AuthUser.fromFirebaseToken(mockUser, {
+      final authUserNotArchived = AuthUserModel.fromFirebaseToken(mockUser, {
         'isArchived': false,
       });
       expect(authUserNotArchived.isArchived, false);
 
-      final authUserMissingArchived = AuthUser.fromFirebaseToken(mockUser, {});
+      final authUserMissingArchived = AuthUserModel.fromFirebaseToken(
+        mockUser,
+        {},
+      );
       expect(authUserMissingArchived.isArchived, false);
     });
   });
 
-  group('AuthUser.fromFirebase', () {
-    test('creates AuthUser with temporary student role', () {
+  group('AuthUserModel.fromFirebaseUnsafe', () {
+    test('creates AuthUserModel with temporary student role', () {
       final mockUser = MockUser();
-      final authUser = AuthUser.fromFirebaseUnsafe(mockUser);
+      final authUser = AuthUserModel.fromFirebaseUnsafe(mockUser);
 
       expect(authUser.uid, '123');
       expect(authUser.email, 'test@example.com');

@@ -1,4 +1,4 @@
-import 'package:church_management_system/features/servant/data/models/servant_models.dart';
+import 'package:church_management_system/features/servant/domain/entities/servant.dart';
 import 'package:church_management_system/features/servant/domain/failures/servant_failures.dart';
 import 'package:equatable/equatable.dart';
 
@@ -17,12 +17,12 @@ final class ServantDataInitial extends ServantDataState {
 
 final class ServantDataLoading extends ServantDataState {
   const ServantDataLoading({
-    this.previousServants = const <ServantModel>[],
+    this.previousServants = const <Servant>[],
     this.isRefresh = false,
     this.includeArchived = false,
   });
 
-  final List<ServantModel> previousServants;
+  final List<Servant> previousServants;
   final bool isRefresh;
   final bool includeArchived;
 
@@ -45,7 +45,7 @@ final class ServantDataLoaded extends ServantDataState {
     this.isFromCache = false,
   });
 
-  final List<ServantModel> servants;
+  final List<Servant> servants;
   final String? currentFilterTeamName;
   final String? currentQuery;
   final bool hasMore;
@@ -60,7 +60,7 @@ final class ServantDataLoaded extends ServantDataState {
   bool get isEmpty => servants.isEmpty;
 
   ServantDataLoaded copyWith({
-    List<ServantModel>? servants,
+    List<Servant>? servants,
     String? currentFilterTeamName,
     bool clearCurrentFilterTeamName = false,
     String? currentQuery,

@@ -26,8 +26,8 @@ class GenericAuthException implements Exception {
   final String? message;
   final Object? innerException;
   final StackTrace? stackTrace;
-  const GenericAuthException(
-    [this.message,
+  const GenericAuthException([
+    this.message,
     this.innerException,
     this.stackTrace,
   ]);

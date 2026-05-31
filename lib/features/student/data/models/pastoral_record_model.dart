@@ -52,10 +52,7 @@ class PastoralRecordModel with _$PastoralRecordModel {
   factory PastoralRecordModel.fromJson(Map<String, dynamic> json) =>
       _$PastoralRecordModelFromJson(json);
 
-  factory PastoralRecordModel.fromMap(
-    Map<String, dynamic> data,
-    String docId,
-  ) {
+  factory PastoralRecordModel.fromMap(Map<String, dynamic> data, String docId) {
     return PastoralRecordModel.fromJson({
       ...data,
       'recordId': data['recordId'] as String? ?? docId,

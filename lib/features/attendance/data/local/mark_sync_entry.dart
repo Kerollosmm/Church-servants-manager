@@ -1,21 +1,39 @@
-import 'dart:convert';
+import 'package:hive/hive.dart';
+
+part 'mark_sync_entry.g.dart';
 
 /// The type of mutation queued for Firestore sync.
-enum MarkSyncOperation { create, update, delete }
+@HiveType(typeId: 52)
+enum MarkSyncOperation {
+  @HiveField(0)
+  create,
+  @HiveField(1)
+  update,
+  @HiveField(2)
+  delete,
+}
 
 /// Represents a pending attendance mark mutation in the local sync queue.
 ///
 /// Each entry captures all data needed to replay the mutation against Firestore
 /// when connectivity is restored.
+@HiveType(typeId: 51)
 class MarkSyncEntry {
+  @HiveField(0)
   final String id;
+  @HiveField(1)
   final String teamId;
+  @HiveField(2)
   final String sessionId;
+  @HiveField(3)
   final String studentId;
+  @HiveField(4)
   final MarkSyncOperation operation;
 
   /// The full mark payload. Null for [MarkSyncOperation.delete].
+  @HiveField(5)
   final Map<String, dynamic>? markData;
+  @HiveField(6)
   final DateTime queuedAt;
 
   const MarkSyncEntry({
@@ -31,36 +49,4 @@ class MarkSyncEntry {
   /// Deterministic key for deduplication in the sync queue.
   /// Later entries for the same mark overwrite earlier ones.
   String get deduplicationKey => '${teamId}_${sessionId}_$studentId';
-
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'teamId': teamId,
-    'sessionId': sessionId,
-    'studentId': studentId,
-    'operation': operation.name,
-    'markData': markData,
-    'queuedAt': queuedAt.toIso8601String(),
-  };
-
-  factory MarkSyncEntry.fromJson(Map<String, dynamic> json) {
-    return MarkSyncEntry(
-      id: json['id'] as String,
-      teamId: json['teamId'] as String,
-      sessionId: json['sessionId'] as String,
-      studentId: json['studentId'] as String,
-      operation: MarkSyncOperation.values.firstWhere(
-        (e) => e.name == json['operation'],
-        orElse: () => MarkSyncOperation.create,
-      ),
-      markData: json['markData'] != null
-          ? Map<String, dynamic>.from(json['markData'] as Map)
-          : null,
-      queuedAt: DateTime.parse(json['queuedAt'] as String),
-    );
-  }
-
-  String encode() => jsonEncode(toJson());
-
-  static MarkSyncEntry decode(String source) =>
-      MarkSyncEntry.fromJson(jsonDecode(source) as Map<String, dynamic>);
 }

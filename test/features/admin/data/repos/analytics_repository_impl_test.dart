@@ -19,8 +19,7 @@ class MockDocumentSnapshot extends Mock
 class MockAnalyticsLocalDatasource extends Mock
     implements AnalyticsLocalDatasource {}
 
-class FakeAnalyticsSummaryModel extends Fake
-    implements AnalyticsSummaryModel {}
+class FakeAnalyticsSummaryModel extends Fake implements AnalyticsSummaryModel {}
 
 void main() {
   late MockFirebaseFirestore mockFirestore;
@@ -55,8 +54,8 @@ void main() {
       averageAttendanceRate: averageAttendanceRate,
       pendingVisitationsCount: pendingVisitationsCount,
       topActiveServants: topActiveServants,
-      lastComputedAt: lastComputedAt ?? DateTime(2026, 5, 20, 10, 0),
-      fetchedAt: fetchedAt ?? DateTime(2026, 5, 20, 11, 0),
+      lastComputedAt: lastComputedAt ?? DateTime(2026, 5, 20, 10),
+      fetchedAt: fetchedAt ?? DateTime(2026, 5, 20, 11),
     );
   }
 
@@ -66,8 +65,9 @@ void main() {
         fetchedAt: DateTime.now().subtract(const Duration(minutes: 30)),
       );
 
-      when(() => mockLocalDatasource.getSummary('sector-1'))
-          .thenAnswer((_) async => freshSummary);
+      when(
+        () => mockLocalDatasource.getSummary('sector-1'),
+      ).thenAnswer((_) async => freshSummary);
 
       final result = await repository.getSectorAnalytics('sector-1');
 
@@ -81,29 +81,32 @@ void main() {
         fetchedAt: DateTime.now().subtract(const Duration(hours: 2)),
       );
 
-      when(() => mockLocalDatasource.getSummary('sector-1'))
-          .thenAnswer((_) async => staleSummary);
+      when(
+        () => mockLocalDatasource.getSummary('sector-1'),
+      ).thenAnswer((_) async => staleSummary);
 
       final mockCollection = MockCollectionReference();
       final mockDocRef = MockDocumentReference();
       final mockDocSnap = MockDocumentSnapshot();
 
-      when(() => mockFirestore.collection('SectorsAnalytics'))
-          .thenReturn(mockCollection);
+      when(
+        () => mockFirestore.collection('SectorsAnalytics'),
+      ).thenReturn(mockCollection);
       when(() => mockCollection.doc('sector-1')).thenReturn(mockDocRef);
-      when(() => mockDocRef.get()).thenAnswer((_) async => mockDocSnap);
+      when(mockDocRef.get).thenAnswer((_) async => mockDocSnap);
       when(() => mockDocSnap.exists).thenReturn(true);
       when(() => mockDocSnap.id).thenReturn('sector-1');
-      when(() => mockDocSnap.data()).thenReturn({
+      when(mockDocSnap.data).thenReturn({
         'totalStudentsCount': 100,
         'averageAttendanceRate': 0.92,
         'pendingVisitationsCount': 5,
         'topActiveServants': <String, dynamic>{'John': 15},
-        'lastComputedAt': DateTime(2026, 5, 21, 9, 0).toIso8601String(),
+        'lastComputedAt': DateTime(2026, 5, 21, 9).toIso8601String(),
       });
 
-      when(() => mockLocalDatasource.saveSummary(any()))
-          .thenAnswer((_) async {});
+      when(
+        () => mockLocalDatasource.saveSummary(any()),
+      ).thenAnswer((_) async {});
 
       final result = await repository.getSectorAnalytics('sector-1');
 
@@ -114,29 +117,32 @@ void main() {
     });
 
     test('fetches from Firestore when cache is empty', () async {
-      when(() => mockLocalDatasource.getSummary('sector-1'))
-          .thenAnswer((_) async => null);
+      when(
+        () => mockLocalDatasource.getSummary('sector-1'),
+      ).thenAnswer((_) async => null);
 
       final mockCollection = MockCollectionReference();
       final mockDocRef = MockDocumentReference();
       final mockDocSnap = MockDocumentSnapshot();
 
-      when(() => mockFirestore.collection('SectorsAnalytics'))
-          .thenReturn(mockCollection);
+      when(
+        () => mockFirestore.collection('SectorsAnalytics'),
+      ).thenReturn(mockCollection);
       when(() => mockCollection.doc('sector-1')).thenReturn(mockDocRef);
-      when(() => mockDocRef.get()).thenAnswer((_) async => mockDocSnap);
+      when(mockDocRef.get).thenAnswer((_) async => mockDocSnap);
       when(() => mockDocSnap.exists).thenReturn(true);
       when(() => mockDocSnap.id).thenReturn('sector-1');
-      when(() => mockDocSnap.data()).thenReturn({
+      when(mockDocSnap.data).thenReturn({
         'totalStudentsCount': 50,
         'averageAttendanceRate': 0.75,
         'pendingVisitationsCount': 2,
         'topActiveServants': <String, dynamic>{},
-        'lastComputedAt': DateTime(2026, 5, 21, 8, 0).toIso8601String(),
+        'lastComputedAt': DateTime(2026, 5, 21, 8).toIso8601String(),
       });
 
-      when(() => mockLocalDatasource.saveSummary(any()))
-          .thenAnswer((_) async {});
+      when(
+        () => mockLocalDatasource.saveSummary(any()),
+      ).thenAnswer((_) async {});
 
       final result = await repository.getSectorAnalytics('sector-1');
 
@@ -145,29 +151,33 @@ void main() {
     });
 
     test('saves fetched data with updated fetchedAt', () async {
-      when(() => mockLocalDatasource.getSummary('sector-1'))
-          .thenAnswer((_) async => null);
+      when(
+        () => mockLocalDatasource.getSummary('sector-1'),
+      ).thenAnswer((_) async => null);
 
       final mockCollection = MockCollectionReference();
       final mockDocRef = MockDocumentReference();
       final mockDocSnap = MockDocumentSnapshot();
 
-      when(() => mockFirestore.collection('SectorsAnalytics'))
-          .thenReturn(mockCollection);
+      when(
+        () => mockFirestore.collection('SectorsAnalytics'),
+      ).thenReturn(mockCollection);
       when(() => mockCollection.doc('sector-1')).thenReturn(mockDocRef);
-      when(() => mockDocRef.get()).thenAnswer((_) async => mockDocSnap);
+      when(mockDocRef.get).thenAnswer((_) async => mockDocSnap);
       when(() => mockDocSnap.exists).thenReturn(true);
       when(() => mockDocSnap.id).thenReturn('sector-1');
-      when(() => mockDocSnap.data()).thenReturn({
+      when(mockDocSnap.data).thenReturn({
         'totalStudentsCount': 50,
         'averageAttendanceRate': 0.75,
         'pendingVisitationsCount': 2,
         'topActiveServants': <String, dynamic>{},
-        'lastComputedAt': DateTime(2026, 5, 21, 8, 0).toIso8601String(),
+        'lastComputedAt': DateTime(2026, 5, 21, 8).toIso8601String(),
       });
 
       AnalyticsSummaryModel? savedModel;
-      when(() => mockLocalDatasource.saveSummary(any())).thenAnswer((invocation) async {
+      when(() => mockLocalDatasource.saveSummary(any())).thenAnswer((
+        invocation,
+      ) async {
         savedModel = invocation.positionalArguments[0] as AnalyticsSummaryModel;
       });
 
@@ -188,16 +198,18 @@ void main() {
         totalStudentsCount: 99,
       );
 
-      when(() => mockLocalDatasource.getSummary('sector-1'))
-          .thenAnswer((_) async => staleSummary);
+      when(
+        () => mockLocalDatasource.getSummary('sector-1'),
+      ).thenAnswer((_) async => staleSummary);
 
       final mockCollection = MockCollectionReference();
       final mockDocRef = MockDocumentReference();
 
-      when(() => mockFirestore.collection('SectorsAnalytics'))
-          .thenReturn(mockCollection);
+      when(
+        () => mockFirestore.collection('SectorsAnalytics'),
+      ).thenReturn(mockCollection);
       when(() => mockCollection.doc('sector-1')).thenReturn(mockDocRef);
-      when(() => mockDocRef.get()).thenThrow(
+      when(mockDocRef.get).thenThrow(
         FirebaseException(plugin: 'cloud_firestore', message: 'Network error'),
       );
 
@@ -208,16 +220,18 @@ void main() {
     });
 
     test('throws when Firestore fails and no cache exists', () async {
-      when(() => mockLocalDatasource.getSummary('sector-1'))
-          .thenAnswer((_) async => null);
+      when(
+        () => mockLocalDatasource.getSummary('sector-1'),
+      ).thenAnswer((_) async => null);
 
       final mockCollection = MockCollectionReference();
       final mockDocRef = MockDocumentReference();
 
-      when(() => mockFirestore.collection('SectorsAnalytics'))
-          .thenReturn(mockCollection);
+      when(
+        () => mockFirestore.collection('SectorsAnalytics'),
+      ).thenReturn(mockCollection);
       when(() => mockCollection.doc('sector-1')).thenReturn(mockDocRef);
-      when(() => mockDocRef.get()).thenThrow(
+      when(mockDocRef.get).thenThrow(
         FirebaseException(plugin: 'cloud_firestore', message: 'Network error'),
       );
 
@@ -232,29 +246,32 @@ void main() {
         fetchedAt: DateTime.now().subtract(const Duration(minutes: 30)),
       );
 
-      when(() => mockLocalDatasource.getSummary('sector-1'))
-          .thenAnswer((_) async => freshSummary);
+      when(
+        () => mockLocalDatasource.getSummary('sector-1'),
+      ).thenAnswer((_) async => freshSummary);
 
       final mockCollection = MockCollectionReference();
       final mockDocRef = MockDocumentReference();
       final mockDocSnap = MockDocumentSnapshot();
 
-      when(() => mockFirestore.collection('SectorsAnalytics'))
-          .thenReturn(mockCollection);
+      when(
+        () => mockFirestore.collection('SectorsAnalytics'),
+      ).thenReturn(mockCollection);
       when(() => mockCollection.doc('sector-1')).thenReturn(mockDocRef);
-      when(() => mockDocRef.get()).thenAnswer((_) async => mockDocSnap);
+      when(mockDocRef.get).thenAnswer((_) async => mockDocSnap);
       when(() => mockDocSnap.exists).thenReturn(true);
       when(() => mockDocSnap.id).thenReturn('sector-1');
-      when(() => mockDocSnap.data()).thenReturn({
+      when(mockDocSnap.data).thenReturn({
         'totalStudentsCount': 200,
         'averageAttendanceRate': 0.95,
         'pendingVisitationsCount': 1,
         'topActiveServants': <String, dynamic>{},
-        'lastComputedAt': DateTime(2026, 5, 21, 10, 0).toIso8601String(),
+        'lastComputedAt': DateTime(2026, 5, 21, 10).toIso8601String(),
       });
 
-      when(() => mockLocalDatasource.saveSummary(any()))
-          .thenAnswer((_) async {});
+      when(
+        () => mockLocalDatasource.saveSummary(any()),
+      ).thenAnswer((_) async {});
 
       final result = await repository.getSectorAnalytics(
         'sector-1',
@@ -266,29 +283,32 @@ void main() {
     });
 
     test('uses correct Firestore collection path', () async {
-      when(() => mockLocalDatasource.getSummary('sector-abc'))
-          .thenAnswer((_) async => null);
+      when(
+        () => mockLocalDatasource.getSummary('sector-abc'),
+      ).thenAnswer((_) async => null);
 
       final mockCollection = MockCollectionReference();
       final mockDocRef = MockDocumentReference();
       final mockDocSnap = MockDocumentSnapshot();
 
-      when(() => mockFirestore.collection('SectorsAnalytics'))
-          .thenReturn(mockCollection);
+      when(
+        () => mockFirestore.collection('SectorsAnalytics'),
+      ).thenReturn(mockCollection);
       when(() => mockCollection.doc('sector-abc')).thenReturn(mockDocRef);
-      when(() => mockDocRef.get()).thenAnswer((_) async => mockDocSnap);
+      when(mockDocRef.get).thenAnswer((_) async => mockDocSnap);
       when(() => mockDocSnap.exists).thenReturn(true);
       when(() => mockDocSnap.id).thenReturn('sector-abc');
-      when(() => mockDocSnap.data()).thenReturn({
+      when(mockDocSnap.data).thenReturn({
         'totalStudentsCount': 10,
         'averageAttendanceRate': 0.5,
         'pendingVisitationsCount': 0,
         'topActiveServants': <String, dynamic>{},
-        'lastComputedAt': DateTime(2026, 5, 21, 7, 0).toIso8601String(),
+        'lastComputedAt': DateTime(2026, 5, 21, 7).toIso8601String(),
       });
 
-      when(() => mockLocalDatasource.saveSummary(any()))
-          .thenAnswer((_) async {});
+      when(
+        () => mockLocalDatasource.saveSummary(any()),
+      ).thenAnswer((_) async {});
 
       await repository.getSectorAnalytics('sector-abc');
 

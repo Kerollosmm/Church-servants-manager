@@ -7,12 +7,12 @@ import 'package:church_management_system/core/widgets/common/ochre_button.dart';
 import 'package:church_management_system/core/widgets/common/sanctuary_background.dart';
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
-import 'package:church_management_system/features/student/data/models/student_model.dart';
+import 'package:church_management_system/features/student/domain/entities/student.dart';
 import 'package:church_management_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
 import 'package:church_management_system/features/student/presentation/bloc/student_form_teams_cubit.dart';
 import 'package:church_management_system/features/student/presentation/widgets/student_edit_form_sections.dart';
-import 'package:church_management_system/features/team/data/models/team_model.dart';
 import 'package:church_management_system/features/team/data/repos/team_repository.dart';
+import 'package:church_management_system/features/team/domain/entities/team.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -57,7 +57,7 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
 
   Group _resolveInitialGroup({
     required AuthUser actor,
-    required StudentModel? student,
+    required Student? student,
   }) {
     if (actor.role == UserRole.servant && actor.groupId != null) {
       return Group.values.firstWhere(
@@ -82,7 +82,7 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
     }
   }
 
-  TeamModel? _findSelectedTeam(List<TeamModel> teams, String selectedTeamId) {
+  Team? _findSelectedTeam(List<Team> teams, String selectedTeamId) {
     for (final team in teams) {
       if (team.id == selectedTeamId) {
         return team;
@@ -137,7 +137,7 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
       orElse: () => _group,
     );
 
-    final student = StudentModel(
+    final student = Student(
       uid: existing?.uid ?? '',
       docID: existing?.docID ?? '',
       name: _controllers.name.text.trim(),
@@ -373,7 +373,7 @@ class _StudentEditControllers {
     required this.imageUrl,
   });
 
-  factory _StudentEditControllers.fromStudent(StudentModel? student) {
+  factory _StudentEditControllers.fromStudent(Student? student) {
     return _StudentEditControllers(
       name: TextEditingController(text: student?.name ?? ''),
       mobile: TextEditingController(text: student?.mobile ?? ''),
@@ -404,7 +404,7 @@ class _StudentEditControllers {
   final TextEditingController imageUrl;
 
   bool hasChanges(
-    StudentModel? student,
+    Student? student,
     DateTime? birthdate,
     UserRole selectedRole,
   ) {

@@ -5,7 +5,7 @@ import 'package:church_management_system/core/theme/app_spacing.dart';
 import 'package:church_management_system/core/widgets/common/ochre_button.dart';
 import 'package:church_management_system/core/widgets/common/sanctuary_background.dart';
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
-import 'package:church_management_system/features/servant/data/models/servant_models.dart';
+import 'package:church_management_system/features/servant/domain/entities/servant.dart';
 import 'package:church_management_system/features/servant/presentation/bloc/servant_data/servant_data_bloc.dart';
 import 'package:church_management_system/features/servant/presentation/widgets/servant_edit_form_sections.dart';
 import 'package:flutter/material.dart';
@@ -81,7 +81,7 @@ class _AddEditServantScreenState extends State<AddEditServantScreen> {
     final isEditing = widget.args.isEditing;
     final existing = widget.args.servant;
 
-    final servant = ServantModel(
+    final servant = Servant(
       uid: existing?.uid,
       docID: existing?.docID ?? 'temp',
       name: _controllers.name.text.trim(),
@@ -273,7 +273,7 @@ class _ServantEditControllers {
     required this.imageUrl,
   });
 
-  factory _ServantEditControllers.fromServant(ServantModel? servant) {
+  factory _ServantEditControllers.fromServant(Servant? servant) {
     return _ServantEditControllers(
       name: TextEditingController(text: servant?.name ?? ''),
       phone: TextEditingController(text: servant?.phone ?? ''),
@@ -296,7 +296,7 @@ class _ServantEditControllers {
   final TextEditingController imageUrl;
 
   bool hasChanges(
-    ServantModel? servant,
+    Servant? servant,
     DateTime? birthdate,
     UserRole selectedRole,
     Group selectedGroup,

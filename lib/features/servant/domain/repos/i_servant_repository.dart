@@ -1,21 +1,16 @@
 import 'package:church_management_system/core/utils/pagination_cursor.dart';
-import 'package:church_management_system/features/servant/data/models/servant_models.dart';
+import 'package:church_management_system/features/servant/domain/entities/servant.dart';
+import 'package:church_management_system/features/servant/domain/entities/servant_page.dart';
 
 /// Domain interface for servant repository.
 /// Enables dependency inversion: presentation and domain layers
 /// depend on this abstraction, not concrete Firebase implementations.
 abstract class IServantRepository {
-  Future<ServantModel?> getServantById(
-    String docId, {
-    bool includeArchived = false,
-  });
+  Future<Servant?> getServantById(String docId, {bool includeArchived = false});
 
-  Future<ServantModel?> getServantByUid(
-    String uid, {
-    bool includeArchived = false,
-  });
+  Future<Servant?> getServantByUid(String uid, {bool includeArchived = false});
 
-  Future<({List<ServantModel> servants, bool isFromCache})>
+  Future<({List<Servant> servants, bool isFromCache})>
   getServantsByGroupWithFallback(
     String groupId, {
     bool includeArchived = false,
@@ -27,30 +22,30 @@ abstract class IServantRepository {
     bool includeArchived = false,
   });
 
-  Future<List<ServantModel>> getAllServants({
+  Future<List<Servant>> getAllServants({
     int limit = 20,
     PaginationCursor? cursor,
     bool includeArchived = false,
   });
 
-  Future<List<ServantModel>> getServantsByTeam(
+  Future<List<Servant>> getServantsByTeam(
     String teamName, {
     bool includeArchived = false,
   });
 
-  Future<List<ServantModel>> searchServants(
+  Future<List<Servant>> searchServants(
     String query, {
     int limit = 20,
     bool includeArchived = false,
   });
 
-  Future<void> updateServant(ServantModel servant);
+  Future<void> updateServant(Servant servant);
 
-  Future<void> upsertServant(ServantModel servant);
+  Future<void> upsertServant(Servant servant);
 
   Future<void> updateServantFields(String docId, Map<String, dynamic> fields);
 
-  Future<String> createServant(ServantModel servant);
+  Future<String> createServant(Servant servant);
 
   Future<void> deleteServant(String docId, {required String performedByUid});
 

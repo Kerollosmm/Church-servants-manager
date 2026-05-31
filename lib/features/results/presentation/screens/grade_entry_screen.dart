@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'package:church_management_system/core/theme/app_spacing.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
-import 'package:church_management_system/features/results/data/models/results_model.dart';
+import 'package:church_management_system/features/results/domain/entities/result.dart';
 import 'package:church_management_system/features/results/presentation/bloc/results_bloc.dart';
 import 'package:church_management_system/features/results/presentation/bloc/results_event.dart';
 import 'package:church_management_system/features/results/presentation/bloc/results_state.dart';
-import 'package:church_management_system/features/student/data/models/student_model.dart';
+import 'package:church_management_system/features/student/domain/entities/student.dart';
 import 'package:church_management_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -61,7 +61,7 @@ class _GradeEntryScreenState extends State<GradeEntryScreen> {
                 return const Center(child: CircularProgressIndicator());
               }
 
-              final resultsMap = <String, ResultsModel>{};
+              final resultsMap = <String, Result>{};
               if (resultsState is ResultsLoaded) {
                 for (final result in resultsState.results) {
                   if (result.termId == widget.termId) {
@@ -94,8 +94,8 @@ class _GradeEntryScreenState extends State<GradeEntryScreen> {
 }
 
 class GradeEntryTile extends StatefulWidget {
-  final StudentModel student;
-  final ResultsModel? result;
+  final Student student;
+  final Result? result;
   final String termId;
   final String groupId;
 
@@ -137,7 +137,7 @@ class _GradeEntryTileState extends State<GradeEntryTile> {
       if (score != null && score >= 0 && score <= 100) {
         context.read<ResultsBloc>().add(
           ResultUpdateRequested(
-            result: ResultsModel(
+            result: Result(
               studentId: widget.student.docID,
               termId: widget.termId,
               score: score,

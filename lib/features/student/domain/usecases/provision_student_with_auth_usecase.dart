@@ -1,7 +1,7 @@
 import 'dart:developer' as developer;
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
-import 'package:church_management_system/features/student/data/models/student_model.dart';
+import 'package:church_management_system/features/student/domain/entities/student.dart';
 import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
 
 /// Orchestrates the two-phase commit for creating a student with an optional
@@ -26,7 +26,7 @@ class ProvisionStudentWithAuthUseCase {
   /// Creates the student, optionally creating a linked Auth account first.
   /// Returns the created student's document ID.
   Future<String> call({
-    required StudentModel student,
+    required Student student,
     String? email,
     String? password,
   }) async {

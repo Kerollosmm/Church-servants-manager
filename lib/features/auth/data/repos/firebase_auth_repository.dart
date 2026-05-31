@@ -70,7 +70,7 @@ class FirebaseAuthRepository implements AuthRepository {
           throw UserNotFoundAuthException();
         }
 
-        final profile = AuthUser.fromJson(docSnap.data()!);
+        final profile = AuthUserModel.fromJson(docSnap.data()!).toDomain();
 
         final mergedUser = profile.copyWith(
           uid: firebaseUser.uid,

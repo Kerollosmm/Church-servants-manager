@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('fromMap tolerates missing fields and primitive drift', () {
-    final session = AttendanceSession.fromMap({
+    final session = AttendanceSessionModel.fromMap({
       'teamId': 42,
       'durationMinutes': '45',
       'isClosed': 'false',
@@ -18,8 +18,8 @@ void main() {
   });
 
   test('fromMap parses timestamps and derives endsAt fallback', () {
-    final startsAt = DateTime(2026, 3, 9, 18);
-    final session = AttendanceSession.fromMap({
+    final startsAt = DateTime.utc(2026, 3, 9, 18);
+    final session = AttendanceSessionModel.fromMap({
       'teamId': 'team-1',
       'startsAt': Timestamp.fromDate(startsAt),
       'durationMinutes': 30,
@@ -31,7 +31,7 @@ void main() {
   });
 
   test('isOpenAt and isEffectivelyClosedAt respect time and manual close', () {
-    final session = AttendanceSession(
+    final session = AttendanceSessionModel(
       id: 's1',
       teamId: 'team-1',
       dateKey: '2026-03-09',

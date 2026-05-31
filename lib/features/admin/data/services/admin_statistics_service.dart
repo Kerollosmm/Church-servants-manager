@@ -79,7 +79,10 @@ class AdminStatisticsService {
   Future<GlobalDashboardStats> getGlobalDashboardStats({
     bool forceRefresh = false,
   }) async {
-    final box = await Hive.openBox<String>(_boxName);
+    final box = await Hive.openBox<String>(
+      _boxName,
+      compactionStrategy: (entries, deletedEntries) => deletedEntries > 50,
+    );
     const cacheKey = 'global_dashboard_stats';
 
     if (!forceRefresh) {
@@ -97,7 +100,9 @@ class AdminStatisticsService {
       }
     }
 
-    final sessionsQuery = _firestore.collectionGroup(FirestoreCollections.attendanceSessions);
+    final sessionsQuery = _firestore.collectionGroup(
+      FirestoreCollections.attendanceSessions,
+    );
 
     final aggregateQuery = await sessionsQuery
         .aggregate(count(), sum('presentCount'), sum('totalRosterEntries'))
@@ -105,7 +110,8 @@ class AdminStatisticsService {
 
     final totalSessions = aggregateQuery.count ?? 0;
     final totalPresent = (aggregateQuery.getSum('presentCount') ?? 0.0).toInt();
-    final totalRosterEntries = (aggregateQuery.getSum('totalRosterEntries') ?? 0.0).toInt();
+    final totalRosterEntries =
+        (aggregateQuery.getSum('totalRosterEntries') ?? 0.0).toInt();
 
     final stats = GlobalDashboardStats(
       totalSessions: totalSessions,
@@ -127,7 +133,10 @@ class AdminStatisticsService {
     String teamId, {
     bool forceRefresh = false,
   }) async {
-    final box = await Hive.openBox<String>(_boxName);
+    final box = await Hive.openBox<String>(
+      _boxName,
+      compactionStrategy: (entries, deletedEntries) => deletedEntries > 50,
+    );
     final cacheKey = 'weekly_stats_$teamId';
 
     if (!forceRefresh) {

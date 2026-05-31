@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:developer' as developer;
 
+import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/domain/failures/auth_failures.dart';
 import 'package:church_management_system/features/auth/domain/repos/auth_repository.dart';
@@ -13,6 +14,7 @@ part 'auth_state.dart';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final AuthRepository _authService;
+  final SyncService _syncService;
   final Connectivity _connectivity;
   static const _degradedPermissionsMessage =
       'جاري تحديث صلاحيات الحساب... (استخدام البيانات المحفوظة حالياً)';
@@ -22,10 +24,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   late final StreamSubscription<List<ConnectivityResult>>
   _connectivitySubscription;
 
-  AuthBloc({required AuthRepository authService, Connectivity? connectivity})
-    : _authService = authService,
-      _connectivity = connectivity ?? Connectivity(),
-      super(const AuthInitial()) {
+  AuthBloc({
+    required AuthRepository authService,
+    required SyncService syncService,
+    Connectivity? connectivity,
+  }) : _authService = authService,
+       _syncService = syncService,
+       _connectivity = connectivity ?? Connectivity(),
+       super(const AuthInitial()) {
     on<AuthEventCheckStatus>(_onCheckStatus);
     on<AuthEventSignIn>(_onSignIn);
     on<AuthEventSignUp>(_onSignUp);
@@ -352,9 +358,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       );
       final cached = _authService.lastKnownAppUser;
       if (cached != null) {
-        emit(
-          AuthDegraded(user: cached, message: _degradedPermissionsMessage),
-        );
+        emit(AuthDegraded(user: cached, message: _degradedPermissionsMessage));
       } else {
         emit(
           const AuthError(
@@ -404,6 +408,21 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     } catch (e) {
       emit(const AuthError('فشل في تغيير كلمة المرور. حاول مرة أخرى.'));
     }
+  }
+
+  @override
+  void onTransition(Transition<AuthEvent, AuthState> transition) {
+    super.onTransition(transition);
+    final nextState = transition.nextState;
+    String? uid;
+    if (nextState is AuthAuthenticated) {
+      uid = nextState.user.uid;
+    } else if (nextState is AuthDegraded) {
+      uid = nextState.user.uid;
+    } else if (nextState is AuthRoleUpdated) {
+      uid = nextState.user.uid;
+    }
+    unawaited(_syncService.setAuthenticatedUser(uid));
   }
 
   @override

@@ -1,6 +1,7 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/utils/json_converters.dart';
 import 'package:church_management_system/core/utils/pagination_cursor.dart';
+import 'package:church_management_system/features/servant/domain/entities/servant.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:hive/hive.dart';
 
@@ -161,6 +162,64 @@ class ServantModel with _$ServantModel {
   }
 
   bool get isActive => !isArchived;
+
+  Servant toDomain() {
+    return Servant(
+      uid: uid,
+      docID: docID,
+      name: name,
+      role: role,
+      email: email,
+      phone: phone,
+      imageUrl: imageUrl,
+      teamName: teamName,
+      isEmailVerified: isEmailVerified,
+      fatherOfConfession: fatherOfConfession,
+      birthdate: birthdate,
+      notes: notes,
+      isArchived: isArchived,
+      archivedAt: archivedAt,
+      archivedByUserId: archivedByUserId,
+      archiveReason: archiveReason,
+      restoredAt: restoredAt,
+      restoredByUserId: restoredByUserId,
+      assignedTeamId: assignedTeamId,
+      assignedTeamIds: assignedTeamIds,
+      groupAttendanceSummary: groupAttendanceSummary,
+      syncStatus: syncStatus,
+      clientUpdatedAt: clientUpdatedAt,
+      assignedSectorIds: assignedSectorIds,
+    );
+  }
+
+  factory ServantModel.fromDomain(Servant servant) {
+    return ServantModel(
+      uid: servant.uid,
+      docID: servant.docID,
+      name: servant.name,
+      role: servant.role,
+      email: servant.email,
+      phone: servant.phone,
+      imageUrl: servant.imageUrl,
+      teamName: servant.teamName,
+      isEmailVerified: servant.isEmailVerified,
+      fatherOfConfession: servant.fatherOfConfession,
+      birthdate: servant.birthdate,
+      notes: servant.notes,
+      isArchived: servant.isArchived,
+      archivedAt: servant.archivedAt,
+      archivedByUserId: servant.archivedByUserId,
+      archiveReason: servant.archiveReason,
+      restoredAt: servant.restoredAt,
+      restoredByUserId: servant.restoredByUserId,
+      assignedTeamId: servant.assignedTeamId,
+      assignedTeamIds: servant.assignedTeamIds,
+      groupAttendanceSummary: servant.groupAttendanceSummary,
+      syncStatus: servant.syncStatus,
+      clientUpdatedAt: servant.clientUpdatedAt,
+      assignedSectorIds: servant.assignedSectorIds,
+    );
+  }
 }
 
 /// Pagination container for servants.

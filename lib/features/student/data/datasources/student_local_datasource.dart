@@ -15,8 +15,14 @@ class StudentLocalDatasource {
   }
 
   Future<void> _doInit() async {
-    _studentsBox = await Hive.openBox<StudentModel>(boxName);
-    _syncQueueBox = await Hive.openBox<StudentModel>(syncQueueBoxName);
+    _studentsBox = await Hive.openBox<StudentModel>(
+      boxName,
+      compactionStrategy: (entries, deletedEntries) => deletedEntries > 50,
+    );
+    _syncQueueBox = await Hive.openBox<StudentModel>(
+      syncQueueBoxName,
+      compactionStrategy: (entries, deletedEntries) => deletedEntries > 50,
+    );
   }
 
   Future<void> saveStudent(StudentModel student) async {

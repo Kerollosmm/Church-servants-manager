@@ -1,7 +1,7 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
-import 'package:church_management_system/features/student/data/models/student_model.dart';
+import 'package:church_management_system/features/student/domain/entities/student.dart';
 import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
 import 'package:church_management_system/features/student/domain/usecases/provision_student_with_auth_usecase.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -19,11 +19,10 @@ void main() {
 
   setUpAll(() {
     registerFallbackValue(
-      StudentModel(
+      Student(
         uid: '',
         docID: '',
         name: '',
-        imageUrl: null,
         role: UserRole.student,
         mobile: '',
         group: Group.year1,
@@ -32,11 +31,7 @@ void main() {
         fatherPhone: '',
         grade: 1,
         educationStage: EducationStage.preparatory,
-        school: null,
-        address: null,
-        birthdate: null,
         fatherOfConfession: '',
-        notes: null,
         classId: '',
       ),
     );
@@ -54,11 +49,10 @@ void main() {
 
   group('ProvisionStudentWithAuthUseCase', () {
     test('creates student without auth when no credentials provided', () async {
-      final student = StudentModel(
+      final student = Student(
         uid: '',
         docID: '',
         name: 'Test Student',
-        imageUrl: null,
         role: UserRole.student,
         mobile: '01234567890',
         group: Group.year1,
@@ -67,11 +61,7 @@ void main() {
         fatherPhone: '01234567890',
         grade: 1,
         educationStage: EducationStage.preparatory,
-        school: null,
-        address: null,
-        birthdate: null,
         fatherOfConfession: 'Fr. Test',
-        notes: null,
         classId: 'team1',
       );
 
@@ -94,11 +84,10 @@ void main() {
     });
 
     test('creates student with auth when credentials provided', () async {
-      final student = StudentModel(
+      final student = Student(
         uid: '',
         docID: '',
         name: 'Test Student',
-        imageUrl: null,
         role: UserRole.student,
         mobile: '01234567890',
         group: Group.year1,
@@ -107,11 +96,7 @@ void main() {
         fatherPhone: '01234567890',
         grade: 1,
         educationStage: EducationStage.preparatory,
-        school: null,
-        address: null,
-        birthdate: null,
         fatherOfConfession: 'Fr. Test',
-        notes: null,
         classId: 'team1',
       );
 
@@ -152,16 +137,15 @@ void main() {
 
       final captured =
           verify(() => studentRepo.createStudent(captureAny())).captured.single
-              as StudentModel;
+              as Student;
       expect(captured.uid, 'auth-uid');
     });
 
     test('rolls back auth user if Firestore creation fails', () async {
-      final student = StudentModel(
+      final student = Student(
         uid: '',
         docID: '',
         name: 'Test Student',
-        imageUrl: null,
         role: UserRole.student,
         mobile: '01234567890',
         group: Group.year1,
@@ -170,11 +154,7 @@ void main() {
         fatherPhone: '01234567890',
         grade: 1,
         educationStage: EducationStage.preparatory,
-        school: null,
-        address: null,
-        birthdate: null,
         fatherOfConfession: 'Fr. Test',
-        notes: null,
         classId: 'team1',
       );
 

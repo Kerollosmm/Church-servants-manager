@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
+import 'dart:io';
 
 import 'package:church_management_system/core/models/sync_entry.dart';
 import 'package:church_management_system/core/services/dead_letter_queue.dart';
@@ -26,39 +27,76 @@ class HivePruningService {
   final DeadLetterQueue _dlq;
 
   HivePruningService({required DeadLetterQueue deadLetterQueue})
-      : _dlq = deadLetterQueue;
+    : _dlq = deadLetterQueue;
 
   /// Moves old sync queue entries to DLQ instead of deleting them.
   Future<int> pruneSyncQueue({Duration maxAge = _defaultMaxAge}) async {
-    if (!Hive.isBoxOpen('sync_queue_box')) {
+    int totalPruned = 0;
+    final List<String> syncBoxNames = [];
+
+    final path = (Hive as dynamic).homePath as String?;
+    if (path != null) {
+      final dir = Directory(path);
+      if (dir.existsSync()) {
+        final discovered = dir
+            .listSync()
+            .whereType<File>()
+            .map((file) {
+              final name = file.path.split(Platform.pathSeparator).last;
+              if (name.endsWith('.hive')) {
+                return name.substring(0, name.length - 5);
+              } else if (name.endsWith('.hivec')) {
+                return name.substring(0, name.length - 6);
+              }
+              return null;
+            })
+            .whereType<String>()
+            .where((name) => name.startsWith('sync_queue_'))
+            .toList();
+        syncBoxNames.addAll(discovered);
+      }
+    }
+
+    if (syncBoxNames.isEmpty) {
       developer.log(
-        'sync_queue_box not open, skipping prune',
+        'No sync_queue_ boxes found on disk, skipping prune',
         name: 'HivePruningService',
       );
       return 0;
     }
 
-    final box = Hive.box<SyncEntry>('sync_queue_box');
-    final cutoff = DateTime.now().subtract(maxAge);
-    final toMove = <SyncEntry>[];
+    for (final boxName in syncBoxNames) {
+      final wasOpen = Hive.isBoxOpen(boxName);
+      final Box<SyncEntry> box = wasOpen
+          ? Hive.box<SyncEntry>(boxName)
+          : await Hive.openBox<SyncEntry>(boxName);
 
-    for (final entry in box.values) {
-      if (entry.createdAt.isBefore(cutoff)) {
-        toMove.add(entry);
+      final cutoff = DateTime.now().subtract(maxAge);
+      final toMove = <SyncEntry>[];
+
+      for (final entry in box.values) {
+        if (entry.createdAt.isBefore(cutoff)) {
+          toMove.add(entry);
+        }
+      }
+
+      if (toMove.isNotEmpty) {
+        for (final entry in toMove) {
+          await box.delete(entry.id);
+          await _dlq.add(entry);
+        }
+        developer.log(
+          'Moved ${toMove.length} expired entries from $boxName to DLQ',
+          name: 'HivePruningService',
+        );
+        totalPruned += toMove.length;
+      }
+
+      if (!wasOpen) {
+        await box.close();
       }
     }
-
-    if (toMove.isNotEmpty) {
-      for (final entry in toMove) {
-        await box.delete(entry.id);
-        await _dlq.add(entry);
-      }
-      developer.log(
-        'Moved ${toMove.length} expired entries from sync_queue_box to DLQ',
-        name: 'HivePruningService',
-      );
-    }
-    return toMove.length;
+    return totalPruned;
   }
 
   /// Prunes a generic String box where entries contain a timestamp field.
@@ -114,6 +152,9 @@ class HivePruningService {
         timestampExtractor: _extractCachedAt,
       );
     }
+
+    // Prune old DLQ entries
+    perBox['dead_letter_queue'] = await _dlq.pruneOlderThan(maxAge);
 
     final total = perBox.values.fold(0, (sum, v) => sum + v);
     developer.log(

@@ -50,50 +50,6 @@ class UserRoleAdapter extends TypeAdapter<UserRole> {
           typeId == other.typeId;
 }
 
-class AttendanceStatusAdapter extends TypeAdapter<AttendanceStatus> {
-  @override
-  final int typeId = 12;
-
-  @override
-  AttendanceStatus read(BinaryReader reader) {
-    switch (reader.readByte()) {
-      case 0:
-        return AttendanceStatus.present;
-      case 1:
-        return AttendanceStatus.absent;
-      case 2:
-        return AttendanceStatus.late;
-      default:
-        return AttendanceStatus.present;
-    }
-  }
-
-  @override
-  void write(BinaryWriter writer, AttendanceStatus obj) {
-    switch (obj) {
-      case AttendanceStatus.present:
-        writer.writeByte(0);
-        break;
-      case AttendanceStatus.absent:
-        writer.writeByte(1);
-        break;
-      case AttendanceStatus.late:
-        writer.writeByte(2);
-        break;
-    }
-  }
-
-  @override
-  int get hashCode => typeId.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is AttendanceStatusAdapter &&
-          runtimeType == other.runtimeType &&
-          typeId == other.typeId;
-}
-
 class EducationStageAdapter extends TypeAdapter<EducationStage> {
   @override
   final int typeId = 13;

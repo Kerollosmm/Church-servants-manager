@@ -1,7 +1,7 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/utils/pagination_cursor.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
-import 'package:church_management_system/features/servant/data/models/servant_models.dart';
+import 'package:church_management_system/features/servant/domain/entities/servant.dart';
 import 'package:church_management_system/features/servant/domain/failures/servant_failures.dart';
 import 'package:church_management_system/features/servant/domain/repos/i_servant_repository.dart';
 import 'package:church_management_system/features/servant/domain/usecases/provision_servant_with_auth_usecase.dart';
@@ -41,7 +41,7 @@ class ServantDataBloc extends Bloc<ServantDataEvent, ServantDataState> {
   String? _lastQuery;
   int _lastLimit = 50;
   bool _includeArchived = false;
-  List<ServantModel> _allServants = [];
+  List<Servant> _allServants = [];
   bool _hasMore = true;
   bool _isLoadingMore = false;
   bool _isLoadingFirstPage = false;
@@ -78,7 +78,7 @@ class ServantDataBloc extends Bloc<ServantDataEvent, ServantDataState> {
   void _emitLoading(Emitter<ServantDataState> emit) {
     emit(
       ServantDataLoading(
-        previousServants: List<ServantModel>.from(_allServants),
+        previousServants: List<Servant>.from(_allServants),
         isRefresh: _allServants.isNotEmpty,
         includeArchived: _includeArchived,
       ),
@@ -93,7 +93,7 @@ class ServantDataBloc extends Bloc<ServantDataEvent, ServantDataState> {
   }) {
     emit(
       ServantDataLoaded(
-        servants: _sortByName(List<ServantModel>.from(_allServants)),
+        servants: _sortByName(List<Servant>.from(_allServants)),
         currentQuery: _lastQuery,
         hasMore: (_lastQuery == null || _lastQuery!.isEmpty) && _hasMore,
         isLoadingMore: isLoadingMore,
@@ -376,9 +376,7 @@ class ServantDataBloc extends Bloc<ServantDataEvent, ServantDataState> {
         includeArchived: _includeArchived,
       );
 
-      final byId = <String, ServantModel>{
-        for (final s in _allServants) s.docID: s,
-      };
+      final byId = <String, Servant>{for (final s in _allServants) s.docID: s};
       for (final servant in page.servants) {
         byId[servant.docID] = servant;
       }
@@ -437,15 +435,16 @@ class ServantDataBloc extends Bloc<ServantDataEvent, ServantDataState> {
   bool _tryEmitOptimisticUpdate(
     Emitter<ServantDataState> emit,
     ServantDataLoaded? previousLoaded,
-    List<ServantModel> Function(List<ServantModel> servants) update,
+    List<Servant> Function(List<Servant> servants) update,
   ) {
     if (previousLoaded == null) return false;
+
     if (!_canOptimisticallyUpdate(previousLoaded)) return false;
 
-    final updatedServants = update(List<ServantModel>.from(_allServants));
+    final updatedServants = update(List<Servant>.from(_allServants));
     _allServants = updatedServants;
 
-    var updated = update(List<ServantModel>.from(previousLoaded.servants));
+    var updated = update(List<Servant>.from(previousLoaded.servants));
     updated = _sortByName(updated);
     emit(
       previousLoaded.copyWith(
@@ -470,17 +469,14 @@ class ServantDataBloc extends Bloc<ServantDataEvent, ServantDataState> {
     return true;
   }
 
-  List<ServantModel> _sortByName(List<ServantModel> servants) {
+  List<Servant> _sortByName(List<Servant> servants) {
     servants.sort(
       (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
     );
     return servants;
   }
 
-  List<ServantModel> _upsertServant(
-    List<ServantModel> servants,
-    ServantModel servant,
-  ) {
+  List<Servant> _upsertServant(List<Servant> servants, Servant servant) {
     final index = servants.indexWhere((s) => s.docID == servant.docID);
     if (index == -1) {
       servants.add(servant);

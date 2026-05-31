@@ -16,7 +16,7 @@ import 'package:church_management_system/core/widgets/feedback/app_snackbars.dar
 import 'package:church_management_system/core/widgets/sync_status_banner.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:church_management_system/features/servant/data/models/servant_models.dart';
+import 'package:church_management_system/features/servant/domain/entities/servant.dart';
 import 'package:church_management_system/features/servant/presentation/bloc/servant_data/servant_data_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -87,7 +87,7 @@ class _ServantListScreenState extends State<ServantListScreen> {
     context.read<ServantDataBloc>().add(ServantsRefreshRequested(actor: actor));
   }
 
-  Future<void> _openServantDetail(AuthUser actor, ServantModel servant) async {
+  Future<void> _openServantDetail(AuthUser actor, Servant servant) async {
     final result = await Navigator.pushNamed(
       context,
       servantDetail,
@@ -104,7 +104,7 @@ class _ServantListScreenState extends State<ServantListScreen> {
     final servants = switch (state) {
       ServantDataLoaded() => state.servants,
       ServantDataLoading() => state.previousServants,
-      _ => const <ServantModel>[],
+      _ => const <Servant>[],
     };
     final loadedState = state is ServantDataLoaded ? state : null;
     final showInitialLoading = isLoading && servants.isEmpty;
@@ -438,7 +438,7 @@ class _SearchHeaderDelegate extends SliverPersistentHeaderDelegate {
 
 class _ServantListViewData {
   final bool isLoading;
-  final List<ServantModel> servants;
+  final List<Servant> servants;
   final ServantDataLoaded? loadedState;
   final bool showInitialLoading;
   final bool showEmptyState;
@@ -489,7 +489,7 @@ class _LoadMoreServantsButton extends StatelessWidget {
 /// Card widget for displaying a single servant in a list.
 class ServantCard extends StatelessWidget {
   final AuthUser actor;
-  final ServantModel servant;
+  final Servant servant;
   final VoidCallback onTap;
 
   const ServantCard({

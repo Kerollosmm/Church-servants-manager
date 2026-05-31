@@ -1,26 +1,27 @@
 import 'dart:developer' as developer;
+
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
-import 'package:church_management_system/features/team/data/models/team_model.dart';
 import 'package:church_management_system/features/team/data/repos/team_repository.dart';
+import 'package:church_management_system/features/team/domain/entities/team.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class StudentFormTeamsState {
   final bool isLoading;
-  final List<TeamModel> teams;
+  final List<Team> teams;
   final String? selectedTeamId;
   final String? errorMessage;
 
   const StudentFormTeamsState({
     this.isLoading = false,
-    this.teams = const <TeamModel>[],
+    this.teams = const <Team>[],
     this.selectedTeamId,
     this.errorMessage,
   });
 
   StudentFormTeamsState copyWith({
     bool? isLoading,
-    List<TeamModel>? teams,
+    List<Team>? teams,
     String? selectedTeamId,
     bool clearSelectedTeamId = false,
     String? errorMessage,

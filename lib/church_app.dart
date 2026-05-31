@@ -1,6 +1,7 @@
 import 'package:church_management_system/core/blocs/connectivity/connectivity_cubit.dart';
 import 'package:church_management_system/core/blocs/sync/sync_cubit.dart';
 import 'package:church_management_system/core/di/injection.dart';
+import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/features/auth/domain/repos/auth_repository.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:church_management_system/features/auth/presentation/widgets/auth_gate.dart';
@@ -15,9 +16,10 @@ class ChurchApp extends StatelessWidget {
     return MultiBlocProvider(
       providers: [
         BlocProvider(
-          create: (context) =>
-              AuthBloc(authService: getIt<AuthRepository>())
-                ..add(const AuthEventCheckStatus()),
+          create: (context) => AuthBloc(
+            authService: getIt<AuthRepository>(),
+            syncService: getIt<SyncService>(),
+          )..add(const AuthEventCheckStatus()),
         ),
         BlocProvider(create: (context) => getIt<SyncCubit>()),
         BlocProvider(create: (context) => getIt<ConnectivityCubit>()),
