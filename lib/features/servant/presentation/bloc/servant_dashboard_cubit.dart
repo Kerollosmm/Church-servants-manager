@@ -1,5 +1,5 @@
+import 'dart:developer' as developer;
 import 'package:church_management_system/features/team/data/repos/team_repository.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class ServantDashboardState {
@@ -31,6 +31,7 @@ class ServantDashboardCubit extends Cubit<ServantDashboardState> {
 
     try {
       final teams = await _teamRepository.getTeamsByIds(assignedTeamIds);
+      if (isClosed) return;
       final names = <String>[];
       for (final id in assignedTeamIds) {
         String? foundName;
@@ -48,12 +49,12 @@ class ServantDashboardCubit extends Cubit<ServantDashboardState> {
       }
       emit(ServantDashboardState(teamNames: names));
     } catch (error) {
-      if (kDebugMode) {
-        debugPrint(
-          'ServantDashboardCubit: failed to load team names '
-          '(${error.runtimeType})',
-        );
-      }
+      developer.log(
+        'failed to load team names',
+        error: error,
+        name: 'ServantDashboardCubit',
+      );
+      if (isClosed) return;
       emit(
         const ServantDashboardState(
           errorMessage: 'Failed to load assigned teams.',

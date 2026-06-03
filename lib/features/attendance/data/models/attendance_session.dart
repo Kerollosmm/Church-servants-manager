@@ -1,5 +1,8 @@
 import 'package:church_management_system/core/utils/json_converters.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_session.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
+
+export 'package:church_management_system/features/attendance/domain/entities/attendance_session.dart';
 
 part 'attendance_session.freezed.dart';
 part 'attendance_session.g.dart';
@@ -9,10 +12,10 @@ typedef _RequiredTimestampConverter = RequiredFirestoreTimestampConverter;
 // ignore_for_file: invalid_annotation_target
 
 @freezed
-class AttendanceSession with _$AttendanceSession {
-  const AttendanceSession._();
+class AttendanceSessionModel with _$AttendanceSessionModel {
+  const AttendanceSessionModel._();
 
-  const factory AttendanceSession({
+  const factory AttendanceSessionModel({
     required String id,
     required String teamId,
     String? teamNameSnapshot,
@@ -31,12 +34,15 @@ class AttendanceSession with _$AttendanceSession {
     @Default(0) int presentCount,
     @Default(0) int lateCount,
     @Default(0) int absentCount,
-  }) = _AttendanceSession;
+  }) = _AttendanceSessionModel;
 
-  factory AttendanceSession.fromJson(Map<String, dynamic> json) =>
-      _$AttendanceSessionFromJson(json);
+  factory AttendanceSessionModel.fromJson(Map<String, dynamic> json) =>
+      _$AttendanceSessionModelFromJson(json);
 
-  factory AttendanceSession.fromMap(Map<String, dynamic> data, String docId) {
+  factory AttendanceSessionModel.fromMap(
+    Map<String, dynamic> data,
+    String docId,
+  ) {
     String? readString(String key) {
       final value = data[key];
       if (value == null) return null;
@@ -90,15 +96,17 @@ class AttendanceSession with _$AttendanceSession {
 
     final converter = const FirestoreTimestampConverter();
     final startsAt =
-        converter.fromJson(data['startsAt']) ??
-        converter.fromJson(data['createdAt']) ??
-        DateTime.now();
+        (converter.fromJson(data['startsAt']) ??
+                converter.fromJson(data['createdAt']) ??
+                DateTime.now())
+            .toUtc();
     final durationMinutes = readInt('durationMinutes', fallback: 30);
     final endsAt =
-        converter.fromJson(data['endsAt']) ??
-        startsAt.add(Duration(minutes: durationMinutes));
+        (converter.fromJson(data['endsAt']) ??
+                startsAt.add(Duration(minutes: durationMinutes)))
+            .toUtc();
 
-    return AttendanceSession.fromJson({
+    return AttendanceSessionModel.fromJson({
       ...data,
       'id': readString('id') ?? docId,
       'teamId': readString('teamId') ?? '',
@@ -110,8 +118,11 @@ class AttendanceSession with _$AttendanceSession {
       'durationMinutes': durationMinutes <= 0 ? 30 : durationMinutes,
       'createdByUserId': readString('createdByUserId') ?? '',
       'createdByName': readString('createdByName') ?? '',
-      'createdAt': converter.fromJson(data['createdAt']) ?? startsAt,
-      'updatedAt': converter.fromJson(data['updatedAt']) ?? startsAt,
+
+      'createdAt': ((converter.fromJson(data['createdAt']) ?? startsAt))
+          .toUtc(),
+      'updatedAt': ((converter.fromJson(data['updatedAt']) ?? startsAt))
+          .toUtc(),
       'isClosed': readBool('isClosed'),
       'studentIdsSnapshot': readStringList('studentIdsSnapshot'),
       'studentNameSnapshots': readStringMap('studentNameSnapshots'),
@@ -122,23 +133,66 @@ class AttendanceSession with _$AttendanceSession {
   }
 
   bool isOpenAt(DateTime now) {
-    return !isClosed && !now.isBefore(startsAt) && now.isBefore(endsAt);
+    return !isClosed &&
+        !now.toUtc().isBefore(startsAt) &&
+        now.toUtc().isBefore(endsAt);
   }
 
   bool isEffectivelyClosedAt(DateTime now) {
-    return isClosed || !now.isBefore(endsAt);
+    return isClosed || !now.toUtc().isBefore(endsAt);
   }
 
   static String buildDateKey(DateTime date) {
-    final year = date.year.toString().padLeft(4, '0');
-    final month = date.month.toString().padLeft(2, '0');
-    final day = date.day.toString().padLeft(2, '0');
-    return '$year-$month-$day';
+    return date.toUtc().toIso8601String().substring(0, 10);
   }
 
   Map<String, dynamic> toMap() {
-    final map = toJson();
-    map.remove('id');
-    return map;
+    return toJson()..remove('id');
+  }
+
+  AttendanceSession toDomain() {
+    return AttendanceSession(
+      id: id,
+      teamId: teamId,
+      teamNameSnapshot: teamNameSnapshot,
+      title: title,
+      dateKey: dateKey,
+      startsAt: startsAt,
+      endsAt: endsAt,
+      durationMinutes: durationMinutes,
+      createdByUserId: createdByUserId,
+      createdByName: createdByName,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      isClosed: isClosed,
+      studentIdsSnapshot: studentIdsSnapshot,
+      studentNameSnapshots: studentNameSnapshots,
+      presentCount: presentCount,
+      lateCount: lateCount,
+      absentCount: absentCount,
+    );
+  }
+
+  factory AttendanceSessionModel.fromDomain(AttendanceSession session) {
+    return AttendanceSessionModel(
+      id: session.id,
+      teamId: session.teamId,
+      teamNameSnapshot: session.teamNameSnapshot,
+      title: session.title,
+      dateKey: session.dateKey,
+      startsAt: session.startsAt,
+      endsAt: session.endsAt,
+      durationMinutes: session.durationMinutes,
+      createdByUserId: session.createdByUserId,
+      createdByName: session.createdByName,
+      createdAt: session.createdAt,
+      updatedAt: session.updatedAt,
+      isClosed: session.isClosed,
+      studentIdsSnapshot: session.studentIdsSnapshot,
+      studentNameSnapshots: session.studentNameSnapshots,
+      presentCount: session.presentCount,
+      lateCount: session.lateCount,
+      absentCount: session.absentCount,
+    );
   }
 }

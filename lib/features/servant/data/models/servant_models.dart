@@ -1,6 +1,9 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/utils/json_converters.dart';
+import 'package:church_management_system/core/utils/pagination_cursor.dart';
+import 'package:church_management_system/features/servant/domain/entities/servant.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:hive/hive.dart';
 
 // ignore_for_file: invalid_annotation_target
 
@@ -11,62 +14,80 @@ typedef _TimestampConverter = FirestoreTimestampConverter;
 typedef _RoleConverter = UserRoleJsonConverter;
 
 @freezed
+@HiveType(typeId: 2)
 class ServantModel with _$ServantModel {
   const ServantModel._();
 
   const factory ServantModel({
     /// Firebase Auth UID for this servant.
-    String? uid,
+    @HiveField(0) String? uid,
 
     /// Firestore document ID.
-    required String docID,
+    @HiveField(1) required String docID,
 
-    required String name,
+    @HiveField(2) required String name,
 
     /// Role (defaults to servant)
-    @_RoleConverter() @Default(UserRole.servant) UserRole role,
+    @HiveField(3) @_RoleConverter() @Default(UserRole.servant) UserRole role,
 
     /// Email (may be null for some users)
-    String? email,
+    @HiveField(4) String? email,
 
     /// Phone number (optional - may not exist in user docs)
-    String? phone,
+    @HiveField(5) String? phone,
 
     /// Profile image URL
-    String? imageUrl,
+    @HiveField(6) String? imageUrl,
 
     /// Team/group name - uses groupId from Users collection
-    @JsonKey(name: 'groupId') String? teamName,
+    @HiveField(7) @JsonKey(name: 'groupId') String? teamName,
 
     /// Email verification status
-    @JsonKey(name: 'isEmailVerified') @Default(false) bool isEmailVerified,
+    @HiveField(8)
+    @JsonKey(name: 'isEmailVerified')
+    @Default(false)
+    bool isEmailVerified,
 
     /// Father of confession name.
-    @JsonKey(name: 'father_of_confession') String? fatherOfConfession,
+    @HiveField(9)
+    @JsonKey(name: 'father_of_confession')
+    String? fatherOfConfession,
 
     /// Birthdate with Timestamp conversion.
-    @_TimestampConverter() DateTime? birthdate,
+    @HiveField(10) @_TimestampConverter() DateTime? birthdate,
 
     /// Optional notes about the servant.
-    String? notes,
+    @HiveField(11) String? notes,
 
-    @Default(false) bool isArchived,
+    @HiveField(12) @Default(false) bool isArchived,
 
-    @_TimestampConverter() DateTime? archivedAt,
+    @HiveField(13) @_TimestampConverter() DateTime? archivedAt,
 
-    String? archivedByUserId,
+    @HiveField(14) String? archivedByUserId,
 
-    String? archiveReason,
+    @HiveField(15) String? archiveReason,
 
-    @_TimestampConverter() DateTime? restoredAt,
+    @HiveField(16) @_TimestampConverter() DateTime? restoredAt,
 
-    String? restoredByUserId,
+    @HiveField(17) String? restoredByUserId,
 
     /// Assigned team/class ID within the servant's group.
+    @HiveField(18)
+    @Deprecated('Use assignedTeamIds instead')
     String? assignedTeamId,
 
     /// Multiple assigned team IDs (if applicable).
-    List<String>? assignedTeamIds,
+    @HiveField(19) @Default(<String>[]) List<String> assignedTeamIds,
+
+    /// Aggregated group attendance metrics (for US1 Trend Insights).
+    @HiveField(20) Map<String, dynamic>? groupAttendanceSummary,
+
+    @HiveField(21) @Default(SyncStatus.synced) SyncStatus syncStatus,
+    @HiveField(22) @_TimestampConverter() DateTime? clientUpdatedAt,
+
+    /// Sectors this servant is authorised to manage (e.g. ['primary_boys', 'youth']).
+    /// Used for sector-scoped RBAC in Firestore Security Rules.
+    @HiveField(23) @Default(<String>[]) List<String> assignedSectorIds,
   }) = _ServantModel;
 
   /// Creates a ServantModel from JSON.
@@ -113,11 +134,103 @@ class ServantModel with _$ServantModel {
       'father_of_confession': readString('father_of_confession'),
       'notes': readString('notes'),
       'assignedTeamId': readString('assignedTeamId'),
+      'syncStatus': readString('syncStatus') ?? 'synced',
+      'assignedSectorIds': (data['assignedSectorIds'] as List<dynamic>? ?? [])
+          .whereType<String>()
+          .toList(),
     });
   }
 
   /// Converts to Firestore-compatible map.
   Map<String, dynamic> toMap() => toJson();
 
+  List<String> get effectiveAssignedTeamIds {
+    final ids = <String>{};
+    // Ensure we handle potential null list from legacy data sources
+    final list = assignedTeamIds;
+    for (final id in list) {
+      final trimmed = id.trim();
+      if (trimmed.isNotEmpty) {
+        ids.add(trimmed);
+      }
+    }
+    final legacyId = assignedTeamId?.trim();
+    if (legacyId != null && legacyId.isNotEmpty) {
+      ids.add(legacyId);
+    }
+    return ids.toList(growable: false);
+  }
+
   bool get isActive => !isArchived;
+
+  Servant toDomain() {
+    return Servant(
+      uid: uid,
+      docID: docID,
+      name: name,
+      role: role,
+      email: email,
+      phone: phone,
+      imageUrl: imageUrl,
+      teamName: teamName,
+      isEmailVerified: isEmailVerified,
+      fatherOfConfession: fatherOfConfession,
+      birthdate: birthdate,
+      notes: notes,
+      isArchived: isArchived,
+      archivedAt: archivedAt,
+      archivedByUserId: archivedByUserId,
+      archiveReason: archiveReason,
+      restoredAt: restoredAt,
+      restoredByUserId: restoredByUserId,
+      assignedTeamId: assignedTeamId,
+      assignedTeamIds: assignedTeamIds,
+      groupAttendanceSummary: groupAttendanceSummary,
+      syncStatus: syncStatus,
+      clientUpdatedAt: clientUpdatedAt,
+      assignedSectorIds: assignedSectorIds,
+    );
+  }
+
+  factory ServantModel.fromDomain(Servant servant) {
+    return ServantModel(
+      uid: servant.uid,
+      docID: servant.docID,
+      name: servant.name,
+      role: servant.role,
+      email: servant.email,
+      phone: servant.phone,
+      imageUrl: servant.imageUrl,
+      teamName: servant.teamName,
+      isEmailVerified: servant.isEmailVerified,
+      fatherOfConfession: servant.fatherOfConfession,
+      birthdate: servant.birthdate,
+      notes: servant.notes,
+      isArchived: servant.isArchived,
+      archivedAt: servant.archivedAt,
+      archivedByUserId: servant.archivedByUserId,
+      archiveReason: servant.archiveReason,
+      restoredAt: servant.restoredAt,
+      restoredByUserId: servant.restoredByUserId,
+      assignedTeamId: servant.assignedTeamId,
+      assignedTeamIds: servant.assignedTeamIds,
+      groupAttendanceSummary: servant.groupAttendanceSummary,
+      syncStatus: servant.syncStatus,
+      clientUpdatedAt: servant.clientUpdatedAt,
+      assignedSectorIds: servant.assignedSectorIds,
+    );
+  }
+}
+
+/// Pagination container for servants.
+class ServantsPage {
+  final List<ServantModel> servants;
+  final PaginationCursor? lastDocument;
+  final bool hasMore;
+
+  const ServantsPage({
+    required this.servants,
+    this.lastDocument,
+    required this.hasMore,
+  });
 }

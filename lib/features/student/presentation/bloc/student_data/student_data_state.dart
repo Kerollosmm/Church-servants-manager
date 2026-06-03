@@ -1,8 +1,11 @@
 part of 'student_data_bloc.dart';
 
 /// Sealed states for StudentDataBloc with exhaustive switch support.
-sealed class StudentDataState {
+sealed class StudentDataState extends Equatable {
   const StudentDataState();
+
+  @override
+  List<Object?> get props => [];
 }
 
 enum StudentMutationStatus { idle, success }
@@ -16,34 +19,61 @@ final class StudentDataInitial extends StudentDataState {
 
 /// Loading state - fetching data.
 final class StudentDataLoading extends StudentDataState {
-  final List<StudentModel> previousStudents;
+  final List<Student> previousStudents;
+  final List<Student> previousAllStudents;
   final bool isRefresh;
+  final bool isSearch;
   final bool includeArchived;
+  final String? currentFilterGroupId;
+  final String? currentFilterTeamId;
+  final String? currentQuery;
 
   const StudentDataLoading({
-    this.previousStudents = const <StudentModel>[],
+    this.previousStudents = const <Student>[],
+    this.previousAllStudents = const <Student>[],
     this.isRefresh = false,
+    this.isSearch = false,
     this.includeArchived = false,
+    this.currentFilterGroupId,
+    this.currentFilterTeamId,
+    this.currentQuery,
   });
 
   bool get hasPreviousStudents => previousStudents.isNotEmpty;
+
+  @override
+  List<Object?> get props => [
+    previousStudents,
+    previousAllStudents,
+    isRefresh,
+    isSearch,
+    includeArchived,
+    currentFilterGroupId,
+    currentFilterTeamId,
+    currentQuery,
+  ];
 }
 
 /// Loaded state - students fetched successfully.
 final class StudentDataLoaded extends StudentDataState {
-  final List<StudentModel> students;
+  final List<Student> students;
+  final List<Student> allStudents;
+  final Map<String, Student> studentsByDocId;
   final String? currentFilterGroupId;
   final String? currentFilterTeamId;
   final String? currentQuery;
   final bool includeArchived;
   final StudentMutationStatus mutationStatus;
   final StudentMutationOperation? mutationOperation;
+  final bool isFromCache;
 
   /// Optional one-shot message signaling a successful CRUD operation.
   final String? successMessage;
 
   const StudentDataLoaded({
     required this.students,
+    required this.allStudents,
+    required this.studentsByDocId,
     this.currentFilterGroupId,
     this.currentFilterTeamId,
     this.currentQuery,
@@ -51,10 +81,13 @@ final class StudentDataLoaded extends StudentDataState {
     this.mutationStatus = StudentMutationStatus.idle,
     this.mutationOperation,
     this.successMessage,
+    this.isFromCache = false,
   });
 
   StudentDataLoaded copyWith({
-    List<StudentModel>? students,
+    List<Student>? students,
+    List<Student>? allStudents,
+    Map<String, Student>? studentsByDocId,
     String? currentFilterGroupId,
     String? currentFilterTeamId,
     String? currentQuery,
@@ -62,10 +95,13 @@ final class StudentDataLoaded extends StudentDataState {
     StudentMutationStatus? mutationStatus,
     StudentMutationOperation? mutationOperation,
     String? successMessage,
+    bool? isFromCache,
     bool clearMutation = false,
   }) {
     return StudentDataLoaded(
       students: students ?? this.students,
+      allStudents: allStudents ?? this.allStudents,
+      studentsByDocId: studentsByDocId ?? this.studentsByDocId,
       currentFilterGroupId: currentFilterGroupId ?? this.currentFilterGroupId,
       currentFilterTeamId: currentFilterTeamId ?? this.currentFilterTeamId,
       currentQuery: currentQuery ?? this.currentQuery,
@@ -79,6 +115,7 @@ final class StudentDataLoaded extends StudentDataState {
       successMessage: clearMutation
           ? null
           : (successMessage ?? this.successMessage),
+      isFromCache: isFromCache ?? this.isFromCache,
     );
   }
 
@@ -89,22 +126,10 @@ final class StudentDataLoaded extends StudentDataState {
   bool get isEmpty => students.isEmpty;
 
   @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is StudentDataLoaded &&
-          runtimeType == other.runtimeType &&
-          currentFilterGroupId == other.currentFilterGroupId &&
-          currentFilterTeamId == other.currentFilterTeamId &&
-          currentQuery == other.currentQuery &&
-          includeArchived == other.includeArchived &&
-          mutationStatus == other.mutationStatus &&
-          mutationOperation == other.mutationOperation &&
-          successMessage == other.successMessage &&
-          const ListEquality<StudentModel>().equals(students, other.students);
-
-  @override
-  int get hashCode => Object.hash(
-    const ListEquality<StudentModel>().hash(students),
+  List<Object?> get props => [
+    students,
+    allStudents,
+    studentsByDocId,
     currentFilterGroupId,
     currentFilterTeamId,
     currentQuery,
@@ -112,7 +137,8 @@ final class StudentDataLoaded extends StudentDataState {
     mutationStatus,
     mutationOperation,
     successMessage,
-  );
+    isFromCache,
+  ];
 }
 
 /// Error state - operation failed.
@@ -122,12 +148,5 @@ final class StudentDataError extends StudentDataState {
   const StudentDataError(this.message);
 
   @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is StudentDataError &&
-          runtimeType == other.runtimeType &&
-          message == other.message;
-
-  @override
-  int get hashCode => message.hashCode;
+  List<Object?> get props => [message];
 }

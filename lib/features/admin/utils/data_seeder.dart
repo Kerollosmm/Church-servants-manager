@@ -109,7 +109,7 @@ class DataSeeder {
   }
 
   CollectionReference<Map<String, dynamic>> get _users =>
-      _firestore.collection(FirestoreCollections.users);
+      _firestore.collection(FirestoreCollections.servants);
 
   CollectionReference<Map<String, dynamic>> get _students =>
       _firestore.collection(FirestoreCollections.students);
@@ -127,6 +127,8 @@ class DataSeeder {
       'St. Bishoy',
     ];
 
+    final batch = _firestore.batch();
+
     for (final group in Group.values) {
       for (int i = 0; i < 3; i++) {
         final teamName = '${teamsData[i]} (${group.name})';
@@ -134,9 +136,10 @@ class DataSeeder {
 
         final team = TeamModel(id: teamId, name: teamName, groupId: group.name);
 
-        await _classes.doc(teamId).set(team.toJson());
+        batch.set(_classes.doc(teamId), team.toJson());
       }
     }
+    await batch.commit();
     _log('DataSeeder: Teams seeded.');
   }
 
@@ -145,6 +148,9 @@ class DataSeeder {
     final teamsByGroup = count > 0
         ? await _loadSeedTeamsByGroup()
         : const <Group, List<TeamModel>>{};
+
+    WriteBatch batch = _firestore.batch();
+    const batchSize = 500;
 
     for (int i = 0; i < count; i++) {
       final uid = _uuid.v4();
@@ -205,8 +211,17 @@ class DataSeeder {
         classId: teamId, // Now correctly linking to a Team ID
       );
 
-      await docRef.set(student.toMap());
-      _log('DataSeeder: Seeded student record ${i + 1}/$count');
+      batch.set(docRef, student.toMap());
+
+      if ((i + 1) % batchSize == 0) {
+        await batch.commit();
+        batch = _firestore.batch();
+        _log('DataSeeder: Committed student batch (${i + 1})');
+      }
+    }
+
+    if (count > 0 && count % batchSize != 0) {
+      await batch.commit();
     }
 
     _log('DataSeeder: Student seeding complete.');
@@ -231,11 +246,13 @@ class DataSeeder {
 
   /// Deletes ALL documents from the Students collection in paginated batches.
   Future<void> clearStudents() async {
+    if (!kDebugMode) return;
     await _clearCollection(_students, 'students');
   }
 
   /// Deletes ALL documents from the Classes (Teams) collection in paginated batches.
   Future<void> clearTeams() async {
+    if (!kDebugMode) return;
     await _clearCollection(_classes, 'teams');
   }
 
@@ -244,6 +261,7 @@ class DataSeeder {
     CollectionReference<Map<String, dynamic>> collection,
     String label,
   ) async {
+    if (!kDebugMode) return;
     int totalDeleted = 0;
     const batchSize = 400;
     QuerySnapshot<Map<String, dynamic>> snapshot;
@@ -262,6 +280,7 @@ class DataSeeder {
 
   /// Clears all seeded data and reseeds from scratch.
   Future<void> clearAndReseed({int studentCount = 20}) async {
+    if (!kDebugMode) return;
     await clearStudents();
     await clearTeams();
     await seedTeams();

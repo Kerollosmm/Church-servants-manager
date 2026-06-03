@@ -6,9 +6,9 @@ part of 'attendance_session.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-_$AttendanceSessionImpl _$$AttendanceSessionImplFromJson(
+_$AttendanceSessionModelImpl _$$AttendanceSessionModelImplFromJson(
   Map<String, dynamic> json,
-) => _$AttendanceSessionImpl(
+) => _$AttendanceSessionModelImpl(
   id: json['id'] as String,
   teamId: json['teamId'] as String,
   teamNameSnapshot: json['teamNameSnapshot'] as String?,
@@ -43,8 +43,8 @@ _$AttendanceSessionImpl _$$AttendanceSessionImplFromJson(
   absentCount: (json['absentCount'] as num?)?.toInt() ?? 0,
 );
 
-Map<String, dynamic> _$$AttendanceSessionImplToJson(
-  _$AttendanceSessionImpl instance,
+Map<String, dynamic> _$$AttendanceSessionModelImplToJson(
+  _$AttendanceSessionModelImpl instance,
 ) => <String, dynamic>{
   'id': instance.id,
   'teamId': instance.teamId,

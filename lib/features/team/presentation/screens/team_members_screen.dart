@@ -1,3 +1,4 @@
+import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/routing/route_args.dart';
 import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
@@ -5,7 +6,8 @@ import 'package:church_management_system/core/widgets/common/app_info_banner.dar
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
 import 'package:church_management_system/features/student/data/repos/student_data_repository.dart';
-import 'package:church_management_system/features/team/presentation/bloc/team_members_cubit.dart';
+import 'package:church_management_system/features/team/presentation/bloc/team_members_bloc.dart';
+import 'package:church_management_system/features/team/presentation/bloc/team_members_event.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -20,16 +22,16 @@ class TeamMembersScreen extends StatefulWidget {
 
 class _TeamMembersScreenState extends State<TeamMembersScreen> {
   final _searchController = TextEditingController();
-  late TeamMembersCubit _cubit;
+  late TeamMembersBloc _cubit;
 
   @override
   void initState() {
     super.initState();
     final team = widget.args.team;
-    _cubit = TeamMembersCubit(
-      studentRepository: context.read<StudentDataRepository>(),
-      adminTeamService: context.read<AdminTeamService>(),
-    )..load(groupId: team.groupId, teamId: team.id);
+    _cubit = TeamMembersBloc(
+      studentRepository: getIt<StudentDataRepository>(),
+      adminTeamService: getIt<AdminTeamService>(),
+    )..add(LoadTeamMembersEvent(groupId: team.groupId, teamId: team.id));
   }
 
   @override
@@ -40,12 +42,19 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
   }
 
   Future<void> _save(BuildContext innerContext) async {
-    final membersCubit = innerContext.read<TeamMembersCubit>();
+    final membersCubit = innerContext.read<TeamMembersBloc>();
     if (membersCubit.state.isSaving) return;
 
-    await membersCubit.saveMembers(
-      actor: widget.args.actor,
-      team: widget.args.team,
+    final selectedStudents = membersCubit.state.students
+        .where((s) => membersCubit.state.selectedStudentIds.contains(s.docID))
+        .toList(growable: false);
+
+    membersCubit.add(
+      SaveMembersEvent(
+        actor: widget.args.actor,
+        team: widget.args.team,
+        selectedStudents: selectedStudents,
+      ),
     );
   }
 
@@ -55,7 +64,7 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
 
     return BlocProvider.value(
       value: _cubit,
-      child: BlocListener<TeamMembersCubit, TeamMembersState>(
+      child: BlocListener<TeamMembersBloc, TeamMembersState>(
         listener: (context, state) {
           if (state.feedbackMessage != null &&
               state.mutationStatus == TeamMembersMutationStatus.failure) {
@@ -80,7 +89,7 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
                 child: Center(
-                  child: BlocBuilder<TeamMembersCubit, TeamMembersState>(
+                  child: BlocBuilder<TeamMembersBloc, TeamMembersState>(
                     builder: (context, state) {
                       return Text(
                         '${state.selectedCount}',
@@ -90,7 +99,7 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
                   ),
                 ),
               ),
-              BlocBuilder<TeamMembersCubit, TeamMembersState>(
+              BlocBuilder<TeamMembersBloc, TeamMembersState>(
                 builder: (context, state) {
                   return TextButton.icon(
                     onPressed: state.isSaving ? null : () => _save(context),
@@ -110,7 +119,7 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
               ),
             ],
           ),
-          body: BlocBuilder<TeamMembersCubit, TeamMembersState>(
+          body: BlocBuilder<TeamMembersBloc, TeamMembersState>(
             builder: (context, state) {
               if (state.isLoading) {
                 return const Center(child: CircularProgressIndicator());
@@ -132,9 +141,12 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
                         Text(state.errorMessage!, textAlign: TextAlign.center),
                         AppSpacing.gapMd,
                         FilledButton.icon(
-                          onPressed: () => context
-                              .read<TeamMembersCubit>()
-                              .load(groupId: team.groupId, teamId: team.id),
+                          onPressed: () => context.read<TeamMembersBloc>().add(
+                            LoadTeamMembersEvent(
+                              groupId: team.groupId,
+                              teamId: team.id,
+                            ),
+                          ),
                           icon: const Icon(Icons.refresh),
                           label: const Text('إعادة المحاولة'),
                         ),
@@ -162,7 +174,9 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
                     padding: const EdgeInsets.all(AppSpacing.md),
                     child: TextField(
                       controller: _searchController,
-                      onChanged: context.read<TeamMembersCubit>().search,
+                      onChanged: (val) => context.read<TeamMembersBloc>().add(
+                        SearchTeamMembersEvent(val),
+                      ),
                       decoration: InputDecoration(
                         prefixIcon: const Icon(Icons.search),
                         hintText: 'ابحث عن مخدوم...',
@@ -186,12 +200,12 @@ class _TeamMembersScreenState extends State<TeamMembersScreen> {
                           value: isChecked,
                           onChanged: state.isSaving
                               ? null
-                              : (value) => context
-                                    .read<TeamMembersCubit>()
-                                    .toggleSelection(
-                                      student.docID,
-                                      value ?? false,
-                                    ),
+                              : (value) => context.read<TeamMembersBloc>().add(
+                                  ToggleSelectionEvent(
+                                    studentId: student.docID,
+                                    isSelected: value ?? false,
+                                  ),
+                                ),
                           title: Text(student.name),
                           subtitle: Text('الصف ${student.grade}'),
                           controlAffinity: ListTileControlAffinity.leading,

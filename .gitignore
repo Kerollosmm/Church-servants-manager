@@ -62,7 +62,25 @@ functions/dist/
 .kilocode
 csms_knowledge_base.md
 
-
-
 .gemini/
 gha-creds-*.json
+
+# Worktrees
+.worktrees/
+n u l
+
+# Antigravity/Agent/Tooling files
+.agents/
+.antigravitycli/
+.antigravityrules
+.opencode/
+graphify-out/
+test_hive/
+test_script.dart
+Complete_Project_State_Report.md
+CSMS_DEEP_REVIEW_COUNCIL.md
+implementation_plan.md
+nul
+.specify/
+memory/
+node_modules/

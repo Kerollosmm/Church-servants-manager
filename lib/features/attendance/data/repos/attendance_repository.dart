@@ -1,394 +1,63 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 
-import 'package:church_management_system/core/constants/enums.dart';
-import 'package:church_management_system/core/constants/firestore_collections.dart';
-import 'package:church_management_system/core/utils/list_extensions.dart';
-import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
+import 'package:church_management_system/core/models/sync_entry.dart';
+import 'package:church_management_system/core/services/cache_tracker.dart';
+import 'package:church_management_system/core/services/sync_service.dart'
+    hide SyncStatus;
+import 'package:church_management_system/core/utils/bulk_operation_result.dart';
+import 'package:church_management_system/features/attendance/data/local/attendance_local_datasource.dart';
+import 'package:church_management_system/features/attendance/data/local/attendance_session_local_datasource.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_mark.dart';
-import 'package:church_management_system/features/attendance/data/models/attendance_roster_item.dart';
-import 'package:church_management_system/features/attendance/data/models/attendance_roster_snapshot.dart';
-import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
-import 'package:church_management_system/features/attendance/data/models/attendance_stats.dart';
-import 'package:church_management_system/features/attendance/data/models/student_attendance_history_item.dart';
+import 'package:church_management_system/features/attendance/data/services/attendance_command_service.dart';
+import 'package:church_management_system/features/attendance/data/services/attendance_query_service.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_enums.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_roster_item.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_roster_snapshot.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_session.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_stats.dart';
+import 'package:church_management_system/features/attendance/domain/entities/student_attendance_history_item.dart';
 import 'package:church_management_system/features/attendance/domain/failures/attendance_failures.dart';
-import 'package:church_management_system/features/auth/data/models/auth_user.dart';
-import 'package:church_management_system/features/student/data/models/student_model.dart';
+import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
+import 'package:church_management_system/features/auth/domain/entities/auth_user.dart';
 import 'package:church_management_system/features/student/data/services/student_query_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
-import 'package:rxdart/rxdart.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
-/// Repository for attendance data and operations.
-///
-/// Handles session CRUD, mark management, roster tracking,
-/// and attendance statistics. Uses [StudentQueryService] for
-/// student lookups and delegates to Firestore.
-class AttendanceRepository {
+class AttendanceRepository implements IAttendanceRepository {
+  final AttendanceQueryService _queryService;
+  final AttendanceCommandService _commandService;
+  final AttendanceSessionLocalDatasource _sessionLocalDatasource;
+  final AttendanceLocalDatasource _attendanceLocalDatasource;
+  final SyncService Function() _syncServiceGetter;
+  final DateTime Function() _nowProvider;
+
   AttendanceRepository({
-    FirebaseFirestore? firestore,
+    required FirebaseFirestore firestore,
+    required AttendanceLocalDatasource attendanceLocalDatasource,
+    required SyncService Function() syncServiceGetter,
     StudentQueryService? studentQueryService,
     DateTime Function()? nowProvider,
-    Stream<DateTime>? clockStream,
-  }) : _firestore = firestore ?? FirebaseFirestore.instance,
-       _studentQueryService =
-           studentQueryService ?? StudentQueryService(firestore: firestore),
+    Connectivity? connectivity,
+    AttendanceSessionLocalDatasource? localDatasource,
+  }) : _attendanceLocalDatasource = attendanceLocalDatasource,
+       _syncServiceGetter = syncServiceGetter,
        _nowProvider = nowProvider ?? DateTime.now,
-       _clockStream = clockStream;
+       _queryService = AttendanceQueryService(
+         firestore: firestore,
+         nowProvider: nowProvider,
+       ),
+       _commandService = AttendanceCommandService(
+         firestore: firestore,
+         nowProvider: nowProvider,
+         connectivity: connectivity,
+         studentQueryService: studentQueryService,
+         localDatasource: localDatasource,
+       ),
+       _sessionLocalDatasource =
+           localDatasource ?? AttendanceSessionLocalDatasource();
 
-  final FirebaseFirestore _firestore;
-  final StudentQueryService _studentQueryService;
-  final DateTime Function() _nowProvider;
-  final Stream<DateTime>? _clockStream;
-
-  CollectionReference<Map<String, dynamic>> get _classesCollection =>
-      _firestore.collection(FirestoreCollections.classes);
-
-  DocumentReference<Map<String, dynamic>> _teamDoc(String teamId) =>
-      _classesCollection.doc(teamId);
-
-  CollectionReference<Map<String, dynamic>> _sessionsCol(String teamId) =>
-      _classesCollection
-          .doc(teamId)
-          .collection(FirestoreCollections.attendanceSessions);
-
-  DocumentReference<Map<String, dynamic>> _sessionDoc(
-    String teamId,
-    String sessionId,
-  ) => _sessionsCol(teamId).doc(sessionId);
-
-  CollectionReference<Map<String, dynamic>> _marksCol(
-    String teamId,
-    String sessionId,
-  ) => _sessionDoc(
-    teamId,
-    sessionId,
-  ).collection(FirestoreCollections.attendanceMarks);
-
-  DocumentReference<Map<String, dynamic>> _markDoc(
-    String teamId,
-    String sessionId,
-    String studentId,
-  ) => _marksCol(teamId, sessionId).doc(studentId);
-
-  Stream<DateTime> _watchClock({
-    Duration interval = const Duration(seconds: 15),
-  }) {
-    final source =
-        _clockStream ??
-        Stream<DateTime>.periodic(interval, (_) => _nowProvider());
-    return source.startWith(_nowProvider());
-  }
-
-  Stream<DateTime> _watchSessionBoundary(AttendanceSession session) {
-    final clockStream = _clockStream;
-    if (clockStream != null) {
-      return clockStream
-          .where((tick) => !tick.isBefore(session.endsAt))
-          .startWith(_nowProvider());
-    }
-
-    final controller = StreamController<DateTime>();
-    controller.add(_nowProvider());
-    final now = _nowProvider();
-    if (session.endsAt.isAfter(now)) {
-      Future.delayed(session.endsAt.difference(now)).then((_) {
-        if (!controller.isClosed) {
-          controller.add(_nowProvider());
-          controller.close();
-        }
-      });
-    } else {
-      controller.close();
-    }
-    return controller.stream;
-  }
-
-  String _normalizeTitle(String? title) {
-    return title?.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase() ?? '';
-  }
-
-  String _slugifyTitle(String? title) {
-    final normalized = _normalizeTitle(title);
-    final slug = normalized.replaceAll(RegExp(r'[^a-z0-9]+'), '-');
-    final cleaned = slug.replaceAll(RegExp(r'^-+|-+$'), '');
-    if (cleaned.isEmpty) return 'session';
-    if (cleaned.length <= 40) return cleaned;
-    return cleaned.substring(0, 40);
-  }
-
-  String _buildSessionId(DateTime startsAt, String? title) {
-    final dateKey = AttendanceSession.buildDateKey(startsAt);
-    final timeKey = startsAt.toUtc().millisecondsSinceEpoch;
-    return '${dateKey}_${timeKey}_${_slugifyTitle(title)}';
-  }
-
-  bool _sessionsOverlap(AttendanceSession first, AttendanceSession second) {
-    return first.startsAt.isBefore(second.endsAt) &&
-        second.startsAt.isBefore(first.endsAt);
-  }
-
-  bool _isDuplicateSessionCandidate(
-    AttendanceSession candidate,
-    AttendanceSession existing,
-  ) {
-    return candidate.dateKey == existing.dateKey &&
-        candidate.startsAt.millisecondsSinceEpoch ==
-            existing.startsAt.millisecondsSinceEpoch &&
-        candidate.durationMinutes == existing.durationMinutes &&
-        _normalizeTitle(candidate.title) == _normalizeTitle(existing.title);
-  }
-
-  void _assertAdmin(AuthUser user) {
-    if (user.role != UserRole.admin) {
-      throw const AttendancePermissionDeniedFailure(
-        'ليس لديك صلاحية لإدارة جلسات الحضور.',
-      );
-    }
-  }
-
-  void _assertStudentInSession(AttendanceSession session, String studentId) {
-    if (!session.studentIdsSnapshot.contains(studentId.trim())) {
-      throw const AttendanceStudentNotInSessionFailure();
-    }
-  }
-
-  void _assertSessionWritable(AttendanceSession session, DateTime now) {
-    if (!session.isOpenAt(now)) {
-      throw const AttendanceSessionClosedFailure();
-    }
-  }
-
-  Future<void> _assertTeamIsActive(String teamId) async {
-    final teamDoc = await _teamDoc(teamId).get();
-    final teamData = teamDoc.data();
-    if (!teamDoc.exists || teamData == null) {
-      throw const AttendanceValidationFailure(
-        'تعذر العثور على الفريق المطلوب.',
-      );
-    }
-    if (teamData['isArchived'] == true) {
-      throw const AttendanceValidationFailure(
-        'لا يمكن إنشاء جلسة حضور لفريق مؤرشف.',
-      );
-    }
-  }
-
-  AttendanceSession _mapSessionDoc(
-    QueryDocumentSnapshot<Map<String, dynamic>> doc,
-  ) {
-    return AttendanceSession.fromMap(doc.data(), doc.id);
-  }
-
-  AttendanceMark? _mapMarkOrNull(DocumentSnapshot<Map<String, dynamic>> doc) {
-    final data = doc.data();
-    if (!doc.exists || data == null) return null;
-    try {
-      return AttendanceMark.fromMap(data, doc.id);
-    } catch (error) {
-      if (kDebugMode) {
-        debugPrint(
-          'AttendanceRepository: skipped malformed attendance mark '
-          '${doc.reference.path} (${error.runtimeType})',
-        );
-      }
-      return null;
-    }
-  }
-
-  List<AttendanceSession> _mapSessionsSnapshot(
-    QuerySnapshot<Map<String, dynamic>> snapshot,
-  ) {
-    final sessions = <AttendanceSession>[];
-    for (final doc in snapshot.docs) {
-      try {
-        sessions.add(_mapSessionDoc(doc));
-      } catch (error) {
-        if (kDebugMode) {
-          debugPrint(
-            'AttendanceRepository: skipped malformed attendance session '
-            '${doc.reference.path} (${error.runtimeType})',
-          );
-        }
-      }
-    }
-    sessions.sort((first, second) => second.startsAt.compareTo(first.startsAt));
-    return sessions;
-  }
-
-  Stream<Map<String, AttendanceMark>> _watchMarksMap(
-    String teamId,
-    String sessionId,
-  ) {
-    return _marksCol(teamId, sessionId).snapshots().map((snapshot) {
-      final marks = <String, AttendanceMark>{};
-      for (final doc in snapshot.docs) {
-        try {
-          marks[doc.id] = AttendanceMark.fromMap(doc.data(), doc.id);
-        } catch (error) {
-          if (kDebugMode) {
-            debugPrint(
-              'AttendanceRepository: skipped malformed attendance mark '
-              '${doc.reference.path} (${error.runtimeType})',
-            );
-          }
-        }
-      }
-      return marks;
-    });
-  }
-
-  AttendanceRosterSnapshot _buildRosterSnapshot({
-    required AttendanceSession session,
-    required Map<String, StudentModel> studentsById,
-    required Map<String, AttendanceMark> marksById,
-    required DateTime now,
-  }) {
-    final isSessionOpen = session.isOpenAt(now);
-    final roster = <AttendanceRosterItem>[];
-
-    for (var index = 0; index < session.studentIdsSnapshot.length; index += 1) {
-      final studentId = session.studentIdsSnapshot[index];
-      final student = studentsById[studentId];
-      final mark = marksById[studentId];
-      final studentName = (student?.name.trim().isNotEmpty ?? false)
-          ? student!.name.trim()
-          : (session.studentNameSnapshots[studentId] ??
-                mark?.studentNameSnapshot ??
-                'مخدوم');
-
-      roster.add(
-        AttendanceRosterItem(
-          studentId: studentId,
-          studentName: studentName,
-          teamId: session.teamId,
-          sessionId: session.id,
-          manualStatus: mark?.status,
-          effectiveStatus: AttendanceRosterItem.resolveEffectiveStatus(
-            manualStatus: mark?.status,
-            session: session,
-            now: now,
-          ),
-          isMarked: mark != null,
-          markedAt: mark?.markedAt,
-          markedByName: mark?.markedByName,
-          isSessionOpen: isSessionOpen,
-          canEdit: isSessionOpen,
-          sortOrder: index,
-        ),
-      );
-    }
-
-    return AttendanceRosterSnapshot(session: session, roster: roster);
-  }
-
-  Query<Map<String, dynamic>> _studentSessionsQuery({
-    required String studentId,
-    String? teamId,
-  }) {
-    final normalizedTeamId = teamId?.trim() ?? '';
-    if (normalizedTeamId.isNotEmpty) {
-      return _sessionsCol(
-        normalizedTeamId,
-      ).where('studentIdsSnapshot', arrayContains: studentId);
-    }
-
-    return _firestore
-        .collectionGroup(FirestoreCollections.attendanceSessions)
-        .where('studentIdsSnapshot', arrayContains: studentId);
-  }
-
-  Future<List<AttendanceSession>> _loadStudentSessions({
-    required String studentId,
-    String? teamId,
-    DateTimeRange? range,
-  }) async {
-    final snapshot = await _studentSessionsQuery(
-      studentId: studentId,
-      teamId: teamId,
-    ).get();
-    final sessions = _mapSessionsSnapshot(snapshot);
-    if (range == null) return sessions;
-    return sessions
-        .where((session) {
-          return !session.startsAt.isBefore(range.start) &&
-              !session.startsAt.isAfter(range.end);
-        })
-        .toList(growable: false);
-  }
-
-  Future<AttendanceSession> _getRequiredSession({
-    required String teamId,
-    required String sessionId,
-  }) async {
-    final session = await getSessionById(teamId: teamId, sessionId: sessionId);
-    if (session == null) {
-      throw const AttendanceSessionNotFoundFailure();
-    }
-    return session;
-  }
-
-  Future<void> _writeMark({
-    required String teamId,
-    required String sessionId,
-    required String studentId,
-    required String studentNameSnapshot,
-    required AuthUser markedBy,
-    required AttendanceMarkStatus status,
-    String? note,
-  }) async {
-    try {
-      final results = await Future.wait([
-        canUserManageAttendance(user: markedBy, teamId: teamId),
-        getSessionById(teamId: teamId, sessionId: sessionId),
-      ]);
-      final canManage = results[0] as bool;
-      if (!canManage) {
-        throw const AttendancePermissionDeniedFailure();
-      }
-      final session = results[1] as AttendanceSession?;
-      if (session == null) {
-        throw const AttendanceSessionNotFoundFailure();
-      }
-      _assertStudentInSession(session, studentId);
-      _assertSessionWritable(session, _nowProvider());
-
-      final markRef = _markDoc(teamId, sessionId, studentId);
-      final effectiveStudentName = studentNameSnapshot.trim().isNotEmpty
-          ? studentNameSnapshot.trim()
-          : (session.studentNameSnapshots[studentId] ?? 'مخدوم');
-      final normalizedNote = note?.trim();
-
-      await _firestore.runTransaction((transaction) async {
-        final existingDoc = await transaction.get(markRef);
-        final existingMarkedAt = existingDoc.data()?['markedAt'];
-
-        final data = <String, dynamic>{
-          'status': status.name,
-          'markedByUserId': markedBy.uid,
-          'markedByName': markedBy.name,
-          'updatedAt': FieldValue.serverTimestamp(),
-          'note': normalizedNote == null || normalizedNote.isEmpty
-              ? FieldValue.delete()
-              : normalizedNote,
-        };
-
-        // Only set studentNameSnapshot and markedAt on initial creation.
-        if (existingMarkedAt == null) {
-          data['studentNameSnapshot'] = effectiveStudentName;
-          data['markedAt'] = FieldValue.serverTimestamp();
-        } else {
-          data['markedAt'] = existingMarkedAt;
-        }
-
-        transaction.set(markRef, data, SetOptions(merge: true));
-      });
-    } catch (error) {
-      if (error is AttendanceFailure) rethrow;
-      throw mapExceptionToAttendanceFailure(error);
-    }
-  }
-
+  @override
   Future<AttendanceSession> createSession({
     required String teamId,
     required String teamNameSnapshot,
@@ -396,221 +65,110 @@ class AttendanceRepository {
     required int durationMinutes,
     required AuthUser createdBy,
     String? title,
-  }) async {
-    try {
-      final normalizedTeamId = teamId.trim();
-      if (normalizedTeamId.isEmpty) {
-        throw const AttendanceValidationFailure(
-          'يجب اختيار الفريق قبل إنشاء الجلسة.',
-        );
-      }
-      if (durationMinutes <= 0) {
-        throw const AttendanceValidationFailure(
-          'مدة الجلسة يجب أن تكون أكبر من صفر.',
-        );
-      }
+  }) => _commandService.createSession(
+    teamId: teamId,
+    teamNameSnapshot: teamNameSnapshot,
+    startsAt: startsAt,
+    durationMinutes: durationMinutes,
+    createdBy: createdBy,
+    title: title,
+  );
 
-      await assertUserCanManageAttendance(
-        user: createdBy,
-        teamId: normalizedTeamId,
-      );
-      await _assertTeamIsActive(normalizedTeamId);
+  @override
+  Future<BulkOperationResult<String>> createSessionsBulk({
+    required Map<String, String> teamIdsAndNames,
+    required DateTime startsAt,
+    required int durationMinutes,
+    required AuthUser createdBy,
+    String? title,
+  }) => _commandService.createSessionsBulk(
+    teamIdsAndNames: teamIdsAndNames,
+    startsAt: startsAt,
+    durationMinutes: durationMinutes,
+    createdBy: createdBy,
+    title: title,
+  );
 
-      final normalizedTitle = title?.trim();
-      final now = _nowProvider();
-      final rosterStudents = await _studentQueryService.getStudentsByClass(
-        normalizedTeamId,
-      );
-      rosterStudents.sort((first, second) => first.name.compareTo(second.name));
-
-      final candidate = AttendanceSession(
-        id: _buildSessionId(startsAt, normalizedTitle),
-        teamId: normalizedTeamId,
-        teamNameSnapshot: teamNameSnapshot.trim().isEmpty
-            ? null
-            : teamNameSnapshot.trim(),
-        title: normalizedTitle == null || normalizedTitle.isEmpty
-            ? null
-            : normalizedTitle,
-        dateKey: AttendanceSession.buildDateKey(startsAt),
-        startsAt: startsAt,
-        endsAt: startsAt.add(Duration(minutes: durationMinutes)),
-        durationMinutes: durationMinutes,
-        createdByUserId: createdBy.uid,
-        createdByName: createdBy.name,
-        createdAt: now,
-        updatedAt: now,
-        studentIdsSnapshot: rosterStudents
-            .map((student) => student.docID)
-            .toList(growable: false),
-        studentNameSnapshots: {
-          for (final student in rosterStudents) student.docID: student.name,
-        },
-      );
-
-      final docRef = _sessionDoc(normalizedTeamId, candidate.id);
-      await _firestore.runTransaction((transaction) async {
-        final existingDoc = await transaction.get(docRef);
-        if (existingDoc.exists) {
-          throw const AttendanceSessionConflictFailure(
-            'تم إنشاء جلسة حضور مطابقة بالفعل.',
-          );
-        }
-
-        final activeSessionsSnapshot = await _sessionsCol(
-          normalizedTeamId,
-        ).where('isClosed', isEqualTo: false).get();
-        final existingSessions = _mapSessionsSnapshot(activeSessionsSnapshot);
-
-        for (final existing in existingSessions) {
-          final isActiveConflict =
-              !existing.isEffectivelyClosedAt(now) &&
-              _sessionsOverlap(candidate, existing);
-          if (isActiveConflict ||
-              _isDuplicateSessionCandidate(candidate, existing)) {
-            throw const AttendanceSessionConflictFailure();
-          }
-        }
-
-        transaction.set(docRef, {
-          ...candidate.toMap(),
-          'createdAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-      });
-
-      return candidate;
-    } catch (error) {
-      if (error is AttendanceFailure) rethrow;
-      throw mapExceptionToAttendanceFailure(error);
-    }
-  }
-
+  @override
   Future<void> closeSession({
     required String teamId,
     required String sessionId,
     required AuthUser closedBy,
-  }) async {
-    try {
-      _assertAdmin(closedBy);
-      final session = await _getRequiredSession(
-        teamId: teamId,
-        sessionId: sessionId,
-      );
-      if (session.isClosed) {
-        return;
-      }
+  }) => _commandService.closeSession(
+    teamId: teamId,
+    sessionId: sessionId,
+    closedBy: closedBy,
+  );
 
-      // Atomic transaction: close session + auto-mark absent students.
-      final sessionRef = _sessionDoc(teamId, sessionId);
-      await _firestore.runTransaction((transaction) async {
-        // 1. Read session doc to confirm still open.
-        final sessionDoc = await transaction.get(sessionRef);
-        final sessionData = sessionDoc.data();
-        if (!sessionDoc.exists || sessionData == null) {
-          throw const AttendanceSessionNotFoundFailure();
-        }
-        final currentSession = AttendanceSession.fromMap(
-          sessionData,
-          sessionDoc.id,
+  @override
+  Future<List<AttendanceSession>> getSessionsForTeam(String teamId) =>
+      _queryService.getSessionsForTeam(teamId);
+
+  @override
+  Future<({List<AttendanceSession> sessions, bool isFromCache})>
+  getSessionsForTeamWithFallback(String teamId) async {
+    final cached = await _sessionLocalDatasource.getCachedAllSessions(teamId);
+    if (cached.isNotEmpty) {
+      final cacheKey = 'all_sessions_$teamId';
+      if (CacheTracker.shouldRevalidate(cacheKey)) {
+        // Trigger a background refresh
+        unawaited(
+          _queryService
+              .getSessionsForTeam(teamId)
+              .timeout(const Duration(seconds: 10))
+              .then((remote) {
+                if (remote.isNotEmpty) {
+                  _sessionLocalDatasource.cacheSessions(remote);
+                  CacheTracker.markFetched(cacheKey);
+                }
+              })
+              .catchError((_) {
+                // Ignore network errors on background refresh
+              }),
         );
-        if (currentSession.isClosed) {
-          return; // Already closed — idempotent.
-        }
-
-        // 2. Read all existing marks.
-        final marksSnapshot = await _marksCol(teamId, sessionId).get();
-        final markedStudentIds = marksSnapshot.docs.map((d) => d.id).toSet();
-
-        // 3. Write absent marks for unmarked students.
-        final unmarkedStudents = currentSession.studentIdsSnapshot
-            .where((id) => !markedStudentIds.contains(id))
-            .toList(growable: false);
-
-        final batch = _firestore.batch();
-        for (final studentId in unmarkedStudents) {
-          final markRef = _markDoc(teamId, sessionId, studentId);
-          final studentName =
-              currentSession.studentNameSnapshots[studentId] ?? 'مخدوم';
-          batch.set(markRef, {
-            'studentNameSnapshot': studentName,
-            'status': AttendanceMarkStatus.present.name,
-            'markedByUserId': closedBy.uid,
-            'markedByName': closedBy.name,
-            'markedAt': FieldValue.serverTimestamp(),
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
-        }
-
-        // 4. Close the session.
-        transaction.update(sessionRef, {
-          'isClosed': true,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-
-        // Execute batch for absent marks.
-        if (unmarkedStudents.isNotEmpty) {
-          await batch.commit();
-        }
-      });
-    } catch (error) {
-      if (error is AttendanceFailure) rethrow;
-      throw mapExceptionToAttendanceFailure(error);
+      }
+      return (sessions: cached, isFromCache: true);
+    }
+    try {
+      final remote = await _queryService.getSessionsForTeam(teamId);
+      if (remote.isNotEmpty) {
+        await _sessionLocalDatasource.cacheSessions(remote);
+      }
+      return (sessions: remote, isFromCache: false);
+    } catch (_) {
+      return (sessions: const <AttendanceSession>[], isFromCache: true);
     }
   }
 
-  Stream<List<AttendanceSession>> watchSessionsForTeam(String teamId) {
-    return _sessionsCol(teamId)
-        .orderBy('startsAt', descending: true)
-        .snapshots()
-        .map(_mapSessionsSnapshot);
-  }
+  @override
+  Future<AttendanceSession?> getActiveSessionForTeam(String teamId) =>
+      _queryService.getActiveSessionForTeam(teamId);
 
-  Stream<AttendanceSession?> watchActiveSessionForTeam(String teamId) {
-    final openSessionsStream = _sessionsCol(teamId)
-        .where('isClosed', isEqualTo: false)
-        .orderBy('startsAt', descending: true)
-        .snapshots()
-        .map(_mapSessionsSnapshot);
-    return Rx.combineLatest2(
-      openSessionsStream,
-      _watchClock(interval: const Duration(seconds: 60)),
-      (List<AttendanceSession> sessions, DateTime now) {
-        for (final session in sessions) {
-          if (session.isOpenAt(now)) {
-            return session;
-          }
-        }
-        return null;
-      },
-    );
-  }
-
-  Stream<AttendanceSession?> watchSessionById({
-    required String teamId,
-    required String sessionId,
-  }) {
-    return _sessionDoc(teamId, sessionId).snapshots().map((doc) {
-      final data = doc.data();
-      if (!doc.exists || data == null) return null;
-      return AttendanceSession.fromMap(data, doc.id);
-    });
-  }
-
+  @override
   Future<AttendanceSession?> getSessionById({
     required String teamId,
     required String sessionId,
-  }) async {
-    try {
-      final doc = await _sessionDoc(teamId, sessionId).get();
-      final data = doc.data();
-      if (!doc.exists || data == null) return null;
-      return AttendanceSession.fromMap(data, doc.id);
-    } catch (error) {
-      throw mapExceptionToAttendanceFailure(error);
+  }) => _queryService.getSessionById(teamId: teamId, sessionId: sessionId);
+
+  Future<void> _assertCanMark(String teamId, String sessionId) async {
+    var session = await _sessionLocalDatasource.getCachedSessionById(sessionId);
+    if (session == null) {
+      session = await getSessionById(teamId: teamId, sessionId: sessionId);
+      if (session != null) {
+        await _sessionLocalDatasource.cacheSession(session);
+      }
+    }
+    if (session == null) {
+      throw AttendanceSessionNotFoundFailure();
+    }
+    final now = _nowProvider();
+    final canMark = !session.isClosed || session.isOpenAt(now);
+    if (!canMark) {
+      throw AttendanceSessionClosedFailure();
     }
   }
 
+  @override
   Future<void> markStudentPresent({
     required String teamId,
     required String sessionId,
@@ -618,18 +176,47 @@ class AttendanceRepository {
     required String studentNameSnapshot,
     required AuthUser markedBy,
     String? note,
-  }) {
-    return _writeMark(
+  }) async {
+    await _assertCanMark(teamId, sessionId);
+    final now = _nowProvider();
+    final mark = AttendanceMark(
+      studentId: studentId,
+      studentNameSnapshot: studentNameSnapshot,
+      status: AttendanceMarkStatus.present,
+      markedByUserId: markedBy.uid,
+      markedByName: markedBy.name,
+      markedAt: now,
+      updatedAt: now,
+      note: note,
+    );
+    await _attendanceLocalDatasource.cacheMark(
       teamId: teamId,
       sessionId: sessionId,
       studentId: studentId,
-      studentNameSnapshot: studentNameSnapshot,
-      markedBy: markedBy,
-      status: AttendanceMarkStatus.present,
-      note: note,
+      mark: mark,
+    );
+
+    await _syncServiceGetter().enqueue(
+      SyncEntry(
+        id: 'mark_${sessionId}_$studentId',
+        actionType: 'MARK_ATTENDANCE',
+        payload: {
+          'teamId': teamId,
+          'sessionId': sessionId,
+          'studentId': studentId,
+          'studentNameSnapshot': studentNameSnapshot,
+          'status': AttendanceMarkStatus.present.name,
+          'markedByUid': markedBy.uid,
+          'markedByName': markedBy.name,
+          'note': note,
+          'createdAt': now.toIso8601String(),
+        },
+        createdAt: now,
+      ),
     );
   }
 
+  @override
   Future<void> markStudentLate({
     required String teamId,
     required String sessionId,
@@ -637,380 +224,374 @@ class AttendanceRepository {
     required String studentNameSnapshot,
     required AuthUser markedBy,
     String? note,
-  }) {
-    return _writeMark(
+  }) async {
+    await _assertCanMark(teamId, sessionId);
+    final now = _nowProvider();
+    final mark = AttendanceMark(
+      studentId: studentId,
+      studentNameSnapshot: studentNameSnapshot,
+      status: AttendanceMarkStatus.late,
+      markedByUserId: markedBy.uid,
+      markedByName: markedBy.name,
+      markedAt: now,
+      updatedAt: now,
+      note: note,
+    );
+    await _attendanceLocalDatasource.cacheMark(
       teamId: teamId,
       sessionId: sessionId,
       studentId: studentId,
-      studentNameSnapshot: studentNameSnapshot,
-      markedBy: markedBy,
-      status: AttendanceMarkStatus.late,
-      note: note,
+      mark: mark,
+    );
+
+    await _syncServiceGetter().enqueue(
+      SyncEntry(
+        id: 'mark_${sessionId}_$studentId',
+        actionType: 'MARK_ATTENDANCE',
+        payload: {
+          'teamId': teamId,
+          'sessionId': sessionId,
+          'studentId': studentId,
+          'studentNameSnapshot': studentNameSnapshot,
+          'status': AttendanceMarkStatus.late.name,
+          'markedByUid': markedBy.uid,
+          'markedByName': markedBy.name,
+          'note': note,
+          'createdAt': now.toIso8601String(),
+        },
+        createdAt: now,
+      ),
     );
   }
 
+  @override
   Future<void> clearStudentMark({
     required String teamId,
     required String sessionId,
     required String studentId,
     required AuthUser requestedBy,
   }) async {
-    try {
-      await assertUserCanManageAttendance(user: requestedBy, teamId: teamId);
-      final session = await _getRequiredSession(
-        teamId: teamId,
-        sessionId: sessionId,
-      );
-      _assertStudentInSession(session, studentId);
-      _assertSessionWritable(session, _nowProvider());
-      await _markDoc(teamId, sessionId, studentId).delete();
-    } catch (error) {
-      if (error is AttendanceFailure) rethrow;
-      throw mapExceptionToAttendanceFailure(error);
-    }
+    await _attendanceLocalDatasource.removeCachedMark(
+      teamId: teamId,
+      sessionId: sessionId,
+      studentId: studentId,
+    );
+
+    final now = _nowProvider();
+    await _syncServiceGetter().enqueue(
+      SyncEntry(
+        id: 'mark_${sessionId}_$studentId',
+        actionType: 'CLEAR_ATTENDANCE',
+        payload: {
+          'teamId': teamId,
+          'sessionId': sessionId,
+          'studentId': studentId,
+          'requestedByUid': requestedBy.uid,
+        },
+        createdAt: now,
+      ),
+    );
   }
 
+  @override
   Future<void> markAllPresentForRemainingStudents({
     required String teamId,
     required String sessionId,
     required AuthUser markedBy,
   }) async {
-    try {
-      final results = await Future.wait([
-        canUserManageAttendance(user: markedBy, teamId: teamId),
-        getSessionById(teamId: teamId, sessionId: sessionId),
-      ]);
-      final canManage = results[0] as bool;
-      if (!canManage) {
-        throw const AttendancePermissionDeniedFailure();
-      }
-      final session = results[1] as AttendanceSession?;
-      if (session == null) {
-        throw const AttendanceSessionNotFoundFailure();
-      }
-      _assertSessionWritable(session, _nowProvider());
+    final snapshot = await getSessionRosterSnapshot(
+      teamId: teamId,
+      sessionId: sessionId,
+    );
 
-      // Fetch all existing marks first
-      final existingMarksSnapshot = await _marksCol(teamId, sessionId).get();
-      final existingMarkIds = existingMarksSnapshot.docs
-          .map((doc) => doc.id)
-          .toSet();
+    final unmarked = snapshot.roster.where((item) => !item.isMarked).toList();
+    final now = _nowProvider();
 
-      final unmarkedStudents = session.studentIdsSnapshot
-          .where((id) => !existingMarkIds.contains(id))
-          .toList(growable: false);
+    for (final item in unmarked) {
+      final mark = AttendanceMark(
+        studentId: item.studentId,
+        studentNameSnapshot: item.studentName,
+        status: AttendanceMarkStatus.present,
+        markedByUserId: markedBy.uid,
+        markedByName: markedBy.name,
+        markedAt: now,
+        updatedAt: now,
+      );
+      await _attendanceLocalDatasource.cacheMark(
+        teamId: teamId,
+        sessionId: sessionId,
+        studentId: item.studentId,
+        mark: mark,
+      );
 
-      for (final chunk in unmarkedStudents.chunk(400)) {
-        final batch = _firestore.batch();
-        for (final studentId in chunk) {
-          final markRef = _markDoc(teamId, sessionId, studentId);
-          final studentName =
-              session.studentNameSnapshots[studentId] ?? 'مخدوم';
-
-          batch.set(markRef, {
-            'studentNameSnapshot': studentName,
+      await _syncServiceGetter().enqueue(
+        SyncEntry(
+          id: 'mark_${sessionId}_${item.studentId}',
+          actionType: 'MARK_ATTENDANCE',
+          payload: {
+            'teamId': teamId,
+            'sessionId': sessionId,
+            'studentId': item.studentId,
+            'studentNameSnapshot': item.studentName,
             'status': AttendanceMarkStatus.present.name,
-            'markedByUserId': markedBy.uid,
+            'markedByUid': markedBy.uid,
             'markedByName': markedBy.name,
-            'markedAt': FieldValue.serverTimestamp(),
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
-        }
-        batch.set(_sessionDoc(teamId, sessionId), {
-          'presentCount': FieldValue.increment(chunk.length),
-        }, SetOptions(merge: true));
-        await batch.commit();
-      }
-    } catch (error) {
-      if (error is AttendanceFailure) rethrow;
-      throw mapExceptionToAttendanceFailure(error);
+            'createdAt': now.toIso8601String(),
+          },
+          createdAt: now,
+        ),
+      );
     }
   }
 
-  Stream<List<AttendanceRosterItem>> watchSessionRoster({
+  @override
+  Future<SessionStatus> getSessionStatus({
     required String teamId,
     required String sessionId,
-  }) {
-    return watchSessionRosterSnapshot(
+  }) => _queryService.getSessionStatus(teamId: teamId, sessionId: sessionId);
+
+  @override
+  Future<List<AttendanceRosterItem>> getSessionRoster({
+    required String teamId,
+    required String sessionId,
+  }) async {
+    final snapshot = await getSessionRosterSnapshot(
       teamId: teamId,
       sessionId: sessionId,
-    ).map((snapshot) => snapshot.roster);
+    );
+    return snapshot.roster;
   }
 
-  Stream<AttendanceRosterSnapshot> watchSessionRosterSnapshot({
+  @override
+  Future<AttendanceRosterSnapshot> getSessionRosterSnapshot({
     required String teamId,
     required String sessionId,
-  }) {
-    final marksStream = _watchMarksMap(teamId, sessionId);
+  }) async {
+    // 1. Try local cache first
+    final cachedSession = await _sessionLocalDatasource.getCachedSessionById(
+      sessionId,
+    );
+    final cachedMarks = _attendanceLocalDatasource.getCachedMarksForSession(
+      teamId: teamId,
+      sessionId: sessionId,
+    );
 
-    return watchSessionById(teamId: teamId, sessionId: sessionId).switchMap((
-      session,
-    ) {
-      if (session == null) {
-        return Stream<AttendanceRosterSnapshot>.error(
-          const AttendanceSessionNotFoundFailure(),
-        );
-      }
+    if (cachedSession != null) {
+      final roster = <AttendanceRosterItem>[];
+      final isSessionOpen = cachedSession.isOpenAt(_nowProvider());
 
-      return Rx.combineLatest2(marksStream, _watchSessionBoundary(session), (
-        Map<String, AttendanceMark> marksById,
-        DateTime now,
+      for (
+        var index = 0;
+        index < cachedSession.studentIdsSnapshot.length;
+        index += 1
       ) {
-        return _buildRosterSnapshot(
-          session: session,
-          studentsById: const <String, StudentModel>{},
-          marksById: marksById,
-          now: now,
+        final studentId = cachedSession.studentIdsSnapshot[index];
+        final cachedMark = cachedMarks[studentId];
+        final studentName =
+            cachedSession.studentNameSnapshots[studentId] ?? 'مخدوم';
+
+        roster.add(
+          AttendanceRosterItem(
+            studentId: studentId,
+            studentName: studentName,
+            teamId: cachedSession.teamId,
+            sessionId: cachedSession.id,
+            manualStatus: cachedMark?.status,
+            effectiveStatus: AttendanceRosterItem.resolveEffectiveStatus(
+              manualStatus: cachedMark?.status,
+              session: cachedSession,
+              now: _nowProvider(),
+            ),
+            isMarked: cachedMark != null,
+            markedAt: cachedMark?.markedAt,
+            markedByName: cachedMark?.markedByName,
+            isSessionOpen: isSessionOpen,
+            canEdit: isSessionOpen,
+            sortOrder: index,
+          ),
         );
-      });
-    });
+      }
+
+      final snapshot = AttendanceRosterSnapshot(
+        session: cachedSession,
+        roster: roster,
+      );
+
+      // Trigger a non-blocking background fetch to refresh caches
+      final cacheKey = 'roster_${teamId}_$sessionId';
+      if (CacheTracker.shouldRevalidate(cacheKey)) {
+        unawaited(
+          _queryService
+              .getSessionRosterSnapshot(teamId: teamId, sessionId: sessionId)
+              .timeout(const Duration(seconds: 10))
+              .then((remoteSnapshot) async {
+                await _sessionLocalDatasource.cacheSession(
+                  remoteSnapshot.session,
+                );
+                for (final item in remoteSnapshot.roster) {
+                  if (item.isMarked && item.manualStatus != null) {
+                    final mark = AttendanceMark(
+                      studentId: item.studentId,
+                      studentNameSnapshot: item.studentName,
+                      status: item.manualStatus!,
+                      markedByUserId: '',
+                      markedByName: item.markedByName ?? '',
+                      markedAt: item.markedAt ?? DateTime.now(),
+                      updatedAt: item.markedAt ?? DateTime.now(),
+                    );
+                    await _attendanceLocalDatasource.cacheMark(
+                      teamId: teamId,
+                      sessionId: sessionId,
+                      studentId: item.studentId,
+                      mark: mark,
+                    );
+                  }
+                }
+                CacheTracker.markFetched(cacheKey);
+              })
+              .catchError((error) {
+                developer.log(
+                  'Background roster sync failed',
+                  error: error,
+                  name: 'AttendanceRepository',
+                );
+              }),
+        );
+      }
+
+      return snapshot;
+    }
+
+    // 2. Cache miss: fetch from Firestore and populate cache
+    final remoteSnapshot = await _queryService.getSessionRosterSnapshot(
+      teamId: teamId,
+      sessionId: sessionId,
+    );
+
+    await _sessionLocalDatasource.cacheSession(remoteSnapshot.session);
+    for (final item in remoteSnapshot.roster) {
+      if (item.isMarked && item.manualStatus != null) {
+        final mark = AttendanceMark(
+          studentId: item.studentId,
+          studentNameSnapshot: item.studentName,
+          status: item.manualStatus!,
+          markedByUserId: '',
+          markedByName: item.markedByName ?? '',
+          markedAt: item.markedAt ?? DateTime.now(),
+          updatedAt: item.markedAt ?? DateTime.now(),
+        );
+        await _attendanceLocalDatasource.cacheMark(
+          teamId: teamId,
+          sessionId: sessionId,
+          studentId: item.studentId,
+          mark: mark,
+        );
+      }
+    }
+
+    if (cachedMarks.isEmpty) {
+      return remoteSnapshot;
+    }
+
+    final updatedRoster = remoteSnapshot.roster.map((item) {
+      final cachedMark = cachedMarks[item.studentId];
+      if (cachedMark != null) {
+        return item.copyWith(
+          manualStatus: cachedMark.status,
+          effectiveStatus: AttendanceRosterItem.resolveEffectiveStatus(
+            manualStatus: cachedMark.status,
+            session: remoteSnapshot.session,
+            now: _nowProvider(),
+          ),
+          isMarked: true,
+          markedAt: cachedMark.markedAt,
+          markedByName: cachedMark.markedByName,
+        );
+      }
+      return item;
+    }).toList();
+
+    return AttendanceRosterSnapshot(
+      session: remoteSnapshot.session,
+      roster: updatedRoster,
+    );
   }
 
-  /// Live stream of session status (open / closed / reopened).
-  Stream<SessionStatus> watchSessionStatus({
-    required String teamId,
-    required String sessionId,
-  }) {
-    return _sessionDoc(teamId, sessionId).snapshots().map((doc) {
-      final data = doc.data();
-      if (!doc.exists || data == null) {
-        return SessionStatus.closed;
-      }
-      final isReopened = data['isReopenedForAdminEdit'] == true;
-      final isClosed = data['isClosed'] == true;
-      if (isReopened && !isClosed) {
-        return SessionStatus.reopened;
-      }
-      if (isClosed) {
-        return SessionStatus.closed;
-      }
-      return SessionStatus.open;
-    });
-  }
-
+  @override
   Future<List<StudentAttendanceHistoryItem>> getStudentAttendanceHistory({
     required String studentId,
     String? teamId,
-  }) async {
-    final sessions = await _loadStudentSessions(
-      studentId: studentId,
-      teamId: teamId,
-    );
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async => _queryService.getStudentAttendanceHistory(
+    studentId: studentId,
+    teamId: teamId,
+    startDate: startDate,
+    endDate: endDate,
+  );
 
-    if (sessions.isEmpty) {
-      return const <StudentAttendanceHistoryItem>[];
-    }
-
-    final now = _nowProvider();
-    final markFutures = sessions
-        .map((session) async {
-          final doc = await _markDoc(
-            session.teamId,
-            session.id,
-            studentId,
-          ).get();
-          return (session: session, mark: _mapMarkOrNull(doc));
-        })
-        .toList(growable: false);
-
-    final entries = await Future.wait(markFutures);
-    final history = entries
-        .map((entry) {
-          final session = entry.session;
-          final mark = entry.mark;
-          return StudentAttendanceHistoryItem(
-            sessionId: session.id,
-            teamId: session.teamId,
-            teamNameSnapshot: session.teamNameSnapshot,
-            title: session.title,
-            dateKey: session.dateKey,
-            sessionStartsAt: session.startsAt,
-            sessionEndsAt: session.endsAt,
-            effectiveStatus: AttendanceRosterItem.resolveEffectiveStatus(
-              manualStatus: mark?.status,
-              session: session,
-              now: now,
-            ),
-            isSessionClosed: session.isEffectivelyClosedAt(now),
-            markedAt: mark?.markedAt,
-            markedByName: mark?.markedByName,
-          );
-        })
-        .toList(growable: false);
-    history.sort(
-      (first, second) =>
-          second.sessionStartsAt.compareTo(first.sessionStartsAt),
-    );
-    return history;
-  }
-
+  @override
   Future<StudentAttendanceStats> getStudentAttendanceStats({
     required String studentId,
     String? teamId,
-    DateTimeRange? range,
-  }) async {
-    try {
-      final sessions = await _loadStudentSessions(
-        studentId: studentId,
-        teamId: teamId,
-        range: range,
-      );
-      final now = _nowProvider();
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async => _queryService.getStudentAttendanceStats(
+    studentId: studentId,
+    teamId: teamId,
+    startDate: startDate,
+    endDate: endDate,
+  );
 
-      // Read all mark documents in parallel with cache-first strategy.
-      // Each .get() checks local Firestore cache first, avoiding unnecessary network calls.
-      final markDocFutures = sessions.map((session) async {
-        try {
-          return await _markDoc(
-            session.teamId,
-            session.id,
-            studentId,
-          ).get(const GetOptions(source: Source.cache));
-        } catch (_) {
-          return null;
-        }
-      });
-      final markDocs = await Future.wait(markDocFutures);
-
-      final history = List<StudentAttendanceHistoryItem>.generate(
-        sessions.length,
-        (i) {
-          final session = sessions[i];
-          final markDoc = markDocs[i];
-          final mark =
-              markDoc != null && markDoc.exists && markDoc.data() != null
-              ? AttendanceMark.fromMap(markDoc.data()!, markDoc.id)
-              : null;
-          return StudentAttendanceHistoryItem(
-            sessionId: session.id,
-            teamId: session.teamId,
-            teamNameSnapshot: session.teamNameSnapshot,
-            title: session.title,
-            dateKey: session.dateKey,
-            sessionStartsAt: session.startsAt,
-            sessionEndsAt: session.endsAt,
-            effectiveStatus: AttendanceRosterItem.resolveEffectiveStatus(
-              manualStatus: mark?.status,
-              session: session,
-              now: now,
-            ),
-            isSessionClosed: session.isEffectivelyClosedAt(now),
-            markedAt: mark?.markedAt,
-            markedByName: mark?.markedByName,
-          );
-        },
-      );
-
-      return StudentAttendanceStats.fromHistory(
-        studentId: studentId,
-        filterTeamId: teamId,
-        history: history,
-      );
-    } catch (error) {
-      if (error is AttendanceFailure) rethrow;
-      throw mapExceptionToAttendanceFailure(error);
-    }
-  }
-
+  @override
   Future<TeamAttendanceStats> getTeamAttendanceStats({
     required String teamId,
-    DateTimeRange? range,
-  }) async {
-    try {
-      Query<Map<String, dynamic>> query = _sessionsCol(teamId);
-      if (range != null) {
-        query = query
-            .where(
-              'startsAt',
-              isGreaterThanOrEqualTo: Timestamp.fromDate(range.start),
-            )
-            .where(
-              'startsAt',
-              isLessThanOrEqualTo: Timestamp.fromDate(range.end),
-            );
-      }
-      final snapshot = await query.get();
-      final sessions = _mapSessionsSnapshot(snapshot);
-      final now = _nowProvider();
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async => _queryService.getTeamAttendanceStats(
+    teamId: teamId,
+    startDate: startDate,
+    endDate: endDate,
+  );
 
-      final eligibleSessions = sessions
-          .where((s) => s.isEffectivelyClosedAt(now))
-          .toList(growable: false);
-
-      var totalSessions = 0;
-      var totalRosterEntries = 0;
-      var presentCount = 0;
-      var lateCount = 0;
-      var absentCount = 0;
-      final uniqueStudentIds = <String>{};
-
-      for (final session in eligibleSessions) {
-        totalSessions += 1;
-        totalRosterEntries += session.studentIdsSnapshot.length;
-        uniqueStudentIds.addAll(session.studentIdsSnapshot);
-
-        presentCount += session.presentCount;
-        lateCount += session.lateCount;
-
-        final sessionMarkedCount = session.presentCount + session.lateCount;
-        final sessionAbsentCount =
-            session.studentIdsSnapshot.length - sessionMarkedCount;
-        absentCount += sessionAbsentCount < 0 ? 0 : sessionAbsentCount;
-      }
-
-      return TeamAttendanceStats(
-        teamId: teamId,
-        totalSessions: totalSessions,
-        uniqueStudentsCount: uniqueStudentIds.length,
-        totalRosterEntries: totalRosterEntries,
-        presentCount: presentCount,
-        lateCount: lateCount,
-        absentCount: absentCount,
-      );
-    } catch (error) {
-      if (error is AttendanceFailure) rethrow;
-      throw mapExceptionToAttendanceFailure(error);
-    }
-  }
-
+  @override
   Future<bool> canUserManageAttendance({
     required AuthUser user,
     required String teamId,
-  }) async {
-    if (user.isArchived) return false;
-    if (user.role == UserRole.admin) return true;
-    if (user.role != UserRole.servant) return false;
+  }) => _queryService.canUserManageAttendance(user: user, teamId: teamId);
 
-    final normalizedTeamId = teamId.trim();
-    final assignedTeamIds = user.effectiveAssignedTeamIds;
-
-    if (assignedTeamIds.contains(normalizedTeamId)) {
-      return true;
-    }
-
-    final groupId = user.groupId;
-    if (groupId != null && groupId.isNotEmpty) {
-      try {
-        final doc = await _teamDoc(normalizedTeamId).get();
-        final data = doc.data();
-        if (doc.exists && data != null) {
-          return data['groupId'] == groupId;
-        }
-      } catch (_) {
-        return false;
-      }
-    }
-
-    return false;
-  }
-
+  @override
   Future<void> assertUserCanManageAttendance({
     required AuthUser user,
     required String teamId,
-  }) async {
-    final canManage = await canUserManageAttendance(user: user, teamId: teamId);
-    if (!canManage) {
-      throw const AttendancePermissionDeniedFailure();
-    }
-  }
+  }) => _queryService.assertUserCanManageAttendance(user: user, teamId: teamId);
+
+  @override
+  Future<void> syncOfflineMark(Map<String, dynamic> payload) =>
+      _commandService.syncOfflineMark(payload);
+
+  @override
+  Future<void> syncBatchedMarks({
+    required String teamId,
+    required String sessionId,
+    required List<Map<String, dynamic>> payloads,
+  }) => _commandService.syncBatchedMarks(
+    teamId: teamId,
+    sessionId: sessionId,
+    payloads: payloads,
+  );
+
+  Future<void> batchWriteMarks({
+    required String teamId,
+    required String sessionId,
+    required Map<String, AttendanceMarkStatus> marks,
+    required AuthUser markedBy,
+    bool cachedPermission = false,
+  }) => _commandService.batchWriteMarks(
+    teamId: teamId,
+    sessionId: sessionId,
+    marks: marks,
+    markedBy: markedBy,
+    cachedPermission: cachedPermission,
+  );
 }

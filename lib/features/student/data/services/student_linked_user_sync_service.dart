@@ -14,7 +14,7 @@ class StudentLinkedUserSyncService {
       _firestore.collection(FirestoreCollections.students);
 
   CollectionReference<Map<String, dynamic>> get _usersCollection =>
-      _firestore.collection(FirestoreCollections.users);
+      _firestore.collection(FirestoreCollections.servants);
 
   Map<String, dynamic> buildLinkedUserRolePatch({
     required StudentModel updatedStudent,
@@ -99,16 +99,16 @@ class StudentLinkedUserSyncService {
         updatedEmail: updatedEmail,
       );
 
-      final batch = _firestore.batch();
-      batch.update(
-        _studentsCollection.doc(updatedStudent.docID),
-        updatedStudent.toMap(),
-      );
-      batch.set(
-        _usersCollection.doc(uid),
-        linkedUserPatch,
-        SetOptions(merge: true),
-      );
+      final batch = _firestore.batch()
+        ..update(
+          _studentsCollection.doc(updatedStudent.docID),
+          updatedStudent.toMap(),
+        )
+        ..set(
+          _usersCollection.doc(uid),
+          linkedUserPatch,
+          SetOptions(merge: true),
+        );
       await batch.commit();
     } catch (e) {
       if (e is StudentFailure) rethrow;

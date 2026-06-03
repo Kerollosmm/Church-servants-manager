@@ -20,10 +20,12 @@ class AppColors {
   static const Color black = Colors.black;
   static const Color transparent = Colors.transparent;
 
-  static const Color surface = Colors.white;
-  static const Color background = Color(0xFFFEFAE9); // Paige / Cream
-  static const Color surfaceContainer = Color(0xFFF5EEDC); // Warm grey
-  static const Color outline = Color(0xFFC9B896); // Warm outline
+  static const Color surface = Color(0xFFFFFFFF);
+  static const Color background = Color(0xFFF7F7F6);
+  static const Color surfaceContainer = Color(0xFFF5EEDC);
+  static const Color surfaceContainerLow = Color(0xFFF7F7F6);
+  static const Color outline = Color(0xFFC9B896);
+  static const Color outlineVariant = Color(0x33A58255); // primary/20
 
   // Text Colors
   static const Color textPrimary = Color(0xFF3E2723); // Brown 900

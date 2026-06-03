@@ -1,120 +1,310 @@
+import 'package:church_management_system/core/blocs/connectivity/connectivity_cubit.dart';
+import 'package:church_management_system/core/blocs/sync/sync_cubit.dart';
 import 'package:church_management_system/core/routing/app_router.dart';
+import 'package:church_management_system/core/services/dead_letter_queue.dart';
+import 'package:church_management_system/core/services/hive_pruning_service.dart';
+import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/features/admin/data/admin_team_membership_service.dart';
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
+import 'package:church_management_system/features/admin/data/datasources/analytics_local_datasource.dart';
+import 'package:church_management_system/features/admin/data/repos/analytics_repository_impl.dart';
+import 'package:church_management_system/features/admin/data/services/admin_statistics_service.dart';
+import 'package:church_management_system/features/admin/domain/repos/i_analytics_repository.dart';
+import 'package:church_management_system/features/admin/presentation/bloc/dashboard/admin_dashboard_bloc.dart';
+import 'package:church_management_system/features/attendance/data/local/attendance_local_datasource.dart';
+import 'package:church_management_system/features/attendance/data/local/attendance_session_local_datasource.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_mark_repository.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_session_repository.dart';
+import 'package:church_management_system/features/attendance/data/services/attendance_command_service.dart';
+import 'package:church_management_system/features/attendance/data/services/attendance_query_service.dart';
+import 'package:church_management_system/features/attendance/data/services/attendance_season_sync_handler.dart';
 import 'package:church_management_system/features/attendance/data/services/attendance_session_service.dart';
+import 'package:church_management_system/features/attendance/data/services/attendance_sync_handler.dart';
+import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
+import 'package:church_management_system/features/auth/data/repos/firebase_auth_repository.dart';
 import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
-import 'package:church_management_system/features/auth/data/services/auth_service.dart';
+import 'package:church_management_system/features/auth/data/services/auth_user_local_store.dart';
 import 'package:church_management_system/features/auth/data/services/auth_user_profile_store.dart';
-import 'package:church_management_system/features/auth/data/services/firebase_auth_provider.dart';
-import 'package:church_management_system/features/auth/domain/auth_freshness_policy.dart';
+import 'package:church_management_system/features/auth/data/services/firebase_identity_provider.dart';
+import 'package:church_management_system/features/auth/domain/repos/auth_repository.dart';
+import 'package:church_management_system/features/results/data/datasources/results_local_datasource.dart';
+import 'package:church_management_system/features/results/data/repos/results_repository.dart';
+import 'package:church_management_system/features/results/data/services/result_sync_handler.dart';
+import 'package:church_management_system/features/results/domain/repos/i_results_repository.dart';
+import 'package:church_management_system/features/servant/data/local/servant_local_datasource.dart';
 import 'package:church_management_system/features/servant/data/repo/servant_data_repository.dart';
+import 'package:church_management_system/features/servant/data/services/servant_sync_handler.dart';
+import 'package:church_management_system/features/servant/domain/repos/i_servant_repository.dart';
+import 'package:church_management_system/features/servant/domain/usecases/provision_servant_with_auth_usecase.dart';
+import 'package:church_management_system/features/student/data/datasources/student_local_datasource.dart';
+import 'package:church_management_system/features/student/data/repos/pastoral_repository.dart';
 import 'package:church_management_system/features/student/data/repos/student_data_repository.dart';
+import 'package:church_management_system/features/student/data/services/pastoral_sync_handler.dart';
 import 'package:church_management_system/features/student/data/services/student_linked_user_sync_service.dart';
 import 'package:church_management_system/features/student/data/services/student_query_service.dart';
+import 'package:church_management_system/features/student/data/services/student_sync_handler.dart';
+import 'package:church_management_system/features/student/domain/repos/i_pastoral_repository.dart';
+import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
 import 'package:church_management_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
-import 'package:church_management_system/features/student/domain/usecases/get_students_stream_usecase.dart';
+import 'package:church_management_system/features/student/domain/usecases/get_students_list_usecase.dart';
+import 'package:church_management_system/features/student/domain/usecases/provision_student_with_auth_usecase.dart';
+import 'package:church_management_system/features/team/data/datasources/team_local_datasource.dart';
 import 'package:church_management_system/features/team/data/repos/team_repository.dart';
+import 'package:church_management_system/features/team/data/services/team_sync_handler.dart';
+import 'package:church_management_system/features/team/domain/repos/i_team_repository.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get_it/get_it.dart';
 
 final getIt = GetIt.instance;
 
 /// Call once before [runApp].
 void configureDependencies() {
+  _registerCore();
+  _registerServices();
+  _registerRepositories();
+  _registerUseCases();
+  _registerBlocs();
+  _registerRouting();
+}
+
+void _registerCore() {
   // ---- External ----
   getIt
-    ..registerLazySingleton<FirebaseFirestore>(() {
-      final firestore = FirebaseFirestore.instance
-        ..settings = const Settings(
-          persistenceEnabled: true,
-          cacheSizeBytes: 100 * 1024 * 1024,
-        );
-      return firestore;
-    })
+    ..registerLazySingleton<FirebaseFirestore>(() => FirebaseFirestore.instance)
+    ..registerLazySingleton<Connectivity>(Connectivity.new)
+    // ---- Sync Handlers ----
+    ..registerLazySingleton<StudentSyncHandler>(
+      () => StudentSyncHandler(getIt<IStudentRepository>()),
+    )
+    ..registerLazySingleton<AttendanceSyncHandler>(
+      () => AttendanceSyncHandler(getIt<IAttendanceRepository>()),
+    )
+    ..registerLazySingleton<ResultsSyncHandler>(
+      () => ResultsSyncHandler(getIt<IResultsRepository>()),
+    )
+    ..registerLazySingleton<AttendanceSessionSyncHandler>(
+      () => AttendanceSessionSyncHandler(getIt<AttendanceSessionRepository>()),
+    )
+    ..registerLazySingleton<PastoralSyncHandler>(
+      () => PastoralSyncHandler(getIt<IPastoralRepository>()),
+    )
+    ..registerLazySingleton<TeamSyncHandler>(
+      () => TeamSyncHandler(getIt<ITeamRepository>()),
+    )
+    ..registerLazySingleton<ServantSyncHandler>(
+      () => ServantSyncHandler(firestore: getIt<FirebaseFirestore>()),
+    )
+    // ---- Core Services ----
+    ..registerLazySingleton<DeadLetterQueue>(DeadLetterQueue.new)
+    ..registerLazySingleton<HivePruningService>(
+      () => HivePruningService(deadLetterQueue: getIt<DeadLetterQueue>()),
+    )
+    ..registerLazySingleton<SyncService>(
+      () => SyncService(
+        deadLetterQueue: getIt<DeadLetterQueue>(),
+        handlers: {
+          'MARK_ATTENDANCE': getIt<AttendanceSyncHandler>(),
+          'CLEAR_ATTENDANCE': getIt<AttendanceSyncHandler>(),
+          'UPSERT_STUDENT': getIt<StudentSyncHandler>(),
+          'ARCHIVE_STUDENT': getIt<StudentSyncHandler>(),
+          'RESTORE_STUDENT': getIt<StudentSyncHandler>(),
+          'UPDATE_RESULT': getIt<ResultsSyncHandler>(),
+          'CREATE_SESSION': getIt<AttendanceSessionSyncHandler>(),
+          'CLOSE_SESSION': getIt<AttendanceSessionSyncHandler>(),
+          'CREATE_PASTORAL_RECORD': getIt<PastoralSyncHandler>(),
+          'CREATE_TEAM': getIt<TeamSyncHandler>(),
+          'UPDATE_TEAM': getIt<TeamSyncHandler>(),
+          'DELETE_TEAM': getIt<TeamSyncHandler>(),
+          'RESTORE_TEAM': getIt<TeamSyncHandler>(),
+          'CREATE_SERVANT': getIt<ServantSyncHandler>(),
+        },
+      ),
+    )
+    ..registerFactory<SyncCubit>(
+      () => SyncCubit(syncService: getIt<SyncService>()),
+    )
+    ..registerLazySingleton<ConnectivityCubit>(ConnectivityCubit.new);
+}
 
-    // ---- Auth Freshness ----
-    // Note: AuthFreshnessPolicy.initialize() must be called after login
-    // and on app cold start to restore persisted state.
-    ..registerFactory<AuthFreshnessPolicy>(AuthFreshnessPolicy.new)
-
-    // ---- Services ----
+void _registerServices() {
+  // ---- Services (Low-level) ----
+  getIt
+    ..registerLazySingleton<FirebaseIdentityProvider>(
+      () => FirebaseIdentityProvider(auth: FirebaseAuth.instance),
+    )
+    ..registerLazySingleton<AuthUserLocalStore>(AuthUserLocalStore.new)
     ..registerLazySingleton<AuthUserProfileStore>(
-      () => AuthUserProfileStore(firestore: getIt()),
-    )
-    ..registerLazySingleton<FirebaseAuthProvider>(
-      () =>
-          FirebaseAuthProvider(userProfileStore: getIt<AuthUserProfileStore>()),
-    )
-    ..registerLazySingleton<AuthService>(
-      () => AuthService(provider: getIt<FirebaseAuthProvider>()),
-    )
-    ..registerLazySingleton<AdminUserProvisioningService>(
-      () => ClientAdminUserProvisioningService(
-        userProfileStore: getIt<AuthUserProfileStore>(),
-        authService: getIt<AuthService>(),
-      ),
-    )
-
-    // ---- Repositories ----
-    ..registerLazySingleton<StudentDataRepository>(
-      () => StudentDataRepository(
+      () => AuthUserProfileStore(
         firestore: getIt(),
-        queryService: getIt<StudentQueryService>(),
-        linkedUserSyncService: getIt<StudentLinkedUserSyncService>(),
+        localStore: getIt<AuthUserLocalStore>(),
       ),
     )
-    ..registerLazySingleton<ServantDataRepository>(
-      () => ServantDataRepository(firestore: getIt()),
-    )
+    ..registerLazySingleton<AdminStatisticsService>(AdminStatisticsService.new)
     ..registerLazySingleton<StudentQueryService>(
-      () => StudentQueryService(firestore: getIt()),
-    )
-    // ---- Attendance ----
-    ..registerLazySingleton<AttendanceRepository>(
-      () => AttendanceRepository(
+      () => StudentQueryService(
         firestore: getIt(),
-        studentQueryService: getIt<StudentQueryService>(),
-      ),
-    )
-    ..registerLazySingleton<AttendanceSessionRepository>(
-      () => AttendanceSessionRepository(firestore: getIt()),
-    )
-    ..registerLazySingleton<AttendanceMarkRepository>(
-      () => AttendanceMarkRepository(firestore: getIt()),
-    )
-    ..registerLazySingleton<AttendanceSessionService>(
-      () => AttendanceSessionService(
-        sessionRepository: getIt<AttendanceSessionRepository>(),
-        studentQueryService: getIt<StudentQueryService>(),
+        localDatasource: getIt<StudentLocalDatasource>(),
       ),
     )
     ..registerLazySingleton<StudentLinkedUserSyncService>(
       () => StudentLinkedUserSyncService(firestore: getIt()),
+    );
+}
+
+void _registerRepositories() {
+  // ---- Repositories ----
+  getIt
+    ..registerLazySingleton<AttendanceLocalDatasource>(
+      AttendanceLocalDatasource.new,
     )
-    ..registerLazySingleton<TeamRepository>(
-      () => TeamRepository(firestore: getIt()),
+    ..registerLazySingleton<AttendanceSessionLocalDatasource>(
+      AttendanceSessionLocalDatasource.new,
     )
-    ..registerLazySingleton<AdminTeamMembershipService>(
-      () => AdminTeamMembershipService(firestore: getIt()),
-    )
-    ..registerLazySingleton<AdminTeamService>(
-      () => AdminTeamService(
+    ..registerLazySingleton<IAttendanceRepository>(
+      () => AttendanceRepository(
         firestore: getIt(),
-        membershipService: getIt<AdminTeamMembershipService>(),
+        attendanceLocalDatasource: getIt<AttendanceLocalDatasource>(),
+        syncServiceGetter: getIt.call,
       ),
     )
+    ..registerLazySingleton<AttendanceQueryService>(
+      () => AttendanceQueryService(firestore: getIt()),
+    )
+    ..registerLazySingleton<AttendanceCommandService>(
+      () => AttendanceCommandService(firestore: getIt()),
+    )
+    ..registerLazySingleton<AttendanceMarkRepository>(
+      () => AttendanceMarkRepository(
+        firestore: getIt(),
+        localDatasource: getIt<AttendanceLocalDatasource>(),
+      ),
+    )
+    ..registerLazySingleton<AttendanceSessionRepository>(
+      () => AttendanceSessionRepository(
+        firestore: getIt(),
+        localDatasource: getIt<AttendanceSessionLocalDatasource>(),
+      ),
+    )
+    ..registerLazySingleton<StudentLocalDatasource>(StudentLocalDatasource.new)
+    ..registerLazySingleton<IStudentRepository>(
+      () => StudentDataRepository(
+        firestore: getIt(),
+        queryService: getIt<StudentQueryService>(),
+        syncServiceGetter: getIt.call,
+        localDatasource: getIt<StudentLocalDatasource>(),
+      ),
+    )
+    ..registerLazySingleton<ResultsLocalDatasource>(ResultsLocalDatasource.new)
+    ..registerLazySingleton<IResultsRepository>(
+      () => ResultsRepository(
+        firestore: getIt(),
+        localDatasource: getIt<ResultsLocalDatasource>(),
+      ),
+    )
+    ..registerLazySingleton<TeamLocalDatasource>(TeamLocalDatasource.new)
+    ..registerLazySingleton<ITeamRepository>(
+      () => TeamRepository(
+        firestore: getIt(),
+        localDatasource: getIt<TeamLocalDatasource>(),
+        syncService: getIt<SyncService>(),
+      ),
+    )
+    ..registerLazySingleton<AuthRepository>(
+      () => FirebaseAuthRepository(
+        identityProvider: getIt<FirebaseIdentityProvider>(),
+        userProfileStore: getIt<AuthUserProfileStore>(),
+        localAuthStore: getIt<AuthUserLocalStore>(),
+        firestore: getIt<FirebaseFirestore>(),
+      ),
+    )
+    ..registerLazySingleton<StudentDataRepository>(
+      () => getIt<IStudentRepository>() as StudentDataRepository,
+    )
+    ..registerLazySingleton<ServantLocalDatasource>(ServantLocalDatasource.new)
+    ..registerLazySingleton<IServantRepository>(
+      () => ServantDataRepository(
+        firestore: getIt(),
+        localDatasource: getIt<ServantLocalDatasource>(),
+        syncService: getIt<SyncService>(),
+        connectivity: getIt<Connectivity>(),
+      ),
+    )
+    ..registerLazySingleton<TeamRepository>(
+      () => getIt<ITeamRepository>() as TeamRepository,
+    )
+    ..registerLazySingleton<AttendanceRepository>(
+      () => getIt<IAttendanceRepository>() as AttendanceRepository,
+    )
+    ..registerLazySingleton<IPastoralRepository>(
+      () => PastoralRepository(firestore: getIt()),
+    )
+    ..registerLazySingleton<AnalyticsLocalDatasource>(
+      AnalyticsLocalDatasource.new,
+    )
+    ..registerLazySingleton<IAnalyticsRepository>(
+      () => AnalyticsRepositoryImpl(
+        firestore: getIt(),
+        localDatasource: getIt<AnalyticsLocalDatasource>(),
+      ),
+    );
+}
 
-    // ---- UseCases ----
-    ..registerLazySingleton<GetStudentsStreamUseCase>(
-      () => GetStudentsStreamUseCase(getIt<StudentDataRepository>()),
+void _registerUseCases() {
+  // ---- Domain Services / Use Cases ----
+  getIt
+    ..registerLazySingleton<AdminTeamService>(
+      () => AdminTeamService(firestore: getIt()),
+    )
+    ..registerLazySingleton<AttendanceSessionService>(
+      () => AttendanceSessionService(
+        commandService: getIt<AttendanceCommandService>(),
+      ),
+    )
+    ..registerLazySingleton<GetStudentsListUseCase>(
+      () => GetStudentsListUseCase(getIt<IStudentRepository>()),
     )
     ..registerLazySingleton<CanMutateStudentUseCase>(
       () => const CanMutateStudentUseCase(),
     )
+    ..registerLazySingleton<AdminTeamMembershipService>(
+      AdminTeamMembershipService.new,
+    )
+    ..registerLazySingleton<AdminUserProvisioningService>(
+      () => ClientAdminUserProvisioningService(
+        userProfileStore: getIt<AuthUserProfileStore>(),
+        authService: getIt<AuthRepository>(),
+      ),
+    )
+    ..registerLazySingleton<ProvisionStudentWithAuthUseCase>(
+      () => ProvisionStudentWithAuthUseCase(
+        studentRepository: getIt<IStudentRepository>(),
+        provisioningService: getIt<AdminUserProvisioningService>(),
+      ),
+    )
+    ..registerLazySingleton<ProvisionServantWithAuthUseCase>(
+      () => ProvisionServantWithAuthUseCase(
+        servantRepository: getIt<IServantRepository>(),
+        provisioningService: getIt<AdminUserProvisioningService>(),
+      ),
+    );
+}
 
-    // ---- Routing ----
-    ..registerLazySingleton<AppRouter>(AppRouter.new);
+void _registerBlocs() {
+  // ---- Dashboard Blocs ----
+  getIt.registerFactory<AdminDashboardBloc>(
+    () => AdminDashboardBloc(
+      getIt<IStudentRepository>(),
+      getIt<IServantRepository>(),
+      getIt<ITeamRepository>(),
+      getIt<AdminStatisticsService>(),
+    ),
+  );
+}
+
+void _registerRouting() {
+  // ---- Routing ----
+  getIt.registerLazySingleton<AppRouter>(AppRouter.new);
 }

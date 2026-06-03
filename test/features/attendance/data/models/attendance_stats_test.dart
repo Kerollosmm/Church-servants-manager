@@ -1,6 +1,6 @@
-import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
-import 'package:church_management_system/features/attendance/data/models/attendance_stats.dart';
-import 'package:church_management_system/features/attendance/data/models/student_attendance_history_item.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_enums.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_stats.dart';
+import 'package:church_management_system/features/attendance/domain/entities/student_attendance_history_item.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

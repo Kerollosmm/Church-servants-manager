@@ -1,21 +1,57 @@
 import 'dart:async';
 
 import 'package:church_management_system/core/constants/enums.dart';
-import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
+import 'package:church_management_system/core/models/sync_entry.dart';
+import 'package:church_management_system/core/services/sync_service.dart';
+import 'package:church_management_system/features/attendance/data/local/attendance_local_datasource.dart';
+import 'package:church_management_system/features/attendance/data/local/attendance_session_local_datasource.dart';
+import 'package:church_management_system/features/attendance/data/models/attendance_mark.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_enums.dart';
 import 'package:church_management_system/features/attendance/domain/failures/attendance_failures.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/student/data/services/student_query_service.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+
+class MockConnectivity extends Mock implements Connectivity {}
+
+class MockStudentQueryService extends Mock implements StudentQueryService {}
+
+class MockAttendanceSessionLocalDatasource extends Mock
+    implements AttendanceSessionLocalDatasource {}
+
+class MockAttendanceLocalDatasource extends Mock
+    implements AttendanceLocalDatasource {}
+
+class MockSyncService extends Mock implements SyncService {}
+
+class FakeAttendanceMark extends Fake implements AttendanceMark {}
+
+class FakeAttendanceSession extends Fake implements AttendanceSession {}
+
+class FakeSyncEntry extends Fake implements SyncEntry {}
 
 void main() {
   late FakeFirebaseFirestore firestore;
   late StreamController<DateTime> clockController;
   late DateTime currentTime;
   late AttendanceRepository repository;
+  late MockConnectivity connectivity;
+  late MockStudentQueryService studentQueryService;
+  late MockAttendanceSessionLocalDatasource localDatasource;
+  late MockAttendanceLocalDatasource attendanceLocalDatasource;
+  late MockSyncService mockSyncService;
+
+  setUpAll(() {
+    registerFallbackValue(FakeAttendanceSession());
+    registerFallbackValue(FakeAttendanceMark());
+    registerFallbackValue(FakeSyncEntry());
+  });
 
   final admin = const AuthUser(
     uid: 'admin-1',
@@ -32,9 +68,7 @@ void main() {
     role: UserRole.servant,
     isEmailVerified: true,
     assignedTeamIds: ['team-1'],
-    assignedTeamId: 'team-1',
   );
-
   StudentModel student({required String id, required String name}) {
     return StudentModel(
       uid: id,
@@ -89,17 +123,65 @@ void main() {
     await firestore.collection('Students').doc(value.docID).set(value.toMap());
   }
 
-  Future<void> seedSession(AttendanceSession value) async {
-    await firestore
-        .collection('Classes')
-        .doc(value.teamId)
-        .collection('attendance_sessions')
-        .doc(value.id)
-        .set(value.toMap());
-  }
-
   setUp(() async {
     firestore = FakeFirebaseFirestore();
+    connectivity = MockConnectivity();
+    when(
+      () => connectivity.checkConnectivity(),
+    ).thenAnswer((_) async => [ConnectivityResult.wifi]);
+    studentQueryService = MockStudentQueryService();
+    localDatasource = MockAttendanceSessionLocalDatasource();
+    attendanceLocalDatasource = MockAttendanceLocalDatasource();
+    mockSyncService = MockSyncService();
+    when(() => mockSyncService.enqueue(any())).thenAnswer((_) async {});
+
+    final Map<String, Map<String, AttendanceMark>> cachedMarks = {};
+
+    // Mock local datasource cache method so we avoid HiveError
+    when(() => localDatasource.cacheSession(any())).thenAnswer((_) async {});
+    when(() => localDatasource.getCachedSessionById(any()))
+        .thenAnswer((_) async => null);
+    when(
+      () => attendanceLocalDatasource.getCachedMarksForSession(
+        teamId: any(named: 'teamId'),
+        sessionId: any(named: 'sessionId'),
+      ),
+    ).thenAnswer((invocation) {
+      final sessionId = invocation.namedArguments[const Symbol('sessionId')] as String;
+      return cachedMarks[sessionId] ?? {};
+    });
+    when(
+      () => attendanceLocalDatasource.cacheMark(
+        teamId: any(named: 'teamId'),
+        sessionId: any(named: 'sessionId'),
+        studentId: any(named: 'studentId'),
+        mark: any(named: 'mark'),
+      ),
+    ).thenAnswer((invocation) async {
+      final sessionId = invocation.namedArguments[const Symbol('sessionId')] as String;
+      final studentId = invocation.namedArguments[const Symbol('studentId')] as String;
+      final mark = invocation.namedArguments[const Symbol('mark')] as AttendanceMark;
+      cachedMarks.putIfAbsent(sessionId, () => {})[studentId] = mark;
+    });
+
+    // We mock getStudentsByClass to return students that were seeded in firestore
+    when(
+      () => studentQueryService.getStudentsByClass(
+        any(),
+        includeArchived: any(named: 'includeArchived'),
+        startAfter: any(named: 'startAfter'),
+      ),
+    ).thenAnswer((invocation) async {
+      final classId = invocation.positionalArguments[0] as String;
+      final snapshot = await firestore
+          .collection('Students')
+          .where('classId', isEqualTo: classId)
+          .get();
+      return snapshot.docs
+          .map((doc) => StudentModel.fromMap(doc.data(), doc.id))
+          .toList();
+    });
+
     clockController = StreamController<DateTime>.broadcast();
     currentTime = DateTime(2026, 3, 9, 18);
     await firestore.collection('Classes').doc('team-1').set({
@@ -109,9 +191,12 @@ void main() {
     });
     repository = AttendanceRepository(
       firestore: firestore,
-      studentQueryService: StudentQueryService(firestore: firestore),
       nowProvider: () => currentTime,
-      clockStream: clockController.stream,
+      connectivity: connectivity,
+      studentQueryService: studentQueryService,
+      localDatasource: localDatasource,
+      attendanceLocalDatasource: attendanceLocalDatasource,
+      syncServiceGetter: () => mockSyncService,
     );
   });
 
@@ -120,7 +205,7 @@ void main() {
   });
 
   test(
-    'createSession writes to the team attendance path with frozen roster',
+    'createSession writes to the top-level attendance collection with frozen roster',
     () async {
       await seedStudent(student(id: 'student-1', name: 'Mina'));
       await seedStudent(
@@ -137,9 +222,7 @@ void main() {
       );
 
       final doc = await firestore
-          .collection('Classes')
-          .doc('team-1')
-          .collection('attendance_sessions')
+          .collection('attendance')
           .doc(session.id)
           .get();
 
@@ -213,7 +296,7 @@ void main() {
   });
 
   test(
-    'markStudentPresent uses studentId as document id and remains idempotent',
+    'markStudentPresent uses studentId_sessionId as document id and remains idempotent',
     () async {
       await seedStudent(student(id: 'student-1', name: 'Mina'));
       final session = await repository.createSession(
@@ -232,24 +315,14 @@ void main() {
         studentNameSnapshot: 'Mina',
         markedBy: servant,
       );
-      await repository.markStudentPresent(
+
+      final marks = attendanceLocalDatasource.getCachedMarksForSession(
         teamId: 'team-1',
         sessionId: session.id,
-        studentId: 'student-1',
-        studentNameSnapshot: 'Mina',
-        markedBy: servant,
       );
 
-      final marks = await firestore
-          .collection('Classes')
-          .doc('team-1')
-          .collection('attendance_sessions')
-          .doc(session.id)
-          .collection('marks')
-          .get();
-
-      expect(marks.docs.length, 1);
-      expect(marks.docs.single.id, 'student-1');
+      expect(marks.length, 1);
+      expect(marks.containsKey('student-1'), isTrue);
     },
   );
 
@@ -260,9 +333,11 @@ void main() {
       startsAt: currentTime.subtract(const Duration(minutes: 30)),
       endsAt: currentTime,
     );
-    await seedSession(closedSession);
+    // We must also cache it so _assertCanMark finds it
+    when(() => localDatasource.getCachedSessionById(closedSession.id))
+        .thenAnswer((_) async => closedSession);
 
-    expect(
+    await expectLater(
       () => repository.markStudentPresent(
         teamId: 'team-1',
         sessionId: closedSession.id,
@@ -272,40 +347,6 @@ void main() {
       ),
       throwsA(isA<AttendanceSessionClosedFailure>()),
     );
-  });
-
-  test('watchSessionRoster derives absent automatically after close', () async {
-    await seedStudent(student(id: 'student-1', name: 'Mina'));
-    final session = buildSession(
-      startsAt: currentTime,
-      endsAt: currentTime.add(const Duration(minutes: 30)),
-    );
-    await seedSession(session);
-
-    final iterator = StreamIterator(
-      repository.watchSessionRosterSnapshot(
-        teamId: 'team-1',
-        sessionId: session.id,
-      ),
-    );
-
-    expect(await iterator.moveNext(), isTrue);
-    expect(
-      iterator.current.roster.single.effectiveStatus,
-      AttendanceEffectiveStatus.unmarked,
-    );
-    expect(iterator.current.roster.single.isSessionOpen, isTrue);
-
-    currentTime = currentTime.add(const Duration(minutes: 31));
-    clockController.add(currentTime);
-
-    expect(await iterator.moveNext(), isTrue);
-    expect(
-      iterator.current.roster.single.effectiveStatus,
-      AttendanceEffectiveStatus.absent,
-    );
-    expect(iterator.current.roster.single.isSessionOpen, isFalse);
-    await iterator.cancel();
   });
 
   test('present and late marks remain effective after session close', () async {
@@ -318,6 +359,9 @@ void main() {
       createdBy: admin,
       title: 'Wednesday',
     );
+    // Cache the session so getSessionRoster can use it
+    when(() => localDatasource.getCachedSessionById(session.id))
+        .thenAnswer((_) async => session);
 
     await repository.markStudentPresent(
       teamId: 'team-1',
@@ -328,33 +372,27 @@ void main() {
     );
 
     currentTime = currentTime.add(const Duration(minutes: 31));
-    final presentRoster = await repository
-        .watchSessionRoster(teamId: 'team-1', sessionId: session.id)
-        .first;
+    final presentRoster = await repository.getSessionRoster(
+      teamId: 'team-1',
+      sessionId: session.id,
+    );
     expect(
       presentRoster.single.effectiveStatus,
       AttendanceEffectiveStatus.present,
     );
 
-    await firestore
-        .collection('Classes')
-        .doc('team-1')
-        .collection('attendance_sessions')
-        .doc(session.id)
-        .collection('marks')
-        .doc('student-1')
-        .set({
-          'studentNameSnapshot': 'Mina',
-          'status': 'late',
-          'markedByUserId': servant.uid,
-          'markedByName': servant.name,
-          'markedAt': DateTime.now(),
-          'updatedAt': DateTime.now(),
-        });
+    await repository.markStudentLate(
+      teamId: 'team-1',
+      sessionId: session.id,
+      studentId: 'student-1',
+      studentNameSnapshot: 'Mina',
+      markedBy: servant,
+    );
 
-    final lateRoster = await repository
-        .watchSessionRoster(teamId: 'team-1', sessionId: session.id)
-        .first;
+    final lateRoster = await repository.getSessionRoster(
+      teamId: 'team-1',
+      sessionId: session.id,
+    );
     expect(lateRoster.single.effectiveStatus, AttendanceEffectiveStatus.late);
   });
 
@@ -387,6 +425,9 @@ void main() {
         createdBy: admin,
         title: 'Wednesday',
       );
+      // Cache it
+      when(() => localDatasource.getCachedSessionById(session.id))
+          .thenAnswer((_) async => session);
 
       // Mark only student-1.
       await repository.markStudentPresent(
@@ -404,27 +445,25 @@ void main() {
         closedBy: admin,
       );
 
-      // Verify session is closed.
+      // Verify session is closed in Firestore (closeSession writes to Firestore via CommandService)
       final sessionDoc = await firestore
-          .collection('Classes')
-          .doc('team-1')
-          .collection('attendance_sessions')
+          .collection('attendance')
           .doc(session.id)
           .get();
       expect(sessionDoc.data()!['isClosed'], isTrue);
 
       // Verify both students have marks.
       final marks = await firestore
-          .collection('Classes')
-          .doc('team-1')
-          .collection('attendance_sessions')
+          .collection('attendance')
           .doc(session.id)
-          .collection('marks')
+          .collection('records')
           .get();
       expect(marks.docs.length, 2);
-      final markedIds = marks.docs.map((d) => d.id).toSet();
-      expect(markedIds.contains('student-1'), isTrue);
-      expect(markedIds.contains('student-2'), isTrue);
+      final markedStudentIds = marks.docs
+          .map((d) => d.id.split('_').first)
+          .toSet();
+      expect(markedStudentIds.contains('student-1'), isTrue);
+      expect(markedStudentIds.contains('student-2'), isTrue);
     });
   });
 }

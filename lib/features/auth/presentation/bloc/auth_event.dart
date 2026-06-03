@@ -19,14 +19,12 @@ class AuthEventSignUp extends AuthEvent {
   final String email;
   final String password;
   final String name;
-  final UserRole role;
   final String? grade;
 
   const AuthEventSignUp({
     required this.email,
     required this.password,
     required this.name,
-    required this.role,
     this.grade,
   });
 }
@@ -51,6 +49,10 @@ class AuthEventForcePasswordReset extends AuthEvent {
 
 class AuthEventRefreshUser extends AuthEvent {
   const AuthEventRefreshUser();
+}
+
+class AuthEventForceRefresh extends AuthEvent {
+  const AuthEventForceRefresh();
 }
 
 class _AuthEventSessionChanged extends AuthEvent {

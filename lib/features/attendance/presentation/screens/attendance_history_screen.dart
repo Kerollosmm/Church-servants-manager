@@ -1,11 +1,14 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/routes.dart';
+import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/routing/route_args.dart';
 import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
 import 'package:church_management_system/core/widgets/app_empty_state.dart';
+import 'package:church_management_system/core/widgets/app_error_state.dart';
 import 'package:church_management_system/core/widgets/common/app_info_banner.dart';
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
+import 'package:church_management_system/core/widgets/sync_status_banner.dart';
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
@@ -15,9 +18,9 @@ import 'package:church_management_system/features/attendance/presentation/bloc/s
 import 'package:church_management_system/features/attendance/presentation/bloc/session_admin/attendance_session_admin_state.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:church_management_system/features/team/data/models/team_model.dart';
 import 'package:church_management_system/features/team/data/repos/team_repository.dart';
-import 'package:church_management_system/features/team/presentation/bloc/team_cubit.dart';
+import 'package:church_management_system/features/team/domain/entities/team.dart';
+import 'package:church_management_system/features/team/presentation/bloc/team_bloc.dart';
 import 'package:church_management_system/features/team/presentation/widgets/team_dropdown.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -26,7 +29,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 ///
 /// Shows team dropdown, active session card, and history cards.
 /// Uses [AttendanceHistoryCubit], [AttendanceSessionAdminCubit],
-/// and [TeamCubit].
+/// and [TeamBloc].
 class AttendanceHistoryScreen extends StatefulWidget {
   const AttendanceHistoryScreen({super.key});
 
@@ -58,7 +61,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
 
   void _ensureInitialTeamSelection(
     AuthUser actor,
-    List<TeamModel> teams,
+    List<Team> teams,
     BuildContext context,
   ) {
     if (_selectedTeamId != null || teams.isEmpty) return;
@@ -66,7 +69,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
         ? actor.effectiveAssignedTeamIds.toSet()
         : null;
 
-    TeamModel? candidate;
+    Team? candidate;
     try {
       candidate = teams.firstWhere(
         (team) => allowedTeamIds == null || allowedTeamIds.contains(team.id),
@@ -88,7 +91,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
     });
   }
 
-  String _teamName(List<TeamModel> teams, String? teamId) {
+  String _teamName(List<Team> teams, String? teamId) {
     for (final team in teams) {
       if (team.id == teamId) return team.name;
     }
@@ -119,14 +122,13 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<AuthBloc, AuthState>(
-      builder: (context, authState) {
-        final actor = switch (authState) {
-          AuthAuthenticated() => authState.user,
-          AuthDegraded() => authState.user,
-          _ => null,
-        };
-
+    return BlocSelector<AuthBloc, AuthState, AuthUser?>(
+      selector: (state) => switch (state) {
+        AuthAuthenticated() => state.user,
+        AuthDegraded() => state.user,
+        _ => null,
+      },
+      builder: (context, actor) {
         if (actor == null) {
           return const Scaffold(
             body: Center(child: Text('لم يتم تسجيل الدخول.')),
@@ -135,23 +137,26 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
 
         return MultiBlocProvider(
           providers: [
-            BlocProvider<TeamCubit>(
+            BlocProvider<TeamBloc>(
               create: (context) {
-                final teamCubit = TeamCubit(
-                  teamRepository: context.read<TeamRepository>(),
-                  adminTeamService: context.read<AdminTeamService>(),
+                final teamCubit = TeamBloc(
+                  teamRepository: getIt<TeamRepository>(),
+                  adminTeamService: getIt<AdminTeamService>(),
                 );
 
                 if (actor.role == UserRole.admin) {
-                  teamCubit.loadAllTeams();
+                  teamCubit.add(const TeamLoadAllRequested());
                 } else {
                   final groupId = actor.groupId;
                   if (groupId != null && groupId.isNotEmpty) {
-                    teamCubit.loadTeamsByGroup(
-                      groupId,
-                      defaultTeamId: actor.effectiveAssignedTeamIds.length == 1
-                          ? actor.effectiveAssignedTeamIds.first
-                          : null,
+                    teamCubit.add(
+                      TeamLoadRequested(
+                        groupId,
+                        defaultTeamId:
+                            actor.effectiveAssignedTeamIds.length == 1
+                            ? actor.effectiveAssignedTeamIds.first
+                            : null,
+                      ),
                     );
                   }
                 }
@@ -161,7 +166,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
             BlocProvider<AttendanceHistoryCubit>(
               create: (context) {
                 final cubit = AttendanceHistoryCubit(
-                  repository: context.read<AttendanceRepository>(),
+                  repository: getIt<AttendanceRepository>(),
                 );
                 if (_selectedTeamId != null) {
                   cubit.loadForTeam(_selectedTeamId!);
@@ -171,7 +176,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
             ),
             BlocProvider<AttendanceSessionAdminCubit>(
               create: (context) => AttendanceSessionAdminCubit(
-                repository: context.read<AttendanceRepository>(),
+                repository: getIt<AttendanceRepository>(),
               ),
             ),
           ],
@@ -224,15 +229,16 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                         label: const Text('جلسة جديدة'),
                       )
                     : null,
-                body: BlocBuilder<TeamCubit, TeamState>(
+                body: BlocBuilder<TeamBloc, TeamState>(
                   builder: (context, teamState) {
                     final teams = teamState is TeamLoaded
                         ? teamState.teams
-                        : const <TeamModel>[];
+                        : const <Team>[];
                     _ensureInitialTeamSelection(actor, teams, context);
 
                     return Column(
                       children: [
+                        const SyncStatusBanner(),
                         Padding(
                           padding: const EdgeInsets.fromLTRB(
                             AppSpacing.md,
@@ -293,27 +299,12 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                                   }
 
                                   if (state is AttendanceHistoryError) {
-                                    return Center(
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(
-                                          AppSpacing.lg,
-                                        ),
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            const Icon(
-                                              Icons.error_outline,
-                                              size: 48,
-                                              color: AppColors.error,
-                                            ),
-                                            AppSpacing.gapMd,
-                                            Text(
-                                              state.message,
-                                              textAlign: TextAlign.center,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
+                                    return AppErrorState(
+                                      message: state.message,
+                                      title: 'تعذر تحميل الحضور',
+                                      onRetry: () => innerContext
+                                          .read<AttendanceHistoryCubit>()
+                                          .loadForTeam(_selectedTeamId!),
                                     );
                                   }
 
@@ -325,94 +316,147 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                                   final sessions = state.sessions;
 
                                   if (sessions.isEmpty) {
+                                    final canCreate =
+                                        actor.role == UserRole.admin ||
+                                        actor.role == UserRole.servant;
                                     return AppEmptyState(
+                                      icon: Icons.history_outlined,
                                       title: 'لا توجد جلسات حضور',
-                                      subtitle:
-                                          'أنشئ جلسة جديدة لبدء تسجيل الحضور لهذا الفريق.',
+                                      subtitle: state.isFromCache
+                                          ? 'يرجى الاتصال بالإنترنت لتحميل البيانات لأول مرة.'
+                                          : 'أنشئ جلسة جديدة لبدء تسجيل الحضور لهذا الفريق.',
+                                      onAction:
+                                          (!state.isFromCache && canCreate)
+                                          ? () =>
+                                                _openCreateScreen(innerContext)
+                                          : null,
+                                      actionLabel: 'جلسة جديدة',
                                       onRefresh: () => context
                                           .read<AttendanceHistoryCubit>()
                                           .loadForTeam(_selectedTeamId!),
                                     );
                                   }
 
-                                  final historySessions = sessions
-                                      .where(
-                                        (session) =>
-                                            activeSession == null ||
-                                            session.id != activeSession.id,
-                                      )
-                                      .toList(growable: false);
-
-                                  return ListView.builder(
-                                    padding: const EdgeInsets.all(
-                                      AppSpacing.md,
-                                    ),
-                                    itemCount:
-                                        (activeSession != null ? 1 : 0) +
-                                        historySessions.length,
-                                    itemBuilder: (context, index) {
-                                      if (activeSession != null && index == 0) {
-                                        return Padding(
-                                          padding: const EdgeInsets.only(
-                                            bottom: AppSpacing.md,
+                                  final historySessions =
+                                      sessions
+                                          .where(
+                                            (session) =>
+                                                activeSession == null ||
+                                                session.id != activeSession.id,
+                                          )
+                                          .toList()
+                                        ..sort(
+                                          (a, b) =>
+                                              b.startsAt.compareTo(a.startsAt),
+                                        );
+                                  return Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      if (state.isFromCache)
+                                        Padding(
+                                          padding: const EdgeInsets.fromLTRB(
+                                            AppSpacing.md,
+                                            AppSpacing.md,
+                                            AppSpacing.md,
+                                            0,
                                           ),
-                                          child: _ActiveSessionCard(
-                                            teamName: _teamName(
-                                              teams,
-                                              _selectedTeamId,
-                                            ),
-                                            session: activeSession,
-                                            canClose:
-                                                actor.role == UserRole.admin,
-                                            onOpen: () {
-                                              Navigator.pushNamed(
-                                                context,
-                                                attendanceTaking,
-                                                arguments: AttendanceTakingArgs(
-                                                  actor: actor,
-                                                  teamId: activeSession.teamId,
-                                                  sessionId: activeSession.id,
+                                          child: AppInfoBanner(
+                                            icon: Icons.cloud_off,
+                                            backgroundColor:
+                                                Colors.amber.shade100,
+                                            foregroundColor:
+                                                Colors.amber.shade900,
+                                            message:
+                                                'عرض البيانات المخزنة محلياً. قد لا تكون محدثة.',
+                                          ),
+                                        ),
+                                      Expanded(
+                                        child: ListView.builder(
+                                          padding: const EdgeInsets.all(
+                                            AppSpacing.md,
+                                          ),
+                                          itemCount:
+                                              (activeSession != null ? 1 : 0) +
+                                              historySessions.length,
+                                          itemBuilder: (context, index) {
+                                            if (activeSession != null &&
+                                                index == 0) {
+                                              return Padding(
+                                                padding: const EdgeInsets.only(
+                                                  bottom: AppSpacing.md,
+                                                ),
+                                                child: _ActiveSessionCard(
+                                                  teamName: _teamName(
+                                                    teams,
+                                                    _selectedTeamId,
+                                                  ),
+                                                  session: activeSession,
+                                                  canClose:
+                                                      actor.role ==
+                                                      UserRole.admin,
+                                                  onOpen: () {
+                                                    Navigator.pushNamed(
+                                                      context,
+                                                      attendanceTaking,
+                                                      arguments:
+                                                          AttendanceTakingArgs(
+                                                            actor: actor,
+                                                            teamId:
+                                                                activeSession
+                                                                    .teamId,
+                                                            sessionId:
+                                                                activeSession
+                                                                    .id,
+                                                          ),
+                                                    );
+                                                  },
+                                                  onClose:
+                                                      actor.role ==
+                                                          UserRole.admin
+                                                      ? () =>
+                                                            _closeActiveSession(
+                                                              actor,
+                                                              activeSession,
+                                                              context,
+                                                            )
+                                                      : null,
                                                 ),
                                               );
-                                            },
-                                            onClose:
-                                                actor.role == UserRole.admin
-                                                ? () => _closeActiveSession(
-                                                    actor,
-                                                    activeSession,
+                                            }
+
+                                            final sessionIndex =
+                                                activeSession != null
+                                                ? index - 1
+                                                : index;
+                                            final session =
+                                                historySessions[sessionIndex];
+
+                                            return Padding(
+                                              padding: const EdgeInsets.only(
+                                                bottom: AppSpacing.md,
+                                              ),
+                                              child: _SessionHistoryCard(
+                                                session: session,
+                                                onTap: () {
+                                                  Navigator.pushNamed(
                                                     context,
-                                                  )
-                                                : null,
-                                          ),
-                                        );
-                                      }
-
-                                      final sessionIndex = activeSession != null
-                                          ? index - 1
-                                          : index;
-                                      final session =
-                                          historySessions[sessionIndex];
-
-                                      return Padding(
-                                        padding: const EdgeInsets.only(
-                                          bottom: AppSpacing.md,
-                                        ),
-                                        child: _SessionHistoryCard(
-                                          session: session,
-                                          onTap: () {
-                                            Navigator.pushNamed(
-                                              context,
-                                              attendanceTaking,
-                                              arguments: AttendanceTakingArgs(
-                                                actor: actor,
-                                                teamId: session.teamId,
-                                                sessionId: session.id,
+                                                    attendanceTaking,
+                                                    arguments:
+                                                        AttendanceTakingArgs(
+                                                          actor: actor,
+                                                          teamId:
+                                                              session.teamId,
+                                                          sessionId: session.id,
+                                                        ),
+                                                  );
+                                                },
                                               ),
                                             );
                                           },
                                         ),
-                                      );
-                                    },
+                                      ),
+                                    ],
                                   );
                                 },
                               ),

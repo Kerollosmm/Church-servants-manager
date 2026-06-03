@@ -1,32 +1,31 @@
-import 'dart:async';
-
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
-import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/student/data/repos/student_data_repository.dart';
+import 'package:church_management_system/features/student/domain/entities/student.dart';
 import 'package:church_management_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
-import 'package:church_management_system/features/student/domain/usecases/get_students_stream_usecase.dart';
+import 'package:church_management_system/features/student/domain/usecases/get_students_list_usecase.dart';
+import 'package:church_management_system/features/student/domain/usecases/provision_student_with_auth_usecase.dart';
 import 'package:church_management_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockStudentDataRepository extends Mock implements StudentDataRepository {}
 
-class MockGetStudentsStreamUseCase extends Mock
-    implements GetStudentsStreamUseCase {}
+class MockGetStudentsListUseCase extends Mock
+    implements GetStudentsListUseCase {}
 
 class MockCanMutateStudentUseCase extends Mock
     implements CanMutateStudentUseCase {}
 
-class MockAdminUserProvisioningService extends Mock
-    implements AdminUserProvisioningService {}
+class MockProvisionStudentWithAuthUseCase extends Mock
+    implements ProvisionStudentWithAuthUseCase {}
 
 void main() {
   late MockStudentDataRepository repository;
-  late MockGetStudentsStreamUseCase getStudentsStream;
+  late MockGetStudentsListUseCase getStudentsList;
   late MockCanMutateStudentUseCase canMutateStudent;
-  late MockAdminUserProvisioningService adminUserProvisioningService;
+  late MockProvisionStudentWithAuthUseCase provisionUseCase;
 
   AuthUser actor(UserRole role) => AuthUser(
     uid: 'u1',
@@ -37,7 +36,7 @@ void main() {
     groupId: 'year1',
   );
 
-  StudentModel student({String id = 's1', UserRole role = UserRole.student}) {
+  Student student({String id = 's1', UserRole role = UserRole.student}) {
     return StudentModel(
       uid: id,
       docID: id,
@@ -57,7 +56,7 @@ void main() {
       fatherOfConfession: 'Fr.',
       notes: null,
       classId: 'team1',
-    );
+    ).toDomain();
   }
 
   setUpAll(() {
@@ -67,22 +66,24 @@ void main() {
 
   setUp(() {
     repository = MockStudentDataRepository();
-    getStudentsStream = MockGetStudentsStreamUseCase();
+    getStudentsList = MockGetStudentsListUseCase();
     canMutateStudent = MockCanMutateStudentUseCase();
-    adminUserProvisioningService = MockAdminUserProvisioningService();
+    provisionUseCase = MockProvisionStudentWithAuthUseCase();
   });
 
   test(
     'load emits loading then empty loaded when actor has no stream access',
     () async {
       final admin = actor(UserRole.admin);
-      when(() => getStudentsStream(actor: admin)).thenReturn(null);
+      when(
+        () => getStudentsList.call(actor: admin),
+      ).thenAnswer((_) async => null);
 
       final bloc = StudentDataBloc(
         studentRepository: repository,
-        getStudentsStream: getStudentsStream,
+        getStudentsList: getStudentsList,
         canMutateStudent: canMutateStudent,
-        adminUserProvisioningService: adminUserProvisioningService,
+        provisionUseCase: provisionUseCase,
       );
 
       final expectation = expectLater(
@@ -101,63 +102,32 @@ void main() {
     },
   );
 
-  test('refresh keeps previous students visible while loading', () async {
-    final admin = actor(UserRole.admin);
-    final controller = StreamController<List<StudentModel>>.broadcast();
-    when(
-      () => getStudentsStream(actor: admin),
-    ).thenAnswer((_) => controller.stream);
-
-    final bloc = StudentDataBloc(
-      studentRepository: repository,
-      getStudentsStream: getStudentsStream,
-      canMutateStudent: canMutateStudent,
-      adminUserProvisioningService: adminUserProvisioningService,
-    );
-
-    final expectation = expectLater(
-      bloc.stream,
-      emitsInOrder([
-        isA<StudentDataLoading>(),
-        isA<StudentDataLoaded>().having((s) => s.students.length, 'count', 1),
-        isA<StudentDataLoading>()
-            .having((s) => s.previousStudents.length, 'previousStudents', 1)
-            .having((s) => s.isRefresh, 'isRefresh', true),
-        isA<StudentDataLoaded>().having((s) => s.students.length, 'count', 1),
-      ]),
-    );
-
-    bloc.add(StudentsLoadRequested(actor: admin));
-    await Future<void>.delayed(Duration.zero);
-    controller.add([student()]);
-    await Future<void>.delayed(Duration.zero);
-    await bloc.refresh(admin);
-    controller.add([student(id: 's2')]);
-
-    await expectation;
-    await controller.close();
-    await bloc.close();
-  });
-
   test(
     'search with changed team reloads the student stream for the new team',
     () async {
       final admin = actor(UserRole.admin);
-      final team1Controller = StreamController<List<StudentModel>>.broadcast();
-      final team2Controller = StreamController<List<StudentModel>>.broadcast();
 
       when(
-        () => getStudentsStream(actor: admin, teamId: 'team1'),
-      ).thenAnswer((_) => team1Controller.stream);
+        () => getStudentsList.call(
+          actor: admin,
+          teamId: 'team1',
+          includeArchived: any(named: 'includeArchived'),
+        ),
+      ).thenAnswer((_) async => [student()]);
+
       when(
-        () => getStudentsStream(actor: admin, teamId: 'team2'),
-      ).thenAnswer((_) => team2Controller.stream);
+        () => getStudentsList.call(
+          actor: admin,
+          teamId: 'team2',
+          includeArchived: any(named: 'includeArchived'),
+        ),
+      ).thenAnswer((_) async => [student(id: 's2')]);
 
       final bloc = StudentDataBloc(
         studentRepository: repository,
-        getStudentsStream: getStudentsStream,
+        getStudentsList: getStudentsList,
         canMutateStudent: canMutateStudent,
-        adminUserProvisioningService: adminUserProvisioningService,
+        provisionUseCase: provisionUseCase,
       );
 
       final expectation = expectLater(
@@ -178,18 +148,13 @@ void main() {
 
       bloc.add(StudentsLoadRequested(actor: admin, teamId: 'team1'));
       await Future<void>.delayed(Duration.zero);
-      team1Controller.add([student()]);
-      await Future<void>.delayed(Duration.zero);
 
       bloc.add(
         StudentsSearchRequested(actor: admin, query: '', teamId: 'team2'),
       );
       await Future<void>.delayed(Duration.zero);
-      team2Controller.add([student(id: 's2')]);
 
       await expectation;
-      await team1Controller.close();
-      await team2Controller.close();
       await bloc.close();
     },
   );
@@ -197,13 +162,15 @@ void main() {
   test('create emits not-allowed when actor cannot mutate student', () async {
     final servant = actor(UserRole.servant);
     final newStudent = student();
-    when(() => canMutateStudent(servant, newStudent)).thenReturn(false);
+    when(
+      () => canMutateStudent.canCreate(servant, newStudent),
+    ).thenReturn(false);
 
     final bloc = StudentDataBloc(
       studentRepository: repository,
-      getStudentsStream: getStudentsStream,
+      getStudentsList: getStudentsList,
       canMutateStudent: canMutateStudent,
-      adminUserProvisioningService: adminUserProvisioningService,
+      provisionUseCase: provisionUseCase,
     );
 
     final expectation = expectLater(
@@ -227,9 +194,9 @@ void main() {
 
     final bloc = StudentDataBloc(
       studentRepository: repository,
-      getStudentsStream: getStudentsStream,
+      getStudentsList: getStudentsList,
       canMutateStudent: canMutateStudent,
-      adminUserProvisioningService: adminUserProvisioningService,
+      provisionUseCase: provisionUseCase,
     );
 
     final expectation = expectLater(
@@ -253,13 +220,15 @@ void main() {
     when(
       () => repository.getStudentById('s1'),
     ).thenAnswer((_) async => existing);
-    when(() => canMutateStudent(servantActor, existing)).thenReturn(true);
+    when(
+      () => canMutateStudent.canUpdate(servantActor, existing, updated),
+    ).thenReturn(true);
 
     final bloc = StudentDataBloc(
       studentRepository: repository,
-      getStudentsStream: getStudentsStream,
+      getStudentsList: getStudentsList,
       canMutateStudent: canMutateStudent,
-      adminUserProvisioningService: adminUserProvisioningService,
+      provisionUseCase: provisionUseCase,
     );
 
     final expectation = expectLater(
@@ -288,13 +257,15 @@ void main() {
     when(
       () => repository.getStudentById('s2'),
     ).thenAnswer((_) async => existing);
-    when(() => canMutateStudent(adminActor, existing)).thenReturn(true);
+    when(
+      () => canMutateStudent.canUpdate(adminActor, existing, updated),
+    ).thenReturn(true);
 
     final bloc = StudentDataBloc(
       studentRepository: repository,
-      getStudentsStream: getStudentsStream,
+      getStudentsList: getStudentsList,
       canMutateStudent: canMutateStudent,
-      adminUserProvisioningService: adminUserProvisioningService,
+      provisionUseCase: provisionUseCase,
     );
 
     final expectation = expectLater(
@@ -316,48 +287,34 @@ void main() {
     await bloc.close();
   });
 
-  test('create rolls back linked auth user when student write fails', () async {
+  test('create calls provisionUseCase when credentials provided', () async {
     final admin = actor(UserRole.admin);
     final newStudent = student(id: 'local-id');
-    final linkedAuthUser = AuthUser(
-      uid: 'auth-uid',
-      email: 'student@example.com',
-      name: newStudent.name,
-      role: UserRole.student,
-    );
 
-    when(() => canMutateStudent(admin, newStudent)).thenReturn(true);
+    when(() => canMutateStudent.canCreate(admin, newStudent)).thenReturn(true);
     when(
-      () => adminUserProvisioningService.createUser(
-        email: 'student@example.com',
-        password: 'secret123',
-        name: newStudent.name,
-      ),
-    ).thenAnswer((_) async => linkedAuthUser);
-    when(
-      () => repository.createStudent(
-        newStudent.copyWith(uid: 'auth-uid', docID: 'auth-uid'),
-      ),
-    ).thenThrow(Exception('write failed'));
-    when(
-      () => adminUserProvisioningService.rollbackCreatedUser(
-        uid: 'auth-uid',
+      () => provisionUseCase(
+        student: newStudent,
         email: 'student@example.com',
         password: 'secret123',
       ),
-    ).thenAnswer((_) async {});
+    ).thenAnswer((_) async => 'auth-uid');
 
     final bloc = StudentDataBloc(
       studentRepository: repository,
-      getStudentsStream: getStudentsStream,
+      getStudentsList: getStudentsList,
       canMutateStudent: canMutateStudent,
-      adminUserProvisioningService: adminUserProvisioningService,
+      provisionUseCase: provisionUseCase,
     );
 
     final expectation = expectLater(
       bloc.stream,
       emitsInOrder([
-        isA<StudentDataError>().having((s) => s.message, 'message', isNotEmpty),
+        isA<StudentDataLoaded>().having(
+          (s) => s.mutationStatus,
+          'mutationStatus',
+          StudentMutationStatus.success,
+        ),
       ]),
     );
 
@@ -371,10 +328,9 @@ void main() {
     );
 
     await expectation;
-    verify(() => repository.createStudent(any())).called(1);
     verify(
-      () => adminUserProvisioningService.rollbackCreatedUser(
-        uid: 'auth-uid',
+      () => provisionUseCase(
+        student: newStudent,
         email: 'student@example.com',
         password: 'secret123',
       ),
@@ -388,16 +344,18 @@ void main() {
       final admin = actor(UserRole.admin);
       final newStudent = student(id: 'local-id');
 
-      when(() => canMutateStudent(admin, newStudent)).thenReturn(true);
       when(
-        () => repository.createStudent(newStudent),
+        () => canMutateStudent.canCreate(admin, newStudent),
+      ).thenReturn(true);
+      when(
+        () => provisionUseCase(student: newStudent),
       ).thenAnswer((_) async => 's1');
 
       final bloc = StudentDataBloc(
         studentRepository: repository,
-        getStudentsStream: getStudentsStream,
+        getStudentsList: getStudentsList,
         canMutateStudent: canMutateStudent,
-        adminUserProvisioningService: adminUserProvisioningService,
+        provisionUseCase: provisionUseCase,
       );
 
       final expectation = expectLater(
@@ -415,7 +373,7 @@ void main() {
 
       bloc.add(StudentCreated(actor: admin, student: newStudent));
       await expectation;
-      verify(() => repository.createStudent(newStudent)).called(1);
+      verify(() => provisionUseCase(student: newStudent)).called(1);
       await bloc.close();
     },
   );
@@ -427,19 +385,23 @@ void main() {
     when(
       () => repository.getStudentById('s3'),
     ).thenAnswer((_) async => existing);
-    when(() => canMutateStudent(adminActor, existing)).thenReturn(true);
     when(
-      () => repository.archiveStudent('s3', performedByUid: adminActor.uid),
-    ).thenAnswer((_) async {});
+      () => canMutateStudent.canDelete(adminActor, existing),
+    ).thenReturn(true);
+
     when(
-      () => adminUserProvisioningService.archiveUser(uid: 's3'),
+      () => provisionUseCase.archive(
+        docId: 's3',
+        performedByUid: adminActor.uid,
+        linkedUid: existing.uid,
+      ),
     ).thenAnswer((_) async {});
 
     final bloc = StudentDataBloc(
       studentRepository: repository,
-      getStudentsStream: getStudentsStream,
+      getStudentsList: getStudentsList,
       canMutateStudent: canMutateStudent,
-      adminUserProvisioningService: adminUserProvisioningService,
+      provisionUseCase: provisionUseCase,
     );
 
     final expectation = expectLater(
@@ -455,7 +417,13 @@ void main() {
 
     bloc.add(StudentDeleted(actor: adminActor, docId: 's3'));
     await expectation;
-    verify(() => adminUserProvisioningService.archiveUser(uid: 's3')).called(1);
+    verify(
+      () => provisionUseCase.archive(
+        docId: 's3',
+        performedByUid: adminActor.uid,
+        linkedUid: existing.uid,
+      ),
+    ).called(1);
     await bloc.close();
   });
 
@@ -466,21 +434,20 @@ void main() {
     when(
       () => repository.getStudentById('s4', includeArchived: true),
     ).thenAnswer((_) async => archived);
+
     when(
-      () => repository.restoreStudent(
-        's4',
-        performedByUid: any(named: 'performedByUid'),
+      () => provisionUseCase.restore(
+        docId: 's4',
+        performedByUid: adminActor.uid,
+        linkedUid: archived.uid,
       ),
-    ).thenAnswer((_) async {});
-    when(
-      () => adminUserProvisioningService.restoreUser(uid: 's4'),
     ).thenAnswer((_) async {});
 
     final bloc = StudentDataBloc(
       studentRepository: repository,
-      getStudentsStream: getStudentsStream,
+      getStudentsList: getStudentsList,
       canMutateStudent: canMutateStudent,
-      adminUserProvisioningService: adminUserProvisioningService,
+      provisionUseCase: provisionUseCase,
     );
 
     final expectation = expectLater(
@@ -497,12 +464,54 @@ void main() {
     bloc.add(StudentRestored(actor: adminActor, docId: 's4'));
     await expectation;
     verify(
-      () => repository.restoreStudent(
-        's4',
-        performedByUid: any(named: 'performedByUid'),
+      () => provisionUseCase.restore(
+        docId: 's4',
+        performedByUid: adminActor.uid,
+        linkedUid: archived.uid,
       ),
     ).called(1);
-    verify(() => adminUserProvisioningService.restoreUser(uid: 's4')).called(1);
+    await bloc.close();
+  });
+
+  test('search scopes search by groupId for servant actor', () async {
+    final servant = actor(UserRole.servant);
+    final results = [student(id: 's5')];
+
+    when(
+      () => repository.searchStudents(
+        'search term',
+        limit: any(named: 'limit'),
+        groupId: 'year1',
+      ),
+    ).thenAnswer((_) async => results);
+
+    final bloc = StudentDataBloc(
+      studentRepository: repository,
+      getStudentsList: getStudentsList,
+      canMutateStudent: canMutateStudent,
+      provisionUseCase: provisionUseCase,
+    );
+
+    final expectation = expectLater(
+      bloc.stream,
+      emitsInOrder([
+        isA<StudentDataLoading>().having((s) => s.isSearch, 'isSearch', true),
+        isA<StudentDataLoaded>()
+            .having((s) => s.students.length, 'count', 1)
+            .having((s) => s.currentQuery, 'query', 'search term'),
+      ]),
+    );
+
+    bloc.add(StudentsSearchRequested(actor: servant, query: 'search term'));
+    await expectation;
+
+    verify(
+      () => repository.searchStudents(
+        'search term',
+        limit: any(named: 'limit'),
+        groupId: 'year1',
+      ),
+    ).called(1);
     await bloc.close();
   });
 }

@@ -7,10 +7,13 @@ class AppLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Icon(
-      Icons.church,
-      size: size,
-      color: Theme.of(context).primaryColor,
+    return Image.asset(
+      'assets/images/logo_elkarooz.png',
+      height: size,
+      width: size,
+      fit: BoxFit.contain,
+      errorBuilder: (context, error, stackTrace) =>
+          Icon(Icons.church, size: size, color: Theme.of(context).primaryColor),
     );
   }
 }

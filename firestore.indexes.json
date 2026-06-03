@@ -74,7 +74,7 @@
       ]
     },
     {
-      "collectionGroup": "attendance_sessions",
+      "collectionGroup": "AttendanceSessions",
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "teamId", "order": "ASCENDING" },
@@ -82,7 +82,7 @@
       ]
     },
     {
-      "collectionGroup": "attendance_sessions",
+      "collectionGroup": "AttendanceSessions",
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "isClosed", "order": "ASCENDING" },
@@ -90,19 +90,55 @@
       ]
     },
     {
-      "collectionGroup": "attendance_sessions",
+      "collectionGroup": "AttendanceSessions",
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "studentIdsSnapshot", "arrayConfig": "CONTAINS" },
         { "fieldPath": "teamId", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "AttendanceSessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "dateKey", "order": "ASCENDING" },
+        { "fieldPath": "startsAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "AttendanceSessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "studentIdsSnapshot", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "startsAt", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [
     {
-      "collectionGroup": "attendance_sessions",
+      "collectionGroup": "AttendanceSessions",
       "fieldPath": "studentNameSnapshots",
       "indexes": []
+    },
+    {
+      "collectionGroup": "AttendanceSessions",
+      "fieldPath": "studentIdsSnapshot",
+      "indexes": [
+        {
+          "arrayConfig": "CONTAINS",
+          "queryScope": "COLLECTION_GROUP"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "records",
+      "fieldPath": "studentId",
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        }
+      ]
     }
   ]
 }

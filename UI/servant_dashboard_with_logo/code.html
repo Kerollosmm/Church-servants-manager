@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+
+<html dir="rtl" lang="ar"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;500;600;700&amp;family=Noto+Sans+Arabic:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#a58255",
+                        "background-light": "#f7f7f6",
+                        "background-dark": "#1c1916",
+                    },
+                    fontFamily: {
+                        "display": ["Noto Sans Arabic", "Work Sans", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: "Noto Sans Arabic", "Work Sans", sans-serif;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen flex flex-col">
+<!-- Header / Top Bar -->
+<header class="flex items-center bg-background-light dark:bg-background-dark p-4 sticky top-0 z-10 border-b border-primary/10">
+<div class="flex size-10 shrink-0 items-center justify-center rounded-lg cursor-pointer bg-white p-0.5 border border-primary/20"><img alt="Logo" class="size-full object-contain rounded-full shadow-sm" src="https://lh3.googleusercontent.com/aida/ADBb0uhbSdzajIn2eg9-Fj9QxrG5p-C6NWAprrmKjezYxji9_VgRkV9ZzxqdFOXTBmCpmfc1VSS-IXbZEEyffCkAjjfWuz9jb80uqqcqf_xNdkqpOFF1TVRbfvCKBcrKzZJHLAjHZ4NtyJyYH3PjuLByqCZx3gfbPz01Z5R3qtOAwZOT-FckyN4WKMFDSd05Regk70uqtlSfzhtLznxVYulBTv7fzVZhbUt1aKMQopbsHl0OlUSwPzTolcxBE4IUjfDpom8JgZJFtq-Hgr8"/></div>
+<h2 class="text-slate-900 dark:text-slate-100 text-lg font-bold leading-tight flex-1 text-center">لوحة التحكم</h2>
+<div class="flex w-10 items-center justify-end">
+<button class="flex size-10 items-center justify-center rounded-lg hover:bg-primary/10 text-slate-700 dark:text-slate-300">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+</div>
+</header>
+<main class="flex-1 overflow-y-auto pb-24">
+<!-- Welcome Section -->
+<section class="px-4 pt-6 pb-2">
+<h1 class="text-slate-900 dark:text-slate-100 text-3xl font-bold leading-tight">مرحباً بك، أ. يوحنا</h1>
+<p class="text-slate-500 dark:text-slate-400 text-sm mt-1">يوم خدمة مبارك لك وللفريق</p>
+</section>
+<!-- Large Team Summary Card -->
+<div class="p-4">
+<div class="relative overflow-hidden flex flex-col items-stretch justify-start rounded-xl shadow-sm border border-primary/10 bg-white dark:bg-slate-900">
+<div class="w-full bg-center bg-no-repeat aspect-[16/7] bg-cover" data-alt="Modern church interior with soft lighting" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuC64Mwsr03FTkXGxuuteq2Wp5xr8mfYLhSnn4OaxLse0EK2KmRw1GernScbBnByQ7HjbyRsmZmUmqKJoZrKsKTxvejeowaH2-_NujYT5Ui5dH3EJYSSuXqQn7E3dU3a5VZ-Bi1QR4gy8fsV7hXI6XdlUBXx1Vkym7yTwWAMjJB8BXOu1P8lBec_DQD5lzaIPZi89ZLfSNuqdpDod4VbfG4aslCCtgIbHrdIP-lGOKH1LGuMkJ4HnvGeqEI9okESoPT0OB9KA0cQXcbS");'>
+<div class="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent"></div>
+<div class="absolute bottom-4 right-4 text-white">
+<span class="bg-primary px-2 py-1 rounded text-xs font-bold uppercase tracking-wider">الفريق الحالي</span>
+<h3 class="text-2xl font-bold mt-1">فريق القديس مارمرقس</h3>
+</div>
+</div>
+<div class="flex w-full flex-col gap-4 p-5">
+<div class="flex items-center justify-between border-b border-primary/10 pb-4">
+<div class="flex items-center gap-3">
+<div class="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+<span class="material-symbols-outlined leading-none">groups</span>
+</div>
+<div>
+<p class="text-slate-500 dark:text-slate-400 text-xs">إجمالي الطلاب</p>
+<p class="text-slate-900 dark:text-slate-100 text-lg font-bold leading-none">28 طالب وطالبة</p>
+</div>
+</div>
+<div class="text-left">
+<p class="text-slate-500 dark:text-slate-400 text-xs">المرحلة الدراسية</p>
+<p class="text-slate-900 dark:text-slate-100 font-medium">إعدادي</p>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex-1">
+<div class="flex justify-between text-xs mb-1">
+<span class="text-slate-500">نسبة التفاعل</span>
+<span class="font-bold text-primary">85%</span>
+</div>
+<div class="h-2 w-full bg-primary/10 rounded-full">
+<div class="h-full bg-primary rounded-full w-[85%]"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Quick Actions -->
+<div class="px-4 py-3 flex gap-3">
+<button class="flex-1 flex flex-col items-center justify-center gap-2 rounded-xl py-6 bg-primary text-white shadow-lg shadow-primary/20 hover:opacity-90 transition-opacity">
+<span class="material-symbols-outlined text-3xl">how_to_reg</span>
+<span class="font-bold">تسجيل الحضور</span>
+</button>
+<button class="flex-1 flex flex-col items-center justify-center gap-2 rounded-xl py-6 bg-slate-800 dark:bg-slate-700 text-white shadow-lg shadow-slate-900/10 hover:opacity-90 transition-opacity">
+<span class="material-symbols-outlined text-3xl">manage_accounts</span>
+<span class="font-bold">إدارة الطلاب</span>
+</button>
+</div>
+<!-- Attendance Summary Table/List -->
+<div class="px-4 py-4">
+<div class="flex items-center justify-between mb-4">
+<h3 class="text-slate-900 dark:text-slate-100 text-lg font-bold">آخر ملخص حضور</h3>
+<a class="text-primary text-sm font-medium" href="#">عرض الكل</a>
+</div>
+<div class="bg-white dark:bg-slate-900 rounded-xl border border-primary/10 overflow-hidden">
+<div class="flex items-center p-4 border-b border-primary/5">
+<div class="size-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600">
+<span class="material-symbols-outlined">event_available</span>
+</div>
+<div class="mr-3 flex-1">
+<p class="text-slate-900 dark:text-slate-100 font-bold text-sm">اجتماع الجمعة الماضي</p>
+<p class="text-slate-500 dark:text-slate-400 text-xs">15 نوفمبر 2024</p>
+</div>
+<div class="text-left">
+<span class="text-emerald-600 dark:text-emerald-400 font-bold text-lg">22</span>
+<span class="text-slate-400 text-xs">/ 28</span>
+</div>
+</div>
+<div class="bg-primary/5 p-4 flex justify-between items-center">
+<div class="flex gap-2">
+<div class="flex -space-x-2 space-x-reverse">
+<div class="size-6 rounded-full border-2 border-white dark:border-slate-900 bg-slate-300 overflow-hidden" data-alt="Student profile 1" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBwjngjjOKLdvPmRbEWxg8bGAhpvqSjQmfIfZXRhZb0meAMb8aKGUvHCF3hNgE5Mwqf5UlgRNoYcsI8C_VZCXKCvPS-LmXL_pLxlBA5N5zJPdDUVMJCxlecDMApOo2gYChzRZaQyIHnVM3_ex4yUiGrRlnWAJdWCtSTq_NPfjvbRKo0Gi9oELpToqQmpG42QTEC5UaHVkJsHOtMPqlnYazUBBA8pk29IdaBCNGd9UkYPjNIA4T_Nt9LhnRr7C-VIQ0LTnoQRdeK79iU')"></div>
+<div class="size-6 rounded-full border-2 border-white dark:border-slate-900 bg-slate-300 overflow-hidden" data-alt="Student profile 2" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCWJAS9rNuKfVwtqf7bOOvBFmihkY7hOT8nepboQEOuXtl6z_udoSfRTCfdQT_PdnuGu71WvLvEprpMvmCjm1m8HpXfbpDzK6C3RhcM6WtuvP5g6fa1QsFb6_VGvW4X_E-NtyrK9OvHfDqA7aWIJJjJTMgIepsBXAcK9Vr6gZ6a-yU_Vbyn0tZ9VOAC6itTjP-6M-824aoboKp1U6RK8ZuNrQ9XWtfILuIw4IzWrCrXQWzgIgF8uYV4kY7AOx3QeAV9rJrPOYHyuNIX')"></div>
+<div class="size-6 rounded-full border-2 border-white dark:border-slate-900 bg-slate-300 overflow-hidden" data-alt="Student profile 3" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDrlb4RbdIkWbjAU4Bm1XB-K5kJBde8P7tyF2jVy4ylIaLwGt1eBC7RDlQ4OpI3RYGrrIOd8F8TYDaUZTk_oSp2yP5RkFO8UVu40YhLVXeonq0qlaHRudjamV24AtbfVR1tc07MioniTx_1Auds8e2gcMA-PxeDI0pFXGhD9BFz8jxZ5crTh3Fz2mUdosRb-Y9x7pMQ-aoTr8Sc4ZGrWlRpCJxvs9JqWmoZ12O-UivPM9h74vbTCeKMTBamTvZliUFrsLN5QlcEsTP6')"></div>
+<div class="size-6 rounded-full border-2 border-white dark:border-slate-900 bg-primary flex items-center justify-center text-[8px] text-white">+19</div>
+</div>
+</div>
+<p class="text-xs text-slate-500">حضروا الاجتماع</p>
+</div>
+</div>
+</div>
+<!-- Upcoming Lessons Section -->
+<div class="px-4 py-2">
+<h3 class="text-slate-900 dark:text-slate-100 text-lg font-bold mb-3">الدرس القادم</h3>
+<div class="bg-white dark:bg-slate-900 p-4 rounded-xl border border-primary/10 flex gap-4">
+<div class="size-16 rounded-lg bg-primary/10 flex flex-col items-center justify-center text-primary shrink-0">
+<span class="text-xs font-bold">نوفمبر</span>
+<span class="text-2xl font-black leading-none">22</span>
+</div>
+<div class="flex-1">
+<p class="text-slate-900 dark:text-slate-100 font-bold leading-tight">معجزات السيد المسيح - الجزء الثاني</p>
+<div class="flex items-center gap-1 mt-1 text-slate-500 dark:text-slate-400 text-xs">
+<span class="material-symbols-outlined text-sm">location_on</span>
+<span>القاعة الكبرى - مبنى الخدمات</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Bottom Navigation Bar -->
+<nav class="fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md border-t border-primary/10 px-4 pb-6 pt-2 flex items-center justify-around z-20">
+<a class="flex flex-col items-center gap-1 text-primary" href="#">
+<span class="material-symbols-outlined text-[26px]" style="font-variation-settings: 'FILL' 1;">home</span>
+<p class="text-[10px] font-bold">الرئيسية</p>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400" href="#">
+<span class="material-symbols-outlined text-[26px]">groups</span>
+<p class="text-[10px] font-medium">الطلاب</p>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400" href="#">
+<span class="material-symbols-outlined text-[26px]">bar_chart</span>
+<p class="text-[10px] font-medium">التقارير</p>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400" href="#">
+<span class="material-symbols-outlined text-[26px]">settings</span>
+<p class="text-[10px] font-medium">الإعدادات</p>
+</a>
+</nav>
+</body></html>

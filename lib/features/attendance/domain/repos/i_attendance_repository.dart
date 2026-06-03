@@ -1,16 +1,24 @@
-import 'package:church_management_system/features/attendance/data/models/attendance_enums.dart';
-import 'package:church_management_system/features/attendance/data/models/attendance_roster_item.dart';
-import 'package:church_management_system/features/attendance/data/models/attendance_roster_snapshot.dart';
-import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
-import 'package:church_management_system/features/attendance/data/models/attendance_stats.dart';
-import 'package:church_management_system/features/attendance/data/models/student_attendance_history_item.dart';
-import 'package:church_management_system/features/auth/data/models/auth_user.dart';
-import 'package:flutter/material.dart';
+import 'package:church_management_system/core/utils/bulk_operation_result.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_enums.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_roster_item.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_roster_snapshot.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_session.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_stats.dart';
+import 'package:church_management_system/features/attendance/domain/entities/student_attendance_history_item.dart';
+import 'package:church_management_system/features/auth/domain/entities/auth_user.dart';
 
 abstract class IAttendanceRepository {
   Future<AttendanceSession> createSession({
     required String teamId,
     required String teamNameSnapshot,
+    required DateTime startsAt,
+    required int durationMinutes,
+    required AuthUser createdBy,
+    String? title,
+  });
+
+  Future<BulkOperationResult<String>> createSessionsBulk({
+    required Map<String, String> teamIdsAndNames,
     required DateTime startsAt,
     required int durationMinutes,
     required AuthUser createdBy,
@@ -23,14 +31,12 @@ abstract class IAttendanceRepository {
     required AuthUser closedBy,
   });
 
-  Stream<List<AttendanceSession>> watchSessionsForTeam(String teamId);
+  Future<List<AttendanceSession>> getSessionsForTeam(String teamId);
 
-  Stream<AttendanceSession?> watchActiveSessionForTeam(String teamId);
+  Future<({List<AttendanceSession> sessions, bool isFromCache})>
+  getSessionsForTeamWithFallback(String teamId);
 
-  Stream<AttendanceSession?> watchSessionById({
-    required String teamId,
-    required String sessionId,
-  });
+  Future<AttendanceSession?> getActiveSessionForTeam(String teamId);
 
   Future<AttendanceSession?> getSessionById({
     required String teamId,
@@ -68,18 +74,17 @@ abstract class IAttendanceRepository {
     required AuthUser markedBy,
   });
 
-  /// Watches session status as a live stream for real-time open/closed state.
-  Stream<SessionStatus> watchSessionStatus({
+  Future<SessionStatus> getSessionStatus({
     required String teamId,
     required String sessionId,
   });
 
-  Stream<List<AttendanceRosterItem>> watchSessionRoster({
+  Future<List<AttendanceRosterItem>> getSessionRoster({
     required String teamId,
     required String sessionId,
   });
 
-  Stream<AttendanceRosterSnapshot> watchSessionRosterSnapshot({
+  Future<AttendanceRosterSnapshot> getSessionRosterSnapshot({
     required String teamId,
     required String sessionId,
   });
@@ -87,17 +92,21 @@ abstract class IAttendanceRepository {
   Future<List<StudentAttendanceHistoryItem>> getStudentAttendanceHistory({
     required String studentId,
     String? teamId,
+    DateTime? startDate,
+    DateTime? endDate,
   });
 
   Future<StudentAttendanceStats> getStudentAttendanceStats({
     required String studentId,
     String? teamId,
-    DateTimeRange? range,
+    DateTime? startDate,
+    DateTime? endDate,
   });
 
   Future<TeamAttendanceStats> getTeamAttendanceStats({
     required String teamId,
-    DateTimeRange? range,
+    DateTime? startDate,
+    DateTime? endDate,
   });
 
   Future<bool> canUserManageAttendance({
@@ -108,5 +117,23 @@ abstract class IAttendanceRepository {
   Future<void> assertUserCanManageAttendance({
     required AuthUser user,
     required String teamId,
+  });
+
+  Future<void> syncOfflineMark(Map<String, dynamic> payload);
+
+  /// Persists multiple offline attendance-mark payloads for the same session
+  /// in a single Firestore [WriteBatch].
+  ///
+  /// Each payload in [payloads] must contain the same fields as a single
+  /// [syncOfflineMark] call.  The implementation must apply the LWW rule
+  /// (compare payload `updatedAt` / `createdAt` against the server document)
+  /// for each mark within the batch.
+  ///
+  /// Firestore allows a maximum of 500 operations per WriteBatch; the
+  /// implementation is responsible for chunking when `payloads.length > 490`.
+  Future<void> syncBatchedMarks({
+    required String teamId,
+    required String sessionId,
+    required List<Map<String, dynamic>> payloads,
   });
 }

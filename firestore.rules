@@ -2,550 +2,486 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ──────────────────────────────────────────────────────────────────
-    // CANONICAL PERMISSION MATRIX ENFORCEMENT
-    // ──────────────────────────────────────────────────────────────────
-    // These rules enforce the same permission logic defined in:
-    // lib/core/security/permission_matrix.dart
+    // ═══════════════════════════════════════════════════════════════
+    // DATA MODEL REFERENCE
+    // ═══════════════════════════════════════════════════════════════
     //
-    // CHANGES TO PERMISSIONS MUST UPDATE BOTH FILES.
-    // See tests in test/core/security/permission_matrix_test.dart
-    // ──────────────────────────────────────────────────────────────────
+    // servants/{uid}
+    //   uid, name, email, role ("admin"|"servant"), imageUrl,
+    //   groupId, assignedTeamIds[], assignedTeamId (legacy),
+    //   assignedSectorIds[], isArchived, syncStatus, clientUpdatedAt
+    //
+    // Students/{studentId}
+    //   uid, name, mobile, group, classId, sectorId,
+    //   isArchived, syncStatus, clientUpdatedAt
+    //
+    // Students/{studentId}/PointsLedger/{transactionId}
+    //   id, studentId, delta, runningTotal, reason,
+    //   issuedByUid, issuedByName, createdAt, syncStatus
+    //
+    // attendance/{sessionId}
+    //   teamId, startsAt, endsAt, isClosed, studentIdsSnapshot[]
+    //
+    // attendance/{sessionId}/marks/{studentDocId}
+    //   studentId, status ("present"|"absent"|"late"),
+    //   markedByUserId, updatedAt
+    //
+    // Classes/{classId}
+    //   name, groupId, isArchived
+    //
+    // ═══════════════════════════════════════════════════════════════
 
-    // ─── Helper Functions ──────────────────────────────────────────
+
+    // ───────────────────────────────────────────────────────────────
+    // IDENTITY HELPERS  (zero Firestore reads)
+    // ───────────────────────────────────────────────────────────────
 
     function isSignedIn() {
       return request.auth != null;
     }
 
-    function callerUid() {
+    function uid() {
       return request.auth.uid;
     }
 
-    // Cached user document read to minimize Firestore reads
-    function callerUser() {
-      return get(/databases/$(database)/documents/Users/$(callerUid())).data;
+    function dbRole() {
+      let path = /databases/$(database)/documents/Users/$(uid());
+      return exists(path) ? get(path).data.get('role', '') : '';
     }
 
-    function getUserRole() {
-      return callerUser().role;
+    // Role comes from Custom Claims, with a fallback to the Firestore servant document (for Spark Plan / local emulator).
+    function claimRole() {
+      let claimR = request.auth.token.get('role', '');
+      return claimR != '' ? claimR : dbRole();
     }
-
-    function isArchivedUser() {
-      return callerUser().isArchived == true;
-    }
-
-    // ─── Role Checks ───────────────────────────────────────────────
 
     function isAdmin() {
-      return isSignedIn() && !isArchivedUser() && getUserRole() == 'admin';
+      return isSignedIn() && claimRole() == 'admin';
     }
 
-    function isServant() {
-      return isSignedIn() && !isArchivedUser() && getUserRole() == 'servant';
+    function isServantOrAdmin() {
+      return isSignedIn() && claimRole() in ['admin', 'servant'];
     }
 
-    function isStudent() {
-      return isSignedIn() && !isArchivedUser() && getUserRole() == 'student';
+    // ───────────────────────────────────────────────────────────────
+    // SERVANT PROFILE  (single cached read, stored in a let-binding)
+    // ───────────────────────────────────────────────────────────────
+
+    // One get() per top-level rule evaluation. All sector/team helpers
+    // below reuse this binding — Firestore bills exactly ONE read per
+    // request that calls servantData().
+    function servantData() {
+      return get(/databases/$(database)/documents/Users/$(uid())).data;
     }
 
-    // ─── Collection/Team Helpers ──────────────────────────────────
+    // ───────────────────────────────────────────────────────────────
+    // SECTOR-SCOPED RBAC HELPERS
+    // ───────────────────────────────────────────────────────────────
 
-    function getClassData(classId) {
-      return get(/databases/$(database)/documents/Classes/$(classId)).data;
-    }
-
-    function classIsActive(classId) {
-      let classDoc = getClassData(classId);
-      return classDoc != null && classDoc.isArchived != true;
-    }
-
-    function servantCanManageTeam(classId) {
-      let user = callerUser();
-      let assignedTeamIds = user.assignedTeamIds != null ? user.assignedTeamIds : [];
-      let assignedTeamId = user.assignedTeamId;
-
-      return isServant() && (
-        assignedTeamId == classId ||
-        classId in assignedTeamIds
-      );
-    }
-
-    // ─── Student Helpers ──────────────────────────────────────────
-
-    function getStudentData(studentId) {
-      return get(/databases/$(database)/documents/Students/$(studentId)).data;
-    }
-
-    function studentIsActive(studentId) {
-      let studentDoc = getStudentData(studentId);
-      return studentDoc != null && studentDoc.isArchived != true;
-    }
-
-    // Servant scope check: ONLY uses assignedTeamIds (NO groupId fallback)
-    function servantCanReadStudent(studentData) {
-      let user = callerUser();
-      let studentClassId = studentData != null ? studentData.classId : null;
-      let assignedTeamIds = user.assignedTeamIds != null ? user.assignedTeamIds : [];
-      let assignedTeamId = user.assignedTeamId;
-
-      // Build effective team list
-      let effectiveTeams = assignedTeamId != null
-        ? assignedTeamIds + [assignedTeamId]
-        : assignedTeamIds;
-
-      return isServant() &&
-        studentData != null &&
-        studentClassId != null &&
-        effectiveTeams.size() > 0 &&
-        studentClassId in effectiveTeams;
-    }
-
-    function servantCanManageStudent(studentData) {
-      let user = callerUser();
-      let studentClassId = studentData.classId;
-      let assignedTeamIds = user.assignedTeamIds != null ? user.assignedTeamIds : [];
-      let assignedTeamId = user.assignedTeamId;
-
-      // Build effective team list
-      let effectiveTeams = assignedTeamId != null
-        ? assignedTeamIds + [assignedTeamId]
-        : assignedTeamIds;
-
-      return isServant() &&
-        studentData.isArchived != true &&
-        studentClassId != null &&
-        effectiveTeams.size() > 0 &&
-        studentClassId in effectiveTeams;
-    }
-
-    // ─── Session Helpers ──────────────────────────────────────────
-
-    function getSessionData(teamId, sessionId) {
-      return get(/databases/$(database)/documents/Classes/$(teamId)/attendance_sessions/$(sessionId)).data;
-    }
-
-    function sessionAcceptsLiveMarks(teamId, sessionId) {
-      let session = getSessionData(teamId, sessionId);
-
-      return session != null &&
-        classIsActive(teamId) &&
-        session.isClosed != true &&
-        request.time >= session.startsAt &&
-        request.time < session.endsAt;
-    }
-
-    function sessionAcceptsAdminCorrection(teamId, sessionId) {
-      let session = getSessionData(teamId, sessionId);
-
-      return session != null &&
-        classIsActive(teamId) &&
-        isAdmin() &&
-        session.isReopenedForAdminEdit == true;
-    }
-
-    function sessionAcceptsMarks(teamId, sessionId) {
-      return sessionAcceptsLiveMarks(teamId, sessionId) ||
-        sessionAcceptsAdminCorrection(teamId, sessionId);
-    }
-
-    // Check if session is active (exists and not closed)
-    function isSessionActive(teamId, sessionId) {
-      let session = getSessionData(teamId, sessionId);
-      return session != null && session.isClosed != true;
-    }
-
-    // ─── Public Profile Keys ──────────────────────────────────────
-
-    function userPublicProfileKeys() {
-      return [
-        'uid',
-        'name',
-        'email',
-        'role',
-        'isEmailVerified',
-        'createdAt',
-        'updatedAt',
-      ];
-    }
-
-    // ─── Validation Functions ─────────────────────────────────────
-
-    function validSelfUserCreate(userId) {
-      return callerUid() == userId &&
-        request.resource.data.keys().hasOnly(userPublicProfileKeys()) &&
-        request.resource.data.uid == userId &&
-        request.resource.data.role == 'student' &&
-        request.resource.data.name is string &&
-        request.resource.data.name.size() > 0 &&
-        request.resource.data.name.size() < 200 &&
-        request.resource.data.email is string &&
-        request.resource.data.email.size() > 0 &&
-        request.resource.data.email.size() < 100 &&
-        request.resource.data.isEmailVerified == false;
-    }
-
-    function validSelfUserUpdate(userId) {
-      return callerUid() == userId &&
-        request.resource.data.uid == resource.data.uid &&
-        request.resource.data.role == resource.data.role &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'name',
-          'email',
-          'isEmailVerified',
-          'updatedAt',
-        ]) &&
-        request.resource.data.name is string &&
-        request.resource.data.name.size() > 0 &&
-        request.resource.data.name.size() < 200 &&
-        request.resource.data.email is string &&
-        request.resource.data.email.size() > 0 &&
-        request.resource.data.email.size() < 100 &&
-        request.resource.data.isEmailVerified is bool;
-    }
-
-    function validUserCreateByAdmin() {
-      let data = request.resource.data;
-      return data.keys().hasOnly([
-          'uid', 'name', 'email', 'role', 'isEmailVerified',
-          'isArchived', 'groupId', 'assignedTeamIds', 'assignedTeamId', 'createdAt', 'updatedAt'
-        ]) &&
-        data.uid is string && data.uid.size() > 0 &&
-        data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
-        data.email is string && data.email.size() > 0 && data.email.size() < 100 &&
-        data.role is string && data.role in ['admin', 'servant', 'student'] &&
-        data.isEmailVerified is bool &&
-        data.isArchived is bool;
-    }
-
-    function validUserUpdateByAdmin() {
-      let data = request.resource.data;
-      let allowedKeys = [
-        'uid', 'name', 'email', 'role', 'isEmailVerified',
-        'isArchived', 'archivedAt', 'archivedByUserId', 'archiveReason',
-        'restoredAt', 'restoredByUserId', 'restorePendingPasswordReset',
-        'groupId', 'assignedTeamIds', 'assignedTeamId', 'updatedAt'
-      ];
-      return data.keys().hasOnly(allowedKeys) &&
-        data.uid is string && data.uid.size() > 0 &&
-        data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
-        data.email is string && data.email.size() > 0 && data.email.size() < 100 &&
-        data.role is string && data.role in ['admin', 'servant', 'student'] &&
-        data.isEmailVerified is bool &&
-        data.isArchived is bool;
-    }
-
-    function validStudentCreate() {
-      let data = request.resource.data;
-      return data.keys().hasOnly([
-          'uid', 'docID', 'name', 'imageUrl', 'role', 'mobile', 'group',
-          'team_name', 'mother_number', 'father_number', 'grade',
-          'education_stage', 'school_college', 'address', 'birthdate',
-          'father_of_confession', 'notes', 'classId', 'isArchived',
-          'archivedAt', 'archivedByUserId', 'archiveReason'
-        ]) &&
-        data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
-        data.role == 'student' &&
-        data.mobile is string &&
-        data.group is string &&
-        data.team_name is string &&
-        data.mother_number is string &&
-        data.father_number is string &&
-        data.grade is int && data.grade >= 1 && data.grade <= 12 &&
-        data.education_stage is string &&
-        data.father_of_confession is string &&
-        data.isArchived is bool;
-    }
-
-    function validStudentUpdate() {
-      let data = request.resource.data;
-      let allowedKeys = [
-        'uid', 'docID', 'name', 'imageUrl', 'role', 'mobile', 'group',
-        'team_name', 'mother_number', 'father_number', 'grade',
-        'education_stage', 'school_college', 'address', 'birthdate',
-        'father_of_confession', 'notes', 'classId', 'isArchived',
-        'archivedAt', 'archivedByUserId', 'archiveReason',
-        'restoredAt', 'restoredByUserId'
-      ];
-      return data.keys().hasOnly(allowedKeys) &&
-        data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
-        data.role == 'student' &&
-        data.isArchived is bool;
-    }
-
-    // Servant cannot change student role or uid
-    function servantCannotChangeRoleOrUid() {
-      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'uid']);
-    }
-
-    function validClassCreate() {
-      let data = request.resource.data;
-      return data.keys().hasOnly([
-          'id', 'name', 'groupId', 'assignedServantId', 'assignedServantName',
-          'isArchived', 'archivedAt', 'archivedByUserId', 'archiveReason',
-          'restoredAt', 'restoredByUserId', 'openSessionIds', 'updatedAt'
-        ]) &&
-        data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
-        data.groupId is string &&
-        data.isArchived is bool;
-    }
-
-    function validClassUpdate() {
-      let data = request.resource.data;
-      let allowedKeys = [
-        'id', 'name', 'groupId', 'assignedServantId', 'assignedServantName',
-        'isArchived', 'archivedAt', 'archivedByUserId', 'archiveReason',
-        'restoredAt', 'restoredByUserId', 'openSessionIds', 'updatedAt', 'teamIsActive'
-      ];
-      return data.keys().hasOnly(allowedKeys);
-    }
-
-    function validAttendanceSessionPayload(teamId) {
-      return request.resource.data.keys().hasOnly([
-          'teamId', 'teamNameSnapshot', 'title', 'dateKey', 'startsAt',
-          'endsAt', 'durationMinutes', 'createdByUserId', 'createdByName',
-          'createdAt', 'updatedAt', 'isClosed', 'isReopenedForAdminEdit',
-          'reopenedAt', 'reopenedByUserId', 'reopenedByName',
-          'studentIdsSnapshot', 'studentNameSnapshots',
-          'presentCount', 'lateCount', 'absentCount'
-        ]) &&
-        request.resource.data.teamId == teamId &&
-        request.resource.data.createdByUserId == callerUid() &&
-        request.resource.data.isReopenedForAdminEdit == false &&
-        request.resource.data.reopenedAt == null &&
-        request.resource.data.reopenedByUserId == null &&
-        request.resource.data.reopenedByName == null &&
-        request.resource.data.durationMinutes is int &&
-        request.resource.data.durationMinutes > 0 &&
-        request.resource.data.durationMinutes <= 480;
-    }
-
-    function validAttendanceMarkPayload(studentId) {
-      return request.resource.data.keys().hasOnly([
-          'studentNameSnapshot', 'status', 'markedByUserId', 'markedByName',
-          'markedAt', 'updatedAt', 'note'
-        ]) &&
-        studentIsActive(studentId) &&
-        request.resource.data.markedByUserId == callerUid() &&
-        request.resource.data.markedByName is string &&
-        request.resource.data.markedByName.size() > 0 &&
-        request.resource.data.studentNameSnapshot is string &&
-        request.resource.data.studentNameSnapshot.size() > 0 &&
-        request.resource.data.status in ['present', 'late'];
-    }
-
-    function validTeamUniquenessCreate() {
-      let data = request.resource.data;
-      return data.keys().hasOnly(['teamId', 'groupId', 'teamName', 'updatedAt']) &&
-        data.teamId is string &&
-        data.groupId is string &&
-        data.teamName is string &&
-        data.teamName.size() > 0 &&
-        data.teamName.size() < 200;
-    }
-
-    // ─── Attendance Record Validation (Offline Sync Security) ─────
-
-    function validAttendanceRecordCreate() {
-      let data = request.resource.data;
-      return data.keys().hasOnly([
-          'recordId', 'sessionId', 'studentId', 'studentUid',
-          'servantId', 'classId', 'status', 'note',
-          'syncStatus', 'clientUpdatedAt', 'serverUpdatedAt'
-        ]) &&
-        // 1. servantId must match authenticated user
-        data.servantId == callerUid() &&
-        // 2. syncStatus must be "pending" on create
-        data.syncStatus == 'pending' &&
-        // 3. clientUpdatedAt within last 24 hours (reject stale syncs)
-        request.time < data.clientUpdatedAt + duration.value(24, 'h') &&
-        // 4. Valid status
-        data.status in ['present', 'absent', 'late'];
-    }
-
-    function validAttendanceRecordUpdate() {
-      let data = request.resource.data;
-      return data.keys().hasOnly([
-          'recordId', 'sessionId', 'studentId', 'studentUid',
-          'servantId', 'classId', 'status', 'note',
-          'syncStatus', 'clientUpdatedAt', 'serverUpdatedAt'
-        ]) &&
-        // 1. servantId must match authenticated user
-        data.servantId == callerUid() &&
-        // 2. clientUpdatedAt within last 24 hours
-        request.time < data.clientUpdatedAt + duration.value(24, 'h') &&
-        // 3. Cannot change recordId, studentId, sessionId
-        data.recordId == resource.data.recordId &&
-        data.studentId == resource.data.studentId &&
-        data.sessionId == resource.data.sessionId;
-    }
-
-    // ─── Users Collection ─────────────────────────────────────────
-    match /Users/{userId} {
-      // Admins can read all users; users can read their own profile
-      allow read: if isSignedIn() && (callerUid() == userId || isAdmin());
-
-      // Users can self-register; admins can create any user
-      allow create: if isSignedIn() && (
-        isAdmin() && validUserCreateByAdmin() ||
-        validSelfUserCreate(userId)
-      );
-
-      // Users can update their own profile; admins can update any user
-      allow update: if isSignedIn() && (
-        isAdmin() && validUserUpdateByAdmin() ||
-        validSelfUserUpdate(userId)
-      );
-
-      // Only admins can delete users
-      allow delete: if isAdmin();
-    }
-
-    // ─── Students Collection ──────────────────────────────────────
-    match /Students/{studentId} {
-      // Admins can read all students
-      // Servants can read students in their scope (assignedTeamIds only)
-      // Students can read their own profile (via uid match)
-      allow read: if isSignedIn() && (
+    // Returns true when the caller is a servant (or admin) and the given
+    // sectorId is in their assignedSectorIds claim OR their servant document.
+    // Claim path is always tried first (zero cost); document path is the
+    // fallback for servants whose claims haven't refreshed yet.
+    function callerManagesSector(sectorId) {
+      let claimSectors = request.auth.token.get('assignedSectorIds', []);
+      return isServantOrAdmin() && (
         isAdmin() ||
-        servantCanReadStudent(resource.data) ||
-        (isStudent() && resource.data.uid == callerUid())
+        sectorId in claimSectors ||
+        sectorId in servantData().get('assignedSectorIds', [])
+      );
+    }
+
+    // Returns true when the caller can manage the student's sector.
+    function callerManagesStudentSector(studentData) {
+      return studentData != null &&
+             callerManagesSector(studentData.get('sectorId', '__none__'));
+    }
+
+    // ───────────────────────────────────────────────────────────────
+    // TEAM / CLASS HELPERS  (preserves existing team-based access)
+    // ───────────────────────────────────────────────────────────────
+
+    function callerManagesTeam(classId) {
+      let claimTeamId = request.auth.token.get('assignedTeamId', '');
+      let claimTeamIds = request.auth.token.get('assignedTeamIds', []);
+      return isServantOrAdmin() && (
+        isAdmin() ||
+        classId == claimTeamId ||
+        classId in claimTeamIds ||
+        classId in servantData().get('assignedTeamIds', [])
+      );
+    }
+
+    // ───────────────────────────────────────────────────────────────
+    // FIELD GUARDS
+    // ───────────────────────────────────────────────────────────────
+
+    function isImmutable(field) {
+      return !(field in request.resource.data) ||
+             request.resource.data[field] == resource.data[field];
+    }
+
+    function isPrivilegedStudentField() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny([
+        'role', 'uid', 'isArchived', 'classId', 'group',
+        'sectorId', 'assignedTeamIds', 'assignedTeamId'
+      ]);
+    }
+
+    // ───────────────────────────────────────────────────────────────
+    // VALIDATION HELPERS
+    // ───────────────────────────────────────────────────────────────
+
+    function validName(field) {
+      return field is string && field.size() > 0 && field.size() <= 200;
+    }
+
+    function validPointsDelta() {
+      let d = request.resource.data.delta;
+      return d is int && d != 0 && d >= -1000 && d <= 1000;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // DEFAULT DENY
+    // ═══════════════════════════════════════════════════════════════
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // SERVANTS COLLECTION
+    // ═══════════════════════════════════════════════════════════════
+
+    match /Users/{servantId} {
+      // Own profile, admin, or any signed-in servant.
+      allow read: if isSignedIn() && (servantId == uid() || isServantOrAdmin());
+
+      // Only admin can create servants/admins; authenticated users can self-register with default student role.
+      allow create: if isAdmin() || (
+        isSignedIn() &&
+        servantId == uid() &&
+        request.resource.data.get('role', '') == 'student'
       );
 
-      // Only admins and servants can create students
-      allow create: if isSignedIn() && (
-        isAdmin() && validStudentCreate() ||
-        servantCanManageStudent(request.resource.data) && validStudentCreate()
-      );
-
-      // Admins and servants can update students
-      // Servants cannot change role or uid
+      // Servants can edit their own non-privileged fields.
       allow update: if isSignedIn() && (
-        isAdmin() && validStudentUpdate() ||
-        (
-          servantCanManageStudent(resource.data) &&
-          servantCanManageStudent(request.resource.data) &&
-          validStudentUpdate() &&
-          servantCannotChangeRoleOrUid()
+        isAdmin() || (
+          servantId == uid() &&
+          isImmutable('role') &&
+          isImmutable('uid') &&
+          isImmutable('isArchived') &&
+          isImmutable('assignedTeamIds') &&
+          isImmutable('assignedSectorIds')
         )
       );
 
-      // Only admins can delete students
       allow delete: if isAdmin();
     }
 
-    // ─── Classes (Teams) Collection ───────────────────────────────
-    match /Classes/{classId} {
-      // Admins and servants can read all classes
-      // Students can read classes they're assigned to
+    // ═══════════════════════════════════════════════════════════════
+    // STUDENTS COLLECTION
+    // ═══════════════════════════════════════════════════════════════
+
+    match /Students/{studentId} {
+
+      // Student reads their own doc; servants read within their sectors.
       allow read: if isSignedIn() && (
+        studentId == uid() ||
+        resource.data.uid == uid() ||
         isAdmin() ||
-        isServant() ||
-        (isStudent() && exists(/databases/$(database)/documents/Students/$(callerUid())) &&
-         get(/databases/$(database)/documents/Students/$(callerUid())).data.classId == classId)
+        callerManagesStudentSector(resource.data)
       );
 
-      // Only admins can create, update, delete classes
-      allow create: if isAdmin() && validClassCreate();
-      allow update: if isAdmin() && validClassUpdate();
+      // Admin or sector-owning servant can create a student.
+      allow create: if isSignedIn() && (
+        isAdmin() ||
+        (
+          isServantOrAdmin() &&
+          callerManagesSector(request.resource.data.get('sectorId', '__none__')) &&
+          request.resource.data.get('isArchived', false) == false &&
+          validName(request.resource.data.get('name', ''))
+        )
+      );
+
+      // Servant can update non-privileged fields of students in their sector.
+      allow update: if isSignedIn() && (
+        isAdmin() || (
+          isServantOrAdmin() &&
+          callerManagesStudentSector(resource.data) &&
+          !isPrivilegedStudentField() &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'name', 'mobile', 'birthdate', 'address',
+            'mother_number', 'father_number', 'imageUrl',
+            'notes', 'grade', 'education_stage',
+            'school_college', 'father_of_confession', 'updatedAt'
+          ]) &&
+          (!('name' in request.resource.data) || validName(request.resource.data.name))
+        )
+      );
+
       allow delete: if isAdmin();
 
-      // ─── Attendance Sessions Subcollection ──────────────────────
-      match /attendance_sessions/{sessionId} {
-        // Admins and servants assigned to this team can read sessions
+      // ─── PointsLedger Sub-collection ─────────────────────────────
+      //
+      // /Students/{studentId}/PointsLedger/{transactionId}
+      //
+      // • Create: sector-owning servant only.
+      // • Read:   student reads own; sector servant reads; admin reads all.
+      // • Update/Delete: FORBIDDEN for all (immutable ledger; use Admin SDK).
+
+      match /PointsLedger/{transactionId} {
+
         allow read: if isSignedIn() && (
+          studentId == uid() ||
           isAdmin() ||
-          servantCanManageTeam(classId)
+          callerManagesStudentSector(
+            get(/databases/$(database)/documents/Students/$(studentId)).data
+          )
         );
 
-        // Admins and servants can create sessions for active teams
-        allow create: if isSignedIn() &&
-          classIsActive(classId) &&
-          (isAdmin() || servantCanManageTeam(classId)) &&
-          validAttendanceSessionPayload(classId);
+        allow create: if isSignedIn() && (
+          isServantOrAdmin() &&
+          callerManagesStudentSector(
+            get(/databases/$(database)/documents/Students/$(studentId)).data
+          ) &&
+          validPointsDelta() &&
+          request.resource.data.keys().hasAll([
+            'studentId', 'delta', 'runningTotal',
+            'reason', 'issuedByUid', 'issuedByName', 'createdAt'
+          ]) &&
+          request.resource.data.issuedByUid == uid()
+        );
 
-        // Only admins can update or delete sessions
-        allow update: if isAdmin();
-        allow delete: if isAdmin();
+        // Immutable — no update or delete from client.
+        allow update, delete: if false;
+      }
 
-        // ─── Attendance Marks Sub-subcollection ───────────────────
-        match /marks/{studentId} {
-          // Admins and servants can read marks
+      // ─── AttendanceHistory Sub-collection ────────────────────────
+      //
+      // /Students/{studentId}/AttendanceHistory/{sessionId}
+      //
+      // Managed exclusively by the sync engine via Admin SDK.
+      // Client-side reads scoped to student-owner or admin.
+
+      match /AttendanceHistory/{sessionId} {
+        allow read: if isSignedIn() && (
+          studentId == uid() ||
+          isAdmin() ||
+          callerManagesStudentSector(
+            get(/databases/$(database)/documents/Students/$(studentId)).data
+          )
+        );
+        // All writes via Admin SDK / sync engine only.
+        allow write: if false;
+      }
+
+      // ─── PastoralRecords Sub-collection ──────────────────────────
+      //
+      // /Students/{studentId}/PastoralRecords/{recordId}
+      //
+      // • Create: sector-owning servant or admin.
+      // • Read:   sector servant reads; admin reads all.
+      // • Update/Delete: FORBIDDEN for all (immutable record).
+
+      match /PastoralRecords/{recordId} {
+
+        allow read: if isSignedIn() && (
+          isAdmin() ||
+          callerManagesStudentSector(
+            get(/databases/$(database)/documents/Students/$(studentId)).data
+          )
+        );
+
+        allow create: if isSignedIn() && (
+          isServantOrAdmin() &&
+          callerManagesStudentSector(
+            get(/databases/$(database)/documents/Students/$(studentId)).data
+          ) &&
+          request.resource.data.keys().hasAll([
+            'recordId', 'studentId', 'type', 'summary',
+            'visitedByUid', 'visitedByName', 'createdAt'
+          ]) &&
+          request.resource.data.visitedByUid == uid() &&
+          request.resource.data.type in ['phoneCall', 'homeVisit', 'socialMedia']
+        );
+
+        // Immutable — no update or delete from client.
+        allow update, delete: if false;
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // CLASSES COLLECTION
+    // ═══════════════════════════════════════════════════════════════
+
+    match /Classes/{classId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+
+      match /stats/{statDoc} {
+        allow read: if isSignedIn() && (
+          isAdmin() || callerManagesTeam(classId)
+        );
+        allow write: if isSignedIn() && (
+          isAdmin() || callerManagesTeam(classId)
+        );
+      }
+
+      match /attendance_sessions/{sessionId} {
+        allow read: if isSignedIn() && (
+          isAdmin() || callerManagesTeam(classId)
+        );
+        allow create: if isSignedIn() && (
+          isAdmin() || callerManagesTeam(classId)
+        );
+        allow update, delete: if isAdmin();
+
+        match /marks/{markId} {
           allow read: if isSignedIn() && (
             isAdmin() ||
-            servantCanManageTeam(classId)
+            callerManagesTeam(classId) ||
+            uid() == markId.split('_')[0]
           );
-
-          // Admins and servants can create/update marks during active session
-          allow create, update: if isSignedIn() &&
-            (isAdmin() || servantCanManageTeam(classId)) &&
-            sessionAcceptsMarks(classId, sessionId) &&
-            validAttendanceMarkPayload(studentId);
-
-          // Admins and servants can delete marks during active session
-          allow delete: if isSignedIn() &&
-            (isAdmin() || servantCanManageTeam(classId)) &&
-            sessionAcceptsMarks(classId, sessionId);
+          allow create, update: if isSignedIn() && (
+            isAdmin() || (
+              callerManagesTeam(classId)
+            )
+          );
+          allow delete: if isAdmin();
         }
       }
     }
 
-    // ─── Attendance Records Collection (Offline Sync) ─────────────
-    match /attendanceRecords/{recordId} {
-      // Admins and servants can read records for their teams
+    // ═══════════════════════════════════════════════════════════════
+    // ATTENDANCE COLLECTION (canonical: /attendance/{sessionId})
+    // ═══════════════════════════════════════════════════════════════
+
+    match /attendance/{sessionId} {
       allow read: if isSignedIn() && (
+        isAdmin() || callerManagesTeam(resource.data.teamId)
+      );
+      allow create: if isSignedIn() && (
+        isAdmin() || callerManagesTeam(request.resource.data.teamId)
+      );
+      allow update: if isSignedIn() && (
+        isAdmin() || callerManagesTeam(resource.data.teamId)
+      );
+      allow delete: if isAdmin();
+
+      match /records/{markId} {
+        function sessionData() {
+          return get(/databases/$(database)/documents/attendance/$(sessionId)).data;
+        }
+
+        allow read: if isSignedIn() && (
+          isAdmin() ||
+          callerManagesTeam(sessionData().teamId) ||
+          uid() == markId.split('_')[0]
+        );
+
+        allow create, update: if isSignedIn() && (
+          isAdmin() || (
+            callerManagesTeam(sessionData().teamId) &&
+            markId.split('_')[0] in
+              sessionData().get('studentIdsSnapshot', [])
+          )
+        );
+
+        allow delete: if isAdmin();
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // RESULTS COLLECTION
+    // ═══════════════════════════════════════════════════════════════
+
+    match /results/{studentId} {
+      allow read: if isSignedIn() && (
+        studentId == uid() ||
         isAdmin() ||
-        (isServant() && resource.data.servantId == callerUid()) ||
-        (isStudent() && resource.data.studentUid == callerUid())
+        (isServantOrAdmin() && callerManagesStudentSector(get(/databases/$(database)/documents/Students/$(studentId)).data))
+      );
+      allow write: if isAdmin() || (
+        isServantOrAdmin() &&
+        callerManagesStudentSector(get(/databases/$(database)/documents/Students/$(studentId)).data)
       );
 
-      // Servants can create records ONLY if:
-      //   a. servantId matches authenticated user
-      //   b. servant has scope over the student
-      //   c. session is active
-      //   d. clientUpdatedAt within 24 hours
-      allow create: if isSignedIn() &&
-        validAttendanceRecordCreate() &&
-        servantCanManageStudent(
-          get(/databases/$(database)/documents/Students/$(request.resource.data.studentId)).data
-        ) &&
-        isSessionActive(
-          request.resource.data.classId,
-          request.resource.data.sessionId
+      match /terms/{termId} {
+        allow read: if isSignedIn() && (
+          studentId == uid() ||
+          isAdmin() ||
+          (isServantOrAdmin() && callerManagesStudentSector(get(/databases/$(database)/documents/Students/$(studentId)).data))
         );
-
-      // Updates must pass same checks at sync time
-      allow update: if isSignedIn() &&
-        validAttendanceRecordUpdate() &&
-        // Re-check scope at sync time (servant may have been reassigned)
-        servantCanManageStudent(
-          get(/databases/$(database)/documents/Students/$(request.resource.data.studentId)).data
-        ) &&
-        // Session must still be valid at sync time
-        isSessionActive(
-          request.resource.data.classId,
-          request.resource.data.sessionId
+        allow write: if isAdmin() || (
+          isServantOrAdmin() &&
+          callerManagesStudentSector(get(/databases/$(database)/documents/Students/$(studentId)).data)
         );
-
-      // Only admins can delete attendance records
-      allow delete: if isAdmin();
+      }
     }
 
-    // ─── Team Uniqueness Registry ─────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
+    // SECTORS ANALYTICS (Pre-aggregated, read-only for authorized users)
+    // ═══════════════════════════════════════════════════════════════
+
+    match /SectorsAnalytics/{sectorId} {
+      // Admin reads all; servants read only their assigned sectors.
+      // Students: ZERO access.
+      allow read: if isSignedIn() && (
+        isAdmin() ||
+        callerManagesSector(sectorId)
+      );
+
+      // Client writes FORBIDDEN — updated via Admin SDK or batch closure.
+      allow write: if false;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // SUPPORTING COLLECTIONS
+    // ═══════════════════════════════════════════════════════════════
+
     match /team_uniqueness_registry/{registryId} {
-      // Only admins and servants can read (for validation)
-      allow read: if isSignedIn() && (isAdmin() || isServant());
-
-      // Only admins can create/update/delete uniqueness entries
-      allow create: if isAdmin() && validTeamUniquenessCreate();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
 
-    // ─── Default Deny Rule ────────────────────────────────────────
-    // Deny access to any unmatched document
-    match /{document=**} {
-      allow read, write: if false;
+    match /Invitations/{email} {
+      allow read, write: if isAdmin();
+    }
+
+    match /admin/{document=**} {
+      allow read, write: if isAdmin();
+    }
+
+    match /audit_logs/{logId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // COLLECTION GROUP RULES (Required for global collection group queries)
+    // ═══════════════════════════════════════════════════════════════
+
+    match /{path=**}/attendance/{sessionId} {
+      allow read: if isSignedIn() && (
+        isAdmin() || callerManagesTeam(resource.data.teamId)
+      );
+    }
+
+    match /{path=**}/records/{markId} {
+      allow read: if isSignedIn() && (
+        isAdmin() ||
+        resource.data.studentId == uid() ||
+        callerManagesTeam(resource.data.teamId)
+      );
+    }
+
+    match /{path=**}/terms/{termId} {
+      allow read: if isSignedIn() && (
+        resource.data.studentId == uid() ||
+        isAdmin() ||
+        (isServantOrAdmin() && callerManagesStudentSector(get(/databases/$(database)/documents/Students/$(resource.data.studentId)).data))
+      );
     }
   }
 }

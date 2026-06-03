@@ -1,28 +1,165 @@
 import 'dart:async';
+import 'dart:developer' as developer;
+import 'dart:io' show Platform;
 import 'dart:ui';
 
 import 'package:church_management_system/church_app.dart';
+import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/di/injection.dart';
+import 'package:church_management_system/core/models/sync_entry.dart';
+import 'package:church_management_system/core/services/hive_pruning_service.dart';
+import 'package:church_management_system/core/services/sync_service.dart';
+import 'package:church_management_system/features/admin/data/models/analytics_summary_model.dart';
+import 'package:church_management_system/features/attendance/data/local/mark_sync_entry.dart';
+import 'package:church_management_system/features/attendance/data/models/attendance_mark.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_enums.dart';
+import 'package:church_management_system/features/auth/data/services/auth_user_local_store.dart';
+import 'package:church_management_system/features/results/data/models/results_model.dart';
+import 'package:church_management_system/features/results/data/models/term_model.dart';
+import 'package:church_management_system/features/servant/data/models/servant_models.dart';
+import 'package:church_management_system/features/student/data/models/pastoral_record_model.dart';
+import 'package:church_management_system/features/student/data/models/points_ledger_entry.dart';
+import 'package:church_management_system/features/student/data/models/student_model.dart';
+import 'package:church_management_system/features/team/data/models/team_model.dart';
 import 'package:church_management_system/firebase_options.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:workmanager/workmanager.dart';
+
+@pragma('vm:entry-point')
+void callbackDispatcher() {
+  Workmanager().executeTask((task, inputData) async {
+    developer.log('Background task running: $task', name: 'Workmanager');
+    try {
+      WidgetsFlutterBinding.ensureInitialized();
+      await _initializeFirebase();
+
+      final payloadUid = inputData?['userId'] as String?;
+      final currentUid = FirebaseAuth.instance.currentUser?.uid;
+      if (payloadUid == null ||
+          currentUid == null ||
+          currentUid != payloadUid) {
+        developer.log(
+          'Background task userId mismatch: payload=$payloadUid, current=$currentUid. Safely aborting task.',
+          name: 'Workmanager',
+        );
+        return Future.value(true); // Terminate safely without processing queue
+      }
+
+      // Initialize Hive
+      await Hive.initFlutter();
+      _registerHiveAdapters();
+
+      // Clean up orphaned box structures
+      try {
+        await Hive.deleteBoxFromDisk('students_sync_queue_box');
+        await Hive.deleteBoxFromDisk('servants_sync_queue_box');
+        await Hive.deleteBoxFromDisk('attendance_marks_cache');
+        await Hive.deleteBoxFromDisk('attendance_marks_sync_queue');
+        await Hive.deleteBoxFromDisk('attendance_marks_v2');
+        await Hive.deleteBoxFromDisk('attendance_marks_sync_queue_v2');
+      } catch (e) {
+        developer.log(
+          'Failed to delete orphaned boxes in background',
+          error: e,
+          name: 'Workmanager',
+        );
+      }
+
+      // Setup dependencies
+      configureDependencies();
+
+      // Workmanager already enforces NetworkType.connected, so we skip the
+      // connectivity listener and process the queue exactly once.
+      final syncService = getIt<SyncService>();
+      await syncService.initAndProcessOnce();
+
+      return Future.value(true);
+    } catch (err, stack) {
+      developer.log(
+        'Background task failed',
+        error: err,
+        stackTrace: stack,
+        name: 'Workmanager',
+      );
+      return Future.value(false);
+    }
+  });
+}
 
 Future<void> _initializeFirebase() async {
-  try {
+  if (kIsWeb || Platform.isAndroid || Platform.isIOS || Platform.isMacOS) {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-  } on UnsupportedError {
+  } else {
+    // For unsupported platforms like Windows/Linux in standard Firebase setup
     await Firebase.initializeApp();
   }
+}
+
+void _registerHiveAdapters() {
+  Hive
+    ..registerAdapter(SyncEntryAdapter())
+    ..registerAdapter(UserRoleAdapter())
+    ..registerAdapter(EducationStageAdapter())
+    ..registerAdapter(SyncStatusAdapter())
+    ..registerAdapter(GroupAdapter())
+    ..registerAdapter(StudentModelAdapter())
+    ..registerAdapter(ServantModelAdapter())
+    ..registerAdapter(TeamModelAdapter())
+    ..registerAdapter(ResultsModelAdapter())
+    ..registerAdapter(TermModelAdapter())
+    ..registerAdapter(VisitationTypeAdapter())
+    ..registerAdapter(PastoralRecordModelAdapter())
+    ..registerAdapter(PointsLedgerEntryAdapter())
+    ..registerAdapter(AnalyticsSummaryModelAdapter())
+    // New typed adapters for attendance schema migration
+    ..registerAdapter(AttendanceMarkStatusAdapter())
+    ..registerAdapter(AttendanceMarkAdapter())
+    ..registerAdapter(MarkSyncOperationAdapter())
+    ..registerAdapter(MarkSyncEntryAdapter());
 }
 
 void main() {
   runZonedGuarded(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
+
+      // Mandate: Initialize Hive for offline-first storage
+      await Hive.initFlutter();
+      _registerHiveAdapters();
+
+      // Clean up orphaned box structures
+      try {
+        await Hive.deleteBoxFromDisk('students_sync_queue_box');
+        await Hive.deleteBoxFromDisk('servants_sync_queue_box');
+      } catch (e) {
+        developer.log(
+          'Failed to delete orphaned boxes',
+          error: e,
+          name: 'Main',
+        );
+      }
+
+      // Schema migration: delete old string-based attendance boxes
+      // and open new typed boxes
+      try {
+        await Hive.deleteBoxFromDisk('attendance_marks_cache');
+        await Hive.deleteBoxFromDisk('attendance_marks_sync_queue');
+        await Hive.deleteBoxFromDisk('attendance_marks_v2');
+        await Hive.deleteBoxFromDisk('attendance_marks_sync_queue_v2');
+      } catch (e) {
+        developer.log(
+          'Failed to migrate attendance boxes',
+          error: e,
+          name: 'Main',
+        );
+      }
 
       FlutterError.onError = (details) {
         FlutterError.presentError(details);
@@ -39,22 +176,51 @@ void main() {
 
       try {
         await _initializeFirebase();
-        GoogleFonts.config.allowRuntimeFetching = false;
+        FirebaseFirestore.instance.settings = const Settings(
+          persistenceEnabled: true,
+          cacheSizeBytes: 100 * 1024 * 1024,
+        );
         configureDependencies();
+
+        // Initialize Local Auth Store
+        await getIt<AuthUserLocalStore>().init();
+
+        // Initialize Workmanager
+        await Workmanager().initialize(callbackDispatcher);
+
+        // Register periodic sync task
+        await Workmanager().registerPeriodicTask(
+          'sync_task_id',
+          'offline_sync_task',
+          frequency: const Duration(minutes: 15),
+          constraints: Constraints(networkType: NetworkType.connected),
+          existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
+        );
+
+        // Initialize Sync Engine (Foreground)
+        await getIt<SyncService>().init();
+
+        // Run Hive pruning on startup (fire-and-forget)
+        unawaited(getIt<HivePruningService>().pruneAll());
+
         runApp(const ChurchApp());
       } catch (error, stack) {
-        if (kDebugMode) {
-          debugPrint('Startup initialization failed (${error.runtimeType})');
-          debugPrintStack(stackTrace: stack);
-        }
+        developer.log(
+          'Startup initialization failed (${error.runtimeType})',
+          error: error,
+          stackTrace: stack,
+          name: 'Main',
+        );
         runApp(_StartupFailureApp(error: error));
       }
     },
     (error, stack) {
-      if (kDebugMode) {
-        debugPrint('Uncaught application error (${error.runtimeType})');
-        debugPrintStack(stackTrace: stack);
-      }
+      developer.log(
+        'Uncaught application error (${error.runtimeType})',
+        error: error,
+        stackTrace: stack,
+        name: 'Main',
+      );
     },
   );
 }
@@ -79,7 +245,6 @@ class _StartupFailureApp extends StatelessWidget {
                 const Icon(
                   Icons.error_outline,
                   size: 64,
-
                   color: Colors.redAccent,
                 ),
                 const SizedBox(height: 16),

@@ -1,0 +1,249 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: servants
+    // Document ID: {auth.uid}
+    // Fields:
+    //   - uid: string (required, immutable)
+    //   - name: string (required)
+    //   - email: string (required)
+    //   - role: string (required, "admin" | "servant" | "student" | "viewer")
+    //   - isArchived: bool (optional)
+    //   - groupId: string (optional)
+    //   - assignedTeamIds: list<string> (optional)
+    //   - assignedTeamId: string (optional, legacy)
+    //
+    // Collection: Students
+    // Document ID: auto-generated or same as uid
+    // Fields:
+    //   - uid: string (required)
+    //   - name: string (required)
+    //   - group: string (required)
+    //   - classId: string (required)
+    //   - isArchived: bool (required)
+    //
+    // Collection: Classes
+    // Document ID: auto-generated
+    // Fields:
+    //   - name: string (required)
+    //   - groupId: string (required)
+    //   - isArchived: bool (required)
+    //
+    // Collection: attendance
+    // Document ID: {date}_{time}_{slug}
+    // Fields:
+    //   - teamId: string (required, immutable)
+    //   - startsAt: timestamp (required)
+    //   - endsAt: timestamp (required)
+    //   - isClosed: bool (required)
+    //
+    // Collection: attendance/{sessionId}/marks
+    // Document ID: {studentId}_{sessionId}
+    // Fields:
+    //   - studentId: string (required, immutable)
+    //   - status: string (required, "present" | "absent" | "late")
+    //   - markedByUserId: string (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function callerUid() {
+      return request.auth.uid;
+    }
+
+    function getUserData() {
+      return request.auth != null ? get(/databases/$(database)/documents/servants/$(request.auth.uid)).data : null;
+    }
+
+    function isAdmin() {
+      let user = getUserData();
+      return user != null && user.role == 'admin';
+    }
+
+    function isServant() {
+      let user = getUserData();
+      return user != null && (user.role == 'servant' || user.role == 'admin');
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && callerUid() == userId;
+    }
+
+    function isImmutable(field) {
+      return !(field in request.resource.data) || request.resource.data[field] == resource.data[field];
+    }
+
+    // ─── Collection/Team Helpers ──────────────────────────────────
+
+    function getClassData(classId) {
+      return get(/databases/$(database)/documents/Classes/$(classId)).data;
+    }
+
+    function servantCanManageTeam(classId) {
+      let userData = getUserData();
+      return isServant() && (
+        userData.get('assignedTeamId', null) == classId || 
+        classId in userData.get('assignedTeamIds', []) ||
+        (userData.get('groupId', null) != null && getClassData(classId).get('groupId', null) == userData.get('groupId', null))
+      );
+    }
+
+    // ─── Student Helpers ──────────────────────────────────────────
+
+    function servantCanReadStudent(studentData) {
+      let userData = getUserData();
+      let assignedTeamId = userData.get('assignedTeamId', null);
+      let assignedTeamIds = userData.get('assignedTeamIds', []);
+      let groupId = userData.get('groupId', null);
+      
+      return isServant() && studentData != null && (
+        (assignedTeamId != null && studentData.get('classId', null) == assignedTeamId) ||
+        (studentData.get('classId', null) in assignedTeamIds) ||
+        (groupId != null && studentData.get('group', null) == groupId)
+      );
+    }
+
+    function servantCanManageStudent(studentData) {
+      return isServant() && studentData != null && 
+             studentData.get('isArchived', false) != true &&
+             servantCanReadStudent(studentData);
+    }
+
+    function isStudentInSessionRoster(sessionId, studentId) {
+      let session = get(/databases/$(database)/documents/attendance/$(sessionId)).data;
+      return studentId in session.get('studentIdsSnapshot', []);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    // Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ─── Servants Collection ──────────────────────────────────────
+    match /servants/{userId} {
+      allow read: if isSignedIn() && (isOwner(userId) || isAdmin());
+      
+      allow create: if isSignedIn() && (
+        isAdmin() || (isOwner(userId) && request.resource.data.role == 'student')
+      );
+
+      allow update: if isSignedIn() && (
+        isAdmin() || (
+          isOwner(userId) && 
+          isImmutable('role') && 
+          isImmutable('uid') &&
+          isImmutable('isArchived') &&
+          isImmutable('assignedTeamIds')
+        )
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // ─── Students Collection ──────────────────────────────────────
+    match /Students/{studentId} {
+      allow read: if isSignedIn() && (
+        isOwner(studentId) || 
+        isOwner(resource.data.uid) ||
+        isAdmin() || 
+        servantCanReadStudent(resource.data)
+      );
+
+      allow create: if isSignedIn() && (
+        isAdmin() || 
+        (isServant() && servantCanManageStudent(request.resource.data))
+      );
+
+      allow update: if isSignedIn() && (
+        isAdmin() || 
+        (isServant() && servantCanManageStudent(resource.data) &&
+        (!('name' in request.resource.data) || (
+          request.resource.data.name is string &&
+          request.resource.data.name.size() > 0 &&
+          request.resource.data.name.size() <= 200
+        )))
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // ─── Classes Collection ───────────────────────────────────────
+    match /Classes/{classId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // ─── Attendance Collection ────────────────────────────────────
+    match /attendance/{sessionId} {
+      allow read: if isSignedIn() && (isAdmin() || servantCanManageTeam(resource.data.teamId));
+      allow create: if isSignedIn() && (isAdmin() || servantCanManageTeam(request.resource.data.teamId));
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+
+      match /marks/{studentDocId} {
+        allow read: if isSignedIn() && (
+          isAdmin() || 
+          servantCanManageTeam(get(/databases/$(database)/documents/attendance/$(sessionId)).data.teamId) ||
+          isOwner(studentDocId.split('_')[0])
+        );
+        
+        allow create, update: if isSignedIn() && (
+          isAdmin() || 
+          (
+            servantCanManageTeam(get(/databases/$(database)/documents/attendance/$(sessionId)).data.teamId) &&
+            isStudentInSessionRoster(sessionId, studentDocId.split('_')[0])
+          ) ||
+          (
+            studentDocId.split('_')[1] == 'system' &&
+            isStudentInSessionRoster(sessionId, studentDocId.split('_')[0])
+          )
+        );
+        
+        allow delete: if isAdmin();
+      }
+    }
+
+    // ─── Results Collection ───────────────────────────────────────
+    match /results/{studentId} {
+      allow read: if isSignedIn() && (isOwner(studentId) || isAdmin());
+      allow write: if isAdmin();
+
+      match /terms/{termId} {
+        allow read: if isSignedIn() && (isOwner(studentId) || isAdmin() || isServant());
+        allow write: if isAdmin();
+      }
+    }
+
+    // ─── Uniqueness Registry ──────────────────────────────────────
+    match /team_uniqueness_registry/{registryId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // ─── Invitations ──────────────────────────────────────────────
+    match /Invitations/{email} {
+      allow read, write: if isAdmin();
+    }
+
+    // ─── Admin ────────────────────────────────────────────────────
+    match /admin/{document=**} {
+      allow read, write: if isAdmin();
+    }
+  }
+}

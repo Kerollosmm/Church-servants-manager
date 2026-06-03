@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+
+<html dir="rtl" lang="ar"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;500;600;700&amp;family=Noto+Sans+Arabic:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#a58255",
+                        "accent-gold": "#FAD375",
+                        "dark-brown": "#3d2b1f",
+                        "background-light": "#fbfaf9",
+                        "background-dark": "#1c1916",
+                    },
+                    fontFamily: {
+                        "display": ["Noto Sans Arabic", "Work Sans", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Noto Sans Arabic', 'Work Sans', sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        .spiritual-gradient {
+            background: radial-gradient(circle at center, rgba(250, 211, 117, 0.1) 0%, rgba(251, 250, 249, 0) 70%);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark overflow-hidden">
+<!-- Main Splash Screen Container -->
+<div class="relative flex h-screen w-full flex-col items-center justify-between p-8 spiritual-gradient">
+<!-- Top Decorative Element -->
+<div class="absolute top-0 right-0 p-8 opacity-10">
+<span class="material-symbols-outlined text-8xl text-primary" data-icon="grain">grain</span>
+</div>
+<!-- Top Spacer for centering -->
+<div></div>
+<!-- Logo and App Name Section -->
+<div class="flex flex-col items-center gap-8">
+<!-- Church Logo -->
+<div class="relative flex items-center justify-center w-40 h-40 rounded-full bg-white/50 dark:bg-dark-brown/30 shadow-sm border border-accent-gold/20 p-2">
+<!-- Brand Logo Placeholder -->
+<img alt="Church Logo" class="w-full h-full object-contain relative z-10" src="https://lh3.googleusercontent.com/aida/ADBb0uhbSdzajIn2eg9-Fj9QxrG5p-C6NWAprrmKjezYxji9_VgRkV9ZzxqdFOXTBmCpmfc1VSS-IXbZEEyffCkAjjfWuz9jb80uqqcqf_xNdkqpOFF1TVRbfvCKBcrKzZJHLAjHZ4NtyJyYH3PjuLByqCZx3gfbPz01Z5R3qtOAwZOT-FckyN4WKMFDSd05Regk70uqtlSfzhtLznxVYulBTv7fzVZhbUt1aKMQopbsHl0OlUSwPzTolcxBE4IUjfDpom8JgZJFtq-Hgr8"/>
+<!-- Subtle Glow Effect -->
+<div class="absolute inset-0 rounded-full bg-accent-gold/10 blur-xl"></div>
+</div>
+<!-- App Title -->
+<div class="text-center space-y-2">
+<h1 class="text-dark-brown dark:text-accent-gold tracking-tight text-4xl font-bold leading-tight">نظام إدارة الكنيسة</h1>
+<p class="text-primary/80 dark:text-primary/60 text-lg font-medium">
+                    خدمة، تواصل، ونمو
+                </p>
+</div>
+</div>
+<!-- Loading Section at the Bottom -->
+<div class="w-full max-w-xs flex flex-col gap-4 mb-16 relative z-10">
+<div class="flex justify-between items-center px-1">
+<p class="text-primary text-sm font-bold">45%</p>
+<p class="text-dark-brown/60 dark:text-slate-300 text-sm font-medium">جاري تهيئة النظام...</p>
+</div>
+<!-- Custom Loading Bar -->
+<div class="relative h-2 w-full rounded-full bg-primary/10 overflow-hidden">
+<div class="absolute right-0 top-0 h-full bg-primary rounded-full transition-all duration-500 ease-out" style="width: 45%;"></div>
+</div>
+<p class="text-primary/50 text-xs text-center font-normal">يرجى الانتظار قليلاً</p>
+</div>
+<!-- Bottom Decorative Element -->
+<div class="absolute bottom-4 left-4 p-4 opacity-10">
+<span class="material-symbols-outlined text-9xl text-primary" data-icon="auto_awesome">auto_awesome</span>
+</div>
+</div>
+<!-- Hidden Image Placeholder for styling compliance -->
+<div class="hidden">
+<div class="w-full bg-center bg-no-repeat bg-cover" data-alt="Abstract warm golden spiritual gradient pattern" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCU_hI-AGUZ3mn_Lx1TwkS5EvkLn-XpWxwLV2HDYAtsGQ299JY-cE9LUyhT6RLSLoqzP_rhVE_3u6RUC8dXHji6f87LLYrpe5-lpdokvlQ2Wx0EgV09wVXIEzwI-Hmm9pgsmYopTA37Jz-VRIIp3QyQVFa4ynU7IFty5JUHrhu5EBrHVU80y80dW_EJEfV_EYkl3BQdrd9w0Zj_97-2vYWD43SVfPj1gdlDN0o5YFEatBbSQrJGLQ3udPKQGpgXNmfxCOUlPBav0QOT");'></div>
+</div>
+</body></html>

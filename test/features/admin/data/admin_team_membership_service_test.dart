@@ -69,8 +69,8 @@ void main() {
 
       await service.setStudentsForTeam(
         actor: admin,
-        team: team(),
-        selectedStudents: [s1],
+        team: team().toDomain(),
+        selectedStudents: [s1.toDomain()],
       );
 
       // Verify assignment in Firestore
@@ -94,7 +94,7 @@ void main() {
       expect(
         () => service.setStudentsForTeam(
           actor: servant,
-          team: team(),
+          team: team().toDomain(),
           selectedStudents: [],
         ),
         throwsA(isA<StateError>()),

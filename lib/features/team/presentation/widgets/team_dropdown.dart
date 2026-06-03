@@ -1,11 +1,13 @@
 import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/widgets/form/app_dropdown_field.dart';
-import 'package:church_management_system/features/team/data/models/team_model.dart';
+import 'package:church_management_system/features/team/domain/entities/team.dart';
 import 'package:flutter/material.dart';
 
 /// Pure dropdown widget for selecting a team.
 class TeamDropdown extends StatelessWidget {
-  final List<TeamModel> teams;
+  static const String allTeamsSentinel = 'ALL_TEAMS';
+
+  final List<Team> teams;
   final String? selectedTeamId;
   final bool isLoading;
   final String? errorMessage;
@@ -84,6 +86,7 @@ class TeamDropdown extends StatelessWidget {
     if (showAllOption) {
       items.add(
         DropdownMenuItem<String?>(
+          value: allTeamsSentinel,
           child: SizedBox(
             height: 48,
             child: Align(
@@ -111,17 +114,27 @@ class TeamDropdown extends StatelessWidget {
     );
 
     final validIds = visibleTeams.map((t) => t.id).toSet();
+    if (showAllOption) validIds.add(allTeamsSentinel);
+
     final effectiveValue =
         (selectedTeamId != null && validIds.contains(selectedTeamId))
         ? selectedTeamId
-        : (showAllOption ? null : visibleTeams.first.id);
+        : (showAllOption
+              ? allTeamsSentinel
+              : (visibleTeams.isNotEmpty ? visibleTeams.first.id : null));
 
     return AppDropdownField<String?>(
-      initialValue: effectiveValue,
+      value: effectiveValue,
       labelText: label ?? 'الفريق',
       prefixIcon: Icons.group,
       items: items,
-      onChanged: onChanged,
+      onChanged: (value) {
+        if (value == allTeamsSentinel) {
+          onChanged(null);
+        } else {
+          onChanged(value);
+        }
+      },
     );
   }
 }

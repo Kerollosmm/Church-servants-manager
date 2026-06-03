@@ -15,12 +15,14 @@ final _privateConstructorUsedError = UnsupportedError(
   'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
 );
 
-AttendanceSession _$AttendanceSessionFromJson(Map<String, dynamic> json) {
-  return _AttendanceSession.fromJson(json);
+AttendanceSessionModel _$AttendanceSessionModelFromJson(
+  Map<String, dynamic> json,
+) {
+  return _AttendanceSessionModel.fromJson(json);
 }
 
 /// @nodoc
-mixin _$AttendanceSession {
+mixin _$AttendanceSessionModel {
   String get id => throw _privateConstructorUsedError;
   String get teamId => throw _privateConstructorUsedError;
   String? get teamNameSnapshot => throw _privateConstructorUsedError;
@@ -47,16 +49,16 @@ mixin _$AttendanceSession {
 
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
   @JsonKey(ignore: true)
-  $AttendanceSessionCopyWith<AttendanceSession> get copyWith =>
+  $AttendanceSessionModelCopyWith<AttendanceSessionModel> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
 /// @nodoc
-abstract class $AttendanceSessionCopyWith<$Res> {
-  factory $AttendanceSessionCopyWith(
-    AttendanceSession value,
-    $Res Function(AttendanceSession) then,
-  ) = _$AttendanceSessionCopyWithImpl<$Res, AttendanceSession>;
+abstract class $AttendanceSessionModelCopyWith<$Res> {
+  factory $AttendanceSessionModelCopyWith(
+    AttendanceSessionModel value,
+    $Res Function(AttendanceSessionModel) then,
+  ) = _$AttendanceSessionModelCopyWithImpl<$Res, AttendanceSessionModel>;
   @useResult
   $Res call({
     String id,
@@ -81,9 +83,12 @@ abstract class $AttendanceSessionCopyWith<$Res> {
 }
 
 /// @nodoc
-class _$AttendanceSessionCopyWithImpl<$Res, $Val extends AttendanceSession>
-    implements $AttendanceSessionCopyWith<$Res> {
-  _$AttendanceSessionCopyWithImpl(this._value, this._then);
+class _$AttendanceSessionModelCopyWithImpl<
+  $Res,
+  $Val extends AttendanceSessionModel
+>
+    implements $AttendanceSessionModelCopyWith<$Res> {
+  _$AttendanceSessionModelCopyWithImpl(this._value, this._then);
 
   // ignore: unused_field
   final $Val _value;
@@ -193,12 +198,12 @@ class _$AttendanceSessionCopyWithImpl<$Res, $Val extends AttendanceSession>
 }
 
 /// @nodoc
-abstract class _$$AttendanceSessionImplCopyWith<$Res>
-    implements $AttendanceSessionCopyWith<$Res> {
-  factory _$$AttendanceSessionImplCopyWith(
-    _$AttendanceSessionImpl value,
-    $Res Function(_$AttendanceSessionImpl) then,
-  ) = __$$AttendanceSessionImplCopyWithImpl<$Res>;
+abstract class _$$AttendanceSessionModelImplCopyWith<$Res>
+    implements $AttendanceSessionModelCopyWith<$Res> {
+  factory _$$AttendanceSessionModelImplCopyWith(
+    _$AttendanceSessionModelImpl value,
+    $Res Function(_$AttendanceSessionModelImpl) then,
+  ) = __$$AttendanceSessionModelImplCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call({
@@ -224,12 +229,13 @@ abstract class _$$AttendanceSessionImplCopyWith<$Res>
 }
 
 /// @nodoc
-class __$$AttendanceSessionImplCopyWithImpl<$Res>
-    extends _$AttendanceSessionCopyWithImpl<$Res, _$AttendanceSessionImpl>
-    implements _$$AttendanceSessionImplCopyWith<$Res> {
-  __$$AttendanceSessionImplCopyWithImpl(
-    _$AttendanceSessionImpl _value,
-    $Res Function(_$AttendanceSessionImpl) _then,
+class __$$AttendanceSessionModelImplCopyWithImpl<$Res>
+    extends
+        _$AttendanceSessionModelCopyWithImpl<$Res, _$AttendanceSessionModelImpl>
+    implements _$$AttendanceSessionModelImplCopyWith<$Res> {
+  __$$AttendanceSessionModelImplCopyWithImpl(
+    _$AttendanceSessionModelImpl _value,
+    $Res Function(_$AttendanceSessionModelImpl) _then,
   ) : super(_value, _then);
 
   @pragma('vm:prefer-inline')
@@ -255,7 +261,7 @@ class __$$AttendanceSessionImplCopyWithImpl<$Res>
     Object? absentCount = null,
   }) {
     return _then(
-      _$AttendanceSessionImpl(
+      _$AttendanceSessionModelImpl(
         id: null == id
             ? _value.id
             : id // ignore: cast_nullable_to_non_nullable
@@ -335,8 +341,8 @@ class __$$AttendanceSessionImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$AttendanceSessionImpl extends _AttendanceSession {
-  const _$AttendanceSessionImpl({
+class _$AttendanceSessionModelImpl extends _AttendanceSessionModel {
+  const _$AttendanceSessionModelImpl({
     required this.id,
     required this.teamId,
     this.teamNameSnapshot,
@@ -359,8 +365,8 @@ class _$AttendanceSessionImpl extends _AttendanceSession {
        _studentNameSnapshots = studentNameSnapshots,
        super._();
 
-  factory _$AttendanceSessionImpl.fromJson(Map<String, dynamic> json) =>
-      _$$AttendanceSessionImplFromJson(json);
+  factory _$AttendanceSessionModelImpl.fromJson(Map<String, dynamic> json) =>
+      _$$AttendanceSessionModelImplFromJson(json);
 
   @override
   final String id;
@@ -425,14 +431,14 @@ class _$AttendanceSessionImpl extends _AttendanceSession {
 
   @override
   String toString() {
-    return 'AttendanceSession(id: $id, teamId: $teamId, teamNameSnapshot: $teamNameSnapshot, title: $title, dateKey: $dateKey, startsAt: $startsAt, endsAt: $endsAt, durationMinutes: $durationMinutes, createdByUserId: $createdByUserId, createdByName: $createdByName, createdAt: $createdAt, updatedAt: $updatedAt, isClosed: $isClosed, studentIdsSnapshot: $studentIdsSnapshot, studentNameSnapshots: $studentNameSnapshots, presentCount: $presentCount, lateCount: $lateCount, absentCount: $absentCount)';
+    return 'AttendanceSessionModel(id: $id, teamId: $teamId, teamNameSnapshot: $teamNameSnapshot, title: $title, dateKey: $dateKey, startsAt: $startsAt, endsAt: $endsAt, durationMinutes: $durationMinutes, createdByUserId: $createdByUserId, createdByName: $createdByName, createdAt: $createdAt, updatedAt: $updatedAt, isClosed: $isClosed, studentIdsSnapshot: $studentIdsSnapshot, studentNameSnapshots: $studentNameSnapshots, presentCount: $presentCount, lateCount: $lateCount, absentCount: $absentCount)';
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$AttendanceSessionImpl &&
+            other is _$AttendanceSessionModelImpl &&
             (identical(other.id, id) || other.id == id) &&
             (identical(other.teamId, teamId) || other.teamId == teamId) &&
             (identical(other.teamNameSnapshot, teamNameSnapshot) ||
@@ -497,20 +503,21 @@ class _$AttendanceSessionImpl extends _AttendanceSession {
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
-  _$$AttendanceSessionImplCopyWith<_$AttendanceSessionImpl> get copyWith =>
-      __$$AttendanceSessionImplCopyWithImpl<_$AttendanceSessionImpl>(
+  _$$AttendanceSessionModelImplCopyWith<_$AttendanceSessionModelImpl>
+  get copyWith =>
+      __$$AttendanceSessionModelImplCopyWithImpl<_$AttendanceSessionModelImpl>(
         this,
         _$identity,
       );
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$AttendanceSessionImplToJson(this);
+    return _$$AttendanceSessionModelImplToJson(this);
   }
 }
 
-abstract class _AttendanceSession extends AttendanceSession {
-  const factory _AttendanceSession({
+abstract class _AttendanceSessionModel extends AttendanceSessionModel {
+  const factory _AttendanceSessionModel({
     required final String id,
     required final String teamId,
     final String? teamNameSnapshot,
@@ -529,11 +536,11 @@ abstract class _AttendanceSession extends AttendanceSession {
     final int presentCount,
     final int lateCount,
     final int absentCount,
-  }) = _$AttendanceSessionImpl;
-  const _AttendanceSession._() : super._();
+  }) = _$AttendanceSessionModelImpl;
+  const _AttendanceSessionModel._() : super._();
 
-  factory _AttendanceSession.fromJson(Map<String, dynamic> json) =
-      _$AttendanceSessionImpl.fromJson;
+  factory _AttendanceSessionModel.fromJson(Map<String, dynamic> json) =
+      _$AttendanceSessionModelImpl.fromJson;
 
   @override
   String get id;
@@ -577,6 +584,6 @@ abstract class _AttendanceSession extends AttendanceSession {
   int get absentCount;
   @override
   @JsonKey(ignore: true)
-  _$$AttendanceSessionImplCopyWith<_$AttendanceSessionImpl> get copyWith =>
-      throw _privateConstructorUsedError;
+  _$$AttendanceSessionModelImplCopyWith<_$AttendanceSessionModelImpl>
+  get copyWith => throw _privateConstructorUsedError;
 }

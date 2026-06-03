@@ -82,15 +82,13 @@ class AppRouter {
       case studentDetail:
         return _buildArgsValidatedRoute<StudentDetailArgs>(
           settings: settings,
-          builder: (args) =>
-              Builder(builder: (context) => StudentDetailScreen(args: args)),
+          builder: (args) => StudentDetailScreen(args: args),
           invalidMessage: 'Invalid student data',
         );
       case studentEdit:
         return _buildArgsValidatedRoute<StudentEditArgs>(
           settings: settings,
-          builder: (args) =>
-              Builder(builder: (context) => StudentEditScreen(args: args)),
+          builder: (args) => StudentEditScreen(args: args),
           invalidMessage: 'Invalid student data',
         );
       // Servant Routes

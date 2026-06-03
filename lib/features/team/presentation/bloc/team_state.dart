@@ -1,39 +1,45 @@
-part of 'team_cubit.dart';
+part of 'team_bloc.dart';
 
 enum TeamMutationStatus { idle, inProgress, success, failure }
 
-abstract class TeamState {
+sealed class TeamState extends Equatable {
   const TeamState();
+
+  @override
+  List<Object?> get props => [];
 }
 
-class TeamInitial extends TeamState {
+final class TeamInitial extends TeamState {
   const TeamInitial();
 }
 
-class TeamLoading extends TeamState {
+final class TeamLoading extends TeamState {
   const TeamLoading();
 }
 
-class TeamLoaded extends TeamState {
-  final List<TeamModel> teams;
+final class TeamLoaded extends TeamState {
+  final List<Team> teams;
   final String? selectedTeamId;
   final TeamMutationStatus mutationStatus;
   final String? feedbackMessage;
+  final bool isFromCache;
 
   const TeamLoaded({
     required this.teams,
     this.selectedTeamId,
     this.mutationStatus = TeamMutationStatus.idle,
     this.feedbackMessage,
+    this.isFromCache = false,
   });
 
   TeamLoaded copyWith({
-    List<TeamModel>? teams,
+    List<Team>? teams,
     String? selectedTeamId,
     bool clearSelectedTeamId = false,
     TeamMutationStatus? mutationStatus,
     String? feedbackMessage,
     bool clearFeedbackMessage = false,
+    bool? isFromCache,
   }) {
     return TeamLoaded(
       teams: teams ?? this.teams,
@@ -44,11 +50,24 @@ class TeamLoaded extends TeamState {
       feedbackMessage: clearFeedbackMessage
           ? null
           : (feedbackMessage ?? this.feedbackMessage),
+      isFromCache: isFromCache ?? this.isFromCache,
     );
   }
+
+  @override
+  List<Object?> get props => [
+    teams,
+    selectedTeamId,
+    mutationStatus,
+    feedbackMessage,
+    isFromCache,
+  ];
 }
 
-class TeamError extends TeamState {
+final class TeamError extends TeamState {
   final String message;
   const TeamError(this.message);
+
+  @override
+  List<Object?> get props => [message];
 }

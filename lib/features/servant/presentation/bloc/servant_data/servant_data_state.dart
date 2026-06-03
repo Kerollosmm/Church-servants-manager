@@ -1,4 +1,4 @@
-import 'package:church_management_system/features/servant/data/models/servant_models.dart';
+import 'package:church_management_system/features/servant/domain/entities/servant.dart';
 import 'package:church_management_system/features/servant/domain/failures/servant_failures.dart';
 import 'package:equatable/equatable.dart';
 
@@ -17,12 +17,12 @@ final class ServantDataInitial extends ServantDataState {
 
 final class ServantDataLoading extends ServantDataState {
   const ServantDataLoading({
-    this.previousServants = const <ServantModel>[],
+    this.previousServants = const <Servant>[],
     this.isRefresh = false,
     this.includeArchived = false,
   });
 
-  final List<ServantModel> previousServants;
+  final List<Servant> previousServants;
   final bool isRefresh;
   final bool includeArchived;
 
@@ -42,9 +42,10 @@ final class ServantDataLoaded extends ServantDataState {
     this.includeArchived = false,
     this.mutationStatus = ServantMutationStatus.idle,
     this.feedbackMessage,
+    this.isFromCache = false,
   });
 
-  final List<ServantModel> servants;
+  final List<Servant> servants;
   final String? currentFilterTeamName;
   final String? currentQuery;
   final bool hasMore;
@@ -52,13 +53,14 @@ final class ServantDataLoaded extends ServantDataState {
   final bool includeArchived;
   final ServantMutationStatus mutationStatus;
   final String? feedbackMessage;
+  final bool isFromCache;
 
   int get count => servants.length;
 
   bool get isEmpty => servants.isEmpty;
 
   ServantDataLoaded copyWith({
-    List<ServantModel>? servants,
+    List<Servant>? servants,
     String? currentFilterTeamName,
     bool clearCurrentFilterTeamName = false,
     String? currentQuery,
@@ -69,6 +71,7 @@ final class ServantDataLoaded extends ServantDataState {
     ServantMutationStatus? mutationStatus,
     String? feedbackMessage,
     bool clearFeedbackMessage = false,
+    bool? isFromCache,
   }) {
     return ServantDataLoaded(
       servants: servants ?? this.servants,
@@ -85,6 +88,7 @@ final class ServantDataLoaded extends ServantDataState {
       feedbackMessage: clearFeedbackMessage
           ? null
           : (feedbackMessage ?? this.feedbackMessage),
+      isFromCache: isFromCache ?? this.isFromCache,
     );
   }
 
@@ -98,6 +102,7 @@ final class ServantDataLoaded extends ServantDataState {
     includeArchived,
     mutationStatus,
     feedbackMessage,
+    isFromCache,
   ];
 }
 

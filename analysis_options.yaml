@@ -11,6 +11,7 @@ include: package:flutter_lints/flutter.yaml
 
 linter:
   rules:
+    unreachable_from_main: true
     always_use_package_imports: true
     prefer_final_locals: true
     prefer_final_in_for_each: true

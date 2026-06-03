@@ -45,7 +45,7 @@ void main() {
       () => mockFirestore.collection(FirestoreCollections.students),
     ).thenReturn(mockStudentsCollection);
     when(
-      () => mockFirestore.collection(FirestoreCollections.users),
+      () => mockFirestore.collection(FirestoreCollections.servants),
     ).thenReturn(mockUsersCollection);
 
     when(() => mockStudentsCollection.doc(any())).thenReturn(mockStudentDoc);

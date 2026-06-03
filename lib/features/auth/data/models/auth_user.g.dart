@@ -6,9 +6,9 @@ part of 'auth_user.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-_$AuthUserImpl _$$AuthUserImplFromJson(
+_$AuthUserModelImpl _$$AuthUserModelImplFromJson(
   Map<String, dynamic> json,
-) => _$AuthUserImpl(
+) => _$AuthUserModelImpl(
   uid: json['uid'] as String,
   email: json['email'] as String,
   name: json['name'] as String,
@@ -22,6 +22,7 @@ _$AuthUserImpl _$$AuthUserImplFromJson(
   restoredByUserId: json['restoredByUserId'] as String?,
   restorePendingPasswordReset:
       json['restorePendingPasswordReset'] as bool? ?? false,
+  requiresTokenRefresh: json['requiresTokenRefresh'] as bool? ?? false,
   groupId: json['groupId'] as String?,
   assignedTeamIds:
       (json['assignedTeamIds'] as List<dynamic>?)
@@ -31,8 +32,8 @@ _$AuthUserImpl _$$AuthUserImplFromJson(
   assignedTeamId: json['assignedTeamId'] as String?,
 );
 
-Map<String, dynamic> _$$AuthUserImplToJson(
-  _$AuthUserImpl instance,
+Map<String, dynamic> _$$AuthUserModelImplToJson(
+  _$AuthUserModelImpl instance,
 ) => <String, dynamic>{
   'uid': instance.uid,
   'email': instance.email,
@@ -46,6 +47,7 @@ Map<String, dynamic> _$$AuthUserImplToJson(
   'restoredAt': const FirestoreTimestampConverter().toJson(instance.restoredAt),
   'restoredByUserId': instance.restoredByUserId,
   'restorePendingPasswordReset': instance.restorePendingPasswordReset,
+  'requiresTokenRefresh': instance.requiresTokenRefresh,
   'groupId': instance.groupId,
   'assignedTeamIds': instance.assignedTeamIds,
   'assignedTeamId': instance.assignedTeamId,

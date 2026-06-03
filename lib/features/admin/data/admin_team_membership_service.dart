@@ -1,8 +1,10 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
+import 'package:church_management_system/core/utils/list_extensions.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
-import 'package:church_management_system/features/team/data/models/team_model.dart';
+import 'package:church_management_system/features/student/domain/entities/student.dart';
+import 'package:church_management_system/features/team/domain/entities/team.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AdminTeamMembershipService {
@@ -14,7 +16,7 @@ class AdminTeamMembershipService {
   CollectionReference<Map<String, dynamic>> get _classes =>
       _firestore.collection(FirestoreCollections.classes);
   CollectionReference<Map<String, dynamic>> get _users =>
-      _firestore.collection(FirestoreCollections.users);
+      _firestore.collection(FirestoreCollections.servants);
   CollectionReference<Map<String, dynamic>> get _students =>
       _firestore.collection(FirestoreCollections.students);
 
@@ -35,8 +37,8 @@ class AdminTeamMembershipService {
 
   Future<void> setStudentsForTeam({
     required AuthUser actor,
-    required TeamModel team,
-    required List<StudentModel> selectedStudents,
+    required Team team,
+    required List<Student> selectedStudents,
   }) async {
     _assertAdmin(actor);
 
@@ -60,23 +62,20 @@ class AdminTeamMembershipService {
   }
 
   Future<Set<String>> _getCurrentTeamMemberIds(String teamId) async {
-    final snapshot = await _students.where('classId', isEqualTo: teamId).get();
+    final snapshot = await _students
+        .where('classId', isEqualTo: teamId)
+        .get(const GetOptions());
     return snapshot.docs
         .where((doc) => doc.data()['isArchived'] != true)
         .map((d) => d.id)
         .toSet();
   }
 
-  Future<List<StudentModel>> _loadStudentsByIds(List<String> ids) async {
-    if (ids.isEmpty) return const <StudentModel>[];
+  Future<List<Student>> _loadStudentsByIds(List<String> ids) async {
+    if (ids.isEmpty) return const <Student>[];
 
-    final result = <StudentModel>[];
-    final slices = <List<String>>[];
-
-    for (var i = 0; i < ids.length; i += 10) {
-      final end = (i + 10 > ids.length) ? ids.length : i + 10;
-      slices.add(ids.sublist(i, end));
-    }
+    final result = <Student>[];
+    final slices = ids.chunk(10);
 
     const concurrencyLimit = 5;
     for (var i = 0; i < slices.length; i += concurrencyLimit) {
@@ -87,15 +86,17 @@ class AdminTeamMembershipService {
 
       final snaps = await Future.wait(
         currentSlices.map(
-          (s) => _students.where(FieldPath.documentId, whereIn: s).get(),
+          (s) => _students
+              .where(FieldPath.documentId, whereIn: s)
+              .get(const GetOptions()),
         ),
       );
 
       for (final snap in snaps) {
         for (final doc in snap.docs) {
-          final student = StudentModel.fromMap(doc.data(), doc.id);
-          if (student.isArchived) continue;
-          result.add(student);
+          final model = StudentModel.fromMap(doc.data(), doc.id);
+          if (model.isArchived) continue;
+          result.add(model.toDomain());
         }
       }
     }
@@ -104,9 +105,9 @@ class AdminTeamMembershipService {
   }
 
   List<void Function(WriteBatch)> _buildSetTeamMembersOps({
-    required TeamModel team,
-    required List<StudentModel> toAdd,
-    required List<StudentModel> toRemove,
+    required Team team,
+    required List<Student> toAdd,
+    required List<Student> toRemove,
     required List<String> selectedIds,
   }) {
     final ops = <void Function(WriteBatch)>[];

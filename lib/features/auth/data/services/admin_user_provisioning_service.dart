@@ -1,10 +1,10 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/data/services/admin_auth_client.dart';
-import 'package:church_management_system/features/auth/data/services/auth_service.dart';
 import 'package:church_management_system/features/auth/data/services/auth_user_profile_store.dart';
 import 'package:church_management_system/features/auth/domain/failures/auth_exceptions.dart';
 import 'package:church_management_system/features/auth/domain/failures/auth_failures.dart';
+import 'package:church_management_system/features/auth/domain/repos/auth_repository.dart';
 
 abstract class AdminUserProvisioningService {
   Future<AuthUser> createUser({
@@ -23,20 +23,22 @@ abstract class AdminUserProvisioningService {
   Future<void> archiveUser({required String uid});
 
   Future<void> restoreUser({required String uid});
+
+  Future<void> changeUserRole({required String uid, required UserRole role});
 }
 
 class ClientAdminUserProvisioningService
     implements AdminUserProvisioningService {
   ClientAdminUserProvisioningService({
     required AuthUserProfileStore userProfileStore,
-    required AuthService authService,
+    required AuthRepository authService,
     AdminAuthClient? adminAuthClient,
   }) : _userProfileStore = userProfileStore,
        _authService = authService,
        _adminAuthClient = adminAuthClient ?? FirebaseAdminAuthClient();
 
   final AuthUserProfileStore _userProfileStore;
-  final AuthService _authService;
+  final AuthRepository _authService;
   final AdminAuthClient _adminAuthClient;
 
   @override
@@ -120,11 +122,8 @@ class ClientAdminUserProvisioningService
   @override
   Future<void> archiveUser({required String uid}) async {
     try {
+      // AdminAuthClient now handles direct Firestore update for Spark Plan compatibility
       await _adminAuthClient.archiveUser(uid: uid);
-      await _userProfileStore.updateUserFields(uid, {
-        'isArchived': true,
-        'restorePendingPasswordReset': false,
-      });
     } catch (e) {
       if (e is AuthFailure) rethrow;
       throw GenericAuthException('Archive failed: $e');
@@ -135,15 +134,26 @@ class ClientAdminUserProvisioningService
   Future<void> restoreUser({required String uid}) async {
     try {
       final user = await _userProfileStore.fetchUser(uid);
+      // AdminAuthClient handles direct Firestore update
       await _adminAuthClient.restoreUser(uid: uid);
-      await _userProfileStore.updateUserFields(uid, {
-        'isArchived': false,
-        'restorePendingPasswordReset': true,
-      });
+      // We still trigger a password reset for the restored user as a security best practice
       await _authService.sendPasswordResetEmail(user.email);
     } catch (e) {
       if (e is AuthFailure) rethrow;
       throw GenericAuthException('Restore failed: $e');
+    }
+  }
+
+  @override
+  Future<void> changeUserRole({
+    required String uid,
+    required UserRole role,
+  }) async {
+    try {
+      await _adminAuthClient.changeUserRole(uid: uid, role: role);
+    } catch (e) {
+      if (e is AuthFailure) rethrow;
+      throw GenericAuthException('Role change failed: $e');
     }
   }
 }

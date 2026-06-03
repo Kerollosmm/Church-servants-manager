@@ -1,117 +1,105 @@
+import 'dart:async';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
+import 'package:church_management_system/features/auth/data/services/auth_user_local_store.dart';
 import 'package:church_management_system/features/auth/domain/failures/auth_exceptions.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+/// Store for managing the extended user profile (roles, assignments)
+/// which is authoritative over Firebase Auth custom claims.
 class AuthUserProfileStore {
-  AuthUserProfileStore({FirebaseFirestore? firestore})
-    : _db = firestore ?? FirebaseFirestore.instance;
+  AuthUserProfileStore({
+    required FirebaseFirestore firestore,
+    required AuthUserLocalStore localStore,
+  }) : _db = firestore,
+       _localStore = localStore;
 
   final FirebaseFirestore _db;
+  final AuthUserLocalStore _localStore;
+
+  Future<DocumentSnapshot<Map<String, dynamic>>> _cachedGet(
+    DocumentReference<Map<String, dynamic>> ref,
+  ) async {
+    try {
+      final cached = await ref.get(const GetOptions(source: Source.cache));
+      if (cached.exists) return cached;
+    } catch (_) {}
+    return ref.get(const GetOptions(source: Source.server));
+  }
 
   Future<AuthUser> fetchUser(String uid) async {
     try {
-      DocumentSnapshot<Map<String, dynamic>> doc;
-      try {
-        doc = await _db
-            .collection(FirestoreCollections.users)
-            .doc(uid)
-            .get()
-            .timeout(const Duration(seconds: 12));
-      } catch (_) {
-        doc = await _db
-            .collection(FirestoreCollections.users)
-            .doc(uid)
-            .get(const GetOptions(source: Source.cache));
+      // Mandate: Check Hive before Firestore
+      final cached = _localStore.getUser();
+      if (cached != null && cached.uid == uid) {
+        // Trigger background refresh to keep cache in sync with server changes
+        unawaited(_refreshUserCache(uid));
+        return cached;
       }
+
+      // Fetch profile with cache-first, server-fallback strategy
+      final doc = await _cachedGet(
+        _db.collection(FirestoreCollections.servants).doc(uid),
+      );
 
       if (!doc.exists || doc.data() == null) {
         throw UserNotFoundAuthException();
       }
 
-      return AuthUser.fromJson(doc.data()!);
-    } catch (e) {
-      if (e is UserNotFoundAuthException) rethrow;
-      throw GenericAuthException('Failed to fetch user data: $e');
+      final profile = AuthUserModel.fromJson(doc.data()!).toDomain();
+      return profile.copyWith(uid: uid);
+    } catch (e, stackTrace) {
+      throw GenericAuthException(
+        'Failed to fetch user data',
+        e is Exception ? e : Exception(e.toString()),
+        stackTrace,
+      );
     }
   }
 
-  Future<void> saveUser(AuthUser appUser) async {
+  Future<void> updateUserFields(String uid, Map<String, dynamic> data) async {
     try {
-      final payload = <String, dynamic>{
-        'uid': appUser.uid,
-        'name': appUser.name,
-        'email': appUser.email,
-        'role': appUser.role.name,
-        'isEmailVerified': appUser.isEmailVerified,
+      await _db.collection(FirestoreCollections.servants).doc(uid).set({
+        ...data,
         'updatedAt': FieldValue.serverTimestamp(),
-      };
-
-      if (appUser.isArchived) {
-        payload['isArchived'] = true;
-      }
-      if (appUser.archivedAt != null) {
-        payload['archivedAt'] = appUser.archivedAt;
-      }
-      if (appUser.archivedByUserId != null &&
-          appUser.archivedByUserId!.isNotEmpty) {
-        payload['archivedByUserId'] = appUser.archivedByUserId;
-      } else {
-        payload['archivedByUserId'] = FieldValue.delete();
-      }
-      if (appUser.archiveReason != null && appUser.archiveReason!.isNotEmpty) {
-        payload['archiveReason'] = appUser.archiveReason;
-      } else {
-        payload['archiveReason'] = FieldValue.delete();
-      }
-      if (appUser.restoredAt != null) {
-        payload['restoredAt'] = appUser.restoredAt;
-      } else {
-        payload['restoredAt'] = FieldValue.delete();
-      }
-      if (appUser.restoredByUserId != null &&
-          appUser.restoredByUserId!.isNotEmpty) {
-        payload['restoredByUserId'] = appUser.restoredByUserId;
-      } else {
-        payload['restoredByUserId'] = FieldValue.delete();
-      }
-      if (appUser.restorePendingPasswordReset) {
-        payload['restorePendingPasswordReset'] = true;
-      }
-      if (appUser.groupId != null && appUser.groupId!.isNotEmpty) {
-        payload['groupId'] = appUser.groupId;
-      }
-      if (appUser.assignedTeamIds.isNotEmpty) {
-        payload['assignedTeamIds'] = appUser.assignedTeamIds;
-      }
-      if (appUser.assignedTeamId != null &&
-          appUser.assignedTeamId!.isNotEmpty) {
-        payload['assignedTeamId'] = appUser.assignedTeamId;
-      } else {
-        payload['assignedTeamId'] = FieldValue.delete();
-      }
-
-      await _db
-          .collection(FirestoreCollections.users)
-          .doc(appUser.uid)
-          .set(payload, SetOptions(merge: true));
-    } catch (e) {
-      throw GenericAuthException('Failed to save user data: $e');
-    }
-  }
-
-  Future<void> updateUserFields(String uid, Map<String, dynamic> fields) async {
-    try {
-      await _db.collection(FirestoreCollections.users).doc(uid).update({
-        ...fields,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      }, SetOptions(merge: true));
     } catch (e) {
       throw GenericAuthException('Failed to update user data: $e');
     }
   }
 
+  Future<void> saveUser(AuthUser user, {String? initialRole}) async {
+    try {
+      final data = AuthUserModel.fromDomain(user).toJson();
+      if (initialRole != null) {
+        data['role'] = initialRole;
+      }
+      await _db.collection(FirestoreCollections.servants).doc(user.uid).set({
+        ...data,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      throw GenericAuthException('Failed to save user data: $e');
+    }
+  }
+
   Future<void> deleteUser(String uid) async {
-    await _db.collection(FirestoreCollections.users).doc(uid).delete();
+    await _db.collection(FirestoreCollections.servants).doc(uid).delete();
+  }
+
+  Future<void> _refreshUserCache(String uid) async {
+    try {
+      final doc = await _db
+          .collection(FirestoreCollections.servants)
+          .doc(uid)
+          .get(const GetOptions(source: Source.server));
+      if (doc.exists && doc.data() != null) {
+        final profile = AuthUserModel.fromJson(doc.data()!).toDomain();
+        final updatedUser = profile.copyWith(uid: uid);
+        await _localStore.saveUser(updatedUser);
+      }
+    } catch (_) {
+      // Fail silently in background
+    }
   }
 }

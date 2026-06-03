@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+
+<html dir="rtl" lang="ar"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700&amp;family=Noto+Sans+Arabic:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#a58255",
+                        "background-light": "#f7f7f6",
+                        "background-dark": "#1c1916",
+                    },
+                    fontFamily: {
+                        "display": ["Noto Sans Arabic", "Work Sans", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: "Noto Sans Arabic", "Work Sans", sans-serif;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen flex flex-col">
+<!-- Header Navigation -->
+<header class="sticky top-0 z-50 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md border-b border-primary/10">
+<div class="flex items-center justify-between p-4 max-w-2xl mx-auto w-full">
+<button class="flex items-center justify-center size-10 rounded-full hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-primary">arrow_forward</span>
+</button>
+<h1 class="text-lg font-bold text-slate-900 dark:text-slate-100">تفاصيل الخادم</h1>
+<button class="flex items-center justify-center size-10 rounded-full hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-primary">more_vert</span>
+</button>
+</div>
+</header>
+<main class="flex-1 overflow-y-auto pb-24">
+<div class="max-w-2xl mx-auto w-full px-4 pt-6 space-y-6">
+<!-- Profile Header Section -->
+<div class="flex flex-col items-center text-center space-y-4">
+<div class="relative">
+<div class="size-32 rounded-full border-4 border-primary/20 p-1">
+<div class="w-full h-full rounded-full bg-cover bg-center shadow-lg" data-alt="صورة شخصية لخادم الكنيسة بملابس رسمية" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuA4AwKOKPrsm79XY_v0NoIlA-xJJiiZFPcjWS88Lc7vXDfu_Cv9vcNaIU0E4rjhfxAKGxHT9Y_5vH8xdvJooBVmQ2Ry3b557REAp_dyfPNmVWGfzndaPMVW24siT35s0lhOgHapoCr3xUMVB6km-qZMw_xcGyeCLdKko2S5vErYuf15zruGTS_I7rs9MU_Wd7lZZrLKMhdxqp0jDHGpVrhRuQeNrfU2jEKS8dG0if5Fse_k8OiXxNA8-PtkpJ7wxWUGCzqmgu-4q7nE')">
+</div>
+</div>
+<div class="absolute bottom-1 left-1 bg-green-500 size-5 rounded-full border-2 border-background-light dark:border-background-dark"></div>
+</div>
+<div class="space-y-1">
+<h2 class="text-2xl font-bold text-slate-900 dark:text-slate-100">يوحنا منصور غبريال</h2>
+<p class="text-primary font-medium flex items-center justify-center gap-1">
+<span class="material-symbols-outlined text-sm">church</span>
+                        أمين خدمة مرحلة إعدادي
+                    </p>
+</div>
+<!-- Action Buttons -->
+<div class="flex gap-3 w-full">
+<button class="flex-1 flex items-center justify-center gap-2 bg-primary text-white py-3 rounded-xl font-bold shadow-lg shadow-primary/20 hover:opacity-90 transition-all">
+<span class="material-symbols-outlined text-lg">edit</span>
+                        تعديل البيانات
+                    </button>
+<button class="flex-1 flex items-center justify-center gap-2 bg-primary/10 text-primary py-3 rounded-xl font-bold hover:bg-primary/20 transition-all">
+<span class="material-symbols-outlined text-lg">archive</span>
+                        نقل للأرشيف
+                    </button>
+</div>
+</div>
+<!-- Details Cards Grid -->
+<div class="grid gap-4">
+<!-- Basic Info Card -->
+<div class="bg-white dark:bg-zinc-900/50 p-5 rounded-2xl border border-primary/5 shadow-sm">
+<div class="flex items-center gap-2 mb-4 text-primary">
+<span class="material-symbols-outlined">badge</span>
+<h3 class="font-bold">المعلومات الأساسية</h3>
+</div>
+<div class="space-y-4">
+<div class="flex justify-between items-center py-2 border-b border-slate-100 dark:border-zinc-800">
+<span class="text-slate-500 dark:text-slate-400 text-sm">رقم الموبايل</span>
+<span class="font-medium dir-ltr">٠١٢٣٤٥٦٧٨٩٠</span>
+</div>
+<div class="flex justify-between items-center py-2 border-b border-slate-100 dark:border-zinc-800">
+<span class="text-slate-500 dark:text-slate-400 text-sm">البريد الإلكتروني</span>
+<span class="font-medium">john.m@church.org</span>
+</div>
+<div class="flex justify-between items-center py-2 border-b border-slate-100 dark:border-zinc-800">
+<span class="text-slate-500 dark:text-slate-400 text-sm">الخدمة الحالية</span>
+<span class="font-medium">ثانوي بنين - أسرة القديس أبانوب</span>
+</div>
+</div>
+</div>
+<!-- Spiritual Info Card -->
+<div class="bg-white dark:bg-zinc-900/50 p-5 rounded-2xl border border-primary/5 shadow-sm">
+<div class="flex items-center gap-2 mb-4 text-primary">
+<span class="material-symbols-outlined">auto_awesome</span>
+<h3 class="font-bold">البيانات الروحية</h3>
+</div>
+<div class="space-y-4">
+<div class="flex justify-between items-center py-2 border-b border-slate-100 dark:border-zinc-800">
+<span class="text-slate-500 dark:text-slate-400 text-sm">أب الاعتراف</span>
+<span class="font-medium">القمص إبراهيم وهبة</span>
+</div>
+<div class="flex justify-between items-center py-2 border-b border-slate-100 dark:border-zinc-800">
+<span class="text-slate-500 dark:text-slate-400 text-sm">كنيسة التناول</span>
+<span class="font-medium">كنيسة مار جرجس - سبورتنج</span>
+</div>
+</div>
+</div>
+<!-- Personal Info Card -->
+<div class="bg-white dark:bg-zinc-900/50 p-5 rounded-2xl border border-primary/5 shadow-sm">
+<div class="flex items-center gap-2 mb-4 text-primary">
+<span class="material-symbols-outlined">person</span>
+<h3 class="font-bold">المعلومات الشخصية</h3>
+</div>
+<div class="space-y-4">
+<div class="flex justify-between items-center py-2 border-b border-slate-100 dark:border-zinc-800">
+<span class="text-slate-500 dark:text-slate-400 text-sm">تاريخ الميلاد</span>
+<span class="font-medium">١٥ مايو ١٩٨٨</span>
+</div>
+<div class="flex justify-between items-start py-2 border-b border-slate-100 dark:border-zinc-800">
+<span class="text-slate-500 dark:text-slate-400 text-sm">العنوان</span>
+<span class="font-medium text-left max-w-[200px]">٤٥ شارع الحرية، زيزينيا، الإسكندرية</span>
+</div>
+</div>
+</div>
+<!-- Notes Section -->
+<div class="bg-white dark:bg-zinc-900/50 p-5 rounded-2xl border border-primary/5 shadow-sm">
+<div class="flex items-center gap-2 mb-4 text-primary">
+<span class="material-symbols-outlined">notes</span>
+<h3 class="font-bold">ملاحظات إضافية</h3>
+</div>
+<p class="text-slate-600 dark:text-slate-300 text-sm leading-relaxed">
+                        مسؤول عن تنظيم رحلات الصيف للمرحلة الإعدادية. لديه خبرة في التعامل مع برامج المونتاج وتصميم المطبوعات. يفضل التواصل عبر الواتساب في الفترة المسائية.
+                    </p>
+</div>
+</div>
+</div>
+</main>
+<!-- Bottom Navigation Bar -->
+<nav class="fixed bottom-0 left-0 right-0 bg-background-light dark:bg-background-dark border-t border-primary/10 px-6 py-3 pb-6 flex justify-between items-center max-w-2xl mx-auto w-full z-50">
+<a class="flex flex-col items-center gap-1 text-primary" href="#">
+<span class="material-symbols-outlined fill-1">home</span>
+<span class="text-xs font-medium">الرئيسية</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400" href="#">
+<span class="material-symbols-outlined">groups</span>
+<span class="text-xs font-medium">الخدام</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400" href="#">
+<span class="material-symbols-outlined">person_search</span>
+<span class="text-xs font-medium">المخدومين</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="text-xs font-medium">الإعدادات</span>
+</a>
+</nav>
+</body></html>

@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+
+<html dir="rtl" lang="ar"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700&amp;family=Noto+Sans+Arabic:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#a58255",
+                        "background-light": "#f7f7f6",
+                        "background-dark": "#1c1916",
+                    },
+                    fontFamily: {
+                        "display": ["Noto Sans Arabic", "Work Sans", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Noto Sans Arabic', sans-serif;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen">
+<div class="max-w-4xl mx-auto pb-20">
+<!-- Top Navigation Bar -->
+<header class="sticky top-0 z-50 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md border-b border-primary/10 px-4 py-4 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<button class="flex items-center justify-center size-10 rounded-full hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-primary">arrow_forward</span>
+</button>
+<h1 class="text-xl font-bold tracking-tight">إضافة طالب جديد</h1>
+</div>
+<div class="flex items-center gap-2">
+<button class="bg-primary text-white px-6 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-primary/90 transition-shadow shadow-sm">
+<span class="material-symbols-outlined text-sm">check</span>
+<span>حفظ البيانات</span>
+</button>
+</div>
+</header>
+<main class="p-4 space-y-6">
+<!-- Section 1: Basic Info -->
+<section class="bg-white dark:bg-slate-900/40 rounded-xl p-6 border border-primary/10 shadow-sm">
+<div class="flex items-center gap-2 mb-6 text-primary">
+<span class="material-symbols-outlined">person</span>
+<h2 class="text-lg font-bold">البيانات الأساسية</h2>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="flex flex-col gap-2">
+<label class="text-sm font-medium text-slate-600 dark:text-slate-400">الاسم الكامل</label>
+<input class="form-input w-full rounded-lg border-primary/20 bg-background-light dark:bg-slate-800 focus:border-primary focus:ring-primary h-12" placeholder="أدخل اسم الطالب الرباعي" type="text"/>
+</div>
+<div class="flex flex-col gap-2">
+<label class="text-sm font-medium text-slate-600 dark:text-slate-400">رقم الموبايل</label>
+<input class="form-input w-full rounded-lg border-primary/20 bg-background-light dark:bg-slate-800 focus:border-primary focus:ring-primary h-12 text-left" dir="ltr" placeholder="01xxxxxxxxx" type="tel"/>
+</div>
+<div class="flex flex-col gap-2">
+<label class="text-sm font-medium text-slate-600 dark:text-slate-400">البريد الإلكتروني</label>
+<input class="form-input w-full rounded-lg border-primary/20 bg-background-light dark:bg-slate-800 focus:border-primary focus:ring-primary h-12 text-left" dir="ltr" placeholder="example@church.com" type="email"/>
+</div>
+<div class="flex flex-col gap-2">
+<label class="text-sm font-medium text-slate-600 dark:text-slate-400">المرحلة الدراسية</label>
+<select class="form-select w-full rounded-lg border-primary/20 bg-background-light dark:bg-slate-800 focus:border-primary focus:ring-primary h-12">
+<option>اختر المرحلة</option>
+<option>ابتدائي</option>
+<option>إعدادي</option>
+<option>ثانوي</option>
+<option>جامعي</option>
+</select>
+</div>
+<div class="flex flex-col gap-2">
+<label class="text-sm font-medium text-slate-600 dark:text-slate-400">المجموعة / الأسرة</label>
+<select class="form-select w-full rounded-lg border-primary/20 bg-background-light dark:bg-slate-800 focus:border-primary focus:ring-primary h-12">
+<option>اختر المجموعة</option>
+<option>أسرة القديس مارمرقس</option>
+<option>أسرة الشهيد أبانوب</option>
+</select>
+</div>
+<div class="flex flex-col gap-2">
+<label class="text-sm font-medium text-slate-600 dark:text-slate-400">الفريق الكنسي</label>
+<select class="form-select w-full rounded-lg border-primary/20 bg-background-light dark:bg-slate-800 focus:border-primary focus:ring-primary h-12">
+<option>لا يوجد</option>
+<option>كورال</option>
+<option>كشافة</option>
+<option>خدمة مسرح</option>
+</select>
+</div>
+</div>
+</section>
+<!-- Section 2: Family Info -->
+<section class="bg-white dark:bg-slate-900/40 rounded-xl p-6 border border-primary/10 shadow-sm">
+<div class="flex items-center gap-2 mb-6 text-primary">
+<span class="material-symbols-outlined">family_restroom</span>
+<h2 class="text-lg font-bold">بيانات العائلة</h2>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="flex flex-col gap-2">
+<label class="text-sm font-medium text-slate-600 dark:text-slate-400">رقم موبايل الأب</label>
+<div class="relative">
+<input class="form-input w-full rounded-lg border-primary/20 bg-background-light dark:bg-slate-800 focus:border-primary focus:ring-primary h-12 pr-10" placeholder="01xxxxxxxxx" type="tel"/>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">call</span>
+</div>
+</div>
+<div class="flex flex-col gap-2">
+<label class="text-sm font-medium text-slate-600 dark:text-slate-400">رقم موبايل الأم</label>
+<div class="relative">
+<input class="form-input w-full rounded-lg border-primary/20 bg-background-light dark:bg-slate-800 focus:border-primary focus:ring-primary h-12 pr-10" placeholder="01xxxxxxxxx" type="tel"/>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">call</span>
+</div>
+</div>
+<div class="flex flex-col gap-2 md:col-span-2">
+<label class="text-sm font-medium text-slate-600 dark:text-slate-400">وظيفة ولي الأمر</label>
+<input class="form-input w-full rounded-lg border-primary/20 bg-background-light dark:bg-slate-800 focus:border-primary focus:ring-primary h-12" placeholder="أدخل الوظيفة" type="text"/>
+</div>
+</div>
+</section>
+<!-- Section 3: Additional Info -->
+<section class="bg-white dark:bg-slate-900/40 rounded-xl p-6 border border-primary/10 shadow-sm">
+<div class="flex items-center gap-2 mb-6 text-primary">
+<span class="material-symbols-outlined">info</span>
+<h2 class="text-lg font-bold">معلومات إضافية</h2>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="flex flex-col gap-2">
+<label class="text-sm font-medium text-slate-600 dark:text-slate-400">تاريخ الميلاد</label>
+<input class="form-input w-full rounded-lg border-primary/20 bg-background-light dark:bg-slate-800 focus:border-primary focus:ring-primary h-12" type="date"/>
+</div>
+<div class="flex flex-col gap-2">
+<label class="text-sm font-medium text-slate-600 dark:text-slate-400">أب الاعتراف</label>
+<input class="form-input w-full rounded-lg border-primary/20 bg-background-light dark:bg-slate-800 focus:border-primary focus:ring-primary h-12" placeholder="قدس أبونا..." type="text"/>
+</div>
+<div class="flex flex-col gap-2">
+<label class="text-sm font-medium text-slate-600 dark:text-slate-400">المدرسة / الكلية</label>
+<input class="form-input w-full rounded-lg border-primary/20 bg-background-light dark:bg-slate-800 focus:border-primary focus:ring-primary h-12" placeholder="اسم المنشأة التعليمية" type="text"/>
+</div>
+<div class="flex flex-col gap-2">
+<label class="text-sm font-medium text-slate-600 dark:text-slate-400">العنوان بالتفصيل</label>
+<input class="form-input w-full rounded-lg border-primary/20 bg-background-light dark:bg-slate-800 focus:border-primary focus:ring-primary h-12" placeholder="المنطقة، الشارع، رقم المنزل" type="text"/>
+</div>
+<div class="flex flex-col gap-2 md:col-span-2">
+<label class="text-sm font-medium text-slate-600 dark:text-slate-400">ملاحظات طبية أو خاصة</label>
+<textarea class="form-textarea w-full rounded-lg border-primary/20 bg-background-light dark:bg-slate-800 focus:border-primary focus:ring-primary p-4" placeholder="أدخل أي ملاحظات هامة تخص الطالب" rows="3"></textarea>
+</div>
+</div>
+</section>
+<!-- Actions Footer Mobile -->
+<div class="flex gap-4 pt-4">
+<button class="flex-1 bg-primary text-white font-bold py-4 rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all">
+                    حفظ الطالب
+                </button>
+<button class="flex-1 bg-primary/10 text-primary font-bold py-4 rounded-xl hover:bg-primary/20 transition-all">
+                    إلغاء
+                </button>
+</div>
+</main>
+</div>
+</body></html>
