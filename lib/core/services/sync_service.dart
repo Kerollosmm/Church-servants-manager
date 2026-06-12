@@ -45,13 +45,15 @@ class SyncStatus {
 /// Centralized offline sync engine using the Outbox pattern.
 class SyncService {
   static const int _maxRetries = 5;
-  static const int _baseBackoffMs = 500;
+  static const int _baseBackoffMs = 1000;
   final Connectivity _connectivity;
   final DeadLetterQueue _dlq;
   final Map<String, SyncHandler> _handlers;
+  final Duration Function(int)? _backoffProvider;
 
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   bool _isProcessing = false;
+  bool _hasPendingTriggers = false;
 
   String? _activeUserId;
   Box<SyncEntry>? _activeBox;
@@ -60,13 +62,22 @@ class SyncService {
 
   /// Stream of sync status updates for the UI to listen to.
   Stream<SyncStatus> get statusStream => _statusController.stream;
+
+  /// Returns the current number of enqueued sync entries for the active user.
+  int get pendingCount =>
+      (_activeBox != null && _activeBox!.isOpen) ? _activeBox!.length : 0;
+
+  /// Returns whether the sync queue is currently processing.
+  bool get isProcessing => _isProcessing;
   SyncService({
     required DeadLetterQueue deadLetterQueue,
     required Map<String, SyncHandler> handlers,
     Connectivity? connectivity,
+    Duration Function(int)? backoffProvider,
   }) : _dlq = deadLetterQueue,
        _handlers = handlers,
-       _connectivity = connectivity ?? Connectivity();
+       _connectivity = connectivity ?? Connectivity(),
+       _backoffProvider = backoffProvider;
 
   /// Gets the name of the Hive box for a specific user.
   String _boxNameForUser(String userId) => 'sync_queue_$userId';
@@ -86,6 +97,28 @@ class SyncService {
       );
       developer.log('Mounted sync queue box: $boxName', name: 'SyncService');
 
+      // Register periodic sync task for this user
+      try {
+        await Workmanager().registerPeriodicTask(
+          'sync_task_id',
+          'offline_sync_task',
+          frequency: const Duration(minutes: 15),
+          constraints: Constraints(networkType: NetworkType.connected),
+          existingWorkPolicy: ExistingPeriodicWorkPolicy.update,
+          inputData: {'userId': userId},
+        );
+        developer.log(
+          'Registered periodic Workmanager task for user: $userId',
+          name: 'SyncService',
+        );
+      } catch (e) {
+        developer.log(
+          'Failed to register periodic Workmanager task',
+          error: e,
+          name: 'SyncService',
+        );
+      }
+
       // Auto-trigger sync on user switch if connected
       final results = await _connectivity.checkConnectivity();
       if (!results.contains(ConnectivityResult.none)) {
@@ -94,7 +127,22 @@ class SyncService {
     } else {
       _activeBox = null;
       developer.log('Dismounted sync queue', name: 'SyncService');
+      // Cancel the periodic and one-off sync tasks on logout
+      try {
+        await Workmanager().cancelAll();
+        developer.log(
+          'Cancelled all Workmanager tasks on logout',
+          name: 'SyncService',
+        );
+      } catch (e) {
+        developer.log(
+          'Failed to cancel Workmanager tasks on logout',
+          error: e,
+          name: 'SyncService',
+        );
+      }
     }
+    _statusController.add(SyncStatus.idle());
   }
 
   /// Initializes the Hive box and starts listening to connectivity changes.
@@ -156,6 +204,12 @@ class SyncService {
       );
       await box.put(stampedEntry.id, stampedEntry);
       _statusController.add(SyncStatus.idle());
+
+      if (_isProcessing) {
+        _hasPendingTriggers = true;
+        return;
+      }
+
       // Attempt to sync immediately if online
       final results = await _connectivity.checkConnectivity();
       if (!results.contains(ConnectivityResult.none)) {
@@ -168,6 +222,7 @@ class SyncService {
             'offline_sync_task',
             constraints: Constraints(networkType: NetworkType.connected),
             existingWorkPolicy: ExistingWorkPolicy.replace,
+            inputData: {'userId': _activeUserId!},
           );
         } catch (e) {
           developer.log(
@@ -199,6 +254,7 @@ class SyncService {
           'Evicted successfully processed entry $entryId from queue',
           name: 'SyncService',
         );
+        _statusController.add(SyncStatus.idle());
       }
     } catch (e, stack) {
       developer.log(
@@ -399,7 +455,13 @@ class SyncService {
         _statusController.add(SyncStatus.success());
       }
     } finally {
-      _isProcessing = false;
+      if (_hasPendingTriggers) {
+        _hasPendingTriggers = false;
+        _isProcessing = false;
+        unawaited(processQueue());
+      } else {
+        _isProcessing = false;
+      }
     }
   }
 
@@ -437,6 +499,9 @@ class SyncService {
       'SyncEntry ${entry.id} exceeded max retries ($_maxRetries). Evicting to DLQ.',
       name: 'SyncService',
     );
+    // Best-effort atomicity: DLQ write FIRST, then queue delete.
+    // If crash occurs between these two operations, the entry will
+    // exist in BOTH queues — deduplication on next run is acceptable.
     entry.failedAt = DateTime.now();
     // Create a clean copy to prevent HiveObject internal binding errors
     // when storing the entry in the DeadLetterQueue box.
@@ -457,10 +522,15 @@ class SyncService {
 
   /// Applies exponential backoff delay with random jitter.
   Future<void> _applyBackoff(int retryCount) async {
+    if (_backoffProvider != null) {
+      await Future<void>.delayed(_backoffProvider(retryCount));
+      return;
+    }
     final exponentialDelay =
-        _baseBackoffMs * (1 << (retryCount - 1).clamp(0, 10));
-    final jitter = _random.nextInt(200); // 0-199ms random jitter
-    final finalDelay = exponentialDelay + jitter;
+        _baseBackoffMs * (1 << (retryCount - 1).clamp(0, 5));
+    final cappedDelay = exponentialDelay.clamp(0, 30000); // cap at 30s
+    final jitter = _random.nextInt(1001); // 0-1000ms random jitter
+    final finalDelay = cappedDelay + jitter;
     await Future<void>.delayed(Duration(milliseconds: finalDelay));
   }
 

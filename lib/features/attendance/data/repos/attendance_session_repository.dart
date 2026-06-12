@@ -71,6 +71,10 @@ class AttendanceSessionRepository {
               .where('teamId', isEqualTo: teamId)
               .where('isClosed', isEqualTo: false)
               .get(const GetOptions(source: Source.server))
+              .catchError((_) => _sessionsCol
+                  .where('teamId', isEqualTo: teamId)
+                  .where('isClosed', isEqualTo: false)
+                  .get(const GetOptions(source: Source.cache)))
               .then((snapshot) {
                 final sessions = _mapSessionsSnapshot(snapshot);
                 if (sessions.isNotEmpty) {
@@ -94,7 +98,12 @@ class AttendanceSessionRepository {
       await _localDatasource.cacheSessions(sessions);
       return sessions;
     } catch (_) {
-      return [];
+      try {
+        final cachedSnapshot = await query.get(const GetOptions(source: Source.cache));
+        return _mapSessionsSnapshot(cachedSnapshot);
+      } catch (_) {
+        return [];
+      }
     }
   }
 
@@ -108,6 +117,9 @@ class AttendanceSessionRepository {
           _sessionsCol
               .where('teamId', isEqualTo: teamId)
               .get(const GetOptions(source: Source.server))
+              .catchError((_) => _sessionsCol
+                  .where('teamId', isEqualTo: teamId)
+                  .get(const GetOptions(source: Source.cache)))
               .then((snapshot) {
                 final sessions = _mapSessionsSnapshot(snapshot);
                 if (sessions.isNotEmpty) {
@@ -129,7 +141,12 @@ class AttendanceSessionRepository {
       await _localDatasource.cacheSessions(sessions);
       return sessions;
     } catch (_) {
-      return [];
+      try {
+        final cachedSnapshot = await query.get(const GetOptions(source: Source.cache));
+        return _mapSessionsSnapshot(cachedSnapshot);
+      } catch (_) {
+        return [];
+      }
     }
   }
 
@@ -249,6 +266,10 @@ class AttendanceSessionRepository {
               .where('teamId', isEqualTo: teamId)
               .where('dateKey', isEqualTo: dateKey)
               .get(const GetOptions(source: Source.server))
+              .catchError((_) => _sessionsCol
+                  .where('teamId', isEqualTo: teamId)
+                  .where('dateKey', isEqualTo: dateKey)
+                  .get(const GetOptions(source: Source.cache)))
               .then((snapshot) {
                 final sessions = _mapSessionsSnapshot(snapshot);
                 if (sessions.isNotEmpty) {
@@ -272,7 +293,12 @@ class AttendanceSessionRepository {
       await _localDatasource.cacheSessions(sessions);
       return sessions;
     } catch (_) {
-      return [];
+      try {
+        final cachedSnapshot = await query.get(const GetOptions(source: Source.cache));
+        return _mapSessionsSnapshot(cachedSnapshot);
+      } catch (_) {
+        return [];
+      }
     }
   }
 

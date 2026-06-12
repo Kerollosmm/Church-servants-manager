@@ -19,10 +19,10 @@ service cloud.firestore {
     //   id, studentId, delta, runningTotal, reason,
     //   issuedByUid, issuedByName, createdAt, syncStatus
     //
-    // attendance/{sessionId}
+    // AttendanceSessions/{sessionId}
     //   teamId, startsAt, endsAt, isClosed, studentIdsSnapshot[]
     //
-    // attendance/{sessionId}/marks/{studentDocId}
+    // AttendanceSessions/{sessionId}/marks/{studentDocId}
     //   studentId, status ("present"|"absent"|"late"),
     //   markedByUserId, updatedAt
     //
@@ -44,50 +44,36 @@ service cloud.firestore {
       return request.auth.uid;
     }
 
-    function dbRole() {
-      let path = /databases/$(database)/documents/Users/$(uid());
-      return exists(path) ? get(path).data.get('role', '') : '';
+    // ─── Document-based RBAC (Spark Plan: zero Cloud Functions) ───
+    // Firestore caches get() results within a single rule evaluation,
+    // so multiple calls to getCallerData() cost only 1 read.
+
+    function getCallerData() {
+      return get(/databases/$(database)/documents/Users/$(request.auth.uid)).data;
     }
 
-    // Role comes from Custom Claims, with a fallback to the Firestore servant document (for Spark Plan / local emulator).
-    function claimRole() {
-      let claimR = request.auth.token.get('role', '');
-      return claimR != '' ? claimR : dbRole();
+    function callerRole() {
+      return getCallerData().get('role', '');
     }
 
     function isAdmin() {
-      return isSignedIn() && claimRole() == 'admin';
+      return isSignedIn() && callerRole() == 'admin';
     }
 
     function isServantOrAdmin() {
-      return isSignedIn() && claimRole() in ['admin', 'servant'];
-    }
-
-    // ───────────────────────────────────────────────────────────────
-    // SERVANT PROFILE  (single cached read, stored in a let-binding)
-    // ───────────────────────────────────────────────────────────────
-
-    // One get() per top-level rule evaluation. All sector/team helpers
-    // below reuse this binding — Firestore bills exactly ONE read per
-    // request that calls servantData().
-    function servantData() {
-      return get(/databases/$(database)/documents/Users/$(uid())).data;
+      return isSignedIn() && callerRole() in ['admin', 'servant'];
     }
 
     // ───────────────────────────────────────────────────────────────
     // SECTOR-SCOPED RBAC HELPERS
     // ───────────────────────────────────────────────────────────────
 
-    // Returns true when the caller is a servant (or admin) and the given
-    // sectorId is in their assignedSectorIds claim OR their servant document.
-    // Claim path is always tried first (zero cost); document path is the
-    // fallback for servants whose claims haven't refreshed yet.
     function callerManagesSector(sectorId) {
-      let claimSectors = request.auth.token.get('assignedSectorIds', []);
+      let callerData = getCallerData();
+      let callerSectors = callerData.get('assignedSectorIds', []);
       return isServantOrAdmin() && (
         isAdmin() ||
-        sectorId in claimSectors ||
-        sectorId in servantData().get('assignedSectorIds', [])
+        sectorId in callerSectors
       );
     }
 
@@ -102,13 +88,13 @@ service cloud.firestore {
     // ───────────────────────────────────────────────────────────────
 
     function callerManagesTeam(classId) {
-      let claimTeamId = request.auth.token.get('assignedTeamId', '');
-      let claimTeamIds = request.auth.token.get('assignedTeamIds', []);
+      let callerData = getCallerData();
+      let callerTeamId = callerData.get('assignedTeamId', '');
+      let callerTeamIds = callerData.get('assignedTeamIds', []);
       return isServantOrAdmin() && (
         isAdmin() ||
-        classId == claimTeamId ||
-        classId in claimTeamIds ||
-        classId in servantData().get('assignedTeamIds', [])
+        classId == callerTeamId ||
+        classId in callerTeamIds
       );
     }
 
@@ -235,16 +221,11 @@ service cloud.firestore {
         allow read: if isSignedIn() && (
           studentId == uid() ||
           isAdmin() ||
-          callerManagesStudentSector(
-            get(/databases/$(database)/documents/Students/$(studentId)).data
-          )
+          isServantOrAdmin()
         );
 
         allow create: if isSignedIn() && (
           isServantOrAdmin() &&
-          callerManagesStudentSector(
-            get(/databases/$(database)/documents/Students/$(studentId)).data
-          ) &&
           validPointsDelta() &&
           request.resource.data.keys().hasAll([
             'studentId', 'delta', 'runningTotal',
@@ -268,9 +249,7 @@ service cloud.firestore {
         allow read: if isSignedIn() && (
           studentId == uid() ||
           isAdmin() ||
-          callerManagesStudentSector(
-            get(/databases/$(database)/documents/Students/$(studentId)).data
-          )
+          isServantOrAdmin()
         );
         // All writes via Admin SDK / sync engine only.
         allow write: if false;
@@ -288,16 +267,11 @@ service cloud.firestore {
 
         allow read: if isSignedIn() && (
           isAdmin() ||
-          callerManagesStudentSector(
-            get(/databases/$(database)/documents/Students/$(studentId)).data
-          )
+          isServantOrAdmin()
         );
 
         allow create: if isSignedIn() && (
           isServantOrAdmin() &&
-          callerManagesStudentSector(
-            get(/databases/$(database)/documents/Students/$(studentId)).data
-          ) &&
           request.resource.data.keys().hasAll([
             'recordId', 'studentId', 'type', 'summary',
             'visitedByUid', 'visitedByName', 'createdAt'
@@ -317,7 +291,17 @@ service cloud.firestore {
 
     match /Classes/{classId} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow create, delete: if isAdmin();
+      allow update: if isSignedIn() && (
+        isAdmin() || (
+          callerManagesTeam(classId) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'openSessionIds',
+            'groupAttendanceSummary',
+            'updatedAt'
+          ])
+        )
+      );
 
       match /stats/{statDoc} {
         allow read: if isSignedIn() && (
@@ -327,39 +311,17 @@ service cloud.firestore {
           isAdmin() || callerManagesTeam(classId)
         );
       }
-
-      match /attendance_sessions/{sessionId} {
-        allow read: if isSignedIn() && (
-          isAdmin() || callerManagesTeam(classId)
-        );
-        allow create: if isSignedIn() && (
-          isAdmin() || callerManagesTeam(classId)
-        );
-        allow update, delete: if isAdmin();
-
-        match /marks/{markId} {
-          allow read: if isSignedIn() && (
-            isAdmin() ||
-            callerManagesTeam(classId) ||
-            uid() == markId.split('_')[0]
-          );
-          allow create, update: if isSignedIn() && (
-            isAdmin() || (
-              callerManagesTeam(classId)
-            )
-          );
-          allow delete: if isAdmin();
-        }
-      }
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // ATTENDANCE COLLECTION (canonical: /attendance/{sessionId})
+    // ATTENDANCE COLLECTION (canonical: /AttendanceSessions/{sessionId})
     // ═══════════════════════════════════════════════════════════════
 
-    match /attendance/{sessionId} {
+    match /AttendanceSessions/{sessionId} {
       allow read: if isSignedIn() && (
-        isAdmin() || callerManagesTeam(resource.data.teamId)
+        isAdmin() ||
+        callerManagesTeam(resource.data.teamId) ||
+        uid() in resource.data.get('studentIdsSnapshot', [])
       );
       allow create: if isSignedIn() && (
         isAdmin() || callerManagesTeam(request.resource.data.teamId)
@@ -370,21 +332,22 @@ service cloud.firestore {
       allow delete: if isAdmin();
 
       match /records/{markId} {
-        function sessionData() {
-          return get(/databases/$(database)/documents/attendance/$(sessionId)).data;
-        }
-
         allow read: if isSignedIn() && (
           isAdmin() ||
-          callerManagesTeam(sessionData().teamId) ||
-          uid() == markId.split('_')[0]
+          (resource.data.get('teamId', '') != '' ? callerManagesTeam(resource.data.teamId) : false) ||
+          resource.data.get('studentId', '') == uid()
         );
 
-        allow create, update: if isSignedIn() && (
-          isAdmin() || (
-            callerManagesTeam(sessionData().teamId) &&
-            markId.split('_')[0] in
-              sessionData().get('studentIdsSnapshot', [])
+        allow create: if isSignedIn() && (
+          isAdmin() ||
+          (request.resource.data.get('teamId', '') != '' ? callerManagesTeam(request.resource.data.teamId) : false)
+        );
+
+        allow update: if isSignedIn() && (
+          isAdmin() ||
+          (
+            (resource.data.get('teamId', '') != '' ? callerManagesTeam(resource.data.teamId) : false) &&
+            isImmutable('markedByUserId')
           )
         );
 
@@ -400,23 +363,17 @@ service cloud.firestore {
       allow read: if isSignedIn() && (
         studentId == uid() ||
         isAdmin() ||
-        (isServantOrAdmin() && callerManagesStudentSector(get(/databases/$(database)/documents/Students/$(studentId)).data))
+        isServantOrAdmin()
       );
-      allow write: if isAdmin() || (
-        isServantOrAdmin() &&
-        callerManagesStudentSector(get(/databases/$(database)/documents/Students/$(studentId)).data)
-      );
+      allow write: if isAdmin() || isServantOrAdmin();
 
       match /terms/{termId} {
         allow read: if isSignedIn() && (
           studentId == uid() ||
           isAdmin() ||
-          (isServantOrAdmin() && callerManagesStudentSector(get(/databases/$(database)/documents/Students/$(studentId)).data))
+          isServantOrAdmin()
         );
-        allow write: if isAdmin() || (
-          isServantOrAdmin() &&
-          callerManagesStudentSector(get(/databases/$(database)/documents/Students/$(studentId)).data)
-        );
+        allow write: if isAdmin() || isServantOrAdmin();
       }
     }
 
@@ -445,14 +402,17 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ─── Invitations ──────────────────────────────────────────────
     match /Invitations/{email} {
       allow read, write: if isAdmin();
     }
 
+    // ─── Admin ────────────────────────────────────────────────────
     match /admin/{document=**} {
       allow read, write: if isAdmin();
     }
 
+    // ─── Audit Logs ───────────────────────────────────────────────
     match /audit_logs/{logId} {
       allow read: if isAdmin();
       allow write: if false;
@@ -462,17 +422,19 @@ service cloud.firestore {
     // COLLECTION GROUP RULES (Required for global collection group queries)
     // ═══════════════════════════════════════════════════════════════
 
-    match /{path=**}/attendance/{sessionId} {
+    match /{path=**}/AttendanceSessions/{sessionId} {
       allow read: if isSignedIn() && (
-        isAdmin() || callerManagesTeam(resource.data.teamId)
+        isAdmin() ||
+        callerManagesTeam(resource.data.teamId) ||
+        uid() in resource.data.get('studentIdsSnapshot', [])
       );
     }
 
     match /{path=**}/records/{markId} {
       allow read: if isSignedIn() && (
         isAdmin() ||
-        resource.data.studentId == uid() ||
-        callerManagesTeam(resource.data.teamId)
+        resource.data.get('studentId', '') == uid() ||
+        (resource.data.get('teamId', '') != '' ? callerManagesTeam(resource.data.teamId) : false)
       );
     }
 
@@ -480,7 +442,7 @@ service cloud.firestore {
       allow read: if isSignedIn() && (
         resource.data.studentId == uid() ||
         isAdmin() ||
-        (isServantOrAdmin() && callerManagesStudentSector(get(/databases/$(database)/documents/Students/$(resource.data.studentId)).data))
+        isServantOrAdmin()
       );
     }
   }

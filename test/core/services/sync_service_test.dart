@@ -87,6 +87,7 @@ void main() {
     syncService = SyncService(
       deadLetterQueue: mockDlq,
       connectivity: connectivity,
+      backoffProvider: (_) => Duration.zero,
       handlers: {
         'MARK_ATTENDANCE': AttendanceSyncHandler(attendanceRepo),
         'CLEAR_ATTENDANCE': AttendanceSyncHandler(attendanceRepo),
@@ -330,6 +331,50 @@ void main() {
         expect(box.get('batch_item_2')?.retryCount, 0);
       },
     );
+
+    test('enqueue during active processQueue() triggers re-run', () async {
+      final processed = <String>[];
+      int callCount = 0;
+      final completer = Completer<void>();
+
+      when(() => studentRepo.syncOfflineUpsert(any())).thenAnswer((_) async {
+        callCount++;
+        processed.add('item_$callCount');
+        if (callCount == 1) {
+          await syncService.enqueue(
+            SyncEntry(
+              id: 'second_item',
+              actionType: 'UPSERT_STUDENT',
+              payload: {},
+              createdAt: DateTime.now(),
+            ),
+          );
+          completer.complete();
+        }
+      });
+
+      await syncService.enqueue(
+        SyncEntry(
+          id: 'first_item',
+          actionType: 'UPSERT_STUDENT',
+          payload: {},
+          createdAt: DateTime.now(),
+        ),
+      );
+
+      when(
+        () => connectivity.checkConnectivity(),
+      ).thenAnswer((_) async => [ConnectivityResult.wifi]);
+
+      await syncService.processQueue();
+      await completer.future;
+
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+
+      final box = Hive.box<SyncEntry>('sync_queue_test_user');
+      expect(box.length, 0);
+      expect(processed, ['item_1', 'item_2']);
+    });
   });
   tearDown(() async {
     if (Hive.isBoxOpen('sync_queue_box')) {

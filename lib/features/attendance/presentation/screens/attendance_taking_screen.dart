@@ -16,6 +16,7 @@ import 'package:church_management_system/features/attendance/presentation/bloc/a
 import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_state.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/session_admin/attendance_session_admin_cubit.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/session_admin/attendance_session_admin_state.dart';
+import 'package:church_management_system/features/attendance/presentation/widgets/barcode_scanner_widget.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -156,7 +157,59 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
                         )
                       : null,
                   actions: [
-                    if (loadedState != null && loadedState.isSessionOpen)
+                    if (loadedState != null && loadedState.isSessionOpen) ...[
+                      IconButton(
+                        tooltip: 'مسح الباركود',
+                        icon: const Icon(Icons.qr_code_scanner),
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (navContext) => BarcodeScannerWidget(
+                                teamId: widget.args.teamId,
+                                sessionId: widget.args.sessionId,
+                                onStudentScanned: (studentId) {
+                                  final bloc = context
+                                      .read<AttendanceTakingBloc>();
+                                  final currentState = bloc.state;
+                                  if (currentState is AttendanceTakingLoaded) {
+                                    AttendanceRosterItem? rosterItem;
+                                    for (final item in currentState.roster) {
+                                      if (item.studentId == studentId) {
+                                        rosterItem = item;
+                                        break;
+                                      }
+                                    }
+                                    if (rosterItem != null) {
+                                      bloc.add(
+                                        MarkStudentPresentEvent(
+                                          actor: widget.args.actor,
+                                          item: rosterItem,
+                                        ),
+                                      );
+                                      Navigator.of(navContext).pop();
+                                      AppSnackbars.showSuccess(
+                                        context,
+                                        'تم تسجيل حضور ${rosterItem.studentName}',
+                                      );
+                                    } else {
+                                      ScaffoldMessenger.of(
+                                        navContext,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'الطالب ليس في قائمة هذه الجلسة',
+                                          ),
+                                          backgroundColor: Colors.orange,
+                                        ),
+                                      );
+                                    }
+                                  }
+                                },
+                              ),
+                            ),
+                          );
+                        },
+                      ),
                       IconButton(
                         tooltip: 'تحديد الباقي حاضر',
                         icon: const Icon(Icons.done_all_outlined),
@@ -170,6 +223,7 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
                                 ),
                               ),
                       ),
+                    ],
                     if (widget.args.actor.role == UserRole.admin &&
                         loadedState != null &&
                         loadedState.isSessionOpen)
@@ -453,6 +507,9 @@ class _RosterItemCard extends StatelessWidget {
                   runSpacing: AppSpacing.sm,
                   children: [
                     OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(88, kMinInteractiveDimension),
+                      ),
                       onPressed:
                           !cardState.isSessionOpen ||
                               cardState.isMutationInProgress ||
@@ -465,6 +522,9 @@ class _RosterItemCard extends StatelessWidget {
                       label: const Text('حاضر'),
                     ),
                     OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(88, kMinInteractiveDimension),
+                      ),
                       onPressed:
                           !cardState.isSessionOpen ||
                               cardState.isMutationInProgress ||
@@ -478,6 +538,9 @@ class _RosterItemCard extends StatelessWidget {
                     ),
                     if (item.isMarked || currentPendingMark != null)
                       TextButton.icon(
+                        style: TextButton.styleFrom(
+                          minimumSize: const Size(88, kMinInteractiveDimension),
+                        ),
                         onPressed:
                             !cardState.isSessionOpen ||
                                 cardState.isMutationInProgress

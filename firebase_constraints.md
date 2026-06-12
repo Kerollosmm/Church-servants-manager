@@ -30,9 +30,9 @@ originSessionId: a4b4b195-ad78-49a3-95a7-a46396182542
 
 **Why This Matters**:
 
-- **TODO**: Resolve RBAC approach (Custom Claims vs alternative) and document the chosen pattern.
-- **TODO**: Adjust any tasks that assume Cloud Functions availability to be conditional or provide fallbacks.
-- **TODO**: Mark cost-sensitive optimizations (Custom Claims rules, offline-first sync, API-call minimization) as required only after the RBAC resolution is committed.
+- **RESOLVED**: Firestore-first RBAC via `get()` in security rules. See `firestore.rules` helpers.
+- **RESOLVED**: Eliminated all Cloud Functions assumptions by using client-side outbox queue and document-based rules.
+- **RESOLVED**: Document-based RBAC evaluated and approved with ~200 extra daily reads, well within the 50K Spark limit.
 - Production readiness plan assumes Cloud Functions availability - adjust tasks that depend on them
 - Offline-first sync becomes critical for resilience under rate limits
 - Every API call must be intentional and cost-efficient. Validate non-negative inputs in server-side monetary calculation functions.

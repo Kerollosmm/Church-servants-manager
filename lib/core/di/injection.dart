@@ -180,6 +180,8 @@ void _registerRepositories() {
       () => AttendanceMarkRepository(
         firestore: getIt(),
         localDatasource: getIt<AttendanceLocalDatasource>(),
+        sessionLocalDatasource: getIt<AttendanceSessionLocalDatasource>(),
+        teamLocalDatasource: getIt<TeamLocalDatasource>(),
       ),
     )
     ..registerLazySingleton<AttendanceSessionRepository>(
@@ -209,7 +211,8 @@ void _registerRepositories() {
       () => TeamRepository(
         firestore: getIt(),
         localDatasource: getIt<TeamLocalDatasource>(),
-        syncService: getIt<SyncService>(),
+        syncServiceGetter: getIt.call,
+        connectivity: getIt<Connectivity>(),
       ),
     )
     ..registerLazySingleton<AuthRepository>(

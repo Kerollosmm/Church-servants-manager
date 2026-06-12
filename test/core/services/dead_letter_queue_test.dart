@@ -104,5 +104,54 @@ void main() {
       expect(dlq.length, 0);
       expect(dlq.isEmpty, isTrue);
     });
+
+    test('enforces FIFO cap of 100 entries', () async {
+      for (var i = 0; i < 105; i++) {
+        await dlq.add(
+          SyncEntry(
+            id: 'entry_$i',
+            actionType: 'X',
+            payload: {},
+            createdAt: DateTime(2026),
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 1));
+      }
+      expect(dlq.length, 100);
+      final all = dlq.getAll();
+      final ids = all.map((e) => e.id).toList();
+      expect(ids.contains('entry_0'), isFalse);
+      expect(ids.contains('entry_4'), isFalse);
+      expect(ids.contains('entry_5'), isTrue);
+      expect(ids.contains('entry_104'), isTrue);
+    });
+
+    test('pruneOlderThan prunes entries older than 30 days', () async {
+      final freshEntry = SyncEntry(
+        id: 'fresh',
+        actionType: 'X',
+        payload: {},
+        createdAt: DateTime.now(),
+      );
+      final oldEntry = SyncEntry(
+        id: 'old',
+        actionType: 'Y',
+        payload: {},
+        createdAt: DateTime.now().subtract(const Duration(days: 40)),
+      );
+
+      await dlq.add(freshEntry);
+      oldEntry.failedAt = DateTime.now().subtract(const Duration(days: 40));
+      final box = Hive.box<SyncEntry>('dead_letter_queue_box');
+      await box.put(oldEntry.id, oldEntry);
+
+      expect(box.length, 2);
+
+      await dlq.init();
+
+      expect(box.length, 1);
+      expect(box.get('old'), isNull);
+      expect(box.get('fresh'), isNotNull);
+    });
   });
 }

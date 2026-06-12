@@ -514,6 +514,25 @@ class ServantDataRepository implements IServantRepository {
         await _localDatasource.cacheServant(updated);
       }
 
+      final connectivity = await _connectivity.checkConnectivity();
+      final isOffline = connectivity.contains(ConnectivityResult.none);
+
+      if (isOffline) {
+        final syncEntry = SyncEntry(
+          id: 'delete_servant_$docId',
+          actionType: 'CREATE_SERVANT',
+          payload: {
+            'docId': docId,
+            'isArchived': true,
+            'archivedAt': DateTime.now().toIso8601String(),
+            'archivedByUserId': performedByUid,
+          },
+          createdAt: DateTime.now(),
+        );
+        await _syncService.enqueue(syncEntry);
+        return;
+      }
+
       try {
         await _usersCollection.doc(docId).update(fields);
         if (existing != null) {
@@ -524,7 +543,18 @@ class ServantDataRepository implements IServantRepository {
           await _localDatasource.cacheServant(synced);
         }
       } catch (_) {
-        // Retain pending status locally.
+        final syncEntry = SyncEntry(
+          id: 'delete_servant_$docId',
+          actionType: 'CREATE_SERVANT',
+          payload: {
+            'docId': docId,
+            'isArchived': true,
+            'archivedAt': DateTime.now().toIso8601String(),
+            'archivedByUserId': performedByUid,
+          },
+          createdAt: DateTime.now(),
+        );
+        await _syncService.enqueue(syncEntry);
       }
     } catch (e) {
       throw mapExceptionToServantFailure(e);
@@ -563,6 +593,29 @@ class ServantDataRepository implements IServantRepository {
         await _localDatasource.cacheServant(updated);
       }
 
+      final connectivity = await _connectivity.checkConnectivity();
+      final isOffline = connectivity.contains(ConnectivityResult.none);
+
+      final payload = <String, dynamic>{
+        'docId': docId,
+        'isArchived': false,
+        'restoredAt': DateTime.now().toIso8601String(),
+        'restoredByUserId': performedByUid,
+      };
+      if (assignedTeamId != null) payload['assignedTeamId'] = assignedTeamId;
+      if (assignedTeamIds != null) payload['assignedTeamIds'] = assignedTeamIds;
+
+      if (isOffline) {
+        final syncEntry = SyncEntry(
+          id: 'restore_servant_$docId',
+          actionType: 'CREATE_SERVANT',
+          payload: payload,
+          createdAt: DateTime.now(),
+        );
+        await _syncService.enqueue(syncEntry);
+        return;
+      }
+
       try {
         await _usersCollection.doc(docId).update(fields);
         if (existing != null) {
@@ -573,7 +626,13 @@ class ServantDataRepository implements IServantRepository {
           await _localDatasource.cacheServant(synced);
         }
       } catch (_) {
-        // Retain pending status locally.
+        final syncEntry = SyncEntry(
+          id: 'restore_servant_$docId',
+          actionType: 'CREATE_SERVANT',
+          payload: payload,
+          createdAt: DateTime.now(),
+        );
+        await _syncService.enqueue(syncEntry);
       }
     } catch (e) {
       throw mapExceptionToServantFailure(e);

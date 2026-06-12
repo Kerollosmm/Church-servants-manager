@@ -19,7 +19,7 @@ class SyncEntryAdapter extends TypeAdapter<SyncEntry> {
     return SyncEntry(
       id: fields[0] as String,
       actionType: fields[1] as String,
-      payload: (fields[2] as Map).cast<String, dynamic>(),
+      payload: (fields[2] as Map).cast<String, Object?>(),
       createdAt: fields[3] as DateTime,
       retryCount: fields[4] as int,
       failedAt: fields[5] as DateTime?,

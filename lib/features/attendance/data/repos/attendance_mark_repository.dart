@@ -4,6 +4,7 @@ import 'dart:developer' as developer;
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/features/attendance/data/local/attendance_local_datasource.dart';
+import 'package:church_management_system/features/attendance/data/local/attendance_session_local_datasource.dart';
 import 'package:church_management_system/features/attendance/data/local/mark_sync_entry.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_mark.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
@@ -11,19 +12,26 @@ import 'package:church_management_system/features/attendance/domain/entities/att
 import 'package:church_management_system/features/attendance/domain/failures/attendance_failures.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/domain/entities/auth_user.dart';
+import 'package:church_management_system/features/team/data/datasources/team_local_datasource.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AttendanceMarkRepository {
   AttendanceMarkRepository({
     required FirebaseFirestore firestore,
     required AttendanceLocalDatasource localDatasource,
+    required AttendanceSessionLocalDatasource sessionLocalDatasource,
+    required TeamLocalDatasource teamLocalDatasource,
     DateTime Function()? nowProvider,
   }) : _firestore = firestore,
        _localDatasource = localDatasource,
+       _sessionLocalDatasource = sessionLocalDatasource,
+       _teamLocalDatasource = teamLocalDatasource,
        _nowProvider = nowProvider ?? DateTime.now;
 
   final FirebaseFirestore _firestore;
   final AttendanceLocalDatasource _localDatasource;
+  final AttendanceSessionLocalDatasource _sessionLocalDatasource;
+  final TeamLocalDatasource _teamLocalDatasource;
   final DateTime Function() _nowProvider;
 
   CollectionReference<Map<String, dynamic>> get _classesCollection =>
@@ -59,8 +67,19 @@ class AttendanceMarkRepository {
     try {
       final cached = await ref.get(const GetOptions(source: Source.cache));
       if (cached.exists) return cached;
-    } catch (_) {}
-    return ref.get(const GetOptions(source: Source.server));
+    } catch (_) {
+      // Fallback to server if cache read fails
+    }
+    try {
+      return await ref.get(const GetOptions(source: Source.server));
+    } catch (e) {
+      // If server fetch fails, try cache one more time in case of connection loss
+      try {
+        final cached = await ref.get(const GetOptions(source: Source.cache));
+        if (cached.exists) return cached;
+      } catch (_) {}
+      rethrow;
+    }
   }
 
   Future<void> _assertCanWriteMark({
@@ -100,9 +119,7 @@ class AttendanceMarkRepository {
     String teamId,
     String sessionId,
   ) async {
-    final doc = await _cachedGet(_sessionDoc(teamId, sessionId));
-    if (!doc.exists || doc.data() == null) return null;
-    return AttendanceSessionModel.fromMap(doc.data()!, doc.id).toDomain();
+    return _sessionLocalDatasource.getCachedSessionById(sessionId);
   }
 
   Future<bool> _canUserManageAttendance(AuthUser user, String teamId) async {
@@ -118,13 +135,9 @@ class AttendanceMarkRepository {
     final groupId = user.groupId;
     if (groupId != null && groupId.isNotEmpty) {
       try {
-        final doc = await _firestore
-            .collection(FirestoreCollections.classes)
-            .doc(normalizedTeamId)
-            .get();
-        final data = doc.data();
-        if (doc.exists && data != null) {
-          return data['groupId'] == groupId;
+        final cachedTeam = await _teamLocalDatasource.getCachedTeamById(normalizedTeamId);
+        if (cachedTeam != null) {
+          return cachedTeam.groupId == groupId;
         }
       } catch (_) {}
     }
@@ -144,13 +157,32 @@ class AttendanceMarkRepository {
     final now = _nowProvider();
     final normalizedStudentId = studentId.trim();
 
-    // 1. Pessimistic validation.
+    // 1. Pessimistic validation using local caches.
     await _assertCanWriteMark(
       teamId: teamId,
       sessionId: sessionId,
       studentId: normalizedStudentId,
       user: markedBy,
       now: now,
+    );
+
+    final localMark = AttendanceMark(
+      studentId: normalizedStudentId,
+      studentNameSnapshot: studentNameSnapshot,
+      status: status,
+      markedByUserId: markedBy.uid,
+      markedByName: markedBy.name,
+      markedAt: now,
+      updatedAt: now,
+      note: note,
+    );
+
+    // Save to local cache first
+    await _localDatasource.cacheMark(
+      teamId: teamId,
+      sessionId: sessionId,
+      studentId: normalizedStudentId,
+      mark: localMark,
     );
 
     final markData = {
@@ -165,35 +197,25 @@ class AttendanceMarkRepository {
       'createdAt': now.toIso8601String(),
     };
 
-    // 2. Queue for offline sync.
-    await _localDatasource.enqueue(
-      MarkSyncEntry(
-        id: '${teamId}_${sessionId}_$normalizedStudentId',
-        teamId: teamId,
-        sessionId: sessionId,
-        studentId: normalizedStudentId,
-        operation: MarkSyncOperation.create,
-        markData: markData,
-        queuedAt: now,
-      ),
+    final markSyncEntry = MarkSyncEntry(
+      id: '${teamId}_${sessionId}_$normalizedStudentId',
+      teamId: teamId,
+      sessionId: sessionId,
+      studentId: normalizedStudentId,
+      operation: MarkSyncOperation.create,
+      markData: markData,
+      queuedAt: now,
     );
 
-    // 3. Attempt Firestore write; silently catch network errors.
+    // Attempt online Firestore write
     try {
       final markRef = _markDoc(teamId, sessionId, normalizedStudentId);
       final sessionRef = _sessionDoc(teamId, sessionId);
 
-      final markDoc = await _cachedGet(markRef);
-      if (markDoc.exists) {
-        // Already exists — remove from sync queue and return.
-        await _localDatasource.removeFromQueue(
-          '${teamId}_${sessionId}_$normalizedStudentId',
-        );
-        return;
-      }
-
       await _firestore.runTransaction((transaction) async {
         transaction.set(markRef, {
+          'teamId': teamId,
+          'sessionId': sessionId,
           'studentId': normalizedStudentId,
           'studentNameSnapshot': studentNameSnapshot,
           'status': status.name,
@@ -210,16 +232,14 @@ class AttendanceMarkRepository {
           });
         }
       });
-
-      // 4. Success — remove from sync queue.
-      await _localDatasource.removeFromQueue(
-        '${teamId}_${sessionId}_$normalizedStudentId',
-      );
     } catch (error) {
       developer.log(
-        'Offline: Mark queued for student $normalizedStudentId',
+        'Online write failed, enqueuing mark for student $normalizedStudentId',
+        error: error,
         name: 'AttendanceMarkRepository',
       );
+      // On network failure or exception, enqueue to local queue
+      await _localDatasource.enqueue(markSyncEntry);
     }
   }
 
@@ -243,6 +263,32 @@ class AttendanceMarkRepository {
       now: now,
     );
 
+    final existingMark = _localDatasource.getCachedMark(
+      teamId: teamId,
+      sessionId: sessionId,
+      studentId: normalizedStudentId,
+    );
+    final studentNameSnapshot = existingMark?.studentNameSnapshot ?? '';
+
+    final localMark = AttendanceMark(
+      studentId: normalizedStudentId,
+      studentNameSnapshot: studentNameSnapshot,
+      status: status,
+      markedByUserId: markedBy.uid,
+      markedByName: markedBy.name,
+      markedAt: existingMark?.markedAt ?? now,
+      updatedAt: now,
+      note: note,
+    );
+
+    // Save to local cache first
+    await _localDatasource.cacheMark(
+      teamId: teamId,
+      sessionId: sessionId,
+      studentId: normalizedStudentId,
+      mark: localMark,
+    );
+
     final markData = {
       'teamId': teamId,
       'sessionId': sessionId,
@@ -254,20 +300,17 @@ class AttendanceMarkRepository {
       'createdAt': now.toIso8601String(),
     };
 
-    // 2. Queue for offline sync.
-    await _localDatasource.enqueue(
-      MarkSyncEntry(
-        id: '${teamId}_${sessionId}_$normalizedStudentId',
-        teamId: teamId,
-        sessionId: sessionId,
-        studentId: normalizedStudentId,
-        operation: MarkSyncOperation.update,
-        markData: markData,
-        queuedAt: now,
-      ),
+    final markSyncEntry = MarkSyncEntry(
+      id: '${teamId}_${sessionId}_$normalizedStudentId',
+      teamId: teamId,
+      sessionId: sessionId,
+      studentId: normalizedStudentId,
+      operation: MarkSyncOperation.update,
+      markData: markData,
+      queuedAt: now,
     );
 
-    // 3. Attempt Firestore write.
+    // Attempt online Firestore write
     try {
       final markRef = _markDoc(teamId, sessionId, normalizedStudentId);
       final sessionRef = _sessionDoc(teamId, sessionId);
@@ -283,6 +326,8 @@ class AttendanceMarkRepository {
 
       await _firestore.runTransaction((transaction) async {
         transaction.update(markRef, {
+          'teamId': teamId,
+          'sessionId': sessionId,
           'status': status.name,
           'markedByUserId': markedBy.uid,
           'markedByName': markedBy.name,
@@ -303,16 +348,13 @@ class AttendanceMarkRepository {
           }
         }
       });
-
-      // 4. Success — remove from sync queue.
-      await _localDatasource.removeFromQueue(
-        '${teamId}_${sessionId}_$normalizedStudentId',
-      );
     } catch (error) {
       developer.log(
-        'Offline: Update queued for student $normalizedStudentId',
+        'Online update failed, enqueuing update for student $normalizedStudentId',
+        error: error,
         name: 'AttendanceMarkRepository',
       );
+      await _localDatasource.enqueue(markSyncEntry);
     }
   }
 
@@ -333,6 +375,8 @@ class AttendanceMarkRepository {
       unawaited(
         _markDoc(teamId, sessionId, normalizedStudentId)
             .get(const GetOptions(source: Source.server))
+            .catchError((_) => _markDoc(teamId, sessionId, normalizedStudentId)
+                .get(const GetOptions(source: Source.cache)))
             .then((doc) {
               final data = doc.data();
               if (doc.exists && data != null) {

@@ -18,6 +18,7 @@ class DeadLetterQueue {
       _boxName,
       compactionStrategy: (entries, deletedEntries) => deletedEntries > 50,
     );
+    await pruneOlderThan(const Duration(days: 30));
   }
 
   Box<SyncEntry> get _box => Hive.box<SyncEntry>(_boxName);
@@ -28,6 +29,7 @@ class DeadLetterQueue {
   /// Moves a [SyncEntry] to the DLQ, stamping it with the current time.
   /// Enforces FIFO cap by evicting oldest entries when exceeding [_maxEntries].
   Future<void> add(SyncEntry entry) async {
+    await pruneOlderThan(const Duration(days: 30));
     entry.failedAt = DateTime.now();
     await _box.put(entry.id, entry);
 

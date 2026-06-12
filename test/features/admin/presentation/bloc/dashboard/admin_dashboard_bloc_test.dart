@@ -87,7 +87,10 @@ void main() {
               .having((s) => s.kpiData.attendanceRate, 'attendanceRate', 80.0),
         ];
 
-        final expectation = expectLater(bloc.stream, emitsInOrder(expectedStates));
+        final expectation = expectLater(
+          bloc.stream,
+          emitsInOrder(expectedStates),
+        );
         bloc.add(const LoadDashboardData());
         await expectation;
       },
@@ -107,7 +110,10 @@ void main() {
           ),
         ];
 
-        final expectation = expectLater(bloc.stream, emitsInOrder(expectedStates));
+        final expectation = expectLater(
+          bloc.stream,
+          emitsInOrder(expectedStates),
+        );
         bloc.add(const LoadDashboardData());
         await expectation;
       },
@@ -132,7 +138,10 @@ void main() {
         ),
       ];
 
-      final expectation = expectLater(bloc.stream, emitsInOrder(expectedStates));
+      final expectation = expectLater(
+        bloc.stream,
+        emitsInOrder(expectedStates),
+      );
       bloc.add(const LoadDashboardData());
       await expectation;
     });
@@ -163,7 +172,10 @@ void main() {
               .having((s) => s.kpiData.attendanceRate, 'attendanceRate', 0.0),
         ];
 
-        final expectation = expectLater(bloc.stream, emitsInOrder(expectedStates));
+        final expectation = expectLater(
+          bloc.stream,
+          emitsInOrder(expectedStates),
+        );
         bloc.add(const LoadDashboardData());
         await expectation;
       },
@@ -193,7 +205,10 @@ void main() {
               .having((s) => s.kpiData.totalTeams, 'totalTeams', 0),
         ];
 
-        final expectation = expectLater(bloc.stream, emitsInOrder(expectedStates));
+        final expectation = expectLater(
+          bloc.stream,
+          emitsInOrder(expectedStates),
+        );
         bloc.add(const LoadDashboardData());
         await expectation;
       },

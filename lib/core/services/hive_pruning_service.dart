@@ -4,6 +4,9 @@ import 'dart:io';
 
 import 'package:church_management_system/core/models/sync_entry.dart';
 import 'package:church_management_system/core/services/dead_letter_queue.dart';
+import 'package:church_management_system/features/attendance/data/local/mark_sync_entry.dart';
+import 'package:church_management_system/features/attendance/data/models/attendance_mark.dart';
+import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
 import 'package:hive/hive.dart';
 
 /// Result of a pruning operation across all boxes.
@@ -99,15 +102,16 @@ class HivePruningService {
     return totalPruned;
   }
 
-  /// Prunes a generic String box where entries contain a timestamp field.
+  /// Prunes a generic box where entries contain a timestamp field.
   Future<int> pruneStringBox({
     required String boxName,
     Duration maxAge = _defaultMaxAge,
-    required DateTime? Function(String json) timestampExtractor,
+    required DateTime? Function(Object val) timestampExtractor,
   }) async {
-    final box = Hive.box<String>(boxName);
+    final wasOpen = Hive.isBoxOpen(boxName);
+    final box = await _getOrOpenBox(boxName);
     final cutoff = DateTime.now().subtract(maxAge);
-    final toRemove = <String>[];
+    final toRemove = <dynamic>[];
 
     for (final key in box.keys) {
       final value = box.get(key);
@@ -115,7 +119,7 @@ class HivePruningService {
 
       final timestamp = timestampExtractor(value);
       if (timestamp != null && timestamp.isBefore(cutoff)) {
-        toRemove.add(key.toString());
+        toRemove.add(key);
       }
     }
 
@@ -126,7 +130,37 @@ class HivePruningService {
         name: 'HivePruningService',
       );
     }
+
+    if (!wasOpen) {
+      await box.close();
+    }
     return toRemove.length;
+  }
+
+  /// Opens or retrieves a box using the correct type parameter to prevent Hive type mismatch errors.
+  Future<Box> _getOrOpenBox(String boxName) async {
+    final wasOpen = Hive.isBoxOpen(boxName);
+    if (boxName == 'attendance_marks_v2') {
+      return wasOpen
+          ? Hive.box<AttendanceMark>(boxName)
+          : await Hive.openBox<AttendanceMark>(boxName);
+    } else if (boxName == 'attendance_marks_sync_queue_v2') {
+      return wasOpen
+          ? Hive.box<MarkSyncEntry>(boxName)
+          : await Hive.openBox<MarkSyncEntry>(boxName);
+    } else if (boxName == 'attendance_sessions_cache_box') {
+      return wasOpen
+          ? Hive.box<AttendanceSessionModel>(boxName)
+          : await Hive.openBox<AttendanceSessionModel>(boxName);
+    } else if (boxName == 'attendance_marks_cache') {
+      return wasOpen
+          ? Hive.box<String>(boxName)
+          : await Hive.openBox<String>(boxName);
+    } else {
+      return wasOpen
+          ? Hive.box(boxName)
+          : await Hive.openBox(boxName);
+    }
   }
 
   /// Runs pruning across all known cache boxes.
@@ -135,10 +169,19 @@ class HivePruningService {
 
     perBox['sync_queue_box'] = await pruneSyncQueue(maxAge: maxAge);
 
-    if (Hive.isBoxOpen('attendance_marks_cache') ||
-        await Hive.boxExists('attendance_marks_cache')) {
-      perBox['attendance_marks_cache'] = await pruneStringBox(
-        boxName: 'attendance_marks_cache',
+    if (Hive.isBoxOpen('attendance_marks_v2') ||
+        await Hive.boxExists('attendance_marks_v2')) {
+      perBox['attendance_marks_v2'] = await pruneStringBox(
+        boxName: 'attendance_marks_v2',
+        maxAge: maxAge,
+        timestampExtractor: _extractCachedAt,
+      );
+    }
+
+    if (Hive.isBoxOpen('attendance_marks_sync_queue_v2') ||
+        await Hive.boxExists('attendance_marks_sync_queue_v2')) {
+      perBox['attendance_marks_sync_queue_v2'] = await pruneStringBox(
+        boxName: 'attendance_marks_sync_queue_v2',
         maxAge: maxAge,
         timestampExtractor: _extractCachedAt,
       );
@@ -164,14 +207,18 @@ class HivePruningService {
     return PruneResult(totalPruned: total, perBox: perBox);
   }
 
-  DateTime? _extractCachedAt(String json) {
-    try {
-      final map = jsonDecode(json) as Map<String, dynamic>;
-      final cachedAt = map['cachedAt'];
-      if (cachedAt is String) return DateTime.tryParse(cachedAt);
-      return null;
-    } catch (_) {
-      return null;
+  DateTime? _extractCachedAt(Object val) {
+    if (val is String) {
+      try {
+        final map = jsonDecode(val) as Map<String, Object?>;
+        final cachedAt = map['cachedAt'] ?? map['updatedAt'] ?? map['createdAt'] ?? map['queuedAt'] ?? map['markedAt'];
+        if (cachedAt is String) return DateTime.tryParse(cachedAt);
+      } catch (_) {}
     }
+    if (val is AttendanceMark) return val.updatedAt;
+    if (val is AttendanceSessionModel) return val.createdAt;
+    if (val is MarkSyncEntry) return val.queuedAt;
+    if (val is SyncEntry) return val.createdAt;
+    return null;
   }
 }

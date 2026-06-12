@@ -139,15 +139,17 @@ void main() {
 
     // Mock local datasource cache method so we avoid HiveError
     when(() => localDatasource.cacheSession(any())).thenAnswer((_) async {});
-    when(() => localDatasource.getCachedSessionById(any()))
-        .thenAnswer((_) async => null);
+    when(
+      () => localDatasource.getCachedSessionById(any()),
+    ).thenAnswer((_) async => null);
     when(
       () => attendanceLocalDatasource.getCachedMarksForSession(
         teamId: any(named: 'teamId'),
         sessionId: any(named: 'sessionId'),
       ),
     ).thenAnswer((invocation) {
-      final sessionId = invocation.namedArguments[const Symbol('sessionId')] as String;
+      final sessionId =
+          invocation.namedArguments[const Symbol('sessionId')] as String;
       return cachedMarks[sessionId] ?? {};
     });
     when(
@@ -158,9 +160,12 @@ void main() {
         mark: any(named: 'mark'),
       ),
     ).thenAnswer((invocation) async {
-      final sessionId = invocation.namedArguments[const Symbol('sessionId')] as String;
-      final studentId = invocation.namedArguments[const Symbol('studentId')] as String;
-      final mark = invocation.namedArguments[const Symbol('mark')] as AttendanceMark;
+      final sessionId =
+          invocation.namedArguments[const Symbol('sessionId')] as String;
+      final studentId =
+          invocation.namedArguments[const Symbol('studentId')] as String;
+      final mark =
+          invocation.namedArguments[const Symbol('mark')] as AttendanceMark;
       cachedMarks.putIfAbsent(sessionId, () => {})[studentId] = mark;
     });
 
@@ -222,7 +227,7 @@ void main() {
       );
 
       final doc = await firestore
-          .collection('attendance')
+          .collection('AttendanceSessions')
           .doc(session.id)
           .get();
 
@@ -334,8 +339,9 @@ void main() {
       endsAt: currentTime,
     );
     // We must also cache it so _assertCanMark finds it
-    when(() => localDatasource.getCachedSessionById(closedSession.id))
-        .thenAnswer((_) async => closedSession);
+    when(
+      () => localDatasource.getCachedSessionById(closedSession.id),
+    ).thenAnswer((_) async => closedSession);
 
     await expectLater(
       () => repository.markStudentPresent(
@@ -360,8 +366,9 @@ void main() {
       title: 'Wednesday',
     );
     // Cache the session so getSessionRoster can use it
-    when(() => localDatasource.getCachedSessionById(session.id))
-        .thenAnswer((_) async => session);
+    when(
+      () => localDatasource.getCachedSessionById(session.id),
+    ).thenAnswer((_) async => session);
 
     await repository.markStudentPresent(
       teamId: 'team-1',
@@ -426,8 +433,9 @@ void main() {
         title: 'Wednesday',
       );
       // Cache it
-      when(() => localDatasource.getCachedSessionById(session.id))
-          .thenAnswer((_) async => session);
+      when(
+        () => localDatasource.getCachedSessionById(session.id),
+      ).thenAnswer((_) async => session);
 
       // Mark only student-1.
       await repository.markStudentPresent(
@@ -447,14 +455,14 @@ void main() {
 
       // Verify session is closed in Firestore (closeSession writes to Firestore via CommandService)
       final sessionDoc = await firestore
-          .collection('attendance')
+          .collection('AttendanceSessions')
           .doc(session.id)
           .get();
       expect(sessionDoc.data()!['isClosed'], isTrue);
 
       // Verify both students have marks.
       final marks = await firestore
-          .collection('attendance')
+          .collection('AttendanceSessions')
           .doc(session.id)
           .collection('records')
           .get();

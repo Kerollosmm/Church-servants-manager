@@ -16,6 +16,8 @@ class AuthUserProfileStore {
 
   final FirebaseFirestore _db;
   final AuthUserLocalStore _localStore;
+  final Map<String, DateTime> _lastFetchTimestamps = {};
+  static const _profileTtl = Duration(minutes: 30);
 
   Future<DocumentSnapshot<Map<String, dynamic>>> _cachedGet(
     DocumentReference<Map<String, dynamic>> ref,
@@ -32,8 +34,12 @@ class AuthUserProfileStore {
       // Mandate: Check Hive before Firestore
       final cached = _localStore.getUser();
       if (cached != null && cached.uid == uid) {
-        // Trigger background refresh to keep cache in sync with server changes
-        unawaited(_refreshUserCache(uid));
+        final now = DateTime.now();
+        final lastFetch = _lastFetchTimestamps[uid];
+        if (lastFetch == null || now.difference(lastFetch) > _profileTtl) {
+          _lastFetchTimestamps[uid] = now;
+          unawaited(_refreshUserCache(uid));
+        }
         return cached;
       }
 

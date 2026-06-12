@@ -37,12 +37,14 @@ class AttendanceTakingBloc
     on<SubmitSessionEvent>(_onSubmitSession);
     on<MarkAllRemainingPresentEvent>(_onMarkAllRemainingPresent);
     on<ResetMutationStatusEvent>(_onResetMutationStatus);
+    on<SessionTickEvent>(_onSessionTick);
   }
 
   final AttendanceRepository _repository;
   final AttendanceLocalDatasource _localDatasource;
   final DateTime Function() _nowProvider;
 
+  Timer? _sessionTickerTimer;
   bool _permissionGranted = false;
   String? _cachedTeamId;
   String? _cachedSessionId;
@@ -59,6 +61,7 @@ class AttendanceTakingBloc
 
     try {
       await _fetchAndEmitSessionData(event.teamId, event.sessionId, emit);
+      _startSessionTicker(event.teamId, event.sessionId);
 
       if (event.actor != null) {
         unawaited(
@@ -88,6 +91,7 @@ class AttendanceTakingBloc
   ) async {
     try {
       await _fetchAndEmitSessionData(event.teamId, event.sessionId, emit);
+      _startSessionTicker(event.teamId, event.sessionId);
     } catch (error, stackTrace) {
       developer.log(
         'refresh failed',
@@ -379,9 +383,36 @@ class AttendanceTakingBloc
     }
   }
 
+  void _startSessionTicker(String teamId, String sessionId) {
+    _sessionTickerTimer?.cancel();
+    _sessionTickerTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      final cs = state;
+      if (cs is AttendanceTakingLoaded) {
+        final nowOpen = cs.session.isOpenAt(_nowProvider());
+        if (cs.isSessionOpen != nowOpen) {
+          add(SessionTickEvent(isSessionOpen: nowOpen));
+        }
+        if (!nowOpen) {
+          _sessionTickerTimer?.cancel();
+        }
+      }
+    });
+  }
+
+  void _onSessionTick(
+    SessionTickEvent event,
+    Emitter<AttendanceTakingState> emit,
+  ) {
+    final cs = state;
+    if (cs is AttendanceTakingLoaded) {
+      emit(cs.copyWith(isSessionOpen: event.isSessionOpen));
+    }
+  }
+
   @override
   Future<void> close() async {
     _resetTimer?.cancel();
+    _sessionTickerTimer?.cancel();
     _permissionGranted = false;
     _cachedTeamId = null;
     _cachedSessionId = null;

@@ -4,6 +4,7 @@ import 'package:church_management_system/features/student/data/models/student_mo
 import 'package:church_management_system/features/team/data/datasources/team_local_datasource.dart';
 import 'package:church_management_system/features/team/data/models/team_model.dart';
 import 'package:church_management_system/features/team/data/repos/team_repository.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
@@ -15,9 +16,12 @@ class FakeTeamModel extends Fake implements TeamModel {}
 
 class MockSyncService extends Mock implements SyncService {}
 
+class MockConnectivity extends Mock implements Connectivity {}
+
 void main() {
   late FakeFirebaseFirestore firestore;
   late MockTeamLocalDatasource localDatasource;
+  late MockConnectivity mockConnectivity;
   late TeamRepository repository;
 
   setUpAll(() {
@@ -61,6 +65,12 @@ void main() {
 
     firestore = FakeFirebaseFirestore();
     localDatasource = MockTeamLocalDatasource();
+    mockConnectivity = MockConnectivity();
+
+    // Stub connectivity to show online by default in repository tests
+    when(
+      () => mockConnectivity.checkConnectivity(),
+    ).thenAnswer((_) async => [ConnectivityResult.wifi]);
 
     // Stub local datasource methods to be no-ops for remote integration tests
     when(() => localDatasource.cacheTeam(any())).thenAnswer((_) async {});
@@ -71,10 +81,12 @@ void main() {
       () => localDatasource.removeCachedTeam(any()),
     ).thenAnswer((_) async {});
 
+    final mockSync = MockSyncService();
     repository = TeamRepository(
       firestore: firestore,
       localDatasource: localDatasource,
-      syncService: MockSyncService(),
+      syncServiceGetter: () => mockSync,
+      connectivity: mockConnectivity,
     );
   });
 

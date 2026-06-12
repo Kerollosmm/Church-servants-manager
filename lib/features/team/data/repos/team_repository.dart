@@ -13,6 +13,7 @@ import 'package:church_management_system/features/team/domain/entities/team.dart
 import 'package:church_management_system/features/team/domain/failures/team_failures.dart';
 import 'package:church_management_system/features/team/domain/repos/i_team_repository.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 /// Repository for team (class) data operations.
 ///
@@ -21,15 +22,20 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class TeamRepository implements ITeamRepository {
   final FirebaseFirestore _firestore;
   final TeamLocalDatasource _localDatasource;
-  final SyncService _syncService;
+  final SyncService Function() _syncServiceGetter;
+  final Connectivity _connectivity;
 
   TeamRepository({
     required FirebaseFirestore firestore,
     required TeamLocalDatasource localDatasource,
-    required SyncService syncService,
+    required SyncService Function() syncServiceGetter,
+    Connectivity? connectivity,
   }) : _firestore = firestore,
        _localDatasource = localDatasource,
-       _syncService = syncService;
+       _syncServiceGetter = syncServiceGetter,
+       _connectivity = connectivity ?? Connectivity();
+
+  SyncService get _syncService => _syncServiceGetter();
 
   CollectionReference<Map<String, dynamic>> get _classesCollection =>
       _firestore.collection(FirestoreCollections.classes);
@@ -406,7 +412,6 @@ class TeamRepository implements ITeamRepository {
       // Write to Hive first
       await _localDatasource.cacheTeam(model);
 
-      // Enqueue to Workmanager sync queue via SyncService
       final syncEntry = SyncEntry(
         id: 'create_team_$generatedId',
         actionType: 'CREATE_TEAM',
@@ -414,10 +419,14 @@ class TeamRepository implements ITeamRepository {
         createdAt: DateTime.now(),
       );
 
-      try {
-        await _syncService.enqueue(syncEntry);
-      } catch (e) {
-        developer.log('Failed to enqueue create team sync entry', error: e);
+      final connectivity = await _connectivity.checkConnectivity();
+      if (connectivity.contains(ConnectivityResult.none)) {
+        try {
+          await _syncService.enqueue(syncEntry);
+        } catch (e) {
+          developer.log('Failed to enqueue create team sync entry', error: e);
+        }
+        return generatedId;
       }
 
       // Try write online immediately
@@ -445,9 +454,6 @@ class TeamRepository implements ITeamRepository {
         // Mark synced in local database
         final syncedModel = model.copyWith(syncStatus: SyncStatus.synced);
         await _localDatasource.cacheTeam(syncedModel);
-
-        // Evict from sync queue immediately
-        await _syncService.dequeue('create_team_$generatedId');
       } catch (e) {
         if (e is StateError) {
           throw TeamValidationFailure(e.message);
@@ -456,6 +462,11 @@ class TeamRepository implements ITeamRepository {
           'Create team online transaction failed, relying on offline sync queue',
           error: e,
         );
+        try {
+          await _syncService.enqueue(syncEntry);
+        } catch (queueErr) {
+          developer.log('Failed to enqueue create team sync entry', error: queueErr);
+        }
       }
 
       return generatedId;
@@ -482,10 +493,14 @@ class TeamRepository implements ITeamRepository {
         createdAt: DateTime.now(),
       );
 
-      try {
-        await _syncService.enqueue(syncEntry);
-      } catch (e) {
-        developer.log('Failed to enqueue update team sync entry', error: e);
+      final connectivity = await _connectivity.checkConnectivity();
+      if (connectivity.contains(ConnectivityResult.none)) {
+        try {
+          await _syncService.enqueue(syncEntry);
+        } catch (e) {
+          developer.log('Failed to enqueue update team sync entry', error: e);
+        }
+        return;
       }
 
       try {
@@ -553,9 +568,6 @@ class TeamRepository implements ITeamRepository {
 
         final syncedModel = model.copyWith(syncStatus: SyncStatus.synced);
         await _localDatasource.cacheTeam(syncedModel);
-
-        // Evict from sync queue immediately
-        await _syncService.dequeue('update_team_${team.id}');
       } catch (e) {
         if (e is TeamNotFoundFailure) rethrow;
         if (e is StateError) {
@@ -565,6 +577,11 @@ class TeamRepository implements ITeamRepository {
           'Update team online transaction failed, relying on offline sync queue',
           error: e,
         );
+        try {
+          await _syncService.enqueue(syncEntry);
+        } catch (queueErr) {
+          developer.log('Failed to enqueue update team sync entry', error: queueErr);
+        }
       }
     } catch (e) {
       if (e is TeamFailure) rethrow;
@@ -595,10 +612,14 @@ class TeamRepository implements ITeamRepository {
         createdAt: DateTime.now(),
       );
 
-      try {
-        await _syncService.enqueue(syncEntry);
-      } catch (e) {
-        developer.log('Failed to enqueue delete team sync entry', error: e);
+      final connectivity = await _connectivity.checkConnectivity();
+      if (connectivity.contains(ConnectivityResult.none)) {
+        try {
+          await _syncService.enqueue(syncEntry);
+        } catch (e) {
+          developer.log('Failed to enqueue delete team sync entry', error: e);
+        }
+        return;
       }
 
       try {
@@ -676,15 +697,17 @@ class TeamRepository implements ITeamRepository {
           );
           await _localDatasource.cacheTeam(synced);
         }
-
-        // Evict from sync queue immediately
-        await _syncService.dequeue('delete_team_$id');
       } catch (e) {
         if (e is TeamNotFoundFailure) rethrow;
         developer.log(
           'Delete team online transaction failed, relying on offline sync queue',
           error: e,
         );
+        try {
+          await _syncService.enqueue(syncEntry);
+        } catch (queueErr) {
+          developer.log('Failed to enqueue delete team sync entry', error: queueErr);
+        }
       }
     } catch (e) {
       if (e is TeamFailure) rethrow;
@@ -713,10 +736,14 @@ class TeamRepository implements ITeamRepository {
         createdAt: DateTime.now(),
       );
 
-      try {
-        await _syncService.enqueue(syncEntry);
-      } catch (e) {
-        developer.log('Failed to enqueue restore team sync entry', error: e);
+      final connectivity = await _connectivity.checkConnectivity();
+      if (connectivity.contains(ConnectivityResult.none)) {
+        try {
+          await _syncService.enqueue(syncEntry);
+        } catch (e) {
+          developer.log('Failed to enqueue restore team sync entry', error: e);
+        }
+        return;
       }
 
       try {
@@ -776,10 +803,8 @@ class TeamRepository implements ITeamRepository {
           );
           await _localDatasource.cacheTeam(synced);
         }
-
-        // Evict from sync queue immediately
-        await _syncService.dequeue('restore_team_$id');
       } catch (e) {
+        if (e is TeamNotFoundFailure) rethrow;
         if (e is StateError) {
           throw TeamValidationFailure(e.message);
         }
@@ -787,6 +812,11 @@ class TeamRepository implements ITeamRepository {
           'Restore team online transaction failed, relying on offline sync queue',
           error: e,
         );
+        try {
+          await _syncService.enqueue(syncEntry);
+        } catch (queueErr) {
+          developer.log('Failed to enqueue restore team sync entry', error: queueErr);
+        }
       }
     } catch (e) {
       if (e is TeamFailure) rethrow;

@@ -120,7 +120,7 @@ class AdminTeamMembershipService {
           previousClassId.isNotEmpty &&
           previousClassId != team.id) {
         addOp(
-          (b) => b.set(_teamRef(previousClassId), {
+          (b) => b.set(_teamRef(previousClassId), <String, Object?>{
             'student_ids': FieldValue.arrayRemove([student.docID]),
             'updatedAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true)),
@@ -128,7 +128,7 @@ class AdminTeamMembershipService {
       }
 
       addOp(
-        (b) => b.set(_studentRef(student.docID), {
+        (b) => b.set(_studentRef(student.docID), <String, Object?>{
           'classId': team.id,
           'team_name': team.name,
           'group': team.groupId,
@@ -138,7 +138,7 @@ class AdminTeamMembershipService {
 
       if (student.uid.isNotEmpty) {
         addOp(
-          (b) => b.set(_userRef(student.uid), {
+          (b) => b.set(_userRef(student.uid), <String, Object?>{
             'classId': team.id,
             'team_name': team.name,
             'groupId': team.groupId,
@@ -150,7 +150,7 @@ class AdminTeamMembershipService {
 
     for (final student in toRemove) {
       addOp(
-        (b) => b.set(_studentRef(student.docID), {
+        (b) => b.set(_studentRef(student.docID), <String, Object?>{
           'classId': FieldValue.delete(),
           'team_name': '',
           'updatedAt': FieldValue.serverTimestamp(),
@@ -159,7 +159,7 @@ class AdminTeamMembershipService {
 
       if (student.uid.isNotEmpty) {
         addOp(
-          (b) => b.set(_userRef(student.uid), {
+          (b) => b.set(_userRef(student.uid), <String, Object?>{
             'classId': FieldValue.delete(),
             'team_name': '',
             'updatedAt': FieldValue.serverTimestamp(),
@@ -169,7 +169,7 @@ class AdminTeamMembershipService {
     }
 
     addOp(
-      (b) => b.set(_teamRef(team.id), {
+      (b) => b.set(_teamRef(team.id), <String, Object?>{
         'student_ids': selectedIds,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true)),

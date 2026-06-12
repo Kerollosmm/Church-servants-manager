@@ -10,21 +10,26 @@ class OfflineIndicator extends StatelessWidget {
     return BlocBuilder<ConnectivityCubit, ConnectivityState>(
       builder: (context, state) {
         if (state is ConnectivityOffline) {
-          return Container(
-            color: Colors.redAccent,
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.wifi_off, color: Colors.white, size: 16),
-                SizedBox(width: 8),
-                Text(
-                  'أنت غير متصل بالإنترنت. التطبيق يعمل في وضع عدم الاتصال.',
-                  style: TextStyle(color: Colors.white, fontSize: 12),
-                  textDirection: TextDirection.rtl,
-                ),
-              ],
+          return SafeArea(
+            bottom: false,
+            child: Container(
+              color: Colors.redAccent,
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.wifi_off, color: Colors.white, size: 16),
+                  SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      'أنت غير متصل بالإنترنت. التطبيق يعمل في وضع عدم الاتصال.',
+                      style: TextStyle(color: Colors.white, fontSize: 12),
+                      textDirection: TextDirection.rtl,
+                    ),
+                  ),
+                ],
+              ),
             ),
           );
         }

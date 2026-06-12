@@ -95,3 +95,12 @@ final class MarkAllRemainingPresentEvent extends AttendanceTakingEvent {
 final class ResetMutationStatusEvent extends AttendanceTakingEvent {
   const ResetMutationStatusEvent();
 }
+
+final class SessionTickEvent extends AttendanceTakingEvent {
+  const SessionTickEvent({required this.isSessionOpen});
+
+  final bool isSessionOpen;
+
+  @override
+  List<Object?> get props => [isSessionOpen];
+}

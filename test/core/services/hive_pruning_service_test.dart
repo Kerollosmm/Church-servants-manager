@@ -80,7 +80,8 @@ void main() {
       final pruned = await pruner.pruneStringBox(
         boxName: 'attendance_marks_cache',
         timestampExtractor: (json) {
-          final match = RegExp(r'"cachedAt":"([^"]+)"').firstMatch(json);
+          final jsonStr = json as String;
+          final match = RegExp(r'"cachedAt":"([^"]+)"').firstMatch(jsonStr);
           return match != null ? DateTime.tryParse(match.group(1)!) : null;
         },
       );

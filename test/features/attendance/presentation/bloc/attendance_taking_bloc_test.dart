@@ -546,4 +546,44 @@ void main() {
       await bloc.close();
     });
   });
+
+  group('session ticker stream', () {
+    test('SessionTickEvent updates isSessionOpen status in state', () async {
+      final openSession = buildSession(isClosed: false);
+
+      final bloc = AttendanceTakingBloc(
+        repository: repository,
+        localDatasource: localDatasource,
+        syncService: mockSyncService,
+        nowProvider: () => DateTime(2026, 3, 9, 18, 10),
+      );
+
+      when(
+        () => repository.getSessionStatus(
+          teamId: any(named: 'teamId'),
+          sessionId: any(named: 'sessionId'),
+        ),
+      ).thenAnswer((_) async => SessionStatus.open);
+      when(
+        () => repository.getSessionRosterSnapshot(
+          teamId: any(named: 'teamId'),
+          sessionId: any(named: 'sessionId'),
+        ),
+      ).thenAnswer(
+        (_) async => AttendanceRosterSnapshot(session: openSession, roster: []),
+      );
+
+      bloc.add(
+        const InitializeSessionEvent(teamId: 'team-1', sessionId: 'session-1'),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect((bloc.state as AttendanceTakingLoaded).isSessionOpen, isTrue);
+
+      bloc.add(const SessionTickEvent(isSessionOpen: false));
+      await Future<void>.delayed(Duration.zero);
+      expect((bloc.state as AttendanceTakingLoaded).isSessionOpen, isFalse);
+
+      await bloc.close();
+    });
+  });
 }

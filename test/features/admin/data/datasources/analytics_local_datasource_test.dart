@@ -11,7 +11,7 @@ AnalyticsSummaryModel buildTestSummary({
   int totalStudentsCount = 42,
   double averageAttendanceRate = 0.85,
   int pendingVisitationsCount = 3,
-  Map<String, dynamic> topActiveServants = const {'Alice': 10, 'Bob': 7},
+  Map<String, int> topActiveServants = const {'Alice': 10, 'Bob': 7},
   DateTime? lastComputedAt,
   DateTime? fetchedAt,
 }) {

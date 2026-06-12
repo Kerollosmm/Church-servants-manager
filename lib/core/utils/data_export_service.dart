@@ -7,8 +7,8 @@ import 'package:share_plus/share_plus.dart';
 
 class DataExportService {
   /// Generates a CSV string from a list of rows.
-  String generateCsv(List<String> headers, List<List<dynamic>> rows) {
-    final List<List<dynamic>> csvData = [headers, ...rows];
+  String generateCsv(List<String> headers, List<List<Object?>> rows) {
+    final List<List<Object?>> csvData = [headers, ...rows];
     return Csv().encode(csvData);
   }
 
@@ -16,7 +16,7 @@ class DataExportService {
   Future<void> exportCsv({
     required String fileName,
     required List<String> headers,
-    required List<List<dynamic>> rows,
+    required List<List<Object?>> rows,
   }) async {
     final csvString = generateCsv(headers, rows);
     final directory = await getTemporaryDirectory();
@@ -37,7 +37,7 @@ class DataExportService {
     required String title,
     required String fileName,
     required List<String> headers,
-    required List<List<dynamic>> rows,
+    required List<List<Object?>> rows,
   }) async {
     final pdf = pw.Document();
 

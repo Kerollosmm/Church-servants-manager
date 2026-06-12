@@ -3,10 +3,8 @@ import 'package:hive/hive.dart';
 
 class StudentLocalDatasource {
   static const String boxName = 'students_box';
-  static const String syncQueueBoxName = 'students_sync_queue_box';
 
   Box<StudentModel>? _studentsBox;
-  Box<StudentModel>? _syncQueueBox;
   Future<void>? _initFuture;
 
   Future<void> init() {
@@ -17,10 +15,6 @@ class StudentLocalDatasource {
   Future<void> _doInit() async {
     _studentsBox = await Hive.openBox<StudentModel>(
       boxName,
-      compactionStrategy: (entries, deletedEntries) => deletedEntries > 50,
-    );
-    _syncQueueBox = await Hive.openBox<StudentModel>(
-      syncQueueBoxName,
       compactionStrategy: (entries, deletedEntries) => deletedEntries > 50,
     );
   }
@@ -170,15 +164,5 @@ class StudentLocalDatasource {
     await init();
     final map = {for (final s in students) s.docID: s};
     await _studentsBox!.putAll(map);
-  }
-
-  Future<void> queueForSync(StudentModel student) async {
-    await init();
-    await _syncQueueBox!.put(student.docID, student);
-  }
-
-  Future<void> removeFromSyncQueue(String docId) async {
-    await init();
-    await _syncQueueBox!.delete(docId);
   }
 }

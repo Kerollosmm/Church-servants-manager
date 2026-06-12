@@ -63,18 +63,16 @@ service cloud.firestore {
       return request.auth.uid;
     }
 
-    function getUserData() {
-      return request.auth != null ? get(/databases/$(database)/documents/servants/$(request.auth.uid)).data : null;
+    function claimRole() {
+      return request.auth.token.get('role', '');
     }
 
     function isAdmin() {
-      let user = getUserData();
-      return user != null && user.role == 'admin';
+      return isSignedIn() && claimRole() == 'admin';
     }
 
     function isServant() {
-      let user = getUserData();
-      return user != null && (user.role == 'servant' || user.role == 'admin');
+      return isSignedIn() && (claimRole() == 'servant' || claimRole() == 'admin');
     }
 
     function isOwner(userId) {
@@ -87,31 +85,27 @@ service cloud.firestore {
 
     // ─── Collection/Team Helpers ──────────────────────────────────
 
-    function getClassData(classId) {
-      return get(/databases/$(database)/documents/Classes/$(classId)).data;
-    }
-
     function servantCanManageTeam(classId) {
-      let userData = getUserData();
+      let claimTeamId = request.auth.token.get('assignedTeamId', '');
+      let claimTeamIds = request.auth.token.get('assignedTeamIds', []);
       return isServant() && (
-        userData.get('assignedTeamId', null) == classId || 
-        classId in userData.get('assignedTeamIds', []) ||
-        (userData.get('groupId', null) != null && getClassData(classId).get('groupId', null) == userData.get('groupId', null))
+        isAdmin() ||
+        classId == claimTeamId ||
+        classId in claimTeamIds
       );
     }
 
     // ─── Student Helpers ──────────────────────────────────────────
 
     function servantCanReadStudent(studentData) {
-      let userData = getUserData();
-      let assignedTeamId = userData.get('assignedTeamId', null);
-      let assignedTeamIds = userData.get('assignedTeamIds', []);
-      let groupId = userData.get('groupId', null);
+      let assignedTeamId = request.auth.token.get('assignedTeamId', '');
+      let assignedTeamIds = request.auth.token.get('assignedTeamIds', []);
+      let groupId = request.auth.token.get('groupId', '');
       
       return isServant() && studentData != null && (
-        (assignedTeamId != null && studentData.get('classId', null) == assignedTeamId) ||
-        (studentData.get('classId', null) in assignedTeamIds) ||
-        (groupId != null && studentData.get('group', null) == groupId)
+        studentData.get('classId', '') == assignedTeamId ||
+        studentData.get('classId', '') in assignedTeamIds ||
+        (groupId != '' && studentData.get('group', '') == groupId)
       );
     }
 
@@ -119,11 +113,6 @@ service cloud.firestore {
       return isServant() && studentData != null && 
              studentData.get('isArchived', false) != true &&
              servantCanReadStudent(studentData);
-    }
-
-    function isStudentInSessionRoster(sessionId, studentId) {
-      let session = get(/databases/$(database)/documents/attendance/$(sessionId)).data;
-      return studentId in session.get('studentIdsSnapshot', []);
     }
 
     // ===============================================================
@@ -190,7 +179,7 @@ service cloud.firestore {
     }
 
     // ─── Attendance Collection ────────────────────────────────────
-    match /attendance/{sessionId} {
+    match /AttendanceSessions/{sessionId} {
       allow read: if isSignedIn() && (isAdmin() || servantCanManageTeam(resource.data.teamId));
       allow create: if isSignedIn() && (isAdmin() || servantCanManageTeam(request.resource.data.teamId));
       allow update: if isAdmin();
@@ -199,20 +188,14 @@ service cloud.firestore {
       match /marks/{studentDocId} {
         allow read: if isSignedIn() && (
           isAdmin() || 
-          servantCanManageTeam(get(/databases/$(database)/documents/attendance/$(sessionId)).data.teamId) ||
+          (resource.data != null && servantCanManageTeam(resource.data.get('teamId', ''))) ||
           isOwner(studentDocId.split('_')[0])
         );
         
         allow create, update: if isSignedIn() && (
           isAdmin() || 
-          (
-            servantCanManageTeam(get(/databases/$(database)/documents/attendance/$(sessionId)).data.teamId) &&
-            isStudentInSessionRoster(sessionId, studentDocId.split('_')[0])
-          ) ||
-          (
-            studentDocId.split('_')[1] == 'system' &&
-            isStudentInSessionRoster(sessionId, studentDocId.split('_')[0])
-          )
+          (request.resource.data != null && servantCanManageTeam(request.resource.data.get('teamId', ''))) ||
+          (studentDocId.split('_')[1] == 'system')
         );
         
         allow delete: if isAdmin();

@@ -36,7 +36,7 @@ describe('Firestore Security Rules', () => {
   async function seedUser(uid, data) {
     await testEnv.withSecurityRulesDisabled(async (context) => {
       const db = context.firestore();
-      await setDoc(doc(db, 'servants', uid), {
+      await setDoc(doc(db, 'Users', uid), {
         uid,
         name: 'Test User',
         email: `${uid}@example.com`,
@@ -87,48 +87,48 @@ describe('Firestore Security Rules', () => {
     });
   }
 
-  // --- Tests: Servants Collection ---
-  describe('servants collection', () => {
+  // --- Tests: Users Collection ---
+  describe('Users collection', () => {
     test('unauthenticated user cannot read profiles', async () => {
       const db = testEnv.unauthenticatedContext().firestore();
-      await assertFails(getDoc(doc(db, 'servants', 'any-user')));
+      await assertFails(getDoc(doc(db, 'Users', 'any-user')));
     });
 
     test('user can read their own profile', async () => {
       const uid = 'user-123';
       await seedUser(uid, { role: 'servant' });
       const db = testEnv.authenticatedContext(uid).firestore();
-      await assertSucceeds(getDoc(doc(db, 'servants', uid)));
+      await assertSucceeds(getDoc(doc(db, 'Users', uid)));
     });
 
     test('servant cannot read another servant profile', async () => {
       const uid = 'user-123';
       await seedUser(uid, { role: 'servant' });
       await seedUser('other', { role: 'servant' });
-      const db = testEnv.authenticatedContext(uid).firestore();
-      await assertFails(getDoc(doc(db, 'servants', 'other')));
+      const db = testEnv.authenticatedContext(uid, { role: 'servant' }).firestore();
+      await assertFails(getDoc(doc(db, 'Users', 'other')));
     });
 
     test('admin can read any profile', async () => {
       const adminId = 'admin-1';
       await seedUser(adminId, { role: 'admin' });
       await seedUser('other', { role: 'servant' });
-      const db = testEnv.authenticatedContext(adminId).firestore();
-      await assertSucceeds(getDoc(doc(db, 'servants', 'other')));
+      const db = testEnv.authenticatedContext(adminId, { role: 'admin' }).firestore();
+      await assertSucceeds(getDoc(doc(db, 'Users', 'other')));
     });
 
     test('user can update their own name', async () => {
       const uid = 'user-123';
       await seedUser(uid, { name: 'Old Name' });
       const db = testEnv.authenticatedContext(uid).firestore();
-      await assertSucceeds(updateDoc(doc(db, 'servants', uid), { name: 'New Name' }));
+      await assertSucceeds(updateDoc(doc(db, 'Users', uid), { name: 'New Name' }));
     });
 
     test('user cannot change their own role', async () => {
       const uid = 'user-123';
       await seedUser(uid, { role: 'servant' });
       const db = testEnv.authenticatedContext(uid).firestore();
-      await assertFails(updateDoc(doc(db, 'servants', uid), { role: 'admin' }));
+      await assertFails(updateDoc(doc(db, 'Users', uid), { role: 'admin' }));
     });
   });
 
@@ -140,7 +140,7 @@ describe('Firestore Security Rules', () => {
       await seedUser(servantId, { assignedTeamId: teamId, role: 'servant' });
       await seedStudent('student-1', { classId: teamId });
       
-      const db = testEnv.authenticatedContext(servantId).firestore();
+      const db = testEnv.authenticatedContext(servantId, { role: 'servant', assignedTeamId: teamId }).firestore();
       await assertSucceeds(getDoc(doc(db, 'Students', 'student-1')));
     });
 
@@ -149,7 +149,7 @@ describe('Firestore Security Rules', () => {
       await seedUser(servantId, { groupId: 'year1', role: 'servant' });
       await seedStudent('student-1', { group: 'year2' });
       
-      const db = testEnv.authenticatedContext(servantId).firestore();
+      const db = testEnv.authenticatedContext(servantId, { role: 'servant', groupId: 'year1' }).firestore();
       await assertFails(getDoc(doc(db, 'Students', 'student-1')));
     });
 
@@ -171,7 +171,7 @@ describe('Firestore Security Rules', () => {
       await seedUser(servantId, { assignedTeamId: teamId, role: 'servant' });
       await seedStudent('student-validate-1', { classId: teamId });
 
-      const db = testEnv.authenticatedContext(servantId).firestore();
+      const db = testEnv.authenticatedContext(servantId, { role: 'servant', assignedTeamId: teamId }).firestore();
       await assertFails(updateDoc(doc(db, 'Students', 'student-validate-1'), { name: '' }));
     });
 
@@ -181,7 +181,7 @@ describe('Firestore Security Rules', () => {
       await seedUser(servantId, { assignedTeamId: teamId, role: 'servant' });
       await seedStudent('student-validate-2', { classId: teamId });
 
-      const db = testEnv.authenticatedContext(servantId).firestore();
+      const db = testEnv.authenticatedContext(servantId, { role: 'servant', assignedTeamId: teamId }).firestore();
       await assertFails(updateDoc(doc(db, 'Students', 'student-validate-2'), { name: 123 }));
     });
 
@@ -190,7 +190,7 @@ describe('Firestore Security Rules', () => {
       await seedUser(adminId, { role: 'admin' });
       await seedStudent('student-validate-3', {});
 
-      const db = testEnv.authenticatedContext(adminId).firestore();
+      const db = testEnv.authenticatedContext(adminId, { role: 'admin' }).firestore();
       await assertSucceeds(updateDoc(doc(db, 'Students', 'student-validate-3'), { name: 'Valid Name' }));
     });
   });
@@ -204,8 +204,9 @@ describe('Firestore Security Rules', () => {
       await seedUser(servantId, { assignedTeamId: teamId, role: 'servant' });
       await seedSession(sessionId, { teamId, studentIdsSnapshot: ['student-1'] });
       
-      const db = testEnv.authenticatedContext(servantId).firestore();
-      await assertSucceeds(setDoc(doc(db, 'attendance', sessionId, 'marks', 'student-1_session-1'), {
+      const db = testEnv.authenticatedContext(servantId, { role: 'servant', assignedTeamId: teamId }).firestore();
+      await assertSucceeds(setDoc(doc(db, 'AttendanceSessions', sessionId, 'records', 'student-1_session-1'), {
+        teamId: teamId,
         studentId: 'student-1',
         status: 'present',
         markedByUserId: servantId,
@@ -219,8 +220,9 @@ describe('Firestore Security Rules', () => {
       await seedUser(studentId, { role: 'student' });
       await seedSession(sessionId, { teamId, studentIdsSnapshot: [studentId] });
       
-      const db = testEnv.authenticatedContext(studentId).firestore();
-      await assertFails(setDoc(doc(db, 'attendance', sessionId, 'marks', 'student-1_session-1'), {
+      const db = testEnv.authenticatedContext(studentId, { role: 'student' }).firestore();
+      await assertFails(setDoc(doc(db, 'AttendanceSessions', sessionId, 'records', 'student-1_session-1'), {
+        teamId: teamId,
         studentId: studentId,
         status: 'present',
         markedByUserId: studentId,
@@ -234,9 +236,10 @@ describe('Firestore Security Rules', () => {
       await seedUser(adminId, { role: 'admin' });
       await seedSession(sessionId, { teamId, studentIdsSnapshot: ['student-1'] });
       
-      const db = testEnv.authenticatedContext(adminId).firestore();
+      const db = testEnv.authenticatedContext(adminId, { role: 'admin' }).firestore();
       // Even though it's admin context, the logic for 'system' suffix is tested
-      await assertSucceeds(setDoc(doc(db, 'attendance', sessionId, 'marks', 'student-1_system'), {
+      await assertSucceeds(setDoc(doc(db, 'AttendanceSessions', sessionId, 'records', 'student-1_system'), {
+        teamId: teamId,
         studentId: 'student-1',
         status: 'absent',
         markedByUserId: 'system',

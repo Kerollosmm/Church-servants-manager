@@ -27,10 +27,19 @@ class StudentQueryService {
     try {
       final cached = await ref.get(const GetOptions(source: Source.cache));
       if (cached.exists) return cached;
-    } catch (e, stack) {
-      developer.log('Cache read error', error: e, stackTrace: stack);
+    } catch (_) {
+      // Fallback to server if cache read fails
     }
-    return ref.get(const GetOptions(source: Source.server));
+    try {
+      return await ref.get(const GetOptions(source: Source.server));
+    } catch (e) {
+      // If server fetch fails, try cache one more time in case of connection loss
+      try {
+        final cached = await ref.get(const GetOptions(source: Source.cache));
+        if (cached.exists) return cached;
+      } catch (_) {}
+      rethrow;
+    }
   }
 
   Future<StudentModel?> getStudentByUid(

@@ -23,9 +23,9 @@ This document defines the non-negotiable architectural constraints and AI coding
 **Rule:** NEVER perform unbounded queries or collection scans (`while(hasMore)`, `.snapshots()`, `.watch()`) on core collections for aggregations. Use single-document aggregates or Custom Claims.
 **Rationale:** The Spark Plan allows only 50,000 reads per day. Iterative rule-side lookups or full table scans will exhaust this limit in minutes.
 
-### 4. Zero-Cost Role-Based Access Control (RBAC)
-**Rule:** Security Rules (`firestore.rules`) MUST rely exclusively on JWT Custom Claims (`request.auth.token.role`) for authorization.
-**Rationale:** Calling `get()` inside a security rule consumes a read quota. Custom Claims cost zero database reads.
+### 4. Document-Based Role-Based Access Control (RBAC)
+**Rule:** Security Rules (`firestore.rules`) MUST read the caller's role from `get(/databases/$(database)/documents/Users/$(request.auth.uid)).data.role`. Custom Claims are NOT available on the Spark Plan.
+**Rationale:** Firestore caches `get()` results within a single rule evaluation (1 read per request, not per helper call). This costs ~200 reads/day for a 50-user church, well within the 50K Spark limit. Custom Claims require Cloud Functions/Admin SDK which are unavailable.
 
 ### 5. Clean Architecture
 **Rule:** Follow the established `Domain -> Data -> Presentation` layer structure using BLoC.

@@ -45,7 +45,7 @@ class AdminTeamService {
   void _validateServantForTeam({
     required Team team,
     required String servantDocId,
-    required Map<String, dynamic> servantData,
+    required Map<String, Object?> servantData,
   }) {
     if (team.isArchived) {
       throw StateError('Cannot assign a servant to an archived team');
@@ -74,7 +74,7 @@ class AdminTeamService {
     }
   }
 
-  List<String> _extractAssignedTeamIds(Map<String, dynamic> data) {
+  List<String> _extractAssignedTeamIds(Map<String, Object?> data) {
     final ids = <String>[];
 
     final assignedTeamIds = data['assignedTeamIds'];
@@ -90,7 +90,7 @@ class AdminTeamService {
     return ids;
   }
 
-  Map<String, dynamic> _servantAssignmentPatch(List<String> teamIds) {
+  Map<String, Object?> _servantAssignmentPatch(List<String> teamIds) {
     if (teamIds.isEmpty) {
       return {
         'assignedTeamIds': FieldValue.delete(),
@@ -130,14 +130,14 @@ class AdminTeamService {
         throw StateError('Team not found');
       }
 
-      final teamData = teamSnap.data() ?? <String, dynamic>{};
+      final teamData = teamSnap.data() ?? <String, Object?>{};
       final oldServantId = (teamData['assignedServantId'] as String?)?.trim();
       final oldServantRef = oldServantId == null || oldServantId.isEmpty
           ? null
           : _userRef(oldServantId);
 
       final newServantSnap = await transaction.get(newServantRef);
-      final newServantData = newServantSnap.data();
+      final Map<String, Object?>? newServantData = newServantSnap.data();
       if (!newServantSnap.exists || newServantData == null) {
         throw StateError('Servant not found');
       }
@@ -169,7 +169,7 @@ class AdminTeamService {
 
       if (oldServantSnap != null && oldServantSnap.exists) {
         final teamIds = _extractAssignedTeamIds(
-          oldServantSnap.data() ?? <String, dynamic>{},
+          oldServantSnap.data() ?? <String, Object?>{},
         )..removeWhere((id) => id == team.id);
         transaction.set(
           oldServantSnap.reference,
@@ -178,7 +178,7 @@ class AdminTeamService {
         );
       }
 
-      transaction.set(newServantRef, {
+      transaction.set(newServantRef, <String, Object?>{
         ..._servantAssignmentPatch(newServantTeamIds),
         'groupId': team.groupId,
       }, SetOptions(merge: true));
@@ -201,7 +201,7 @@ class AdminTeamService {
         throw StateError('Team not found');
       }
 
-      final data = teamSnap.data() ?? <String, dynamic>{};
+      final data = teamSnap.data() ?? <String, Object?>{};
       final oldServantId = (data['assignedServantId'] as String?)?.trim();
       final oldServantRef = oldServantId == null || oldServantId.isEmpty
           ? null
@@ -221,7 +221,7 @@ class AdminTeamService {
 
       if (oldServantSnap != null && oldServantSnap.exists) {
         final teamIds = _extractAssignedTeamIds(
-          oldServantSnap.data() ?? <String, dynamic>{},
+          oldServantSnap.data() ?? <String, Object?>{},
         )..removeWhere((id) => id == team.id);
         transaction.set(
           oldServantSnap.reference,

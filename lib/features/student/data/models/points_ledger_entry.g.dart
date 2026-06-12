@@ -69,34 +69,34 @@ class PointsLedgerEntryAdapter extends TypeAdapter<PointsLedgerEntry> {
 // **************************************************************************
 
 _$PointsLedgerEntryImpl _$$PointsLedgerEntryImplFromJson(
-  Map<String, dynamic> json,
-) => _$PointsLedgerEntryImpl(
-  id: json['id'] as String,
-  studentId: json['studentId'] as String,
-  delta: (json['delta'] as num).toInt(),
-  runningTotal: (json['runningTotal'] as num).toInt(),
-  reason: json['reason'] as String,
-  issuedByUid: json['issuedByUid'] as String,
-  issuedByName: json['issuedByName'] as String,
-  createdAt: DateTime.parse(json['createdAt'] as String),
-  syncStatus:
-      $enumDecodeNullable(_$SyncStatusEnumMap, json['syncStatus']) ??
-      SyncStatus.pending,
-);
+        Map<String, dynamic> json) =>
+    _$PointsLedgerEntryImpl(
+      id: json['id'] as String,
+      studentId: json['studentId'] as String,
+      delta: (json['delta'] as num).toInt(),
+      runningTotal: (json['runningTotal'] as num).toInt(),
+      reason: json['reason'] as String,
+      issuedByUid: json['issuedByUid'] as String,
+      issuedByName: json['issuedByName'] as String,
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      syncStatus:
+          $enumDecodeNullable(_$SyncStatusEnumMap, json['syncStatus']) ??
+              SyncStatus.pending,
+    );
 
 Map<String, dynamic> _$$PointsLedgerEntryImplToJson(
-  _$PointsLedgerEntryImpl instance,
-) => <String, dynamic>{
-  'id': instance.id,
-  'studentId': instance.studentId,
-  'delta': instance.delta,
-  'runningTotal': instance.runningTotal,
-  'reason': instance.reason,
-  'issuedByUid': instance.issuedByUid,
-  'issuedByName': instance.issuedByName,
-  'createdAt': instance.createdAt.toIso8601String(),
-  'syncStatus': _$SyncStatusEnumMap[instance.syncStatus]!,
-};
+        _$PointsLedgerEntryImpl instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'studentId': instance.studentId,
+      'delta': instance.delta,
+      'runningTotal': instance.runningTotal,
+      'reason': instance.reason,
+      'issuedByUid': instance.issuedByUid,
+      'issuedByName': instance.issuedByName,
+      'createdAt': instance.createdAt.toIso8601String(),
+      'syncStatus': _$SyncStatusEnumMap[instance.syncStatus]!,
+    };
 
 const _$SyncStatusEnumMap = {
   SyncStatus.pending: 'pending',

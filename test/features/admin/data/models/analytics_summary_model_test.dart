@@ -85,7 +85,7 @@ void main() {
       expect(map['pendingVisitationsCount'], 3);
     });
 
-    test('topActiveServantsTyped returns typed Map<String, int>', () {
+    test('topActiveServants contains direct Map<String, int>', () {
       final model = AnalyticsSummaryModel(
         sectorId: 'sector-1',
         lastComputedAt: DateTime(2026, 5, 20, 10),
@@ -93,11 +93,11 @@ void main() {
         topActiveServants: {'Alice': 10, 'Bob': 7},
       );
 
-      final typed = model.topActiveServantsTyped;
+      final topActive = model.topActiveServants;
 
-      expect(typed, isA<Map<String, int>>());
-      expect(typed['Alice'], 10);
-      expect(typed['Bob'], 7);
+      expect(topActive, isA<Map<String, int>>());
+      expect(topActive['Alice'], 10);
+      expect(topActive['Bob'], 7);
     });
 
     test('default values are correct', () {

@@ -148,6 +148,22 @@ class AttendanceCommandService {
         return candidate;
       }
 
+      final activeSessionsSnapshot = await _sessionsCol
+          .where('teamId', isEqualTo: normalizedTeamId)
+          .where('isClosed', isEqualTo: false)
+          .get();
+      final existingSessions = _mapSessionsSnapshot(activeSessionsSnapshot);
+
+      for (final existing in existingSessions) {
+        final isActiveConflict =
+            !existing.isEffectivelyClosedAt(now) &&
+            _sessionsOverlap(candidate, existing);
+        if (isActiveConflict ||
+            _isDuplicateSessionCandidate(candidate, existing)) {
+          throw const AttendanceSessionConflictFailure();
+        }
+      }
+
       final docRef = _sessionDoc(normalizedTeamId, candidate.id);
       await _firestore.runTransaction((transaction) async {
         final existingDoc = await transaction.get(docRef);
@@ -155,22 +171,6 @@ class AttendanceCommandService {
           throw const AttendanceSessionConflictFailure(
             'تم إنشاء جلسة حضور مطابقة بالفعل.',
           );
-        }
-
-        final activeSessionsSnapshot = await _sessionsCol
-            .where('teamId', isEqualTo: normalizedTeamId)
-            .where('isClosed', isEqualTo: false)
-            .get();
-        final existingSessions = _mapSessionsSnapshot(activeSessionsSnapshot);
-
-        for (final existing in existingSessions) {
-          final isActiveConflict =
-              !existing.isEffectivelyClosedAt(now) &&
-              _sessionsOverlap(candidate, existing);
-          if (isActiveConflict ||
-              _isDuplicateSessionCandidate(candidate, existing)) {
-            throw const AttendanceSessionConflictFailure();
-          }
         }
 
         transaction.set(docRef, {
@@ -334,6 +334,8 @@ class AttendanceCommandService {
             final markRef = _markDoc(teamId, sessionId, studentId);
             transaction.set(markRef, {
               'studentId': studentId,
+              'teamId': teamId,
+              'sessionId': sessionId,
               'studentNameSnapshot':
                   session.studentNameSnapshots[studentId] ?? 'مخدوم',
               'status': AttendanceMarkStatus.absent.name,
@@ -402,6 +404,8 @@ class AttendanceCommandService {
             final markRef = _markDoc(teamId, sessionId, studentId);
             batch.set(markRef, {
               'studentId': studentId,
+              'teamId': teamId,
+              'sessionId': sessionId,
               'studentNameSnapshot':
                   session.studentNameSnapshots[studentId] ?? 'مخدوم',
               'status': AttendanceMarkStatus.absent.name,
@@ -572,6 +576,8 @@ class AttendanceCommandService {
 
         final markData = <String, dynamic>{
           'studentId': studentId,
+          'teamId': teamId,
+          'sessionId': sessionId,
           'studentNameSnapshot': studentName,
           'status': statusString,
           'markedByUserId': markedByUid,
@@ -681,6 +687,8 @@ class AttendanceCommandService {
 
           final markData = <String, dynamic>{
             'studentId': studentId,
+            'teamId': teamId,
+            'sessionId': sessionId,
             'status': statusString,
             'markedByUserId': markedByUid,
             'markedByName': markedByName,
@@ -769,6 +777,8 @@ class AttendanceCommandService {
 
         final data = <String, dynamic>{
           'studentId': studentId,
+          'teamId': teamId,
+          'sessionId': sessionId,
           'status': status.name,
           'markedByUserId': markedBy.uid,
           'markedByName': markedBy.name,

@@ -1,3 +1,5 @@
+// ignore_for_file: subtype_of_sealed_class
+
 import 'package:church_management_system/features/admin/data/datasources/analytics_local_datasource.dart';
 import 'package:church_management_system/features/admin/data/models/analytics_summary_model.dart';
 import 'package:church_management_system/features/admin/data/repos/analytics_repository_impl.dart';
@@ -44,7 +46,7 @@ void main() {
     int totalStudentsCount = 42,
     double averageAttendanceRate = 0.85,
     int pendingVisitationsCount = 3,
-    Map<String, dynamic> topActiveServants = const {'Alice': 10},
+    Map<String, int> topActiveServants = const {'Alice': 10},
     DateTime? lastComputedAt,
     DateTime? fetchedAt,
   }) {

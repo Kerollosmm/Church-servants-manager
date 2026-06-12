@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 /// Converts Firestore Timestamp to/from Dart DateTime.
+// ignore: type_annotate_public_apis
 class FirestoreTimestampConverter implements JsonConverter<DateTime?, dynamic> {
   const FirestoreTimestampConverter();
 
@@ -24,6 +25,7 @@ class FirestoreTimestampConverter implements JsonConverter<DateTime?, dynamic> {
 }
 
 /// Converts Firestore Timestamp to/from a non-nullable Dart DateTime.
+// ignore: type_annotate_public_apis
 class RequiredFirestoreTimestampConverter
     implements JsonConverter<DateTime, dynamic> {
   const RequiredFirestoreTimestampConverter();

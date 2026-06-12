@@ -23,14 +23,14 @@ import 'package:church_management_system/features/team/presentation/screens/team
 import 'package:flutter/material.dart';
 
 class AppRouter {
-  Route<dynamic> _buildPageRoute({
+  Route<Object?> _buildPageRoute({
     required RouteSettings settings,
     required WidgetBuilder builder,
   }) {
     return MaterialPageRoute(builder: builder, settings: settings);
   }
 
-  Route<dynamic> _buildMessageRoute({
+  Route<Object?> _buildMessageRoute({
     required RouteSettings settings,
     required String message,
   }) {
@@ -40,7 +40,7 @@ class AppRouter {
     );
   }
 
-  Route<dynamic> _buildArgsValidatedRoute<T>({
+  Route<Object?> _buildArgsValidatedRoute<T>({
     required RouteSettings settings,
     required Widget Function(T args) builder,
     required String invalidMessage,
@@ -52,7 +52,7 @@ class AppRouter {
     return _buildMessageRoute(settings: settings, message: invalidMessage);
   }
 
-  Route<dynamic> onGenerateRoute(RouteSettings settings) {
+  Route<Object?> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
       case login:
         return _buildPageRoute(

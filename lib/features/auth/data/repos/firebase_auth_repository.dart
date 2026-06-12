@@ -111,8 +111,15 @@ class FirebaseAuthRepository implements AuthRepository {
   @override
   Future<void> forceRoleRefresh() async {
     try {
-      await _identityProvider.forceTokenRefresh();
-      await _identityProvider.reloadUser();
+      await _identityProvider.forceTokenRefresh().timeout(
+        const Duration(seconds: 10),
+      );
+      await _identityProvider.reloadUser().timeout(const Duration(seconds: 10));
+    } on TimeoutException catch (_) {
+      developer.log(
+        'Force role refresh timed out',
+        name: 'FirebaseAuthRepository',
+      );
     } catch (e) {
       developer.log(
         'Failed to force role refresh',
@@ -311,9 +318,17 @@ class FirebaseAuthRepository implements AuthRepository {
   @override
   Future<AuthUser?> refreshCurrentAppUser() async {
     try {
-      await _identityProvider.forceTokenRefresh();
-      await _identityProvider.reloadUser();
+      await _identityProvider.forceTokenRefresh().timeout(
+        const Duration(seconds: 10),
+      );
+      await _identityProvider.reloadUser().timeout(const Duration(seconds: 10));
       return getCurrentAppUser(forceRefresh: true);
+    } on TimeoutException catch (_) {
+      developer.log(
+        'Auth reload timed out after 10s — returning cached user',
+        name: 'FirebaseAuthRepository',
+      );
+      return lastKnownAppUser;
     } catch (e) {
       throw AuthErrorMapper.mapException(e);
     }

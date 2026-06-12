@@ -41,6 +41,11 @@ class ResultsRepository implements IResultsRepository {
                 .where('groupId', isEqualTo: groupId)
                 .limit(30)
                 .get(const GetOptions(source: Source.server))
+                .catchError((_) => _firestore
+                    .collectionGroup('terms')
+                    .where('groupId', isEqualTo: groupId)
+                    .limit(30)
+                    .get(const GetOptions(source: Source.cache)))
                 .timeout(const Duration(seconds: 10))
                 .then((snapshot) {
                   final results = snapshot.docs
@@ -83,11 +88,19 @@ class ResultsRepository implements IResultsRepository {
       }
       return results.map((r) => r.toDomain()).toList();
     } catch (_) {
-      if (lastDoc == null) {
-        final cached = await _localDatasource.getCachedResultsForGroup(groupId);
-        return cached.map((c) => c.toDomain()).toList();
+      try {
+        final cachedSnapshot = await query.get(const GetOptions(source: Source.cache));
+        final results = cachedSnapshot.docs
+            .map((doc) => ResultsModel.fromMap(doc.data(), doc.id))
+            .toList();
+        return results.map((r) => r.toDomain()).toList();
+      } catch (_) {
+        if (lastDoc == null) {
+          final cached = await _localDatasource.getCachedResultsForGroup(groupId);
+          return cached.map((c) => c.toDomain()).toList();
+        }
+        return [];
       }
-      return [];
     }
   }
 
@@ -103,6 +116,11 @@ class ResultsRepository implements IResultsRepository {
               .doc(studentId)
               .collection('terms')
               .get(const GetOptions(source: Source.server))
+              .catchError((_) => _firestore
+                  .collection('results')
+                  .doc(studentId)
+                  .collection('terms')
+                  .get(const GetOptions(source: Source.cache)))
               .timeout(const Duration(seconds: 10))
               .then((termsSnapshot) {
                 if (termsSnapshot.docs.isNotEmpty) {

@@ -78,6 +78,7 @@ void main() {
     syncService = SyncService(
       deadLetterQueue: dlq,
       connectivity: mockConnectivity,
+      backoffProvider: (_) => Duration.zero,
       handlers: {
         'MARK_ATTENDANCE': AttendanceSyncHandler(mockAttendance),
         'CLEAR_ATTENDANCE': AttendanceSyncHandler(mockAttendance),

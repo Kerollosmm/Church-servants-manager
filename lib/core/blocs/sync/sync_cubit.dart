@@ -63,6 +63,11 @@ class SyncCubit extends Cubit<SyncState> {
     });
   }
 
+  /// Triggers a manual sync cycle by calling the underlying SyncService.
+  Future<void> forceSync() async {
+    await _syncService.processQueue();
+  }
+
   @override
   Future<void> close() {
     _syncSubscription?.cancel();

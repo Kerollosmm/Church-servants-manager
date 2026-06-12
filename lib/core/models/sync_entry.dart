@@ -17,7 +17,7 @@ class SyncEntry extends HiveObject {
 
   /// The JSON-serializable payload containing the mutation data
   @HiveField(2)
-  final Map<String, dynamic> payload;
+  final Map<String, Object?> payload;
 
   @HiveField(3)
   final DateTime createdAt;
@@ -51,7 +51,7 @@ class SyncEntry extends HiveObject {
 
   /// Deterministic key for deduplication.
   /// By default, overwriting the same `id` in Hive will update the entry.
-  Map<String, dynamic> toJson() => {
+  Map<String, Object?> toJson() => {
     'id': id,
     'actionType': actionType,
     'payload': payload,

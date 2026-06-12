@@ -1,6 +1,7 @@
 import 'package:church_management_system/core/utils/json_converters.dart';
 import 'package:church_management_system/features/attendance/domain/entities/attendance_session.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:hive/hive.dart';
 
 export 'package:church_management_system/features/attendance/domain/entities/attendance_session.dart';
 
@@ -12,28 +13,31 @@ typedef _RequiredTimestampConverter = RequiredFirestoreTimestampConverter;
 // ignore_for_file: invalid_annotation_target
 
 @freezed
+@HiveType(typeId: 53)
 class AttendanceSessionModel with _$AttendanceSessionModel {
   const AttendanceSessionModel._();
 
   const factory AttendanceSessionModel({
-    required String id,
-    required String teamId,
-    String? teamNameSnapshot,
-    String? title,
-    required String dateKey,
-    @_RequiredTimestampConverter() required DateTime startsAt,
-    @_RequiredTimestampConverter() required DateTime endsAt,
-    required int durationMinutes,
-    required String createdByUserId,
-    required String createdByName,
-    @_RequiredTimestampConverter() required DateTime createdAt,
-    @_RequiredTimestampConverter() required DateTime updatedAt,
-    @Default(false) bool isClosed,
-    @Default(<String>[]) List<String> studentIdsSnapshot,
-    @Default(<String, String>{}) Map<String, String> studentNameSnapshots,
-    @Default(0) int presentCount,
-    @Default(0) int lateCount,
-    @Default(0) int absentCount,
+    @HiveField(0) required String id,
+    @HiveField(1) required String teamId,
+    @HiveField(2) String? teamNameSnapshot,
+    @HiveField(3) String? title,
+    @HiveField(4) required String dateKey,
+    @HiveField(5) @_RequiredTimestampConverter() required DateTime startsAt,
+    @HiveField(6) @_RequiredTimestampConverter() required DateTime endsAt,
+    @HiveField(7) required int durationMinutes,
+    @HiveField(8) required String createdByUserId,
+    @HiveField(9) required String createdByName,
+    @HiveField(10) @_RequiredTimestampConverter() required DateTime createdAt,
+    @HiveField(11) @_RequiredTimestampConverter() required DateTime updatedAt,
+    @HiveField(12) @Default(false) bool isClosed,
+    @HiveField(13) @Default(<String>[]) List<String> studentIdsSnapshot,
+    @HiveField(14)
+    @Default(<String, String>{})
+    Map<String, String> studentNameSnapshots,
+    @HiveField(15) @Default(0) int presentCount,
+    @HiveField(16) @Default(0) int lateCount,
+    @HiveField(17) @Default(0) int absentCount,
   }) = _AttendanceSessionModel;
 
   factory AttendanceSessionModel.fromJson(Map<String, dynamic> json) =>

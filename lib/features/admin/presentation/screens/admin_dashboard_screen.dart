@@ -2,6 +2,7 @@ import 'package:church_management_system/core/constants/routes.dart' as routes;
 import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/routing/route_args.dart';
 import 'package:church_management_system/core/theme/app_colors.dart';
+import 'package:church_management_system/core/widgets/sync_queue_indicator.dart';
 import 'package:church_management_system/features/admin/presentation/bloc/dashboard/admin_dashboard_bloc.dart';
 import 'package:church_management_system/features/admin/presentation/bloc/dashboard/admin_dashboard_event.dart';
 import 'package:church_management_system/features/admin/presentation/bloc/dashboard/admin_dashboard_state.dart';
@@ -183,6 +184,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       ),
       centerTitle: true,
       actions: [
+        const SyncQueueIndicator(),
         IconButton(
           icon: const Icon(Icons.logout, color: Color(0xFF334155)),
           onPressed: () {

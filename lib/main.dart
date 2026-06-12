@@ -12,6 +12,7 @@ import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/features/admin/data/models/analytics_summary_model.dart';
 import 'package:church_management_system/features/attendance/data/local/mark_sync_entry.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_mark.dart';
+import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
 import 'package:church_management_system/features/attendance/domain/entities/attendance_enums.dart';
 import 'package:church_management_system/features/auth/data/services/auth_user_local_store.dart';
 import 'package:church_management_system/features/results/data/models/results_model.dart';
@@ -60,8 +61,6 @@ void callbackDispatcher() {
         await Hive.deleteBoxFromDisk('servants_sync_queue_box');
         await Hive.deleteBoxFromDisk('attendance_marks_cache');
         await Hive.deleteBoxFromDisk('attendance_marks_sync_queue');
-        await Hive.deleteBoxFromDisk('attendance_marks_v2');
-        await Hive.deleteBoxFromDisk('attendance_marks_sync_queue_v2');
       } catch (e) {
         developer.log(
           'Failed to delete orphaned boxes in background',
@@ -122,7 +121,8 @@ void _registerHiveAdapters() {
     ..registerAdapter(AttendanceMarkStatusAdapter())
     ..registerAdapter(AttendanceMarkAdapter())
     ..registerAdapter(MarkSyncOperationAdapter())
-    ..registerAdapter(MarkSyncEntryAdapter());
+    ..registerAdapter(MarkSyncEntryAdapter())
+    ..registerAdapter(AttendanceSessionModelAdapter());
 }
 
 void main() {
@@ -151,8 +151,6 @@ void main() {
       try {
         await Hive.deleteBoxFromDisk('attendance_marks_cache');
         await Hive.deleteBoxFromDisk('attendance_marks_sync_queue');
-        await Hive.deleteBoxFromDisk('attendance_marks_v2');
-        await Hive.deleteBoxFromDisk('attendance_marks_sync_queue_v2');
       } catch (e) {
         developer.log(
           'Failed to migrate attendance boxes',
@@ -187,15 +185,6 @@ void main() {
 
         // Initialize Workmanager
         await Workmanager().initialize(callbackDispatcher);
-
-        // Register periodic sync task
-        await Workmanager().registerPeriodicTask(
-          'sync_task_id',
-          'offline_sync_task',
-          frequency: const Duration(minutes: 15),
-          constraints: Constraints(networkType: NetworkType.connected),
-          existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
-        );
 
         // Initialize Sync Engine (Foreground)
         await getIt<SyncService>().init();

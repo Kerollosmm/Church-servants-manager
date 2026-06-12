@@ -35,10 +35,7 @@ class AnalyticsSummaryModel with _$AnalyticsSummaryModel {
     @HiveField(3) @Default(0) int pendingVisitationsCount,
 
     /// Top active servants as `{servantName: sessionCount}`.
-    ///
-    /// Stored as `Map<String, dynamic>` for Hive / JSON compatibility.
-    /// Use [topActiveServantsTyped] for a typed `Map<String, int>` view.
-    @HiveField(4) @Default({}) Map<String, dynamic> topActiveServants,
+    @HiveField(4) @Default({}) Map<String, int> topActiveServants,
 
     /// When these stats were last computed server-side.
     @HiveField(5) @_TimestampConverter() required DateTime lastComputedAt,
@@ -67,12 +64,5 @@ class AnalyticsSummaryModel with _$AnalyticsSummaryModel {
     final json = toJson();
     json.remove('fetchedAt');
     return json;
-  }
-
-  /// Typed view of [topActiveServants] — values cast to `int`.
-  Map<String, int> get topActiveServantsTyped {
-    return topActiveServants.map(
-      (key, value) => MapEntry(key, value is int ? value : 0),
-    );
   }
 }
