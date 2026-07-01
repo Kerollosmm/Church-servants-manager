@@ -465,7 +465,10 @@ class TeamRepository implements ITeamRepository {
         try {
           await _syncService.enqueue(syncEntry);
         } catch (queueErr) {
-          developer.log('Failed to enqueue create team sync entry', error: queueErr);
+          developer.log(
+            'Failed to enqueue create team sync entry',
+            error: queueErr,
+          );
         }
       }
 
@@ -580,7 +583,10 @@ class TeamRepository implements ITeamRepository {
         try {
           await _syncService.enqueue(syncEntry);
         } catch (queueErr) {
-          developer.log('Failed to enqueue update team sync entry', error: queueErr);
+          developer.log(
+            'Failed to enqueue update team sync entry',
+            error: queueErr,
+          );
         }
       }
     } catch (e) {
@@ -706,7 +712,10 @@ class TeamRepository implements ITeamRepository {
         try {
           await _syncService.enqueue(syncEntry);
         } catch (queueErr) {
-          developer.log('Failed to enqueue delete team sync entry', error: queueErr);
+          developer.log(
+            'Failed to enqueue delete team sync entry',
+            error: queueErr,
+          );
         }
       }
     } catch (e) {
@@ -815,7 +824,10 @@ class TeamRepository implements ITeamRepository {
         try {
           await _syncService.enqueue(syncEntry);
         } catch (queueErr) {
-          developer.log('Failed to enqueue restore team sync entry', error: queueErr);
+          developer.log(
+            'Failed to enqueue restore team sync entry',
+            error: queueErr,
+          );
         }
       }
     } catch (e) {

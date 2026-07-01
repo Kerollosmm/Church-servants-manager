@@ -179,7 +179,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                 text: 'تسجيل الدخول',
                                 icon: Icons.login,
                                 isLoading: state is AuthLoading,
-                                onPressed: _submit,
+                                onPressed: state is AuthLoading
+                                    ? null
+                                    : _submit,
                               );
                             },
                           ),

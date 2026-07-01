@@ -6,6 +6,7 @@ import 'package:church_management_system/core/services/hive_pruning_service.dart
 import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/features/admin/data/admin_team_membership_service.dart';
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
+import 'package:church_management_system/features/admin/data/datasources/admin_dashboard_local_datasource.dart';
 import 'package:church_management_system/features/admin/data/datasources/analytics_local_datasource.dart';
 import 'package:church_management_system/features/admin/data/repos/analytics_repository_impl.dart';
 import 'package:church_management_system/features/admin/data/services/admin_statistics_service.dart';
@@ -13,7 +14,6 @@ import 'package:church_management_system/features/admin/domain/repos/i_analytics
 import 'package:church_management_system/features/admin/presentation/bloc/dashboard/admin_dashboard_bloc.dart';
 import 'package:church_management_system/features/attendance/data/local/attendance_local_datasource.dart';
 import 'package:church_management_system/features/attendance/data/local/attendance_session_local_datasource.dart';
-import 'package:church_management_system/features/attendance/data/repos/attendance_mark_repository.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_session_repository.dart';
 import 'package:church_management_system/features/attendance/data/services/attendance_command_service.dart';
@@ -37,6 +37,7 @@ import 'package:church_management_system/features/servant/data/repo/servant_data
 import 'package:church_management_system/features/servant/data/services/servant_sync_handler.dart';
 import 'package:church_management_system/features/servant/domain/repos/i_servant_repository.dart';
 import 'package:church_management_system/features/servant/domain/usecases/provision_servant_with_auth_usecase.dart';
+import 'package:church_management_system/features/student/data/datasources/pastoral_local_datasource.dart';
 import 'package:church_management_system/features/student/data/datasources/student_local_datasource.dart';
 import 'package:church_management_system/features/student/data/repos/pastoral_repository.dart';
 import 'package:church_management_system/features/student/data/repos/student_data_repository.dart';
@@ -120,6 +121,9 @@ void _registerCore() {
           'DELETE_TEAM': getIt<TeamSyncHandler>(),
           'RESTORE_TEAM': getIt<TeamSyncHandler>(),
           'CREATE_SERVANT': getIt<ServantSyncHandler>(),
+          'UPDATE_SERVANT': getIt<ServantSyncHandler>(),
+          'ARCHIVE_SERVANT': getIt<ServantSyncHandler>(),
+          'RESTORE_SERVANT': getIt<ServantSyncHandler>(),
         },
       ),
     )
@@ -160,6 +164,9 @@ void _registerRepositories() {
     ..registerLazySingleton<AttendanceLocalDatasource>(
       AttendanceLocalDatasource.new,
     )
+    ..registerLazySingleton<AdminDashboardLocalDatasource>(
+      AdminDashboardLocalDatasource.new,
+    )
     ..registerLazySingleton<AttendanceSessionLocalDatasource>(
       AttendanceSessionLocalDatasource.new,
     )
@@ -175,14 +182,6 @@ void _registerRepositories() {
     )
     ..registerLazySingleton<AttendanceCommandService>(
       () => AttendanceCommandService(firestore: getIt()),
-    )
-    ..registerLazySingleton<AttendanceMarkRepository>(
-      () => AttendanceMarkRepository(
-        firestore: getIt(),
-        localDatasource: getIt<AttendanceLocalDatasource>(),
-        sessionLocalDatasource: getIt<AttendanceSessionLocalDatasource>(),
-        teamLocalDatasource: getIt<TeamLocalDatasource>(),
-      ),
     )
     ..registerLazySingleton<AttendanceSessionRepository>(
       () => AttendanceSessionRepository(
@@ -203,7 +202,9 @@ void _registerRepositories() {
     ..registerLazySingleton<IResultsRepository>(
       () => ResultsRepository(
         firestore: getIt(),
+        syncServiceGetter: getIt.call,
         localDatasource: getIt<ResultsLocalDatasource>(),
+        connectivity: getIt<Connectivity>(),
       ),
     )
     ..registerLazySingleton<TeamLocalDatasource>(TeamLocalDatasource.new)
@@ -241,8 +242,15 @@ void _registerRepositories() {
     ..registerLazySingleton<AttendanceRepository>(
       () => getIt<IAttendanceRepository>() as AttendanceRepository,
     )
+    ..registerLazySingleton<PastoralLocalDatasource>(
+      PastoralLocalDatasource.new,
+    )
     ..registerLazySingleton<IPastoralRepository>(
-      () => PastoralRepository(firestore: getIt()),
+      () => PastoralRepository(
+        firestore: getIt(),
+        localDatasource: getIt<PastoralLocalDatasource>(),
+        syncServiceGetter: getIt.call,
+      ),
     )
     ..registerLazySingleton<AnalyticsLocalDatasource>(
       AnalyticsLocalDatasource.new,
@@ -303,6 +311,7 @@ void _registerBlocs() {
       getIt<IServantRepository>(),
       getIt<ITeamRepository>(),
       getIt<AdminStatisticsService>(),
+      getIt<AdminDashboardLocalDatasource>(),
     ),
   );
 }

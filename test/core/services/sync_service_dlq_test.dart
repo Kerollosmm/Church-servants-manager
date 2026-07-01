@@ -83,6 +83,7 @@ void main() {
         'MARK_ATTENDANCE': AttendanceSyncHandler(mockAttendance),
         'CLEAR_ATTENDANCE': AttendanceSyncHandler(mockAttendance),
         'UPSERT_STUDENT': StudentSyncHandler(mockStudent),
+        'UPDATE_STUDENT': StudentSyncHandler(mockStudent),
         'ARCHIVE_STUDENT': StudentSyncHandler(mockStudent),
         'RESTORE_STUDENT': StudentSyncHandler(mockStudent),
         'UPDATE_RESULT': ResultsSyncHandler(mockResults),

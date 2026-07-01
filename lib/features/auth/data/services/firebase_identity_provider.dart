@@ -12,7 +12,7 @@ class FirebaseIdentityProvider {
 
   User? get currentUser => _auth.currentUser;
 
-  Stream<User?> get authStateChanges => _auth.userChanges();
+  Stream<User?> get authStateChanges => _auth.authStateChanges();
 
   Stream<Map<String, dynamic>> get idTokenChanges =>
       _auth.idTokenChanges().asyncMap((user) async {

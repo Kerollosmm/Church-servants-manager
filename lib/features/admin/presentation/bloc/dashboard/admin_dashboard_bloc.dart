@@ -1,5 +1,6 @@
 import 'dart:developer' as developer;
 
+import 'package:church_management_system/features/admin/data/datasources/admin_dashboard_local_datasource.dart';
 import 'package:church_management_system/features/admin/data/services/admin_statistics_service.dart';
 import 'package:church_management_system/features/admin/presentation/bloc/dashboard/admin_dashboard_event.dart';
 import 'package:church_management_system/features/admin/presentation/bloc/dashboard/admin_dashboard_state.dart';
@@ -19,12 +20,14 @@ class AdminDashboardBloc
   final IServantRepository _servantRepository;
   final ITeamRepository _teamRepository;
   final AdminStatisticsService _statisticsService;
+  final AdminDashboardLocalDatasource _localDatasource;
 
   AdminDashboardBloc(
     this._studentRepository,
     this._servantRepository,
     this._teamRepository,
     this._statisticsService,
+    this._localDatasource,
   ) : super(AdminDashboardInitial()) {
     on<LoadDashboardData>(_onLoadDashboardData);
   }
@@ -33,59 +36,58 @@ class AdminDashboardBloc
     LoadDashboardData event,
     Emitter<AdminDashboardState> emit,
   ) async {
-    emit(AdminDashboardLoading());
+    // 1. Try loading from cache first
+    DashboardKpiData? cachedKpi;
     try {
-      // Fetch list data; fall back to empty lists if permissions or network
-      // prevent access – we show partial data rather than killing the dashboard.
+      cachedKpi = await _localDatasource.getKpiData();
+      if (cachedKpi != null) {
+        emit(
+          AdminDashboardLoaded(kpiData: cachedKpi, recentActivity: const []),
+        );
+      }
+    } catch (e) {
+      developer.log(
+        'Failed to load cached dashboard KPI: $e',
+        name: 'AdminDashboardBloc',
+      );
+    }
+
+    // If no cached data, emit loading state
+    if (cachedKpi == null) {
+      emit(AdminDashboardLoading());
+    }
+
+    try {
+      // 2. Fetch fresh data from remote sources in background
       final studentsFuture = _studentRepository
           .getAllStudents(includeArchived: false)
+          .then<List<Student>?>((v) => v)
           .catchError((Object e, StackTrace st) {
-            developer.log(
-              'Students fetch failed – using empty list',
-              error: e,
-              stackTrace: st,
-            );
-            return <Student>[];
+            developer.log('Students fetch failed', error: e, stackTrace: st);
+            return null;
           });
-      final servantsFuture = _servantRepository.getAllServants().catchError((
-        Object e,
-        StackTrace st,
-      ) {
-        developer.log(
-          'Servants fetch failed – using empty list',
-          error: e,
-          stackTrace: st,
-        );
-        return <Servant>[];
-      });
+      final servantsFuture = _servantRepository
+          .getAllServants()
+          .then<List<Servant>?>((v) => v)
+          .catchError((Object e, StackTrace st) {
+            developer.log('Servants fetch failed', error: e, stackTrace: st);
+            return null;
+          });
       final teamsFuture = _teamRepository
           .getAllTeams(includeArchived: false)
+          .then<List<Team>?>((v) => v)
           .catchError((Object e, StackTrace st) {
-            developer.log(
-              'Teams fetch failed – using empty list',
-              error: e,
-              stackTrace: st,
-            );
-            return <Team>[];
+            developer.log('Teams fetch failed', error: e, stackTrace: st);
+            return null;
           });
 
-      // The stats call uses collectionGroup which may fail on Spark-tier
-      // security rules or missing fields – fall back to zeros instead of
-      // killing the entire dashboard.
+      // Change forceRefresh to false to allow cache TTL
       final statsFuture = _statisticsService
-          .getGlobalDashboardStats(forceRefresh: true)
+          .getGlobalDashboardStats()
+          .then<GlobalDashboardStats?>((v) => v)
           .catchError((Object e, StackTrace st) {
-            developer.log(
-              'Stats collectionGroup failed – using defaults',
-              error: e,
-              stackTrace: st,
-            );
-            return GlobalDashboardStats(
-              totalSessions: 0,
-              totalPresent: 0,
-              totalRosterEntries: 0,
-              updatedAt: DateTime(2026),
-            );
+            developer.log('Stats query failed', error: e, stackTrace: st);
+            return null;
           });
 
       final results = await Future.wait([
@@ -95,38 +97,57 @@ class AdminDashboardBloc
         statsFuture,
       ]);
 
-      final students = results[0] as List<Student>;
-      final servants = results[1] as List;
-      final teams = results[2] as List<Team>;
-      final stats = results[3] as GlobalDashboardStats;
+      final students = results[0] as List<Student>?;
+      final servants = results[1] as List<Servant>?;
+      final teams = results[2] as List<Team>?;
+      final stats = results[3] as GlobalDashboardStats?;
 
-      final totalSessions = stats.totalSessions;
-      final totalPresent = stats.totalPresent;
-      final totalRosterEntries = stats.totalRosterEntries;
+      final totalSessions =
+          stats?.totalSessions ?? cachedKpi?.totalSessions ?? 0;
+      final totalPresent = stats?.totalPresent ?? cachedKpi?.totalPresent ?? 0;
+      final totalRosterEntries = stats?.totalRosterEntries ?? 0;
 
-      final attendanceRate = totalRosterEntries > 0
-          ? (totalPresent / totalRosterEntries * 100).clamp(0.0, 100.0)
-          : 0.0;
+      final double attendanceRate;
+      if (stats != null) {
+        final rawRate = totalRosterEntries > 0
+            ? (totalPresent / totalRosterEntries * 100)
+            : 0.0;
+        attendanceRate = double.parse(
+          rawRate.clamp(0.0, 100.0).toStringAsFixed(1),
+        );
+      } else {
+        attendanceRate = cachedKpi?.attendanceRate ?? 0.0;
+      }
 
-      final kpiData = DashboardKpiData(
-        totalStudents: students.length,
-        totalServants: servants.length,
-        totalTeams: teams.length,
+      final freshKpiData = DashboardKpiData(
+        totalStudents: students != null
+            ? students.length
+            : (cachedKpi?.totalStudents ?? 0),
+        totalServants: servants != null
+            ? servants.length
+            : (cachedKpi?.totalServants ?? 0),
+        totalTeams: teams != null ? teams.length : (cachedKpi?.totalTeams ?? 0),
         totalSessions: totalSessions,
         totalPresent: totalPresent,
-        attendanceRate: double.parse(attendanceRate.toStringAsFixed(1)),
+        attendanceRate: attendanceRate,
       );
 
-      final activities = <ActivityLog>[];
+      // 3. Save fresh KPI data to local cache
+      await _localDatasource.saveKpiData(freshKpiData);
 
-      emit(AdminDashboardLoaded(kpiData: kpiData, recentActivity: activities));
+      emit(
+        AdminDashboardLoaded(kpiData: freshKpiData, recentActivity: const []),
+      );
     } catch (e, stack) {
       developer.log('Dashboard error', error: e, stackTrace: stack);
-      emit(
-        const AdminDashboardError(
-          'تعذر تحميل بيانات لوحة التحكم. تأكد من الاتصال بالإنترنت.',
-        ),
-      );
+      // Only emit error if we don't have cached data to show
+      if (cachedKpi == null) {
+        emit(
+          const AdminDashboardError(
+            'تعذر تحميل بيانات لوحة التحكم. تأكد من الاتصال بالإنترنت.',
+          ),
+        );
+      }
     }
   }
 }

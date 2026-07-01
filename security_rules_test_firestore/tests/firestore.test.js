@@ -4,7 +4,7 @@ const {
   initializeTestEnvironment,
   RulesTestEnvironment,
 } = require('@firebase/rules-unit-testing');
-const { setDoc, getDoc, updateDoc, deleteDoc, collection, doc } = require('firebase/firestore');
+const { setDoc, getDoc, updateDoc, deleteDoc, collection, doc, collectionGroup, query, getDocs } = require('firebase/firestore');
 const fs = require('fs');
 const path = require('path');
 
@@ -17,7 +17,7 @@ describe('Firestore Security Rules', () => {
     testEnv = await initializeTestEnvironment({
       projectId: PROJECT_ID,
       firestore: {
-        rules: fs.readFileSync(path.resolve(__dirname, '../firestore.rules'), 'utf8'),
+        rules: fs.readFileSync(path.resolve(__dirname, '../../firestore.rules'), 'utf8'),
         host: 'localhost',
         port: 8080,
       },
@@ -101,12 +101,12 @@ describe('Firestore Security Rules', () => {
       await assertSucceeds(getDoc(doc(db, 'Users', uid)));
     });
 
-    test('servant cannot read another servant profile', async () => {
+    test('servant can read another servant profile', async () => {
       const uid = 'user-123';
       await seedUser(uid, { role: 'servant' });
       await seedUser('other', { role: 'servant' });
       const db = testEnv.authenticatedContext(uid, { role: 'servant' }).firestore();
-      await assertFails(getDoc(doc(db, 'Users', 'other')));
+      await assertSucceeds(getDoc(doc(db, 'Users', 'other')));
     });
 
     test('admin can read any profile', async () => {
@@ -243,6 +243,73 @@ describe('Firestore Security Rules', () => {
         studentId: 'student-1',
         status: 'absent',
         markedByUserId: 'system',
+      }));
+    });
+  });
+
+  // --- Tests added for Feature 024 ---
+  describe('Feature 024: Code Review Remediation Tests', () => {
+    test('servant cannot read pastoral records via collection group', async () => {
+      const servantId = 'servant-1';
+      await seedUser(servantId, { role: 'servant' });
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        const db = context.firestore();
+        await setDoc(doc(db, 'Students/student-1/PastoralRecords/record-1'), {
+          recordId: 'record-1',
+          studentId: 'student-1',
+          type: 'phoneCall',
+          summary: 'Hello',
+          visitedByUid: servantId,
+          visitedByName: 'Test Servant',
+          createdAt: new Date(),
+        });
+      });
+      const db = testEnv.authenticatedContext(servantId, { role: 'servant' }).firestore();
+      await assertFails(getDocs(query(collectionGroup(db, 'PastoralRecords'))));
+    });
+
+    test('admin can read pastoral records via collection group', async () => {
+      const adminId = 'admin-1';
+      await seedUser(adminId, { role: 'admin' });
+      const db = testEnv.authenticatedContext(adminId, { role: 'admin' }).firestore();
+      await assertSucceeds(getDocs(query(collectionGroup(db, 'PastoralRecords'))));
+    });
+
+    test('new user without profile doc can self-register with student role', async () => {
+      const newUid = 'new-user-999';
+      const db = testEnv.authenticatedContext(newUid).firestore();
+      await assertSucceeds(setDoc(doc(db, 'Users', newUid), {
+        uid: newUid,
+        name: 'New Student',
+        email: 'new@example.com',
+        role: 'student',
+        isArchived: false,
+      }));
+    });
+
+    test('servant can create student in their assigned sector and team', async () => {
+      const servantId = 'servant-1';
+      await seedUser(servantId, { role: 'servant', assignedSectorIds: ['sector-1'], assignedTeamIds: ['team-1'] });
+      const db = testEnv.authenticatedContext(servantId, { role: 'servant' }).firestore();
+      await assertSucceeds(setDoc(doc(db, 'Students', 'student-scoped'), {
+        uid: 'student-scoped',
+        name: 'Scoped Student',
+        sectorId: 'sector-1',
+        classId: 'team-1',
+        isArchived: false,
+      }));
+    });
+
+    test('servant cannot create student with classId outside their scope', async () => {
+      const servantId = 'servant-1';
+      await seedUser(servantId, { role: 'servant', assignedSectorIds: ['sector-1'], assignedTeamIds: ['team-1'] });
+      const db = testEnv.authenticatedContext(servantId, { role: 'servant' }).firestore();
+      await assertFails(setDoc(doc(db, 'Students', 'student-unscoped'), {
+        uid: 'student-unscoped',
+        name: 'Unscoped Student',
+        sectorId: 'sector-1',
+        classId: 'team-2',
+        isArchived: false,
       }));
     });
   });

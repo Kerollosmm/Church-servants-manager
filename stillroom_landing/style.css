@@ -1,0 +1,1183 @@
+/* Stillroom Design System Stylesheet */
+
+/* Fonts Import */
+@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Raleway:wght@300;400;500;600;700&display=swap');
+
+/* CSS Variables */
+:root {
+    /* Color Palette */
+    --color-bg-linen: #F6F4F0;
+    --color-surface-cream: #FAF9F6;
+    --color-text-charcoal: #2D2926;
+    --color-text-stone: #6D6763;
+    --color-accent-terracotta: #C07A65;
+    --color-accent-sage: #94A496;
+    --color-accent-ocean: #6B7F8A;
+    
+    /* Typography */
+    --font-heading: 'Lora', serif;
+    --font-body: 'Raleway', sans-serif;
+    
+    /* Spacing Variables */
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 16px;
+    --space-lg: 24px;
+    --space-xl: 32px;
+    --space-2xl: 48px;
+    --space-3xl: 64px;
+    
+    /* Shadow Depths */
+    --shadow-sm: 0 1px 2px rgba(45, 41, 38, 0.02);
+    --shadow-md: 0 8px 24px rgba(45, 41, 38, 0.04);
+    --shadow-lg: 0 16px 40px rgba(45, 41, 38, 0.06);
+    
+    /* Timing */
+    --transition-smooth: all 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+    --transition-fast: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* Reset and Base Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+    background-color: var(--color-bg-linen);
+    color: var(--color-text-charcoal);
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.6;
+    overflow-x: hidden;
+}
+
+/* Container */
+.container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 var(--space-lg);
+}
+
+/* Typography Utilities */
+h1, h2, h3, h4, .logo {
+    font-family: var(--font-heading);
+    font-weight: 500;
+    line-height: 1.25;
+}
+
+p {
+    font-family: var(--font-body);
+    font-weight: 400;
+}
+
+.text-muted {
+    color: var(--color-text-stone);
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+}
+
+/* Buttons */
+.btn {
+    display: inline-block;
+    padding: 14px 28px;
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    text-decoration: none;
+    border-radius: 4px;
+    transition: var(--transition-fast);
+    cursor: pointer;
+    text-align: center;
+}
+
+.btn-primary {
+    background-color: var(--color-accent-terracotta);
+    color: var(--color-surface-cream);
+    border: 1px solid var(--color-accent-terracotta);
+}
+
+.btn-primary:hover {
+    background-color: #b26853;
+    border-color: #b26853;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-secondary {
+    background-color: transparent;
+    color: var(--color-text-charcoal);
+    border: 1px solid var(--color-text-stone);
+}
+
+.btn-secondary:hover {
+    border-color: var(--color-text-charcoal);
+    background-color: rgba(45, 41, 38, 0.03);
+    transform: translateY(-2px);
+}
+
+/* Navigation Bar */
+.navbar {
+    position: fixed;
+    top: 24px;
+    left: 24px;
+    right: 24px;
+    z-index: 1000;
+    background-color: rgba(250, 249, 246, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(45, 41, 38, 0.05);
+    border-radius: 4px;
+    padding: 14px 0;
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition-smooth);
+}
+
+.nav-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 var(--space-lg);
+}
+
+.logo {
+    font-size: 1.4rem;
+    color: var(--color-text-charcoal);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}
+
+.logo-dot {
+    width: 8px;
+    height: 8px;
+    background-color: var(--color-accent-terracotta);
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.nav-links {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xl);
+}
+
+.nav-link {
+    color: var(--color-text-charcoal);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: var(--transition-fast);
+}
+
+.nav-link:hover {
+    color: var(--color-accent-terracotta);
+}
+
+.btn-nav {
+    padding: 8px 18px;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-radius: 4px;
+    text-decoration: none;
+}
+
+/* Mobile Nav Toggle */
+.mobile-nav-toggle {
+    display: none;
+    background: none;
+    border: none;
+    cursor: pointer;
+    flex-direction: column;
+    gap: 5px;
+    width: 24px;
+    height: 24px;
+    justify-content: center;
+    z-index: 1100;
+}
+
+.mobile-nav-toggle span {
+    display: block;
+    width: 100%;
+    height: 2px;
+    background-color: var(--color-text-charcoal);
+    transition: var(--transition-fast);
+}
+
+/* Hero Section */
+.hero-section {
+    padding: 160px 0 100px 0;
+    position: relative;
+}
+
+.hero-grid {
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: var(--space-3xl);
+    align-items: center;
+}
+
+.hero-tag {
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--color-accent-terracotta);
+    display: block;
+    margin-bottom: var(--space-md);
+    font-weight: 600;
+}
+
+.hero-title {
+    font-size: 3.5rem;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    margin-bottom: var(--space-lg);
+}
+
+.hero-description {
+    font-size: 1.15rem;
+    font-weight: 300;
+    margin-bottom: var(--space-2xl);
+    max-width: 500px;
+}
+
+.hero-actions {
+    display: flex;
+    gap: var(--space-md);
+}
+
+.hero-image-wrapper {
+    position: relative;
+    width: 100%;
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: var(--shadow-lg);
+}
+
+.hero-img {
+    width: 100%;
+    height: auto;
+    display: block;
+    object-fit: cover;
+    transition: var(--transition-smooth);
+}
+
+.hero-image-wrapper:hover .hero-img {
+    transform: scale(1.02);
+}
+
+.hero-badge {
+    position: absolute;
+    bottom: var(--space-lg);
+    left: var(--space-lg);
+    background-color: rgba(250, 249, 246, 0.9);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(45, 41, 38, 0.05);
+    padding: 12px 20px;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.badge-title {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--color-text-stone);
+}
+
+.badge-value {
+    font-family: var(--font-heading);
+    font-size: 1.05rem;
+    color: var(--color-text-charcoal);
+    font-weight: 600;
+}
+
+/* Rituals Section */
+.rituals-section {
+    padding: 100px 0;
+    background-color: var(--color-surface-cream);
+    border-top: 1px solid rgba(45, 41, 38, 0.03);
+    border-bottom: 1px solid rgba(45, 41, 38, 0.03);
+}
+
+.section-header {
+    max-width: 600px;
+    margin-bottom: var(--space-3xl);
+}
+
+.section-title {
+    font-size: 2.25rem;
+    font-weight: 400;
+    margin-bottom: var(--space-md);
+}
+
+.section-subtitle {
+    font-size: 1.1rem;
+    font-weight: 300;
+}
+
+.rituals-container {
+    display: grid;
+    grid-template-columns: 1fr 1.3fr;
+    gap: var(--space-3xl);
+    align-items: start;
+}
+
+.ritual-switcher {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.ritual-nav-item {
+    background-color: transparent;
+    border: 1px solid rgba(45, 41, 38, 0.05);
+    border-radius: 4px;
+    padding: 24px var(--space-xl);
+    display: flex;
+    align-items: center;
+    gap: var(--space-xl);
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.ritual-nav-item:hover {
+    border-color: rgba(45, 41, 38, 0.15);
+    background-color: rgba(45, 41, 38, 0.01);
+}
+
+.ritual-nav-item.active {
+    background-color: var(--color-bg-linen);
+    border-color: var(--color-text-charcoal);
+}
+
+.ritual-time {
+    font-family: var(--font-heading);
+    font-size: 1.25rem;
+    color: var(--color-accent-terracotta);
+    font-weight: 500;
+}
+
+.ritual-title-block h3 {
+    font-size: 1.15rem;
+    font-weight: 500;
+    margin-bottom: 2px;
+}
+
+.ritual-title-block p {
+    font-size: 0.85rem;
+    color: var(--color-text-stone);
+}
+
+/* Detail Card Display */
+.ritual-display-card {
+    background-color: var(--color-bg-linen);
+    border-radius: 4px;
+    padding: 40px;
+    box-shadow: var(--shadow-md);
+    min-height: 480px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.ritual-card-content {
+    display: none;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.ritual-card-content.active {
+    display: block;
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.card-pill {
+    display: inline-block;
+    padding: 6px 12px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    background-color: rgba(148, 164, 150, 0.15);
+    color: var(--color-text-charcoal);
+    border-radius: 20px;
+    margin-bottom: var(--space-xl);
+    font-weight: 500;
+}
+
+#ritual-morning .card-pill {
+    background-color: rgba(192, 122, 101, 0.12);
+    color: var(--color-accent-terracotta);
+}
+
+#ritual-midday .card-pill {
+    background-color: rgba(148, 164, 150, 0.15);
+    color: var(--color-accent-sage);
+}
+
+#ritual-evening .card-pill {
+    background-color: rgba(107, 127, 138, 0.12);
+    color: var(--color-accent-ocean);
+}
+
+.card-ritual-title {
+    font-size: 1.8rem;
+    font-weight: 400;
+    margin-bottom: var(--space-md);
+}
+
+.card-ritual-desc {
+    font-size: 1rem;
+    font-weight: 300;
+    color: var(--color-text-charcoal);
+    line-height: 1.7;
+    margin-bottom: var(--space-2xl);
+}
+
+.ritual-guide-preview {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.guide-step {
+    display: flex;
+    gap: var(--space-md);
+    align-items: flex-start;
+}
+
+.step-num {
+    font-family: var(--font-heading);
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--color-text-stone);
+    margin-top: 2px;
+}
+
+.step-text {
+    font-size: 0.95rem;
+    color: var(--color-text-stone);
+}
+
+/* Audio Player Container */
+.audio-player-container {
+    margin-top: var(--space-3xl);
+    border-top: 1px solid rgba(45, 41, 38, 0.08);
+    padding-top: var(--space-xl);
+    display: flex;
+    align-items: center;
+    gap: var(--space-xl);
+}
+
+.btn-play-pause {
+    background-color: var(--color-text-charcoal);
+    color: var(--color-surface-cream);
+    border: none;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.btn-play-pause svg {
+    fill: currentColor;
+    stroke: none;
+}
+
+.btn-play-pause:hover {
+    background-color: var(--color-accent-terracotta);
+    transform: scale(1.05);
+}
+
+.hidden {
+    display: none !important;
+}
+
+.audio-meta {
+    display: flex;
+    flex-direction: column;
+}
+
+.audio-status {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--color-text-charcoal);
+}
+
+.audio-desc {
+    font-size: 0.8rem;
+    color: var(--color-text-stone);
+}
+
+.audio-wave {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 20px;
+    width: 24px;
+}
+
+.audio-wave span {
+    display: block;
+    width: 2px;
+    background-color: var(--color-accent-terracotta);
+    border-radius: 2px;
+    height: 4px;
+    transition: height 0.3s ease;
+}
+
+/* Playing Animation for audio wave */
+.audio-wave.playing span {
+    animation: wave-bounce 1s ease-in-out infinite alternate;
+}
+
+.audio-wave.playing span:nth-child(1) { animation-delay: 0.1s; }
+.audio-wave.playing span:nth-child(2) { animation-delay: 0.3s; }
+.audio-wave.playing span:nth-child(3) { animation-delay: 0.0s; }
+.audio-wave.playing span:nth-child(4) { animation-delay: 0.4s; }
+.audio-wave.playing span:nth-child(5) { animation-delay: 0.2s; }
+
+@keyframes wave-bounce {
+    0% { height: 4px; }
+    100% { height: 18px; }
+}
+
+/* Banner Divider */
+.banner-divider {
+    position: relative;
+    height: 400px;
+    width: 100%;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.banner-bg {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    min-width: 100%;
+    min-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: cover;
+    z-index: 1;
+}
+
+.banner-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(45, 41, 38, 0.4);
+    backdrop-filter: blur(2px);
+    z-index: 2;
+}
+
+.banner-content {
+    position: relative;
+    z-index: 3;
+    text-align: center;
+    max-width: 800px;
+    padding: 0 var(--space-lg);
+}
+
+.banner-quote {
+    font-family: var(--font-heading);
+    font-size: 2.2rem;
+    font-weight: 400;
+    color: var(--color-surface-cream);
+    line-height: 1.3;
+    font-style: italic;
+}
+
+/* What Arrives Section */
+.vessels-section {
+    padding: 120px 0;
+}
+
+.vessels-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-3xl);
+    align-items: center;
+}
+
+.layered-image-container {
+    position: relative;
+    padding: 24px;
+}
+
+.main-vessel-img {
+    width: 100%;
+    height: auto;
+    border-radius: 4px;
+    display: block;
+    box-shadow: var(--shadow-lg);
+}
+
+.tactile-pill {
+    position: absolute;
+    top: 48px;
+    right: 48px;
+    background-color: rgba(250, 249, 246, 0.95);
+    backdrop-filter: blur(4px);
+    padding: 14px 22px;
+    border-radius: 4px;
+    border: 1px solid rgba(45, 41, 38, 0.05);
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--shadow-md);
+}
+
+.material-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-text-stone);
+}
+
+.material-value {
+    font-family: var(--font-heading);
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--color-text-charcoal);
+}
+
+.section-tag {
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--color-accent-terracotta);
+    display: block;
+    margin-bottom: var(--space-md);
+    font-weight: 600;
+}
+
+.vessels-content-column .section-title {
+    margin-bottom: var(--space-lg);
+}
+
+.section-description {
+    font-size: 1.1rem;
+    font-weight: 300;
+    margin-bottom: var(--space-2xl);
+}
+
+.tactile-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xl);
+}
+
+.list-title {
+    font-size: 1.15rem;
+    font-weight: 500;
+    margin-bottom: 6px;
+    color: var(--color-text-charcoal);
+}
+
+.list-desc {
+    font-size: 0.95rem;
+    font-weight: 300;
+}
+
+/* Sensory Philosophy Section */
+.philosophy-section {
+    padding: 100px 0;
+    background-color: var(--color-surface-cream);
+    border-top: 1px solid rgba(45, 41, 38, 0.03);
+    border-bottom: 1px solid rgba(45, 41, 38, 0.03);
+}
+
+.philosophy-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-2xl);
+}
+
+.philosophy-card {
+    background-color: var(--color-bg-linen);
+    padding: 40px var(--space-xl);
+    border-radius: 4px;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid rgba(45, 41, 38, 0.03);
+    transition: var(--transition-fast);
+}
+
+.philosophy-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.philosophy-icon {
+    color: var(--color-accent-terracotta);
+    margin-bottom: var(--space-xl);
+    display: inline-block;
+}
+
+.philosophy-card .card-title {
+    font-size: 1.3rem;
+    font-weight: 500;
+    margin-bottom: var(--space-md);
+}
+
+.philosophy-card p {
+    font-size: 0.95rem;
+    font-weight: 300;
+    line-height: 1.65;
+}
+
+/* Testimonials Section (Asymmetric) */
+.testimonials-section {
+    padding: 120px 0;
+}
+
+.testimonials-grid {
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: var(--space-3xl);
+    align-items: center;
+}
+
+.testimonial-large {
+    position: relative;
+    padding-left: var(--space-2xl);
+}
+
+.quote-mark {
+    font-family: var(--font-heading);
+    font-size: 6rem;
+    color: var(--color-accent-terracotta);
+    opacity: 0.15;
+    position: absolute;
+    top: -48px;
+    left: 0;
+    line-height: 1;
+}
+
+.testimonial-large blockquote {
+    font-family: var(--font-heading);
+    font-size: 1.8rem;
+    font-weight: 400;
+    font-style: italic;
+    line-height: 1.45;
+    margin-bottom: var(--space-xl);
+    color: var(--color-text-charcoal);
+}
+
+.testimonial-author {
+    font-family: var(--font-body);
+    font-style: normal;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-text-stone);
+    font-weight: 600;
+}
+
+.testimonials-small-stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2xl);
+}
+
+.testimonial-small {
+    background-color: var(--color-surface-cream);
+    padding: var(--space-xl);
+    border-radius: 4px;
+    border-left: 2px solid var(--color-accent-sage);
+    box-shadow: var(--shadow-sm);
+}
+
+.testimonial-small:nth-child(2) {
+    border-left-color: var(--color-accent-ocean);
+}
+
+.testimonial-small blockquote {
+    font-size: 1.05rem;
+    font-weight: 300;
+    margin-bottom: var(--space-md);
+    line-height: 1.6;
+}
+
+/* Join Section (Invitation Card Style) */
+.join-section {
+    padding: 100px 0 140px 0;
+}
+
+.invitation-card {
+    background-color: var(--color-surface-cream);
+    border: 1px solid rgba(45, 41, 38, 0.06);
+    border-radius: 4px;
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 60px var(--space-3xl);
+    box-shadow: var(--shadow-lg);
+    text-align: center;
+    position: relative;
+}
+
+.invitation-card::after {
+    content: '';
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    border: 1px dashed rgba(45, 41, 38, 0.08);
+    pointer-events: none;
+    border-radius: 2px;
+}
+
+.invitation-header {
+    margin-bottom: var(--space-2xl);
+}
+
+.invitation-tag {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--color-accent-terracotta);
+    font-weight: 600;
+    display: inline-block;
+    margin-bottom: var(--space-md);
+}
+
+.invitation-title {
+    font-size: 2.25rem;
+    font-weight: 400;
+    margin-bottom: var(--space-md);
+}
+
+.invitation-desc {
+    font-size: 1.05rem;
+    font-weight: 300;
+}
+
+.invitation-form {
+    display: flex;
+    gap: var(--space-md);
+    max-width: 500px;
+    margin: 0 auto var(--space-xl) auto;
+}
+
+.form-group {
+    flex-grow: 1;
+}
+
+.input {
+    width: 100%;
+    padding: 14px 18px;
+    font-family: var(--font-body);
+    font-size: 1rem;
+    color: var(--color-text-charcoal);
+    background-color: var(--color-bg-linen);
+    border: 1px solid rgba(45, 41, 38, 0.12);
+    border-radius: 4px;
+    outline: none;
+    transition: var(--transition-fast);
+}
+
+.input:focus {
+    border-color: var(--color-text-charcoal);
+    box-shadow: 0 0 0 3px rgba(45, 41, 38, 0.05);
+}
+
+.invitation-card .btn-primary {
+    flex-shrink: 0;
+}
+
+.invitation-footer {
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.invitation-footer p {
+    font-size: 0.8rem;
+    font-weight: 300;
+    line-height: 1.5;
+}
+
+/* Footer Section */
+.footer {
+    background-color: var(--color-text-charcoal);
+    color: var(--color-surface-cream);
+    padding: 80px 0 40px 0;
+}
+
+.footer-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: var(--space-3xl);
+    margin-bottom: var(--space-3xl);
+    border-bottom: 1px solid rgba(250, 249, 246, 0.08);
+    padding-bottom: var(--space-2xl);
+}
+
+.footer-logo {
+    color: var(--color-surface-cream) !important;
+}
+
+.footer-tagline {
+    font-size: 0.95rem;
+    margin-top: var(--space-md);
+    font-weight: 300;
+    opacity: 0.85;
+}
+
+.footer-links {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-2xl);
+}
+
+.footer-col {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.footer-title {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--color-accent-terracotta);
+    font-weight: 600;
+    margin-bottom: var(--space-sm);
+}
+
+.footer-col a {
+    color: var(--color-surface-cream);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 300;
+    opacity: 0.8;
+    transition: var(--transition-fast);
+}
+
+.footer-col a:hover {
+    color: var(--color-accent-terracotta);
+    opacity: 1;
+}
+
+.footer-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.footer-bottom p {
+    font-size: 0.8rem;
+    font-weight: 300;
+    opacity: 0.6;
+}
+
+/* Animations and Reveal triggers */
+.reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 1s cubic-bezier(0.25, 1, 0.5, 1), transform 1s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.delay-1 { transition-delay: 0.15s; }
+.delay-2 { transition-delay: 0.3s; }
+.delay-3 { transition-delay: 0.45s; }
+
+/* Responsive Media Queries */
+
+/* Tablet & Smaller Devices (1024px) */
+@media (max-width: 1024px) {
+    .hero-title {
+        font-size: 2.8rem;
+    }
+    
+    .rituals-container {
+        grid-template-columns: 1fr;
+        gap: var(--space-2xl);
+    }
+    
+    .ritual-switcher {
+        flex-direction: row;
+        overflow-x: auto;
+        padding-bottom: var(--space-sm);
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .ritual-nav-item {
+        flex: 0 0 280px;
+        scroll-snap-align: start;
+    }
+    
+    .philosophy-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: var(--space-xl);
+    }
+    
+    .philosophy-card:last-child {
+        grid-column: span 2;
+    }
+}
+
+/* Tablet (768px) */
+@media (max-width: 768px) {
+    .navbar {
+        top: 0;
+        left: 0;
+        right: 0;
+        border-radius: 0;
+        border-left: none;
+        border-right: none;
+        border-top: none;
+    }
+    
+    .mobile-nav-toggle {
+        display: flex;
+    }
+    
+    .nav-links {
+        position: fixed;
+        top: 73px;
+        left: 0;
+        right: 0;
+        background-color: var(--color-surface-cream);
+        flex-direction: column;
+        padding: var(--space-2xl) 0;
+        border-bottom: 1px solid rgba(45, 41, 38, 0.05);
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition: var(--transition-fast);
+        box-shadow: var(--shadow-md);
+        gap: var(--space-xl);
+    }
+    
+    .nav-links.open {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: all;
+    }
+    
+    .hero-grid {
+        grid-template-columns: 1fr;
+        gap: var(--space-2xl);
+    }
+    
+    .hero-image-wrapper {
+        order: -1;
+    }
+    
+    .vessels-grid {
+        grid-template-columns: 1fr;
+        gap: var(--space-2xl);
+    }
+    
+    .testimonials-grid {
+        grid-template-columns: 1fr;
+        gap: var(--space-2xl);
+    }
+    
+    .invitation-form {
+        flex-direction: column;
+    }
+    
+    .invitation-card {
+        padding: 40px var(--space-xl);
+    }
+    
+    .footer-grid {
+        grid-template-columns: 1fr;
+        gap: var(--space-2xl);
+    }
+}
+
+/* Mobile Portrait (375px) */
+@media (max-width: 375px) {
+    .hero-title {
+        font-size: 2.2rem;
+    }
+    
+    .hero-actions {
+        flex-direction: column;
+    }
+    
+    .ritual-nav-item {
+        flex: 0 0 250px;
+    }
+    
+    .philosophy-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .philosophy-card:last-child {
+        grid-column: span 1;
+    }
+    
+    .testimonial-large blockquote {
+        font-size: 1.4rem;
+    }
+}
+
+/* Accessibility: prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+    .reveal {
+        opacity: 1 !important;
+        transform: none !important;
+        transition: none !important;
+    }
+    
+    .btn-play-pause, .hero-img, .ritual-nav-item, .btn {
+        transition: none !important;
+        transform: none !important;
+    }
+    
+    .audio-wave.playing span {
+        animation: none !important;
+    }
+}

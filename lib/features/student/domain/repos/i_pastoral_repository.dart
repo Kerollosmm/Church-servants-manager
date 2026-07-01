@@ -5,6 +5,9 @@ import 'package:church_management_system/features/student/data/models/pastoral_r
 /// Enables dependency inversion: presentation and domain layers depend on
 /// this abstraction, not concrete Firebase implementations.
 abstract class IPastoralRepository {
+  /// Creates a pastoral record.
+  Future<void> createPastoralRecord(PastoralRecordModel record);
+
   /// Creates a pastoral record in Firestore.
   ///
   /// Called by the sync engine after offline queue replay.

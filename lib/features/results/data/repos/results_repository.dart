@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:developer' as developer;
 
-import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/models/sync_entry.dart';
 import 'package:church_management_system/core/services/cache_tracker.dart';
 import 'package:church_management_system/core/services/sync_service.dart';
@@ -16,15 +15,21 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 class ResultsRepository implements IResultsRepository {
   final FirebaseFirestore _firestore;
   final ResultsLocalDatasource _localDatasource;
+  final Connectivity _connectivity;
+  final SyncService Function() _syncServiceGetter;
 
   ResultsRepository({
     required FirebaseFirestore firestore,
+    required SyncService Function() syncServiceGetter,
     ResultsLocalDatasource? localDatasource,
+    Connectivity? connectivity,
   }) : _firestore = firestore,
-       _localDatasource = localDatasource ?? ResultsLocalDatasource();
+       _syncServiceGetter = syncServiceGetter,
+       _localDatasource = localDatasource ?? ResultsLocalDatasource(),
+       _connectivity = connectivity ?? Connectivity();
 
   @override
-  Future<List<Result>> getResultsForServant(
+  Future<({List<Result> results, bool isFromCache})> getResultsForServant(
     String groupId, {
     PaginationCursor? startAfter,
   }) async {
@@ -41,11 +46,13 @@ class ResultsRepository implements IResultsRepository {
                 .where('groupId', isEqualTo: groupId)
                 .limit(30)
                 .get(const GetOptions(source: Source.server))
-                .catchError((_) => _firestore
-                    .collectionGroup('terms')
-                    .where('groupId', isEqualTo: groupId)
-                    .limit(30)
-                    .get(const GetOptions(source: Source.cache)))
+                .catchError(
+                  (_) => _firestore
+                      .collectionGroup('terms')
+                      .where('groupId', isEqualTo: groupId)
+                      .limit(30)
+                      .get(const GetOptions(source: Source.cache)),
+                )
                 .timeout(const Duration(seconds: 10))
                 .then((snapshot) {
                   final results = snapshot.docs
@@ -62,7 +69,10 @@ class ResultsRepository implements IResultsRepository {
                 .catchError((_) {}),
           );
         }
-        return cached.map((c) => c.toDomain()).toList();
+        return (
+          results: cached.map((c) => c.toDomain()).toList(),
+          isFromCache: true,
+        );
       }
     }
 
@@ -86,20 +96,33 @@ class ResultsRepository implements IResultsRepository {
         final resultsMap = {for (final r in results) r.studentId: r};
         await _localDatasource.cacheResults(resultsMap);
       }
-      return results.map((r) => r.toDomain()).toList();
+      return (
+        results: results.map((r) => r.toDomain()).toList(),
+        isFromCache: false,
+      );
     } catch (_) {
       try {
-        final cachedSnapshot = await query.get(const GetOptions(source: Source.cache));
+        final cachedSnapshot = await query.get(
+          const GetOptions(source: Source.cache),
+        );
         final results = cachedSnapshot.docs
             .map((doc) => ResultsModel.fromMap(doc.data(), doc.id))
             .toList();
-        return results.map((r) => r.toDomain()).toList();
+        return (
+          results: results.map((r) => r.toDomain()).toList(),
+          isFromCache: true,
+        );
       } catch (_) {
         if (lastDoc == null) {
-          final cached = await _localDatasource.getCachedResultsForGroup(groupId);
-          return cached.map((c) => c.toDomain()).toList();
+          final cached = await _localDatasource.getCachedResultsForGroup(
+            groupId,
+          );
+          return (
+            results: cached.map((c) => c.toDomain()).toList(),
+            isFromCache: true,
+          );
         }
-        return [];
+        return (results: <Result>[], isFromCache: false);
       }
     }
   }
@@ -116,11 +139,13 @@ class ResultsRepository implements IResultsRepository {
               .doc(studentId)
               .collection('terms')
               .get(const GetOptions(source: Source.server))
-              .catchError((_) => _firestore
-                  .collection('results')
-                  .doc(studentId)
-                  .collection('terms')
-                  .get(const GetOptions(source: Source.cache)))
+              .catchError(
+                (_) => _firestore
+                    .collection('results')
+                    .doc(studentId)
+                    .collection('terms')
+                    .get(const GetOptions(source: Source.cache)),
+              )
               .timeout(const Duration(seconds: 10))
               .then((termsSnapshot) {
                 if (termsSnapshot.docs.isNotEmpty) {
@@ -179,9 +204,9 @@ class ResultsRepository implements IResultsRepository {
     );
 
     try {
-      final connectivity = await Connectivity().checkConnectivity();
+      final connectivity = await _connectivity.checkConnectivity();
       if (connectivity.contains(ConnectivityResult.none)) {
-        await getIt<SyncService>().enqueue(syncEntry);
+        await _syncServiceGetter().enqueue(syncEntry);
         return;
       }
 
@@ -198,7 +223,7 @@ class ResultsRepository implements IResultsRepository {
           error: e,
           name: 'ResultsRepository',
         );
-        await getIt<SyncService>().enqueue(syncEntry);
+        await _syncServiceGetter().enqueue(syncEntry);
       } else {
         developer.log(
           'Update result failed with firebase error',
@@ -213,7 +238,7 @@ class ResultsRepository implements IResultsRepository {
         error: e,
         name: 'ResultsRepository',
       );
-      await getIt<SyncService>().enqueue(syncEntry);
+      await _syncServiceGetter().enqueue(syncEntry);
     }
   }
 

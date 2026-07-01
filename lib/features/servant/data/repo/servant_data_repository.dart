@@ -304,9 +304,6 @@ class ServantDataRepository implements IServantRepository {
         return cachedMatches;
       }
 
-      // 2. Debounce local search key typing before remote firestore query
-      await Future<void>.delayed(const Duration(milliseconds: 500));
-
       final snapshot = await _sortedServantsQuery()
           .startAt([query])
           .endAt(['$query\uf8ff'])
@@ -397,7 +394,7 @@ class ServantDataRepository implements IServantRepository {
       if (isOffline) {
         final syncEntry = SyncEntry(
           id: 'upsert_servant_${servant.docID}',
-          actionType: 'CREATE_SERVANT',
+          actionType: 'UPDATE_SERVANT',
           payload: _normalizeServantWriteData(finalServant.toDomain()),
           createdAt: DateTime.now(),
         );
@@ -419,7 +416,7 @@ class ServantDataRepository implements IServantRepository {
       } catch (e) {
         final syncEntry = SyncEntry(
           id: 'upsert_servant_${servant.docID}',
-          actionType: 'CREATE_SERVANT',
+          actionType: 'UPDATE_SERVANT',
           payload: _normalizeServantWriteData(finalServant.toDomain()),
           createdAt: DateTime.now(),
         );
@@ -457,7 +454,7 @@ class ServantDataRepository implements IServantRepository {
       if (isOffline) {
         final syncEntry = SyncEntry(
           id: 'update_servant_$docId',
-          actionType: 'CREATE_SERVANT',
+          actionType: 'UPDATE_SERVANT',
           payload: {'docId': docId, ...fields},
           createdAt: DateTime.now(),
         );
@@ -478,7 +475,7 @@ class ServantDataRepository implements IServantRepository {
       } catch (e) {
         final syncEntry = SyncEntry(
           id: 'update_servant_$docId',
-          actionType: 'CREATE_SERVANT',
+          actionType: 'UPDATE_SERVANT',
           payload: {'docId': docId, ...fields},
           createdAt: DateTime.now(),
         );
@@ -519,13 +516,12 @@ class ServantDataRepository implements IServantRepository {
 
       if (isOffline) {
         final syncEntry = SyncEntry(
-          id: 'delete_servant_$docId',
-          actionType: 'CREATE_SERVANT',
+          id: 'archive_servant_$docId',
+          actionType: 'ARCHIVE_SERVANT',
           payload: {
             'docId': docId,
-            'isArchived': true,
-            'archivedAt': DateTime.now().toIso8601String(),
             'archivedByUserId': performedByUid,
+            'createdAt': DateTime.now().toIso8601String(),
           },
           createdAt: DateTime.now(),
         );
@@ -544,13 +540,12 @@ class ServantDataRepository implements IServantRepository {
         }
       } catch (_) {
         final syncEntry = SyncEntry(
-          id: 'delete_servant_$docId',
-          actionType: 'CREATE_SERVANT',
+          id: 'archive_servant_$docId',
+          actionType: 'ARCHIVE_SERVANT',
           payload: {
             'docId': docId,
-            'isArchived': true,
-            'archivedAt': DateTime.now().toIso8601String(),
             'archivedByUserId': performedByUid,
+            'createdAt': DateTime.now().toIso8601String(),
           },
           createdAt: DateTime.now(),
         );
@@ -598,9 +593,8 @@ class ServantDataRepository implements IServantRepository {
 
       final payload = <String, dynamic>{
         'docId': docId,
-        'isArchived': false,
-        'restoredAt': DateTime.now().toIso8601String(),
         'restoredByUserId': performedByUid,
+        'createdAt': DateTime.now().toIso8601String(),
       };
       if (assignedTeamId != null) payload['assignedTeamId'] = assignedTeamId;
       if (assignedTeamIds != null) payload['assignedTeamIds'] = assignedTeamIds;
@@ -608,7 +602,7 @@ class ServantDataRepository implements IServantRepository {
       if (isOffline) {
         final syncEntry = SyncEntry(
           id: 'restore_servant_$docId',
-          actionType: 'CREATE_SERVANT',
+          actionType: 'RESTORE_SERVANT',
           payload: payload,
           createdAt: DateTime.now(),
         );
@@ -628,7 +622,7 @@ class ServantDataRepository implements IServantRepository {
       } catch (_) {
         final syncEntry = SyncEntry(
           id: 'restore_servant_$docId',
-          actionType: 'CREATE_SERVANT',
+          actionType: 'RESTORE_SERVANT',
           payload: payload,
           createdAt: DateTime.now(),
         );

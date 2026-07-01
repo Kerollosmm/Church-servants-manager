@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Stillroom is a membership-based ritual design service. We compose 10-minute at-home breathing spaces combining scent, sound, and spatial guidance.">
+    <meta name="keywords" content="stillroom, wellness, daily rituals, slow living, nordic cabin, scent, ambient sound, mindfulness">
+    <meta name="author" content="Stillroom">
+    <title>Stillroom — A quieter way to come home to yourself</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Raleway:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- Favicon Mock -->
+    <link rel="icon" type="image/png" href="assets/sensory_nature.png">
+</head>
+<body>
+
+    <!-- Header Navigation -->
+    <header class="navbar reveal">
+        <div class="nav-container">
+            <a href="#" class="logo">
+                <span class="logo-dot"></span>Stillroom
+            </a>
+            <nav class="nav-links">
+                <a href="#rituals" class="nav-link">The Rituals</a>
+                <a href="#vessels" class="nav-link">The Objects</a>
+                <a href="#philosophy" class="nav-link">Philosophy</a>
+                <a href="#join" class="btn-nav btn-secondary">Begin</a>
+            </nav>
+            <button class="mobile-nav-toggle" aria-label="Toggle Navigation">
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+    </header>
+
+    <main>
+        <!-- Hero Section -->
+        <section class="hero-section">
+            <div class="container hero-grid">
+                <div class="hero-content reveal">
+                    <span class="hero-tag">A Seasonal Membership</span>
+                    <h1 class="hero-title">Make room for a slower breath.</h1>
+                    <p class="hero-description text-muted">
+                        Seasonal rituals for mornings, pauses, and evenings—composed with care for how a home feels, not just how it looks.
+                    </p>
+                    <div class="hero-actions">
+                        <a href="#join" class="btn btn-primary">Start with the Autumn Ritual</a>
+                        <a href="#rituals" class="btn btn-secondary">Explore the Pacing</a>
+                    </div>
+                </div>
+                <div class="hero-image-wrapper reveal delay-1">
+                    <img src="assets/hero_ambient.png" alt="Nordic cabin interior with soft morning sun beams casting gentle shadows on light timber walls" class="hero-img">
+                    <div class="hero-badge">
+                        <span class="badge-title">Active Season</span>
+                        <span class="badge-value">Autumn Equinox</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Three Rituals Section -->
+        <section id="rituals" class="rituals-section">
+            <div class="container">
+                <div class="section-header reveal">
+                    <h2 class="section-title">The Three Daily Rituals</h2>
+                    <p class="section-subtitle text-muted">Ten minutes designed to partition the day, restoring space to a busy mind.</p>
+                </div>
+                
+                <div class="rituals-container">
+                    <!-- Asymmetric Timeline / Switcher Grid -->
+                    <div class="ritual-switcher reveal">
+                        <div class="ritual-nav-item active" data-ritual="morning">
+                            <span class="ritual-time">07:30</span>
+                            <div class="ritual-title-block">
+                                <h3>Morning: Brew & Settle</h3>
+                                <p>A threshold before the rush.</p>
+                            </div>
+                        </div>
+                        <div class="ritual-nav-item" data-ritual="midday">
+                            <span class="ritual-time">13:30</span>
+                            <div class="ritual-title-block">
+                                <h3>Midday: Pause & Realign</h3>
+                                <p>A boundary in the middle of it all.</p>
+                            </div>
+                        </div>
+                        <div class="ritual-nav-item" data-ritual="evening">
+                            <span class="ritual-time">21:30</span>
+                            <div class="ritual-title-block">
+                                <h3>Evening: Dim & Release</h3>
+                                <p>A softening before sleep.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Detail Card Display -->
+                    <div class="ritual-display-card reveal delay-1">
+                        <div class="ritual-card-content active" id="ritual-morning">
+                            <span class="card-pill">Scent: Cedar & Dried Vetiver</span>
+                            <h4 class="card-ritual-title">Morning: Brew & Settle</h4>
+                            <p class="card-ritual-desc">
+                                Begin the day not by catching up, but by standing still. As your tea or coffee brews, light the cedar strand. Follow the 10-minute rhythmic breathing guide as the space fills with dry wood notes. Let the light accumulate.
+                            </p>
+                            <div class="ritual-guide-preview">
+                                <div class="guide-step">
+                                    <span class="step-num">01</span>
+                                    <span class="step-text">Brew a single cup of loose-leaf herbal tea.</span>
+                                </div>
+                                <div class="guide-step">
+                                    <span class="step-num">02</span>
+                                    <span class="step-text">Light the cedar incense strand, placing it in the ceramic tray.</span>
+                                </div>
+                                <div class="guide-step">
+                                    <span class="step-num">03</span>
+                                    <span class="step-text">Close your eyes and breathe to the low-frequency drone.</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="ritual-card-content" id="ritual-midday">
+                            <span class="card-pill">Scent: Eucalyptus & Hinoki</span>
+                            <h4 class="card-ritual-title">Midday: Pause & Realign</h4>
+                            <p class="card-ritual-desc">
+                                Stepping away from screens to mark the midday line. Arrange three polished stone markers on your oak tray. Mist the Hinoki water over your wrists, take ten slow breaths, and reset the focus of your afternoon.
+                            </p>
+                            <div class="ritual-guide-preview">
+                                <div class="guide-step">
+                                    <span class="step-num">01</span>
+                                    <span class="step-text">Close all digital tabs; stand and roll your shoulders.</span>
+                                </div>
+                                <div class="guide-step">
+                                    <span class="step-num">02</span>
+                                    <span class="step-text">Mist the eucalyptus water to clear the scent profile of the room.</span>
+                                </div>
+                                <div class="guide-step">
+                                    <span class="step-num">03</span>
+                                    <span class="step-text">Focus your gaze on the textured wood grain for 10 full breaths.</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="ritual-card-content" id="ritual-evening">
+                            <span class="card-pill">Scent: Lavender & Damp Sandalwood</span>
+                            <h4 class="card-ritual-title">Evening: Dim & Release</h4>
+                            <p class="card-ritual-desc">
+                                The transition out of doing. Dim the overhead lights, activate the warm lamp, and light the sandalwood stick. Breathe as the dark sets in, letting the ambient tone settle your heartbeat for rest.
+                            </p>
+                            <div class="ritual-guide-preview">
+                                <div class="guide-step">
+                                    <span class="step-num">01</span>
+                                    <span class="step-text">Dim your room lights to the lowest comfortable setting.</span>
+                                </div>
+                                <div class="guide-step">
+                                    <span class="step-num">02</span>
+                                    <span class="step-text">Light the sandalwood incense. Observe the glowing ember.</span>
+                                </div>
+                                <div class="guide-step">
+                                    <span class="step-num">03</span>
+                                    <span class="step-text">Recline in silence as the wind down sequence sounds.</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Audio Companion Player -->
+                        <div class="audio-player-container">
+                            <div class="audio-wave">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                            <div class="audio-controls">
+                                <button class="btn-play-pause" id="btn-sound" aria-label="Play ambient soundscape">
+                                    <svg class="icon-play" viewBox="0 0 24 24" width="20" height="20">
+                                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                                    </svg>
+                                    <svg class="icon-pause hidden" viewBox="0 0 24 24" width="20" height="20">
+                                        <rect x="6" y="4" width="4" height="16"></rect>
+                                        <rect x="14" y="4" width="4" height="16"></rect>
+                                    </svg>
+                                </button>
+                                <div class="audio-meta">
+                                    <span class="audio-status">Listen to the Autumn Soundscape</span>
+                                    <span class="audio-desc">10-Minute Synthetic Cabin Drone</span>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Interactive Divider (Philosophy Callout) -->
+        <section class="banner-divider reveal">
+            <div class="banner-overlay"></div>
+            <img src="assets/sensory_nature.png" alt="Dried botanicals and textured linen casting soft shadows on a chalk cream wall" class="banner-bg">
+            <div class="banner-content">
+                <blockquote class="banner-quote">
+                    "We don't optimize your life. We soften it."
+                </blockquote>
+            </div>
+        </section>
+
+        <!-- What Arrives Section -->
+        <section id="vessels" class="vessels-section">
+            <div class="container vessels-grid">
+                <div class="vessels-image-column reveal">
+                    <div class="layered-image-container">
+                        <img src="assets/ritual_ceramic.png" alt="Tactile close-up of a handmade ceramic scent vessel resting on a raw oak tray" class="main-vessel-img">
+                        <div class="tactile-pill">
+                            <span class="material-label">Crafted in Sweden</span>
+                            <span class="material-value">Sandstone Clay</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="vessels-content-column reveal delay-1">
+                    <span class="section-tag">The Physical Kit</span>
+                    <h2 class="section-title">The Tools of Stillness</h2>
+                    <p class="section-description text-muted">
+                        Every season, a carefully curated selection of physical objects arrives at your door—designed to ground your senses and quietly command space in your home.
+                    </p>
+                    
+                    <ul class="tactile-list">
+                        <li>
+                            <h4 class="list-title">The Ceramic Scent Vessel</h4>
+                            <p class="list-desc text-muted">Thrown by hand in Gothenburg, using high-iron sandstone clay. Retains the warmth of incense and diffuses mist naturally.</p>
+                        </li>
+                        <li>
+                            <h4 class="list-title">The Raw Oak Tray</h4>
+                            <p class="list-desc text-muted">Carved from sustainably harvested Danish oak. Unlacquered to allow the natural wood grain and oils to shift over time.</p>
+                        </li>
+                        <li>
+                            <h4 class="list-title">The Linen Storage Pouch</h4>
+                            <p class="list-desc text-muted">Woven from raw Belgian flax, holding your incense sticks and misting bottle clean and out of sight.</p>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sensory Philosophy Section -->
+        <section id="philosophy" class="philosophy-section">
+            <div class="container">
+                <div class="section-header reveal">
+                    <h2 class="section-title">Sensory Philosophy</h2>
+                    <p class="section-subtitle text-muted">Three principles that shape our ritual designs.</p>
+                </div>
+                
+                <div class="philosophy-grid">
+                    <div class="philosophy-card reveal">
+                        <div class="philosophy-icon">
+                            <!-- SVG leaf icon -->
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M12 2C6.48 2 2 6.48 2 12c0 4.42 3.58 8 8 8 4.42 0 8-3.58 8-8 0-5.52-4.48-10-10-10z"></path>
+                                <path d="M12 2v20"></path>
+                                <path d="M12 12c2.5-3.5 6-4.5 6-4.5s-1.5 4.5-6 4.5z"></path>
+                                <path d="M12 12c-2.5-3.5-6-4.5-6-4.5s1.5 4.5 6 4.5z"></path>
+                            </svg>
+                        </div>
+                        <h3 class="card-title">Restrained Materials</h3>
+                        <p class="text-muted">No plastics, no electronics, no glowing indicator lights. We build rituals with ceramics, linen, natural woods, and organic plant extracts that grow more beautiful as they age.</p>
+                    </div>
+
+                    <div class="philosophy-card reveal delay-1">
+                        <div class="philosophy-icon">
+                            <!-- SVG clock icon -->
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                        </div>
+                        <h3 class="card-title">Restorative Pacing</h3>
+                        <p class="text-muted">A 10-minute boundary is long enough to alter your heart rate and shift brainwaves, yet short enough to protect from the busiest calendar. A realistic, daily rest.</p>
+                    </div>
+
+                    <div class="philosophy-card reveal delay-2">
+                        <div class="philosophy-icon">
+                            <!-- SVG weather icon -->
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m11.314 11.314l.707.707M12 8a4 4 0 100 8 4 4 0 000-8z"></path>
+                            </svg>
+                        </div>
+                        <h3 class="card-title">Seasonal Alignment</h3>
+                        <p class="text-muted">Our nervous systems react differently to winter frost and summer humidity. Every equinox, we update your ritual kit to match the seasonal daylight, temperature, and indoor air patterns.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Social Proof Section (Asymmetric) -->
+        <section class="testimonials-section">
+            <div class="container">
+                <div class="testimonials-grid">
+                    <!-- Main Large Testimonial -->
+                    <div class="testimonial-large reveal">
+                        <span class="quote-mark">“</span>
+                        <blockquote>
+                            It changed how my evenings begin. Instead of scrolling, I light the incense and listen to the companion sound. Ten minutes that feel like a full hour of release.
+                        </blockquote>
+                        <cite class="testimonial-author">— Elena, Oslo</cite>
+                    </div>
+                    
+                    <!-- Two Offset Smaller Testimonials -->
+                    <div class="testimonials-small-stack">
+                        <div class="testimonial-small reveal delay-1">
+                            <blockquote>
+                                The morning ritual has become my threshold. Before the emails start, there is just the steam and the scent.
+                            </blockquote>
+                            <cite class="testimonial-author">— Marcus, Stockholm</cite>
+                        </div>
+                        
+                        <div class="testimonial-small reveal delay-2">
+                            <blockquote>
+                                As a designer working from home, the midday pause is the only boundary that actually holds.
+                            </blockquote>
+                            <cite class="testimonial-author">— Sophia, Copenhagen</cite>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Final CTA (Invitation Card Layout) -->
+        <section id="join" class="join-section reveal">
+            <div class="container">
+                <div class="invitation-card">
+                    <div class="invitation-header">
+                        <span class="invitation-tag">An Invitation</span>
+                        <h2 class="invitation-title">Begin with the first ritual.</h2>
+                        <p class="invitation-desc text-muted">
+                            Receive your first room. The Autumn Equinox kit ships within two business days.
+                        </p>
+                    </div>
+                    
+                    <form class="invitation-form" id="newsletter-form">
+                        <div class="form-group">
+                            <label for="email" class="sr-only">Email address</label>
+                            <input type="email" id="email" class="input" placeholder="Your email address" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Receive First Room</button>
+                    </form>
+                    
+                    <div class="invitation-footer">
+                        <p class="text-muted">Membership includes one seasonal kit every three months, digital audio guide access, and ritual design assistance.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container footer-grid">
+            <div class="footer-brand">
+                <a href="#" class="logo footer-logo"><span class="logo-dot"></span>Stillroom</a>
+                <p class="footer-tagline text-muted">We don’t optimize your life. We soften it.</p>
+            </div>
+            <div class="footer-links">
+                <div class="footer-col">
+                    <span class="footer-title">Membership</span>
+                    <a href="#rituals">The Rituals</a>
+                    <a href="#vessels">The Physical Kit</a>
+                    <a href="#join">Pricing & Shipments</a>
+                </div>
+                <div class="footer-col">
+                    <span class="footer-title">Company</span>
+                    <a href="#philosophy">Our Story</a>
+                    <a href="#">Journal</a>
+                    <a href="#">Contact</a>
+                </div>
+            </div>
+        </div>
+        <div class="container footer-bottom">
+            <p class="text-muted">&copy; 2026 Stillroom. All rights reserved. Crafted for calm.</p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="app.js"></script>
+</body>
+</html>

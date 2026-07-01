@@ -92,6 +92,7 @@ void main() {
         'MARK_ATTENDANCE': AttendanceSyncHandler(attendanceRepo),
         'CLEAR_ATTENDANCE': AttendanceSyncHandler(attendanceRepo),
         'UPSERT_STUDENT': StudentSyncHandler(studentRepo),
+        'UPDATE_STUDENT': StudentSyncHandler(studentRepo),
         'ARCHIVE_STUDENT': StudentSyncHandler(studentRepo),
         'RESTORE_STUDENT': StudentSyncHandler(studentRepo),
         'UPDATE_RESULT': ResultsSyncHandler(resultsRepo),

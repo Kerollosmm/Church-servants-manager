@@ -18,8 +18,7 @@ class CanMutateStudentUseCase {
     if (actor.role == UserRole.servant) {
       final inScope =
           actor.effectiveAssignedTeamIds.contains(existing.classId) ||
-          actor.effectiveAssignedTeamIds.contains(existing.teamName) ||
-          actor.groupId == existing.group.name;
+          actor.effectiveAssignedTeamIds.contains(existing.teamName);
       if (!inScope) return false;
 
       // STRICT ALLOWLIST: Servants can only mutate basic contact/profile info.

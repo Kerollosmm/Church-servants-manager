@@ -68,6 +68,11 @@ class SyncCubit extends Cubit<SyncState> {
     await _syncService.processQueue();
   }
 
+  /// Retries all dead-letter queue entries.
+  Future<void> retryDlq() async {
+    await _syncService.retryDlq();
+  }
+
   @override
   Future<void> close() {
     _syncSubscription?.cancel();

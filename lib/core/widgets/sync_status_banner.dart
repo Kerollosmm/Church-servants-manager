@@ -12,8 +12,12 @@ class SyncStatusBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<SyncCubit, SyncState>(
       builder: (context, state) {
+        final bool isDlq = state is SyncDlqWarning;
         final bool isVisible =
-            state is Syncing || state is SyncSuccess || state is SyncFailure;
+            state is Syncing ||
+            state is SyncSuccess ||
+            state is SyncFailure ||
+            isDlq;
 
         Color backgroundColor = AppColors.primary;
         IconData icon = Icons.cloud_upload_outlined;
@@ -33,6 +37,10 @@ class SyncStatusBanner extends StatelessWidget {
           backgroundColor = Colors.red.shade600;
           icon = Icons.cloud_off;
           message = state.errorMessage;
+        } else if (state is SyncDlqWarning) {
+          backgroundColor = Colors.red.shade800;
+          icon = Icons.warning_amber_rounded;
+          message = 'بعض البيانات لم تتم مزامنتها. اضغط لإعادة المحاولة';
         }
 
         return AnimatedContainer(
@@ -46,40 +54,45 @@ class SyncStatusBanner extends StatelessWidget {
               height: kToolbarHeight,
               child: SafeArea(
                 bottom: false,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      if (showProgress) ...[
-                        const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
+                child: InkWell(
+                  onTap: isDlq
+                      ? () => context.read<SyncCubit>().retryDlq()
+                      : null,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (showProgress) ...[
+                          const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
                             ),
                           ),
-                        ),
-                      ] else ...[
-                        Icon(icon, color: Colors.white, size: 20),
-                      ],
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          message,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
+                        ] else ...[
+                          Icon(icon, color: Colors.white, size: 20),
+                        ],
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            message,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          textAlign: TextAlign.center,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),

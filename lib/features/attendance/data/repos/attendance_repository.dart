@@ -567,24 +567,116 @@ class AttendanceRepository implements IAttendanceRepository {
   }) => _queryService.assertUserCanManageAttendance(user: user, teamId: teamId);
 
   @override
-  Future<void> syncOfflineMark(Map<String, dynamic> payload) =>
-      _commandService.syncOfflineMark(payload);
+  Future<void> syncOfflineMark(Map<String, dynamic> payload) async {
+    await _commandService.syncOfflineMark(payload);
+    try {
+      final teamId = payload['teamId'] as String;
+      final sessionId = payload['sessionId'] as String;
+      final studentId = payload['studentId'] as String;
+      final statusString = payload['status'] as String;
+      final markedByUid = payload['markedByUid'] as String;
+      final markedByName = payload['markedByName'] as String;
+      final createdAt = DateTime.parse(payload['createdAt'] as String);
+
+      final existing = _attendanceLocalDatasource.getCachedMark(
+        teamId: teamId,
+        sessionId: sessionId,
+        studentId: studentId,
+      );
+
+      final updatedMark = AttendanceMark(
+        studentId: studentId,
+        studentNameSnapshot:
+            existing?.studentNameSnapshot ??
+            (payload['studentNameSnapshot'] as String?) ??
+            'مخدوم',
+        status: const AttendanceMarkStatusJsonConverter().fromJson(
+          statusString,
+        ),
+        markedByUserId: markedByUid,
+        markedByName: markedByName,
+        markedAt: existing?.markedAt ?? createdAt,
+        updatedAt: DateTime.now(),
+      );
+
+      await _attendanceLocalDatasource.cacheMark(
+        teamId: teamId,
+        sessionId: sessionId,
+        studentId: studentId,
+        mark: updatedMark,
+      );
+    } catch (e) {
+      developer.log(
+        'Failed to update local cache after syncOfflineMark: $e',
+        name: 'AttendanceRepository',
+      );
+    }
+  }
 
   @override
   Future<void> syncBatchedMarks({
     required String teamId,
     required String sessionId,
     required List<Map<String, dynamic>> payloads,
-  }) => _commandService.syncBatchedMarks(
-    teamId: teamId,
-    sessionId: sessionId,
-    payloads: payloads,
-  );
+  }) async {
+    await _commandService.syncBatchedMarks(
+      teamId: teamId,
+      sessionId: sessionId,
+      payloads: payloads,
+    );
+    try {
+      for (final payload in payloads) {
+        final studentId = payload['studentId'] as String? ?? '';
+        if (studentId.isEmpty) continue;
+        final statusString = payload['status'] as String? ?? 'absent';
+        final markedByUid = payload['markedByUid'] as String? ?? 'system';
+        final markedByName = payload['markedByName'] as String? ?? 'النظام';
+        final rawCreatedAt = payload['createdAt'] as String?;
+        final createdAt = rawCreatedAt != null
+            ? DateTime.tryParse(rawCreatedAt) ?? DateTime.now()
+            : DateTime.now();
+
+        final existing = _attendanceLocalDatasource.getCachedMark(
+          teamId: teamId,
+          sessionId: sessionId,
+          studentId: studentId,
+        );
+
+        final updatedMark = AttendanceMark(
+          studentId: studentId,
+          studentNameSnapshot:
+              existing?.studentNameSnapshot ??
+              (payload['studentNameSnapshot'] as String?) ??
+              'مخدوم',
+          status: const AttendanceMarkStatusJsonConverter().fromJson(
+            statusString,
+          ),
+          markedByUserId: markedByUid,
+          markedByName: markedByName,
+          markedAt: existing?.markedAt ?? createdAt,
+          updatedAt: DateTime.now(),
+        );
+
+        await _attendanceLocalDatasource.cacheMark(
+          teamId: teamId,
+          sessionId: sessionId,
+          studentId: studentId,
+          mark: updatedMark,
+        );
+      }
+    } catch (e) {
+      developer.log(
+        'Failed to update local cache after syncBatchedMarks: $e',
+        name: 'AttendanceRepository',
+      );
+    }
+  }
 
   Future<void> batchWriteMarks({
     required String teamId,
     required String sessionId,
-    required Map<String, AttendanceMarkStatus> marks,
+    required Map<String, ({AttendanceMarkStatus status, DateTime markedAt})>
+    marks,
     required AuthUser markedBy,
     bool cachedPermission = false,
   }) => _commandService.batchWriteMarks(

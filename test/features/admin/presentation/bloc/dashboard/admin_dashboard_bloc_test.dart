@@ -1,3 +1,4 @@
+import 'package:church_management_system/features/admin/data/datasources/admin_dashboard_local_datasource.dart';
 import 'package:church_management_system/features/admin/data/services/admin_statistics_service.dart';
 import 'package:church_management_system/features/admin/presentation/bloc/dashboard/admin_dashboard_bloc.dart';
 import 'package:church_management_system/features/admin/presentation/bloc/dashboard/admin_dashboard_event.dart';
@@ -17,23 +18,47 @@ class MockITeamRepository extends Mock implements ITeamRepository {}
 class MockAdminStatisticsService extends Mock
     implements AdminStatisticsService {}
 
+class MockAdminDashboardLocalDatasource extends Mock
+    implements AdminDashboardLocalDatasource {}
+
 void main() {
   late MockIStudentRepository mockStudentRepo;
   late MockIServantRepository mockServantRepo;
   late MockITeamRepository mockTeamRepo;
   late MockAdminStatisticsService mockStatsService;
+  late MockAdminDashboardLocalDatasource mockLocalDatasource;
   late AdminDashboardBloc bloc;
+
+  setUpAll(() {
+    registerFallbackValue(
+      const DashboardKpiData(
+        totalStudents: 0,
+        totalServants: 0,
+        totalTeams: 0,
+        totalSessions: 0,
+        totalPresent: 0,
+        attendanceRate: 0.0,
+      ),
+    );
+  });
 
   setUp(() {
     mockStudentRepo = MockIStudentRepository();
     mockServantRepo = MockIServantRepository();
     mockTeamRepo = MockITeamRepository();
     mockStatsService = MockAdminStatisticsService();
+    mockLocalDatasource = MockAdminDashboardLocalDatasource();
+
+    // Default mock behavior
+    when(() => mockLocalDatasource.getKpiData()).thenAnswer((_) async => null);
+    when(() => mockLocalDatasource.saveKpiData(any())).thenAnswer((_) async {});
+
     bloc = AdminDashboardBloc(
       mockStudentRepo,
       mockServantRepo,
       mockTeamRepo,
       mockStatsService,
+      mockLocalDatasource,
     );
   });
 
@@ -76,7 +101,7 @@ void main() {
     }
 
     test(
-      'emits [AdminDashboardLoading, AdminDashboardLoaded] on LoadDashboardData success',
+      'emits [AdminDashboardLoading, AdminDashboardLoaded] on LoadDashboardData success when cache is empty',
       () async {
         setupSuccessPaths();
 
@@ -93,6 +118,44 @@ void main() {
         );
         bloc.add(const LoadDashboardData());
         await expectation;
+
+        verify(() => mockLocalDatasource.saveKpiData(any())).called(1);
+      },
+    );
+
+    test(
+      'emits [AdminDashboardLoaded(cached), AdminDashboardLoaded(fresh)] when cache exists',
+      () async {
+        setupSuccessPaths();
+        const cachedKpi = DashboardKpiData(
+          totalStudents: 5,
+          totalServants: 2,
+          totalTeams: 1,
+          totalSessions: 3,
+          totalPresent: 15,
+          attendanceRate: 75.0,
+        );
+        when(
+          () => mockLocalDatasource.getKpiData(),
+        ).thenAnswer((_) async => cachedKpi);
+
+        final expectedStates = [
+          isA<AdminDashboardLoaded>()
+              .having((s) => s.kpiData.totalStudents, 'totalStudents', 5)
+              .having((s) => s.kpiData.attendanceRate, 'attendanceRate', 75.0),
+          isA<AdminDashboardLoaded>()
+              .having((s) => s.kpiData.totalStudents, 'totalStudents', 0)
+              .having((s) => s.kpiData.attendanceRate, 'attendanceRate', 80.0),
+        ];
+
+        final expectation = expectLater(
+          bloc.stream,
+          emitsInOrder(expectedStates),
+        );
+        bloc.add(const LoadDashboardData());
+        await expectation;
+
+        verify(() => mockLocalDatasource.saveKpiData(any())).called(1);
       },
     );
 
@@ -158,9 +221,7 @@ void main() {
         when(
           () => mockTeamRepo.getAllTeams(includeArchived: false),
         ).thenAnswer((_) async => []);
-        when(
-          () => mockStatsService.getGlobalDashboardStats(forceRefresh: true),
-        ).thenAnswer(
+        when(() => mockStatsService.getGlobalDashboardStats()).thenAnswer(
           (_) => Future.error(Exception('Firestore aggregate error')),
         );
 
@@ -194,7 +255,7 @@ void main() {
           () => mockTeamRepo.getAllTeams(includeArchived: false),
         ).thenAnswer((_) async => []);
         when(
-          () => mockStatsService.getGlobalDashboardStats(forceRefresh: true),
+          () => mockStatsService.getGlobalDashboardStats(),
         ).thenAnswer((_) async => defaultStats);
 
         final expectedStates = [

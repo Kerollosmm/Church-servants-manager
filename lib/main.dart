@@ -10,7 +10,7 @@ import 'package:church_management_system/core/models/sync_entry.dart';
 import 'package:church_management_system/core/services/hive_pruning_service.dart';
 import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/features/admin/data/models/analytics_summary_model.dart';
-import 'package:church_management_system/features/attendance/data/local/mark_sync_entry.dart';
+
 import 'package:church_management_system/features/attendance/data/models/attendance_mark.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
 import 'package:church_management_system/features/attendance/domain/entities/attendance_enums.dart';
@@ -61,6 +61,7 @@ void callbackDispatcher() {
         await Hive.deleteBoxFromDisk('servants_sync_queue_box');
         await Hive.deleteBoxFromDisk('attendance_marks_cache');
         await Hive.deleteBoxFromDisk('attendance_marks_sync_queue');
+        await Hive.deleteBoxFromDisk('attendance_marks_sync_queue_v2');
       } catch (e) {
         developer.log(
           'Failed to delete orphaned boxes in background',
@@ -120,8 +121,6 @@ void _registerHiveAdapters() {
     // New typed adapters for attendance schema migration
     ..registerAdapter(AttendanceMarkStatusAdapter())
     ..registerAdapter(AttendanceMarkAdapter())
-    ..registerAdapter(MarkSyncOperationAdapter())
-    ..registerAdapter(MarkSyncEntryAdapter())
     ..registerAdapter(AttendanceSessionModelAdapter());
 }
 
@@ -151,6 +150,7 @@ void main() {
       try {
         await Hive.deleteBoxFromDisk('attendance_marks_cache');
         await Hive.deleteBoxFromDisk('attendance_marks_sync_queue');
+        await Hive.deleteBoxFromDisk('attendance_marks_sync_queue_v2');
       } catch (e) {
         developer.log(
           'Failed to migrate attendance boxes',

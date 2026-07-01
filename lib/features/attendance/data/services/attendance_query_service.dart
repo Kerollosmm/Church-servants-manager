@@ -240,74 +240,67 @@ class AttendanceQueryService {
     DateTime? startDate,
     DateTime? endDate,
   }) async {
-    final sessions = await _loadStudentSessions(
-      studentId: studentId,
-      teamId: teamId,
-      startDate: startDate,
-      endDate: endDate,
-    );
+    try {
+      Query<Map<String, dynamic>> query = _firestore
+          .collection(FirestoreCollections.students)
+          .doc(studentId)
+          .collection(FirestoreCollections.attendanceSessions)
+          .orderBy('startsAt', descending: true);
 
-    if (sessions.isEmpty) {
-      return const <StudentAttendanceHistoryItem>[];
-    }
-
-    final now = _nowProvider();
-
-    // Optimize: fetch all marks for this student across all sessions in one query
-    final marksSnapshot = await _firestore
-        .collectionGroup(FirestoreCollections.attendanceMarks)
-        .where('studentId', isEqualTo: studentId)
-        .get();
-
-    // Group marks by sessionId
-    final marksBySession = <String, List<AttendanceMark>>{};
-    for (final doc in marksSnapshot.docs) {
-      try {
-        final sessionId = doc.reference.parent.parent!.id;
-        final mark = AttendanceMark.fromMap(doc.data(), studentId);
-        if (!marksBySession.containsKey(sessionId)) {
-          marksBySession[sessionId] = [];
-        }
-        marksBySession[sessionId]!.add(mark);
-      } catch (error) {
-        developer.log('failed to map mark in group query', error: error);
+      if (teamId != null) {
+        query = query.where('teamId', isEqualTo: teamId);
       }
+
+      final snapshot = await query.limit(50).get();
+
+      final List<StudentAttendanceHistoryItem> history = [];
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final startsAtTimestamp = data['startsAt'] as Timestamp?;
+        if (startsAtTimestamp == null) continue;
+        final startsAt = startsAtTimestamp.toDate();
+
+        // Client-side date filtering
+        if (startDate != null && startsAt.isBefore(startDate)) continue;
+        if (endDate != null && startsAt.isAfter(endDate)) continue;
+
+        final statusString = data['status'] as String? ?? 'absent';
+        final status = switch (statusString) {
+          'present' => AttendanceEffectiveStatus.present,
+          'late' => AttendanceEffectiveStatus.late,
+          _ => AttendanceEffectiveStatus.absent,
+        };
+
+        final markedAtTimestamp = data['markedAt'] as Timestamp?;
+        final markedAt = markedAtTimestamp?.toDate();
+        final sessionId = data['sessionId'] as String? ?? doc.id;
+        final docTeamId = data['teamId'] as String? ?? '';
+        final teamNameSnapshot = data['studentName'] as String?;
+
+        history.add(
+          StudentAttendanceHistoryItem(
+            sessionId: sessionId,
+            teamId: docTeamId,
+            teamNameSnapshot: teamNameSnapshot,
+            title: data['title'] as String?,
+            dateKey: startsAt.toIso8601String().substring(0, 10),
+            sessionStartsAt: startsAt,
+            sessionEndsAt: startsAt.add(
+              const Duration(hours: 2),
+            ), // Default estimate duration
+            effectiveStatus: status,
+            isSessionClosed: true,
+            markedAt: markedAt,
+            markedByName: data['markedByName'] as String?,
+          ),
+        );
+      }
+
+      return history;
+    } catch (e) {
+      developer.log('getStudentAttendanceHistory failed', error: e);
+      throw mapExceptionToAttendanceFailure(e);
     }
-
-    final history = sessions
-        .map((session) {
-          final sessionMarks = marksBySession[session.id] ?? [];
-          // Pick best mark (latest updatedAt) for this session
-          AttendanceMark? mark;
-          if (sessionMarks.isNotEmpty) {
-            sessionMarks.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-            mark = sessionMarks.first;
-          }
-
-          return StudentAttendanceHistoryItem(
-            sessionId: session.id,
-            teamId: session.teamId,
-            teamNameSnapshot: session.teamNameSnapshot,
-            title: session.title,
-            dateKey: session.dateKey,
-            sessionStartsAt: session.startsAt,
-            sessionEndsAt: session.endsAt,
-            effectiveStatus: AttendanceRosterItem.resolveEffectiveStatus(
-              manualStatus: mark?.status,
-              session: session,
-              now: now,
-            ),
-            isSessionClosed: session.isEffectivelyClosedAt(now),
-            markedAt: mark?.markedAt,
-            markedByName: mark?.markedByName,
-          );
-        })
-        .toList(growable: false);
-
-    return history..sort(
-      (first, second) =>
-          second.sessionStartsAt.compareTo(first.sessionStartsAt),
-    );
   }
 
   Future<StudentAttendanceStats> getStudentAttendanceStats({

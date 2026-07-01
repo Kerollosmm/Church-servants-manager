@@ -66,32 +66,32 @@ class PastoralRecordModelAdapter extends TypeAdapter<PastoralRecordModel> {
 // **************************************************************************
 
 _$PastoralRecordModelImpl _$$PastoralRecordModelImplFromJson(
-        Map<String, dynamic> json) =>
-    _$PastoralRecordModelImpl(
-      recordId: json['recordId'] as String,
-      studentId: json['studentId'] as String,
-      type: $enumDecode(_$VisitationTypeEnumMap, json['type']),
-      summary: json['summary'] as String,
-      visitedByUid: json['visitedByUid'] as String,
-      visitedByName: json['visitedByName'] as String,
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      syncStatus:
-          $enumDecodeNullable(_$SyncStatusEnumMap, json['syncStatus']) ??
-              SyncStatus.pending,
-    );
+  Map<String, dynamic> json,
+) => _$PastoralRecordModelImpl(
+  recordId: json['recordId'] as String,
+  studentId: json['studentId'] as String,
+  type: $enumDecode(_$VisitationTypeEnumMap, json['type']),
+  summary: json['summary'] as String,
+  visitedByUid: json['visitedByUid'] as String,
+  visitedByName: json['visitedByName'] as String,
+  createdAt: DateTime.parse(json['createdAt'] as String),
+  syncStatus:
+      $enumDecodeNullable(_$SyncStatusEnumMap, json['syncStatus']) ??
+      SyncStatus.pending,
+);
 
 Map<String, dynamic> _$$PastoralRecordModelImplToJson(
-        _$PastoralRecordModelImpl instance) =>
-    <String, dynamic>{
-      'recordId': instance.recordId,
-      'studentId': instance.studentId,
-      'type': _$VisitationTypeEnumMap[instance.type]!,
-      'summary': instance.summary,
-      'visitedByUid': instance.visitedByUid,
-      'visitedByName': instance.visitedByName,
-      'createdAt': instance.createdAt.toIso8601String(),
-      'syncStatus': _$SyncStatusEnumMap[instance.syncStatus]!,
-    };
+  _$PastoralRecordModelImpl instance,
+) => <String, dynamic>{
+  'recordId': instance.recordId,
+  'studentId': instance.studentId,
+  'type': _$VisitationTypeEnumMap[instance.type]!,
+  'summary': instance.summary,
+  'visitedByUid': instance.visitedByUid,
+  'visitedByName': instance.visitedByName,
+  'createdAt': instance.createdAt.toIso8601String(),
+  'syncStatus': _$SyncStatusEnumMap[instance.syncStatus]!,
+};
 
 const _$VisitationTypeEnumMap = {
   VisitationType.phoneCall: 'phoneCall',

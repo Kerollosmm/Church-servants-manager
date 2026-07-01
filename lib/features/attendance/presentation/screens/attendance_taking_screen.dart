@@ -1,3 +1,4 @@
+import 'package:church_management_system/core/blocs/connectivity/connectivity_cubit.dart';
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/routing/route_args.dart';
@@ -288,6 +289,43 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
                       final loaded = state;
                       return Column(
                         children: [
+                          BlocBuilder<ConnectivityCubit, ConnectivityState>(
+                            builder: (context, connState) {
+                              if (connState is ConnectivityOffline) {
+                                return Container(
+                                  color: Colors.amber[800],
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 8,
+                                    horizontal: 16,
+                                  ),
+                                  child: const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.offline_pin_outlined,
+                                        color: Colors.white,
+                                        size: 20,
+                                      ),
+                                      SizedBox(width: 8),
+                                      Flexible(
+                                        child: Text(
+                                          'يتم حفظ الحضور محلياً وسيتم المزامنة لاحقاً',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                          textDirection: TextDirection.rtl,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }
+                              return const SizedBox.shrink();
+                            },
+                          ),
                           Padding(
                             padding: const EdgeInsets.all(AppSpacing.md),
                             child: Column(
@@ -434,7 +472,7 @@ class _RosterItemCard extends StatelessWidget {
       selector: (state) {
         if (state is! AttendanceTakingLoaded) return null;
         return _CardState(
-          pendingMark: state.pendingLocalMarks[item.studentId],
+          pendingMark: state.pendingLocalMarks[item.studentId]?.status,
           isMutationInProgress:
               state.mutationStatus == MutationStatus.inProgress,
           isSessionOpen: state.isSessionOpen,

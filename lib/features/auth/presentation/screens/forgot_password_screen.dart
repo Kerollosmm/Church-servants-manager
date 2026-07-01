@@ -121,7 +121,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                                     text: 'إرسال رابط إعادة التعيين',
                                     icon: Icons.send_outlined,
                                     isLoading: state is AuthLoading,
-                                    onPressed: _submit,
+                                    onPressed: state is AuthLoading
+                                        ? null
+                                        : _submit,
                                   );
                                 },
                               ),

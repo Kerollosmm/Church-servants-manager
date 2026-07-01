@@ -71,10 +71,12 @@ class AttendanceSessionRepository {
               .where('teamId', isEqualTo: teamId)
               .where('isClosed', isEqualTo: false)
               .get(const GetOptions(source: Source.server))
-              .catchError((_) => _sessionsCol
-                  .where('teamId', isEqualTo: teamId)
-                  .where('isClosed', isEqualTo: false)
-                  .get(const GetOptions(source: Source.cache)))
+              .catchError(
+                (_) => _sessionsCol
+                    .where('teamId', isEqualTo: teamId)
+                    .where('isClosed', isEqualTo: false)
+                    .get(const GetOptions(source: Source.cache)),
+              )
               .then((snapshot) {
                 final sessions = _mapSessionsSnapshot(snapshot);
                 if (sessions.isNotEmpty) {
@@ -99,7 +101,9 @@ class AttendanceSessionRepository {
       return sessions;
     } catch (_) {
       try {
-        final cachedSnapshot = await query.get(const GetOptions(source: Source.cache));
+        final cachedSnapshot = await query.get(
+          const GetOptions(source: Source.cache),
+        );
         return _mapSessionsSnapshot(cachedSnapshot);
       } catch (_) {
         return [];
@@ -117,9 +121,11 @@ class AttendanceSessionRepository {
           _sessionsCol
               .where('teamId', isEqualTo: teamId)
               .get(const GetOptions(source: Source.server))
-              .catchError((_) => _sessionsCol
-                  .where('teamId', isEqualTo: teamId)
-                  .get(const GetOptions(source: Source.cache)))
+              .catchError(
+                (_) => _sessionsCol
+                    .where('teamId', isEqualTo: teamId)
+                    .get(const GetOptions(source: Source.cache)),
+              )
               .then((snapshot) {
                 final sessions = _mapSessionsSnapshot(snapshot);
                 if (sessions.isNotEmpty) {
@@ -142,7 +148,9 @@ class AttendanceSessionRepository {
       return sessions;
     } catch (_) {
       try {
-        final cachedSnapshot = await query.get(const GetOptions(source: Source.cache));
+        final cachedSnapshot = await query.get(
+          const GetOptions(source: Source.cache),
+        );
         return _mapSessionsSnapshot(cachedSnapshot);
       } catch (_) {
         return [];
@@ -266,10 +274,12 @@ class AttendanceSessionRepository {
               .where('teamId', isEqualTo: teamId)
               .where('dateKey', isEqualTo: dateKey)
               .get(const GetOptions(source: Source.server))
-              .catchError((_) => _sessionsCol
-                  .where('teamId', isEqualTo: teamId)
-                  .where('dateKey', isEqualTo: dateKey)
-                  .get(const GetOptions(source: Source.cache)))
+              .catchError(
+                (_) => _sessionsCol
+                    .where('teamId', isEqualTo: teamId)
+                    .where('dateKey', isEqualTo: dateKey)
+                    .get(const GetOptions(source: Source.cache)),
+              )
               .then((snapshot) {
                 final sessions = _mapSessionsSnapshot(snapshot);
                 if (sessions.isNotEmpty) {
@@ -294,7 +304,9 @@ class AttendanceSessionRepository {
       return sessions;
     } catch (_) {
       try {
-        final cachedSnapshot = await query.get(const GetOptions(source: Source.cache));
+        final cachedSnapshot = await query.get(
+          const GetOptions(source: Source.cache),
+        );
         return _mapSessionsSnapshot(cachedSnapshot);
       } catch (_) {
         return [];

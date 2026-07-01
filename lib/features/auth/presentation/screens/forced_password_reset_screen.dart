@@ -164,7 +164,9 @@ class _ForcedPasswordResetScreenState extends State<ForcedPasswordResetScreen> {
                                 text: 'تغيير كلمة المرور',
                                 icon: Icons.update_outlined,
                                 isLoading: state is AuthLoading,
-                                onPressed: _submit,
+                                onPressed: state is AuthLoading
+                                    ? null
+                                    : _submit,
                               );
                             },
                           ),

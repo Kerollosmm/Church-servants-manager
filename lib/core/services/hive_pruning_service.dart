@@ -4,7 +4,7 @@ import 'dart:io';
 
 import 'package:church_management_system/core/models/sync_entry.dart';
 import 'package:church_management_system/core/services/dead_letter_queue.dart';
-import 'package:church_management_system/features/attendance/data/local/mark_sync_entry.dart';
+
 import 'package:church_management_system/features/attendance/data/models/attendance_mark.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
 import 'package:hive/hive.dart';
@@ -144,22 +144,16 @@ class HivePruningService {
       return wasOpen
           ? Hive.box<AttendanceMark>(boxName)
           : await Hive.openBox<AttendanceMark>(boxName);
-    } else if (boxName == 'attendance_marks_sync_queue_v2') {
-      return wasOpen
-          ? Hive.box<MarkSyncEntry>(boxName)
-          : await Hive.openBox<MarkSyncEntry>(boxName);
-    } else if (boxName == 'attendance_sessions_cache_box') {
-      return wasOpen
-          ? Hive.box<AttendanceSessionModel>(boxName)
-          : await Hive.openBox<AttendanceSessionModel>(boxName);
     } else if (boxName == 'attendance_marks_cache') {
       return wasOpen
           ? Hive.box<String>(boxName)
           : await Hive.openBox<String>(boxName);
-    } else {
+    } else if (boxName == 'attendance_sessions_cache_box') {
       return wasOpen
-          ? Hive.box(boxName)
-          : await Hive.openBox(boxName);
+          ? Hive.box<AttendanceSessionModel>(boxName)
+          : await Hive.openBox<AttendanceSessionModel>(boxName);
+    } else {
+      return wasOpen ? Hive.box(boxName) : await Hive.openBox(boxName);
     }
   }
 
@@ -173,15 +167,6 @@ class HivePruningService {
         await Hive.boxExists('attendance_marks_v2')) {
       perBox['attendance_marks_v2'] = await pruneStringBox(
         boxName: 'attendance_marks_v2',
-        maxAge: maxAge,
-        timestampExtractor: _extractCachedAt,
-      );
-    }
-
-    if (Hive.isBoxOpen('attendance_marks_sync_queue_v2') ||
-        await Hive.boxExists('attendance_marks_sync_queue_v2')) {
-      perBox['attendance_marks_sync_queue_v2'] = await pruneStringBox(
-        boxName: 'attendance_marks_sync_queue_v2',
         maxAge: maxAge,
         timestampExtractor: _extractCachedAt,
       );
@@ -211,13 +196,18 @@ class HivePruningService {
     if (val is String) {
       try {
         final map = jsonDecode(val) as Map<String, Object?>;
-        final cachedAt = map['cachedAt'] ?? map['updatedAt'] ?? map['createdAt'] ?? map['queuedAt'] ?? map['markedAt'];
+        final cachedAt =
+            map['cachedAt'] ??
+            map['updatedAt'] ??
+            map['createdAt'] ??
+            map['queuedAt'] ??
+            map['markedAt'];
         if (cachedAt is String) return DateTime.tryParse(cachedAt);
       } catch (_) {}
     }
     if (val is AttendanceMark) return val.updatedAt;
     if (val is AttendanceSessionModel) return val.createdAt;
-    if (val is MarkSyncEntry) return val.queuedAt;
+
     if (val is SyncEntry) return val.createdAt;
     return null;
   }

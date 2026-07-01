@@ -12,7 +12,8 @@ part of 'pastoral_record_model.dart';
 T _$identity<T>(T value) => value;
 
 final _privateConstructorUsedError = UnsupportedError(
-    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
+  'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
+);
 
 PastoralRecordModel _$PastoralRecordModelFromJson(Map<String, dynamic> json) {
   return _PastoralRecordModel.fromJson(json);
@@ -62,18 +63,20 @@ mixin _$PastoralRecordModel {
 /// @nodoc
 abstract class $PastoralRecordModelCopyWith<$Res> {
   factory $PastoralRecordModelCopyWith(
-          PastoralRecordModel value, $Res Function(PastoralRecordModel) then) =
-      _$PastoralRecordModelCopyWithImpl<$Res, PastoralRecordModel>;
+    PastoralRecordModel value,
+    $Res Function(PastoralRecordModel) then,
+  ) = _$PastoralRecordModelCopyWithImpl<$Res, PastoralRecordModel>;
   @useResult
-  $Res call(
-      {@HiveField(0) String recordId,
-      @HiveField(1) String studentId,
-      @HiveField(2) VisitationType type,
-      @HiveField(3) String summary,
-      @HiveField(4) String visitedByUid,
-      @HiveField(5) String visitedByName,
-      @HiveField(6) @_TimestampConverter() DateTime createdAt,
-      @HiveField(7) SyncStatus syncStatus});
+  $Res call({
+    @HiveField(0) String recordId,
+    @HiveField(1) String studentId,
+    @HiveField(2) VisitationType type,
+    @HiveField(3) String summary,
+    @HiveField(4) String visitedByUid,
+    @HiveField(5) String visitedByName,
+    @HiveField(6) @_TimestampConverter() DateTime createdAt,
+    @HiveField(7) SyncStatus syncStatus,
+  });
 }
 
 /// @nodoc
@@ -98,69 +101,75 @@ class _$PastoralRecordModelCopyWithImpl<$Res, $Val extends PastoralRecordModel>
     Object? createdAt = null,
     Object? syncStatus = null,
   }) {
-    return _then(_value.copyWith(
-      recordId: null == recordId
-          ? _value.recordId
-          : recordId // ignore: cast_nullable_to_non_nullable
-              as String,
-      studentId: null == studentId
-          ? _value.studentId
-          : studentId // ignore: cast_nullable_to_non_nullable
-              as String,
-      type: null == type
-          ? _value.type
-          : type // ignore: cast_nullable_to_non_nullable
-              as VisitationType,
-      summary: null == summary
-          ? _value.summary
-          : summary // ignore: cast_nullable_to_non_nullable
-              as String,
-      visitedByUid: null == visitedByUid
-          ? _value.visitedByUid
-          : visitedByUid // ignore: cast_nullable_to_non_nullable
-              as String,
-      visitedByName: null == visitedByName
-          ? _value.visitedByName
-          : visitedByName // ignore: cast_nullable_to_non_nullable
-              as String,
-      createdAt: null == createdAt
-          ? _value.createdAt
-          : createdAt // ignore: cast_nullable_to_non_nullable
-              as DateTime,
-      syncStatus: null == syncStatus
-          ? _value.syncStatus
-          : syncStatus // ignore: cast_nullable_to_non_nullable
-              as SyncStatus,
-    ) as $Val);
+    return _then(
+      _value.copyWith(
+            recordId: null == recordId
+                ? _value.recordId
+                : recordId // ignore: cast_nullable_to_non_nullable
+                      as String,
+            studentId: null == studentId
+                ? _value.studentId
+                : studentId // ignore: cast_nullable_to_non_nullable
+                      as String,
+            type: null == type
+                ? _value.type
+                : type // ignore: cast_nullable_to_non_nullable
+                      as VisitationType,
+            summary: null == summary
+                ? _value.summary
+                : summary // ignore: cast_nullable_to_non_nullable
+                      as String,
+            visitedByUid: null == visitedByUid
+                ? _value.visitedByUid
+                : visitedByUid // ignore: cast_nullable_to_non_nullable
+                      as String,
+            visitedByName: null == visitedByName
+                ? _value.visitedByName
+                : visitedByName // ignore: cast_nullable_to_non_nullable
+                      as String,
+            createdAt: null == createdAt
+                ? _value.createdAt
+                : createdAt // ignore: cast_nullable_to_non_nullable
+                      as DateTime,
+            syncStatus: null == syncStatus
+                ? _value.syncStatus
+                : syncStatus // ignore: cast_nullable_to_non_nullable
+                      as SyncStatus,
+          )
+          as $Val,
+    );
   }
 }
 
 /// @nodoc
 abstract class _$$PastoralRecordModelImplCopyWith<$Res>
     implements $PastoralRecordModelCopyWith<$Res> {
-  factory _$$PastoralRecordModelImplCopyWith(_$PastoralRecordModelImpl value,
-          $Res Function(_$PastoralRecordModelImpl) then) =
-      __$$PastoralRecordModelImplCopyWithImpl<$Res>;
+  factory _$$PastoralRecordModelImplCopyWith(
+    _$PastoralRecordModelImpl value,
+    $Res Function(_$PastoralRecordModelImpl) then,
+  ) = __$$PastoralRecordModelImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call(
-      {@HiveField(0) String recordId,
-      @HiveField(1) String studentId,
-      @HiveField(2) VisitationType type,
-      @HiveField(3) String summary,
-      @HiveField(4) String visitedByUid,
-      @HiveField(5) String visitedByName,
-      @HiveField(6) @_TimestampConverter() DateTime createdAt,
-      @HiveField(7) SyncStatus syncStatus});
+  $Res call({
+    @HiveField(0) String recordId,
+    @HiveField(1) String studentId,
+    @HiveField(2) VisitationType type,
+    @HiveField(3) String summary,
+    @HiveField(4) String visitedByUid,
+    @HiveField(5) String visitedByName,
+    @HiveField(6) @_TimestampConverter() DateTime createdAt,
+    @HiveField(7) SyncStatus syncStatus,
+  });
 }
 
 /// @nodoc
 class __$$PastoralRecordModelImplCopyWithImpl<$Res>
     extends _$PastoralRecordModelCopyWithImpl<$Res, _$PastoralRecordModelImpl>
     implements _$$PastoralRecordModelImplCopyWith<$Res> {
-  __$$PastoralRecordModelImplCopyWithImpl(_$PastoralRecordModelImpl _value,
-      $Res Function(_$PastoralRecordModelImpl) _then)
-      : super(_value, _then);
+  __$$PastoralRecordModelImplCopyWithImpl(
+    _$PastoralRecordModelImpl _value,
+    $Res Function(_$PastoralRecordModelImpl) _then,
+  ) : super(_value, _then);
 
   @pragma('vm:prefer-inline')
   @override
@@ -174,56 +183,58 @@ class __$$PastoralRecordModelImplCopyWithImpl<$Res>
     Object? createdAt = null,
     Object? syncStatus = null,
   }) {
-    return _then(_$PastoralRecordModelImpl(
-      recordId: null == recordId
-          ? _value.recordId
-          : recordId // ignore: cast_nullable_to_non_nullable
-              as String,
-      studentId: null == studentId
-          ? _value.studentId
-          : studentId // ignore: cast_nullable_to_non_nullable
-              as String,
-      type: null == type
-          ? _value.type
-          : type // ignore: cast_nullable_to_non_nullable
-              as VisitationType,
-      summary: null == summary
-          ? _value.summary
-          : summary // ignore: cast_nullable_to_non_nullable
-              as String,
-      visitedByUid: null == visitedByUid
-          ? _value.visitedByUid
-          : visitedByUid // ignore: cast_nullable_to_non_nullable
-              as String,
-      visitedByName: null == visitedByName
-          ? _value.visitedByName
-          : visitedByName // ignore: cast_nullable_to_non_nullable
-              as String,
-      createdAt: null == createdAt
-          ? _value.createdAt
-          : createdAt // ignore: cast_nullable_to_non_nullable
-              as DateTime,
-      syncStatus: null == syncStatus
-          ? _value.syncStatus
-          : syncStatus // ignore: cast_nullable_to_non_nullable
-              as SyncStatus,
-    ));
+    return _then(
+      _$PastoralRecordModelImpl(
+        recordId: null == recordId
+            ? _value.recordId
+            : recordId // ignore: cast_nullable_to_non_nullable
+                  as String,
+        studentId: null == studentId
+            ? _value.studentId
+            : studentId // ignore: cast_nullable_to_non_nullable
+                  as String,
+        type: null == type
+            ? _value.type
+            : type // ignore: cast_nullable_to_non_nullable
+                  as VisitationType,
+        summary: null == summary
+            ? _value.summary
+            : summary // ignore: cast_nullable_to_non_nullable
+                  as String,
+        visitedByUid: null == visitedByUid
+            ? _value.visitedByUid
+            : visitedByUid // ignore: cast_nullable_to_non_nullable
+                  as String,
+        visitedByName: null == visitedByName
+            ? _value.visitedByName
+            : visitedByName // ignore: cast_nullable_to_non_nullable
+                  as String,
+        createdAt: null == createdAt
+            ? _value.createdAt
+            : createdAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime,
+        syncStatus: null == syncStatus
+            ? _value.syncStatus
+            : syncStatus // ignore: cast_nullable_to_non_nullable
+                  as SyncStatus,
+      ),
+    );
   }
 }
 
 /// @nodoc
 @JsonSerializable()
 class _$PastoralRecordModelImpl extends _PastoralRecordModel {
-  const _$PastoralRecordModelImpl(
-      {@HiveField(0) required this.recordId,
-      @HiveField(1) required this.studentId,
-      @HiveField(2) required this.type,
-      @HiveField(3) required this.summary,
-      @HiveField(4) required this.visitedByUid,
-      @HiveField(5) required this.visitedByName,
-      @HiveField(6) @_TimestampConverter() required this.createdAt,
-      @HiveField(7) this.syncStatus = SyncStatus.pending})
-      : super._();
+  const _$PastoralRecordModelImpl({
+    @HiveField(0) required this.recordId,
+    @HiveField(1) required this.studentId,
+    @HiveField(2) required this.type,
+    @HiveField(3) required this.summary,
+    @HiveField(4) required this.visitedByUid,
+    @HiveField(5) required this.visitedByName,
+    @HiveField(6) @_TimestampConverter() required this.createdAt,
+    @HiveField(7) this.syncStatus = SyncStatus.pending,
+  }) : super._();
 
   factory _$PastoralRecordModelImpl.fromJson(Map<String, dynamic> json) =>
       _$$PastoralRecordModelImplFromJson(json);
@@ -298,77 +309,79 @@ class _$PastoralRecordModelImpl extends _PastoralRecordModel {
 
   @JsonKey(ignore: true)
   @override
-  int get hashCode => Object.hash(runtimeType, recordId, studentId, type,
-      summary, visitedByUid, visitedByName, createdAt, syncStatus);
+  int get hashCode => Object.hash(
+    runtimeType,
+    recordId,
+    studentId,
+    type,
+    summary,
+    visitedByUid,
+    visitedByName,
+    createdAt,
+    syncStatus,
+  );
 
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$PastoralRecordModelImplCopyWith<_$PastoralRecordModelImpl> get copyWith =>
       __$$PastoralRecordModelImplCopyWithImpl<_$PastoralRecordModelImpl>(
-          this, _$identity);
+        this,
+        _$identity,
+      );
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$PastoralRecordModelImplToJson(
-      this,
-    );
+    return _$$PastoralRecordModelImplToJson(this);
   }
 }
 
 abstract class _PastoralRecordModel extends PastoralRecordModel {
-  const factory _PastoralRecordModel(
-      {@HiveField(0) required final String recordId,
-      @HiveField(1) required final String studentId,
-      @HiveField(2) required final VisitationType type,
-      @HiveField(3) required final String summary,
-      @HiveField(4) required final String visitedByUid,
-      @HiveField(5) required final String visitedByName,
-      @HiveField(6) @_TimestampConverter() required final DateTime createdAt,
-      @HiveField(7) final SyncStatus syncStatus}) = _$PastoralRecordModelImpl;
+  const factory _PastoralRecordModel({
+    @HiveField(0) required final String recordId,
+    @HiveField(1) required final String studentId,
+    @HiveField(2) required final VisitationType type,
+    @HiveField(3) required final String summary,
+    @HiveField(4) required final String visitedByUid,
+    @HiveField(5) required final String visitedByName,
+    @HiveField(6) @_TimestampConverter() required final DateTime createdAt,
+    @HiveField(7) final SyncStatus syncStatus,
+  }) = _$PastoralRecordModelImpl;
   const _PastoralRecordModel._() : super._();
 
   factory _PastoralRecordModel.fromJson(Map<String, dynamic> json) =
       _$PastoralRecordModelImpl.fromJson;
 
   @override
-
   /// Deterministic document ID: `{studentId}_{timestampMs}`.
   @HiveField(0)
   String get recordId;
   @override
-
   /// Student document ID (parent document).
   @HiveField(1)
   String get studentId;
   @override
-
   /// Type of visitation (phoneCall, homeVisit, socialMedia).
   @HiveField(2)
   VisitationType get type;
   @override
-
   /// Free-text summary of the pastoral visit.
   @HiveField(3)
   String get summary;
   @override
-
   /// UID of the servant/admin who made the visit.
   @HiveField(4)
   String get visitedByUid;
   @override
-
   /// Display name of the visitor (snapshot, not a live reference).
   @HiveField(5)
   String get visitedByName;
   @override
-
   /// When this record was created on the client.
   @HiveField(6)
   @_TimestampConverter()
   DateTime get createdAt;
   @override
-
   /// Sync state -- pending until written to Firestore.
   @HiveField(7)
   SyncStatus get syncStatus;

@@ -14,6 +14,7 @@ import 'package:church_management_system/features/student/domain/entities/studen
 import 'package:church_management_system/features/student/domain/failures/student_failures.dart';
 import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:uuid/uuid.dart';
 
 /// Repository for student data operations.
@@ -26,6 +27,7 @@ class StudentDataRepository implements IStudentRepository {
   final StudentLinkedUserSyncService _linkedUserSyncService;
   final StudentLocalDatasource _localDatasource;
   final SyncService Function() _syncServiceGetter;
+  final Connectivity _connectivity;
 
   StudentDataRepository({
     required FirebaseFirestore firestore,
@@ -33,6 +35,7 @@ class StudentDataRepository implements IStudentRepository {
     StudentLinkedUserSyncService? linkedUserSyncService,
     StudentLocalDatasource? localDatasource,
     required SyncService Function() syncServiceGetter,
+    Connectivity? connectivity,
   }) : _firestore = firestore,
        _queryService =
            queryService ?? StudentQueryService(firestore: firestore),
@@ -40,7 +43,8 @@ class StudentDataRepository implements IStudentRepository {
            linkedUserSyncService ??
            StudentLinkedUserSyncService(firestore: firestore),
        _localDatasource = localDatasource ?? StudentLocalDatasource(),
-       _syncServiceGetter = syncServiceGetter;
+       _syncServiceGetter = syncServiceGetter,
+       _connectivity = connectivity ?? Connectivity();
 
   CollectionReference<Map<String, dynamic>> get _studentsCollection =>
       _firestore.collection(FirestoreCollections.students);
@@ -278,6 +282,9 @@ class StudentDataRepository implements IStudentRepository {
       // Save to local cache first
       await _localDatasource.saveStudent(finalStudent);
 
+      final connectivity = await _connectivity.checkConnectivity();
+      final isOffline = connectivity.contains(ConnectivityResult.none);
+
       final syncEntry = SyncEntry(
         id: 'upsert_student_$docId',
         actionType: 'UPSERT_STUDENT',
@@ -285,17 +292,30 @@ class StudentDataRepository implements IStudentRepository {
         createdAt: DateTime.now(),
       );
 
+      if (isOffline) {
+        await _syncServiceGetter().enqueue(syncEntry);
+        return docId;
+      }
+
       try {
-        await _studentsCollection.doc(docId).set({
-          ...finalStudent.toMap(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+        await _firestore.runTransaction((transaction) async {
+          final docRef = _studentsCollection.doc(docId);
+          final existingDoc = await transaction.get(docRef);
+          if (existingDoc.exists) {
+            throw const StudentCreateFailure('المخدوم موجود مسبقاً.');
+          }
+          transaction.set(docRef, {
+            ...finalStudent.toMap(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        });
 
         final syncedStudent = finalStudent.copyWith(
           syncStatus: SyncStatus.synced,
         );
         await _localDatasource.saveStudent(syncedStudent);
       } catch (e) {
+        if (e is StudentCreateFailure) rethrow;
         developer.log(
           'Failed to create student online, enqueuing for offline sync',
           error: e,
@@ -307,6 +327,7 @@ class StudentDataRepository implements IStudentRepository {
 
       return docId;
     } catch (e) {
+      if (e is StudentFailure) rethrow;
       throw mapExceptionToStudentFailure(e);
     }
   }

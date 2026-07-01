@@ -48,7 +48,7 @@ class AttendanceCommandService {
       _firestore.collection(FirestoreCollections.attendance);
 
   DocumentReference<Map<String, dynamic>> _sessionDoc(
-    String teamId, // Kept for interface compatibility
+    String teamId,
     String sessionId,
   ) => _sessionsCol.doc(sessionId);
 
@@ -293,16 +293,20 @@ class AttendanceCommandService {
       final markedStudentIds = <String>{};
       final presentStudentIds = <String>{};
       final lateStudentIds = <String>{};
+      final studentMarks = <String, ({String status, Timestamp? markedAt})>{};
 
       for (final doc in marksSnapshot.docs) {
         final studentId = doc.id.split('_').first;
         markedStudentIds.add(studentId);
-        final status = doc.data()['status'];
+        final status = doc.data()['status'] as String? ?? 'absent';
         if (status == 'present') {
           presentStudentIds.add(studentId);
         } else if (status == 'late') {
           lateStudentIds.add(studentId);
         }
+        final dbTimestamp = doc.data()['markedAt'] ?? doc.data()['updatedAt'];
+        final markedAt = dbTimestamp is Timestamp ? dbTimestamp : null;
+        studentMarks[studentId] = (status: status, markedAt: markedAt);
       }
 
       final unmarkedStudents = session.studentIdsSnapshot
@@ -317,6 +321,7 @@ class AttendanceCommandService {
       final totalOperations =
           unmarkedStudents.length +
           presentAndLateStudentIds.length +
+          session.studentIdsSnapshot.length +
           2; // +1 for session, +1 for group
 
       if (totalOperations <= 500) {
@@ -360,7 +365,29 @@ class AttendanceCommandService {
             }, SetOptions(merge: true));
           }
 
-          // 3. Update Group Aggregate
+          // 3. Write per-student subcollection docs (Phase F)
+          for (final studentId in session.studentIdsSnapshot) {
+            final markData = studentMarks[studentId];
+            final status = markData?.status ?? 'absent';
+            final markedAt = markData?.markedAt;
+            final studentSessionRef = _firestore
+                .collection(FirestoreCollections.students)
+                .doc(studentId)
+                .collection(FirestoreCollections.attendanceSessions)
+                .doc(sessionId);
+            transaction.set(studentSessionRef, {
+              'sessionId': sessionId,
+              'teamId': teamId,
+              'studentId': studentId,
+              'studentName': session.studentNameSnapshots[studentId] ?? 'مخدوم',
+              'status': status,
+              'markedAt': markedAt,
+              'startsAt': Timestamp.fromDate(session.startsAt),
+              'closedAt': FieldValue.serverTimestamp(),
+            });
+          }
+
+          // 4. Update Group Aggregate
           final absentCount =
               session.studentIdsSnapshot.length -
               presentAndLateStudentIds.length;
@@ -436,7 +463,34 @@ class AttendanceCommandService {
           await batch.commit();
         }
 
-        // 3. Final IDEMPOTENT step for group aggregate and session status
+        // 3. Write per-student subcollection docs (Batched) (Phase F)
+        final rosterStudents = session.studentIdsSnapshot;
+        for (final chunk in rosterStudents.chunk(450)) {
+          final batch = _firestore.batch();
+          for (final studentId in chunk) {
+            final markData = studentMarks[studentId];
+            final status = markData?.status ?? 'absent';
+            final markedAt = markData?.markedAt;
+            final studentSessionRef = _firestore
+                .collection(FirestoreCollections.students)
+                .doc(studentId)
+                .collection(FirestoreCollections.attendanceSessions)
+                .doc(sessionId);
+            batch.set(studentSessionRef, {
+              'sessionId': sessionId,
+              'teamId': teamId,
+              'studentId': studentId,
+              'studentName': session.studentNameSnapshots[studentId] ?? 'مخدوم',
+              'status': status,
+              'markedAt': markedAt,
+              'startsAt': Timestamp.fromDate(session.startsAt),
+              'closedAt': FieldValue.serverTimestamp(),
+            });
+          }
+          await batch.commit();
+        }
+
+        // 4. Final IDEMPOTENT step for group aggregate and session status
         await _firestore.runTransaction((transaction) async {
           final sRef = _sessionDoc(teamId, sessionId);
           final sDoc = await transaction.get(sRef);
@@ -553,6 +607,14 @@ class AttendanceCommandService {
           return;
         }
 
+        final sessionData = sessionDoc.data() ?? {};
+        final sessionTeamId = sessionData['teamId'] as String?;
+        if (sessionTeamId != teamId) {
+          throw const AttendancePermissionDeniedFailure(
+            'Session teamId does not match the requested teamId.',
+          );
+        }
+
         final markDoc = await transaction.get(markRef);
         String? oldStatus;
 
@@ -569,9 +631,9 @@ class AttendanceCommandService {
           }
         }
 
-        final sessionData = sessionDoc.data() ?? {};
+        final sessionData2 = sessionDoc.data() ?? {};
         final studentNameSnapshots =
-            sessionData['studentNameSnapshots'] as Map<String, dynamic>?;
+            sessionData2['studentNameSnapshots'] as Map<String, dynamic>?;
         final studentName = studentNameSnapshots?[studentId] ?? 'مخدوم';
 
         final markData = <String, dynamic>{
@@ -610,20 +672,6 @@ class AttendanceCommandService {
     }
   }
 
-  /// Persists multiple offline mark payloads for the same [sessionId] in one
-  /// or more Firestore [WriteBatch]es (chunked at 490 ops to stay under the
-  /// 500-op limit).
-  ///
-  /// **LWW (Last-Write-Wins)**: For each payload the existing server document
-  /// is read (cache-first) before the batch is committed.  If the server's
-  /// `updatedAt` / `markedAt` timestamp is strictly newer than the payload's
-  /// `createdAt`, that mark is silently skipped — the rest of the batch
-  /// proceeds unaffected.
-  ///
-  /// **presentCount aggregation**: After all batches have been committed a
-  /// single atomic `FieldValue.increment` adjusts the session's `presentCount`
-  /// by the net delta (new presents minus lost presents) to keep the aggregate
-  /// consistent without needing a full scan.
   Future<void> syncBatchedMarks({
     required String teamId,
     required String sessionId,
@@ -631,6 +679,18 @@ class AttendanceCommandService {
   }) async {
     if (payloads.isEmpty) return;
     try {
+      final sessionRef = _sessionDoc(teamId, sessionId);
+      final sessionDoc = await _cachedGet(sessionRef);
+      if (!sessionDoc.exists || sessionDoc.data() == null) {
+        throw const AttendanceSessionNotFoundFailure();
+      }
+      final sessionData = sessionDoc.data()!;
+      if (sessionData['teamId'] != teamId) {
+        throw const AttendancePermissionDeniedFailure(
+          'Session teamId does not match the requested teamId.',
+        );
+      }
+
       const int chunkSize = 490; // stay safely under Firestore's 500-op limit
       int presentDelta = 0;
 
@@ -659,10 +719,6 @@ class AttendanceCommandService {
           final markRef = _markDoc(teamId, sessionId, studentId);
 
           // ── LWW check (cache-first read) ─────────────────────────────────
-          // We intentionally use a non-transactional get here: WriteBatch
-          // does not support reads.  The cost is a potential lost-update race
-          // if two clients write the same doc within the same millisecond
-          // offline, which is negligible in practice for a church app.
           final existingDoc = await _cachedGet(markRef);
           String? oldStatus;
 
@@ -697,9 +753,6 @@ class AttendanceCommandService {
 
           if (!existingDoc.exists) {
             markData['markedAt'] = Timestamp.fromDate(createdAt);
-            // Fetch student name from session snapshot if available.
-            // We don't fetch the session doc here to avoid extra reads; the
-            // name may already be in the payload.
             final snapshotName = payload['studentNameSnapshot'] as String?;
             markData['studentNameSnapshot'] = (snapshotName?.isNotEmpty == true)
                 ? snapshotName!
@@ -764,6 +817,12 @@ class AttendanceCommandService {
           sessionDoc.data()!,
           sessionDoc.id,
         ).toDomain();
+
+        if (session.teamId != teamId) {
+          throw const AttendancePermissionDeniedFailure(
+            'Session teamId does not match the requested teamId.',
+          );
+        }
 
         final now = _nowProvider();
         final canMark = !session.isClosed || session.isOpenAt(now);
@@ -832,7 +891,8 @@ class AttendanceCommandService {
   Future<void> batchWriteMarks({
     required String teamId,
     required String sessionId,
-    required Map<String, AttendanceMarkStatus> marks,
+    required Map<String, ({AttendanceMarkStatus status, DateTime markedAt})>
+    marks,
     required AuthUser markedBy,
     bool cachedPermission = false,
   }) async {
@@ -847,12 +907,42 @@ class AttendanceCommandService {
         sessionDoc.id,
       ).toDomain();
 
-      final entries = marks.entries.toList(growable: false);
+      if (session.teamId != teamId) {
+        throw const AttendancePermissionDeniedFailure(
+          'Session teamId does not match the requested teamId.',
+        );
+      }
+
+      final marksToWrite =
+          <String, ({AttendanceMarkStatus status, DateTime markedAt})>{};
+      for (final entry in marks.entries) {
+        final studentId = entry.key;
+        final payloadMarkedAt = entry.value.markedAt;
+        final markRef = _markDoc(teamId, sessionId, studentId);
+        final existingDoc = await _cachedGet(markRef);
+        if (existingDoc.exists) {
+          final data = existingDoc.data();
+          final dbTimestamp = data?['updatedAt'] ?? data?['markedAt'];
+          if (dbTimestamp is Timestamp &&
+              dbTimestamp.toDate().isAfter(payloadMarkedAt)) {
+            developer.log(
+              'LWW: skipping batchWriteMarks for student $studentId (server is newer).',
+              name: 'AttendanceCommandService',
+            );
+            continue;
+          }
+        }
+        marksToWrite[studentId] = entry.value;
+      }
+
+      if (marksToWrite.isEmpty) return;
+
+      final entries = marksToWrite.entries.toList(growable: false);
       for (final chunk in entries.chunk(400)) {
         final batch = _firestore.batch();
         for (final entry in chunk) {
           final studentId = entry.key;
-          final status = entry.value;
+          final status = entry.value.status;
           final markRef = _markDoc(teamId, sessionId, studentId);
           final studentName =
               session.studentNameSnapshots[studentId] ?? 'مخدوم';
@@ -867,6 +957,14 @@ class AttendanceCommandService {
         }
         await batch.commit();
       }
+
+      final presentCount = marksToWrite.values
+          .where((v) => v.status == AttendanceMarkStatus.present)
+          .length;
+      await sessionRef.update({
+        'presentCount': FieldValue.increment(presentCount),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
     } catch (error) {
       if (error is AttendanceFailure) rethrow;
       throw mapExceptionToAttendanceFailure(error);

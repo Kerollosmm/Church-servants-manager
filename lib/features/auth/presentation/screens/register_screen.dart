@@ -161,7 +161,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 text: 'إنشاء حساب',
                                 icon: Icons.person_add_outlined,
                                 isLoading: state is AuthLoading,
-                                onPressed: _submit,
+                                onPressed: state is AuthLoading
+                                    ? null
+                                    : _submit,
                               );
                             },
                           ),

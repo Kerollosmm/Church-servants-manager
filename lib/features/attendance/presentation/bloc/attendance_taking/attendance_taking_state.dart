@@ -39,12 +39,17 @@ final class AttendanceTakingLoaded extends AttendanceTakingState {
   /// Maps studentId → AttendanceMarkStatus for quick lookup.
   final Map<String, AttendanceMarkStatus> marksMap;
 
-  /// Maps studentId → AttendanceMarkStatus for instant UI feedback before sync.
-  final Map<String, AttendanceMarkStatus> pendingLocalMarks;
+  /// Maps studentId → (status, markedAt) for instant UI feedback before sync.
+  final Map<String, ({AttendanceMarkStatus status, DateTime markedAt})>
+  pendingLocalMarks;
 
   /// Effective marks for UI, merging Firestore marks with local pending marks.
   Map<String, AttendanceMarkStatus> get effectiveMarksMap {
-    return {...marksMap, ...pendingLocalMarks};
+    return {
+      ...marksMap,
+      for (final entry in pendingLocalMarks.entries)
+        entry.key: entry.value.status,
+    };
   }
 
   /// Current mutation state for UI feedback.
@@ -64,7 +69,8 @@ final class AttendanceTakingLoaded extends AttendanceTakingState {
     AttendanceSession? session,
     List<AttendanceRosterItem>? roster,
     Map<String, AttendanceMarkStatus>? marksMap,
-    Map<String, AttendanceMarkStatus>? pendingLocalMarks,
+    Map<String, ({AttendanceMarkStatus status, DateTime markedAt})>?
+    pendingLocalMarks,
     MutationStatus? mutationStatus,
     String? feedbackMessage,
     bool? isSessionOpen,
@@ -88,15 +94,21 @@ final class AttendanceTakingLoaded extends AttendanceTakingState {
   AttendanceTakingLoaded withPendingMark(
     String studentId,
     AttendanceMarkStatus status,
+    DateTime markedAt,
   ) {
     return copyWith(
-      pendingLocalMarks: {...pendingLocalMarks, studentId: status},
+      pendingLocalMarks: {
+        ...pendingLocalMarks,
+        studentId: (status: status, markedAt: markedAt),
+      },
     );
   }
 
   AttendanceTakingLoaded withoutPendingMark(String studentId) {
-    final updated = Map<String, AttendanceMarkStatus>.from(pendingLocalMarks)
-      ..remove(studentId);
+    final updated =
+        Map<String, ({AttendanceMarkStatus status, DateTime markedAt})>.from(
+          pendingLocalMarks,
+        )..remove(studentId);
     return copyWith(pendingLocalMarks: updated);
   }
 

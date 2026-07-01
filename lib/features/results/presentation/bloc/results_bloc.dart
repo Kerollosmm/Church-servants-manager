@@ -23,12 +23,15 @@ class ResultsBloc extends Bloc<ResultsEvent, ResultsState> {
     try {
       // Configure ResultsBloc to first emit Loaded using Source.cache before attempting a background refresh.
       // The repository already handles cache-first logic in getResultsForServant.
-      final results = await _resultsRepository.getResultsForServant(
+      final response = await _resultsRepository.getResultsForServant(
         event.groupId,
       );
       emit(
-        ResultsLoaded(results: results, isFromCache: true),
-      ); // Assuming first hit is cache/fast
+        ResultsLoaded(
+          results: response.results,
+          isFromCache: response.isFromCache,
+        ),
+      );
 
       // If we wanted a double-emit (cache then server), we'd need more granular repo methods.
       // For now, the repo's getResultsForServant does cache-then-server internally if cache is empty.

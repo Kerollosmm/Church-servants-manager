@@ -15,6 +15,11 @@ class StudentNotFoundFailure extends StudentFailure {
   const StudentNotFoundFailure([super.message = 'Student not found']);
 }
 
+/// Thrown when creating a student fails (e.g. duplicate).
+class StudentCreateFailure extends StudentFailure {
+  const StudentCreateFailure([super.message = 'Failed to create student']);
+}
+
 /// Thrown when the user does not have permission to perform an action.
 class PermissionDeniedFailure extends StudentFailure {
   const PermissionDeniedFailure([super.message = 'Permission denied']);

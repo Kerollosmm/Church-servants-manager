@@ -263,7 +263,12 @@ void main() {
         () => repository.batchWriteMarks(
           teamId: 'team-1',
           sessionId: 'session-1',
-          marks: {'student-1': AttendanceMarkStatus.present},
+          marks: {
+            'student-1': (
+              status: AttendanceMarkStatus.present,
+              markedAt: DateTime(2026, 3, 9, 18, 10),
+            ),
+          },
           markedBy: servant,
           cachedPermission: any(named: 'cachedPermission'),
         ),

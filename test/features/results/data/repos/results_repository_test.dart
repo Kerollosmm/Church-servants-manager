@@ -1,9 +1,13 @@
+import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/features/results/data/datasources/results_local_datasource.dart';
 import 'package:church_management_system/features/results/data/models/results_model.dart';
 import 'package:church_management_system/features/results/data/repos/results_repository.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+
+class MockSyncService extends Mock implements SyncService {}
+
 
 class MockResultsLocalDatasource extends Mock
     implements ResultsLocalDatasource {}
@@ -37,6 +41,7 @@ void main() {
     repository = ResultsRepository(
       firestore: firestore,
       localDatasource: localDatasource,
+      syncServiceGetter: MockSyncService.new,
     );
   });
 
@@ -61,7 +66,8 @@ void main() {
               });
         }
 
-        final results = await repository.getResultsForServant(groupId);
+        final resultRecord = await repository.getResultsForServant(groupId);
+        final results = resultRecord.results;
 
         // Should only get results for 'year1' and be limited to 30
         expect(results.length, 30);

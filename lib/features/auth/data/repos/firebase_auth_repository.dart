@@ -12,6 +12,7 @@ import 'package:church_management_system/features/auth/domain/failures/auth_exce
 import 'package:church_management_system/features/auth/domain/repos/auth_repository.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:rxdart/rxdart.dart';
 
 class FirebaseAuthRepository implements AuthRepository {
   final FirebaseIdentityProvider _identityProvider;
@@ -51,61 +52,62 @@ class FirebaseAuthRepository implements AuthRepository {
 
   @override
   Stream<AuthUser?> get userStream {
-    // Listen for auth state changes natively, ignoring custom claims entirely
-    return _identityProvider.idTokenChanges.asyncMap((_) async {
-      final firebaseUser = _identityProvider.currentUser;
-      if (firebaseUser == null) {
-        _lastKnownAppUser = null;
-        await _localAuthStore.deleteUser();
-        return null;
-      }
+    return _identityProvider.authStateChanges
+        .debounceTime(const Duration(seconds: 30))
+        .asyncMap((_) async {
+          final firebaseUser = _identityProvider.currentUser;
+          if (firebaseUser == null) {
+            _lastKnownAppUser = null;
+            await _localAuthStore.deleteUser();
+            return null;
+          }
 
-      try {
-        final docRef = _firestore
-            .collection(FirestoreCollections.servants)
-            .doc(firebaseUser.uid);
-        final docSnap = await docRef.get(const GetOptions());
+          try {
+            final docRef = _firestore
+                .collection(FirestoreCollections.servants)
+                .doc(firebaseUser.uid);
+            final docSnap = await docRef.get(const GetOptions());
 
-        if (!docSnap.exists || docSnap.data() == null) {
-          throw UserNotFoundAuthException();
-        }
+            if (!docSnap.exists || docSnap.data() == null) {
+              throw UserNotFoundAuthException();
+            }
 
-        final profile = AuthUserModel.fromJson(docSnap.data()!).toDomain();
+            final profile = AuthUserModel.fromJson(docSnap.data()!).toDomain();
 
-        final mergedUser = profile.copyWith(
-          uid: firebaseUser.uid,
-          email: firebaseUser.email ?? profile.email,
-          name: firebaseUser.displayName?.trim().isNotEmpty == true
-              ? firebaseUser.displayName!.trim()
-              : profile.name,
-          isEmailVerified: firebaseUser.emailVerified,
-          // Use profile source of truth for Role & RBAC
-          role: profile.role,
-          isArchived: profile.isArchived,
-          assignedTeamIds: profile.assignedTeamIds,
-        );
+            final mergedUser = profile.copyWith(
+              uid: firebaseUser.uid,
+              email: firebaseUser.email ?? profile.email,
+              name: firebaseUser.displayName?.trim().isNotEmpty == true
+                  ? firebaseUser.displayName!.trim()
+                  : profile.name,
+              isEmailVerified: firebaseUser.emailVerified,
+              // Use profile source of truth for Role & RBAC
+              role: profile.role,
+              isArchived: profile.isArchived,
+              assignedTeamIds: profile.assignedTeamIds,
+            );
 
-        _lastKnownAppUser = mergedUser;
-        // Save the newly synced user configuration in local persistent storage (cache the resulting role in Hive)
-        await _localAuthStore.saveUser(mergedUser);
-        return mergedUser;
-      } catch (e) {
-        developer.log(
-          'Failed to hydrate user profile stream',
-          name: 'FirebaseAuthRepository',
-        );
-        // Fallback: If offline and the network fails unexpectedly, return the latest cached state
-        if (_lastKnownAppUser != null) {
-          return _lastKnownAppUser;
-        }
-        final cachedUser = _localAuthStore.getUser();
-        if (cachedUser != null) {
-          _lastKnownAppUser = cachedUser;
-          return cachedUser;
-        }
-        return null;
-      }
-    });
+            _lastKnownAppUser = mergedUser;
+            // Save the newly synced user configuration in local persistent storage (cache the resulting role in Hive)
+            await _localAuthStore.saveUser(mergedUser);
+            return mergedUser;
+          } catch (e) {
+            developer.log(
+              'Failed to hydrate user profile stream',
+              name: 'FirebaseAuthRepository',
+            );
+            // Fallback: If offline and the network fails unexpectedly, return the latest cached state
+            if (_lastKnownAppUser != null) {
+              return _lastKnownAppUser;
+            }
+            final cachedUser = _localAuthStore.getUser();
+            if (cachedUser != null) {
+              _lastKnownAppUser = cachedUser;
+              return cachedUser;
+            }
+            return null;
+          }
+        });
   }
 
   @override

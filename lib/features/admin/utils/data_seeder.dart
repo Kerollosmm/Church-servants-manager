@@ -119,6 +119,7 @@ class DataSeeder {
 
   /// Creates sample teams (Team A, Team B, etc.) for each Group.
   Future<void> seedTeams() async {
+    assert(kDebugMode, 'DataSeeder must only be used in debug mode.');
     final teamsData = [
       'St. Mark',
       'St. George',
@@ -145,6 +146,7 @@ class DataSeeder {
 
   /// Seeds demo student documents (not tied to Firebase Auth accounts).
   Future<void> seedStudents({int count = 20}) async {
+    assert(kDebugMode, 'DataSeeder must only be used in debug mode.');
     final teamsByGroup = count > 0
         ? await _loadSeedTeamsByGroup()
         : const <Group, List<TeamModel>>{};
@@ -246,12 +248,14 @@ class DataSeeder {
 
   /// Deletes ALL documents from the Students collection in paginated batches.
   Future<void> clearStudents() async {
+    assert(kDebugMode, 'DataSeeder must only be used in debug mode.');
     if (!kDebugMode) return;
     await _clearCollection(_students, 'students');
   }
 
   /// Deletes ALL documents from the Classes (Teams) collection in paginated batches.
   Future<void> clearTeams() async {
+    assert(kDebugMode, 'DataSeeder must only be used in debug mode.');
     if (!kDebugMode) return;
     await _clearCollection(_classes, 'teams');
   }
@@ -280,6 +284,7 @@ class DataSeeder {
 
   /// Clears all seeded data and reseeds from scratch.
   Future<void> clearAndReseed({int studentCount = 20}) async {
+    assert(kDebugMode, 'DataSeeder must only be used in debug mode.');
     if (!kDebugMode) return;
     await clearStudents();
     await clearTeams();

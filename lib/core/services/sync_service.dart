@@ -44,6 +44,10 @@ class SyncStatus {
 
 /// Centralized offline sync engine using the Outbox pattern.
 class SyncService {
+  static const String periodicTaskUniqueName = 'csms_sync_task_id';
+  static const String oneOffTaskUniqueName = 'csms_sync_offline_queue';
+  static const String taskName = 'offline_sync_task';
+
   static const int _maxRetries = 5;
   static const int _baseBackoffMs = 1000;
   final Connectivity _connectivity;
@@ -100,8 +104,8 @@ class SyncService {
       // Register periodic sync task for this user
       try {
         await Workmanager().registerPeriodicTask(
-          'sync_task_id',
-          'offline_sync_task',
+          periodicTaskUniqueName,
+          taskName,
           frequency: const Duration(minutes: 15),
           constraints: Constraints(networkType: NetworkType.connected),
           existingWorkPolicy: ExistingPeriodicWorkPolicy.update,
@@ -127,9 +131,9 @@ class SyncService {
     } else {
       _activeBox = null;
       developer.log('Dismounted sync queue', name: 'SyncService');
-      // Cancel the periodic and one-off sync tasks on logout
       try {
-        await Workmanager().cancelAll();
+        await Workmanager().cancelByUniqueName(periodicTaskUniqueName);
+        await Workmanager().cancelByUniqueName(oneOffTaskUniqueName);
         developer.log(
           'Cancelled all Workmanager tasks on logout',
           name: 'SyncService',
@@ -215,11 +219,10 @@ class SyncService {
       if (!results.contains(ConnectivityResult.none)) {
         unawaited(processQueue());
       } else {
-        // Register a one-off background task to run when connectivity returns
         try {
           await Workmanager().registerOneOffTask(
-            'sync_offline_queue',
-            'offline_sync_task',
+            oneOffTaskUniqueName,
+            taskName,
             constraints: Constraints(networkType: NetworkType.connected),
             existingWorkPolicy: ExistingWorkPolicy.replace,
             inputData: {'userId': _activeUserId!},
@@ -266,6 +269,36 @@ class SyncService {
     }
   }
 
+  /// Retries all entries currently in the dead-letter queue by re-enqueuing them.
+  Future<void> retryDlq() async {
+    if (_activeUserId == null) return;
+    final box =
+        _activeBox ??
+        await Hive.openBox<SyncEntry>(
+          _boxNameForUser(_activeUserId!),
+          compactionStrategy: (entries, deletedEntries) => deletedEntries > 50,
+        );
+    if (!box.isOpen) return;
+
+    final dlqEntries = _dlq.getAll();
+    if (dlqEntries.isEmpty) return;
+
+    for (final entry in dlqEntries) {
+      final resetEntry = SyncEntry(
+        id: entry.id,
+        actionType: entry.actionType,
+        payload: Map<String, dynamic>.from(entry.payload),
+        createdAt: entry.createdAt,
+        userId: _activeUserId,
+      );
+      await box.put(resetEntry.id, resetEntry);
+      await _dlq.remove(entry.id);
+    }
+
+    // Trigger queue processing
+    unawaited(processQueue());
+  }
+
   /// Processes the active user's queue sequentially (FIFO) with Consecutive Chunking.
   Future<void> processQueue() async {
     if (_isProcessing) return;
@@ -281,7 +314,11 @@ class SyncService {
     try {
       // FIFO order: sort ascending by creation time.
       final entries = targetBox.values.toList()
-        ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        ..sort((a, b) {
+          final timeCompare = a.createdAt.compareTo(b.createdAt);
+          if (timeCompare != 0) return timeCompare;
+          return a.id.compareTo(b.id);
+        });
       int i = 0;
       while (i < entries.length) {
         // Re-check box state each iteration to prevent stall conditions

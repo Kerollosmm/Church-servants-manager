@@ -12,7 +12,8 @@ part of 'team_model.dart';
 T _$identity<T>(T value) => value;
 
 final _privateConstructorUsedError = UnsupportedError(
-    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
+  'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
+);
 
 TeamModel _$TeamModelFromJson(Map<String, dynamic> json) {
   return _TeamModel.fromJson(json);
@@ -67,19 +68,20 @@ abstract class $TeamModelCopyWith<$Res> {
   factory $TeamModelCopyWith(TeamModel value, $Res Function(TeamModel) then) =
       _$TeamModelCopyWithImpl<$Res, TeamModel>;
   @useResult
-  $Res call(
-      {@HiveField(0) String id,
-      @HiveField(1) String name,
-      @HiveField(2) String groupId,
-      @HiveField(3) String? assignedServantId,
-      @HiveField(4) String? assignedServantName,
-      @HiveField(5) bool isArchived,
-      @HiveField(6) @_TimestampConverter() DateTime? archivedAt,
-      @HiveField(7) String? archivedByUserId,
-      @HiveField(8) String? archiveReason,
-      @HiveField(9) @_TimestampConverter() DateTime? restoredAt,
-      @HiveField(10) String? restoredByUserId,
-      @HiveField(11) SyncStatus syncStatus});
+  $Res call({
+    @HiveField(0) String id,
+    @HiveField(1) String name,
+    @HiveField(2) String groupId,
+    @HiveField(3) String? assignedServantId,
+    @HiveField(4) String? assignedServantName,
+    @HiveField(5) bool isArchived,
+    @HiveField(6) @_TimestampConverter() DateTime? archivedAt,
+    @HiveField(7) String? archivedByUserId,
+    @HiveField(8) String? archiveReason,
+    @HiveField(9) @_TimestampConverter() DateTime? restoredAt,
+    @HiveField(10) String? restoredByUserId,
+    @HiveField(11) SyncStatus syncStatus,
+  });
 }
 
 /// @nodoc
@@ -108,56 +110,59 @@ class _$TeamModelCopyWithImpl<$Res, $Val extends TeamModel>
     Object? restoredByUserId = freezed,
     Object? syncStatus = null,
   }) {
-    return _then(_value.copyWith(
-      id: null == id
-          ? _value.id
-          : id // ignore: cast_nullable_to_non_nullable
-              as String,
-      name: null == name
-          ? _value.name
-          : name // ignore: cast_nullable_to_non_nullable
-              as String,
-      groupId: null == groupId
-          ? _value.groupId
-          : groupId // ignore: cast_nullable_to_non_nullable
-              as String,
-      assignedServantId: freezed == assignedServantId
-          ? _value.assignedServantId
-          : assignedServantId // ignore: cast_nullable_to_non_nullable
-              as String?,
-      assignedServantName: freezed == assignedServantName
-          ? _value.assignedServantName
-          : assignedServantName // ignore: cast_nullable_to_non_nullable
-              as String?,
-      isArchived: null == isArchived
-          ? _value.isArchived
-          : isArchived // ignore: cast_nullable_to_non_nullable
-              as bool,
-      archivedAt: freezed == archivedAt
-          ? _value.archivedAt
-          : archivedAt // ignore: cast_nullable_to_non_nullable
-              as DateTime?,
-      archivedByUserId: freezed == archivedByUserId
-          ? _value.archivedByUserId
-          : archivedByUserId // ignore: cast_nullable_to_non_nullable
-              as String?,
-      archiveReason: freezed == archiveReason
-          ? _value.archiveReason
-          : archiveReason // ignore: cast_nullable_to_non_nullable
-              as String?,
-      restoredAt: freezed == restoredAt
-          ? _value.restoredAt
-          : restoredAt // ignore: cast_nullable_to_non_nullable
-              as DateTime?,
-      restoredByUserId: freezed == restoredByUserId
-          ? _value.restoredByUserId
-          : restoredByUserId // ignore: cast_nullable_to_non_nullable
-              as String?,
-      syncStatus: null == syncStatus
-          ? _value.syncStatus
-          : syncStatus // ignore: cast_nullable_to_non_nullable
-              as SyncStatus,
-    ) as $Val);
+    return _then(
+      _value.copyWith(
+            id: null == id
+                ? _value.id
+                : id // ignore: cast_nullable_to_non_nullable
+                      as String,
+            name: null == name
+                ? _value.name
+                : name // ignore: cast_nullable_to_non_nullable
+                      as String,
+            groupId: null == groupId
+                ? _value.groupId
+                : groupId // ignore: cast_nullable_to_non_nullable
+                      as String,
+            assignedServantId: freezed == assignedServantId
+                ? _value.assignedServantId
+                : assignedServantId // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            assignedServantName: freezed == assignedServantName
+                ? _value.assignedServantName
+                : assignedServantName // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            isArchived: null == isArchived
+                ? _value.isArchived
+                : isArchived // ignore: cast_nullable_to_non_nullable
+                      as bool,
+            archivedAt: freezed == archivedAt
+                ? _value.archivedAt
+                : archivedAt // ignore: cast_nullable_to_non_nullable
+                      as DateTime?,
+            archivedByUserId: freezed == archivedByUserId
+                ? _value.archivedByUserId
+                : archivedByUserId // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            archiveReason: freezed == archiveReason
+                ? _value.archiveReason
+                : archiveReason // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            restoredAt: freezed == restoredAt
+                ? _value.restoredAt
+                : restoredAt // ignore: cast_nullable_to_non_nullable
+                      as DateTime?,
+            restoredByUserId: freezed == restoredByUserId
+                ? _value.restoredByUserId
+                : restoredByUserId // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            syncStatus: null == syncStatus
+                ? _value.syncStatus
+                : syncStatus // ignore: cast_nullable_to_non_nullable
+                      as SyncStatus,
+          )
+          as $Val,
+    );
   }
 }
 
@@ -165,23 +170,25 @@ class _$TeamModelCopyWithImpl<$Res, $Val extends TeamModel>
 abstract class _$$TeamModelImplCopyWith<$Res>
     implements $TeamModelCopyWith<$Res> {
   factory _$$TeamModelImplCopyWith(
-          _$TeamModelImpl value, $Res Function(_$TeamModelImpl) then) =
-      __$$TeamModelImplCopyWithImpl<$Res>;
+    _$TeamModelImpl value,
+    $Res Function(_$TeamModelImpl) then,
+  ) = __$$TeamModelImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call(
-      {@HiveField(0) String id,
-      @HiveField(1) String name,
-      @HiveField(2) String groupId,
-      @HiveField(3) String? assignedServantId,
-      @HiveField(4) String? assignedServantName,
-      @HiveField(5) bool isArchived,
-      @HiveField(6) @_TimestampConverter() DateTime? archivedAt,
-      @HiveField(7) String? archivedByUserId,
-      @HiveField(8) String? archiveReason,
-      @HiveField(9) @_TimestampConverter() DateTime? restoredAt,
-      @HiveField(10) String? restoredByUserId,
-      @HiveField(11) SyncStatus syncStatus});
+  $Res call({
+    @HiveField(0) String id,
+    @HiveField(1) String name,
+    @HiveField(2) String groupId,
+    @HiveField(3) String? assignedServantId,
+    @HiveField(4) String? assignedServantName,
+    @HiveField(5) bool isArchived,
+    @HiveField(6) @_TimestampConverter() DateTime? archivedAt,
+    @HiveField(7) String? archivedByUserId,
+    @HiveField(8) String? archiveReason,
+    @HiveField(9) @_TimestampConverter() DateTime? restoredAt,
+    @HiveField(10) String? restoredByUserId,
+    @HiveField(11) SyncStatus syncStatus,
+  });
 }
 
 /// @nodoc
@@ -189,8 +196,9 @@ class __$$TeamModelImplCopyWithImpl<$Res>
     extends _$TeamModelCopyWithImpl<$Res, _$TeamModelImpl>
     implements _$$TeamModelImplCopyWith<$Res> {
   __$$TeamModelImplCopyWithImpl(
-      _$TeamModelImpl _value, $Res Function(_$TeamModelImpl) _then)
-      : super(_value, _then);
+    _$TeamModelImpl _value,
+    $Res Function(_$TeamModelImpl) _then,
+  ) : super(_value, _then);
 
   @pragma('vm:prefer-inline')
   @override
@@ -208,76 +216,78 @@ class __$$TeamModelImplCopyWithImpl<$Res>
     Object? restoredByUserId = freezed,
     Object? syncStatus = null,
   }) {
-    return _then(_$TeamModelImpl(
-      id: null == id
-          ? _value.id
-          : id // ignore: cast_nullable_to_non_nullable
-              as String,
-      name: null == name
-          ? _value.name
-          : name // ignore: cast_nullable_to_non_nullable
-              as String,
-      groupId: null == groupId
-          ? _value.groupId
-          : groupId // ignore: cast_nullable_to_non_nullable
-              as String,
-      assignedServantId: freezed == assignedServantId
-          ? _value.assignedServantId
-          : assignedServantId // ignore: cast_nullable_to_non_nullable
-              as String?,
-      assignedServantName: freezed == assignedServantName
-          ? _value.assignedServantName
-          : assignedServantName // ignore: cast_nullable_to_non_nullable
-              as String?,
-      isArchived: null == isArchived
-          ? _value.isArchived
-          : isArchived // ignore: cast_nullable_to_non_nullable
-              as bool,
-      archivedAt: freezed == archivedAt
-          ? _value.archivedAt
-          : archivedAt // ignore: cast_nullable_to_non_nullable
-              as DateTime?,
-      archivedByUserId: freezed == archivedByUserId
-          ? _value.archivedByUserId
-          : archivedByUserId // ignore: cast_nullable_to_non_nullable
-              as String?,
-      archiveReason: freezed == archiveReason
-          ? _value.archiveReason
-          : archiveReason // ignore: cast_nullable_to_non_nullable
-              as String?,
-      restoredAt: freezed == restoredAt
-          ? _value.restoredAt
-          : restoredAt // ignore: cast_nullable_to_non_nullable
-              as DateTime?,
-      restoredByUserId: freezed == restoredByUserId
-          ? _value.restoredByUserId
-          : restoredByUserId // ignore: cast_nullable_to_non_nullable
-              as String?,
-      syncStatus: null == syncStatus
-          ? _value.syncStatus
-          : syncStatus // ignore: cast_nullable_to_non_nullable
-              as SyncStatus,
-    ));
+    return _then(
+      _$TeamModelImpl(
+        id: null == id
+            ? _value.id
+            : id // ignore: cast_nullable_to_non_nullable
+                  as String,
+        name: null == name
+            ? _value.name
+            : name // ignore: cast_nullable_to_non_nullable
+                  as String,
+        groupId: null == groupId
+            ? _value.groupId
+            : groupId // ignore: cast_nullable_to_non_nullable
+                  as String,
+        assignedServantId: freezed == assignedServantId
+            ? _value.assignedServantId
+            : assignedServantId // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        assignedServantName: freezed == assignedServantName
+            ? _value.assignedServantName
+            : assignedServantName // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        isArchived: null == isArchived
+            ? _value.isArchived
+            : isArchived // ignore: cast_nullable_to_non_nullable
+                  as bool,
+        archivedAt: freezed == archivedAt
+            ? _value.archivedAt
+            : archivedAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime?,
+        archivedByUserId: freezed == archivedByUserId
+            ? _value.archivedByUserId
+            : archivedByUserId // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        archiveReason: freezed == archiveReason
+            ? _value.archiveReason
+            : archiveReason // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        restoredAt: freezed == restoredAt
+            ? _value.restoredAt
+            : restoredAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime?,
+        restoredByUserId: freezed == restoredByUserId
+            ? _value.restoredByUserId
+            : restoredByUserId // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        syncStatus: null == syncStatus
+            ? _value.syncStatus
+            : syncStatus // ignore: cast_nullable_to_non_nullable
+                  as SyncStatus,
+      ),
+    );
   }
 }
 
 /// @nodoc
 @JsonSerializable()
 class _$TeamModelImpl extends _TeamModel {
-  const _$TeamModelImpl(
-      {@HiveField(0) required this.id,
-      @HiveField(1) required this.name,
-      @HiveField(2) required this.groupId,
-      @HiveField(3) this.assignedServantId,
-      @HiveField(4) this.assignedServantName,
-      @HiveField(5) this.isArchived = false,
-      @HiveField(6) @_TimestampConverter() this.archivedAt,
-      @HiveField(7) this.archivedByUserId,
-      @HiveField(8) this.archiveReason,
-      @HiveField(9) @_TimestampConverter() this.restoredAt,
-      @HiveField(10) this.restoredByUserId,
-      @HiveField(11) this.syncStatus = SyncStatus.synced})
-      : super._();
+  const _$TeamModelImpl({
+    @HiveField(0) required this.id,
+    @HiveField(1) required this.name,
+    @HiveField(2) required this.groupId,
+    @HiveField(3) this.assignedServantId,
+    @HiveField(4) this.assignedServantName,
+    @HiveField(5) this.isArchived = false,
+    @HiveField(6) @_TimestampConverter() this.archivedAt,
+    @HiveField(7) this.archivedByUserId,
+    @HiveField(8) this.archiveReason,
+    @HiveField(9) @_TimestampConverter() this.restoredAt,
+    @HiveField(10) this.restoredByUserId,
+    @HiveField(11) this.syncStatus = SyncStatus.synced,
+  }) : super._();
 
   factory _$TeamModelImpl.fromJson(Map<String, dynamic> json) =>
       _$$TeamModelImplFromJson(json);
@@ -368,19 +378,20 @@ class _$TeamModelImpl extends _TeamModel {
   @JsonKey(ignore: true)
   @override
   int get hashCode => Object.hash(
-      runtimeType,
-      id,
-      name,
-      groupId,
-      assignedServantId,
-      assignedServantName,
-      isArchived,
-      archivedAt,
-      archivedByUserId,
-      archiveReason,
-      restoredAt,
-      restoredByUserId,
-      syncStatus);
+    runtimeType,
+    id,
+    name,
+    groupId,
+    assignedServantId,
+    assignedServantName,
+    isArchived,
+    archivedAt,
+    archivedByUserId,
+    archiveReason,
+    restoredAt,
+    restoredByUserId,
+    syncStatus,
+  );
 
   @JsonKey(ignore: true)
   @override
@@ -390,53 +401,47 @@ class _$TeamModelImpl extends _TeamModel {
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$TeamModelImplToJson(
-      this,
-    );
+    return _$$TeamModelImplToJson(this);
   }
 }
 
 abstract class _TeamModel extends TeamModel {
-  const factory _TeamModel(
-      {@HiveField(0) required final String id,
-      @HiveField(1) required final String name,
-      @HiveField(2) required final String groupId,
-      @HiveField(3) final String? assignedServantId,
-      @HiveField(4) final String? assignedServantName,
-      @HiveField(5) final bool isArchived,
-      @HiveField(6) @_TimestampConverter() final DateTime? archivedAt,
-      @HiveField(7) final String? archivedByUserId,
-      @HiveField(8) final String? archiveReason,
-      @HiveField(9) @_TimestampConverter() final DateTime? restoredAt,
-      @HiveField(10) final String? restoredByUserId,
-      @HiveField(11) final SyncStatus syncStatus}) = _$TeamModelImpl;
+  const factory _TeamModel({
+    @HiveField(0) required final String id,
+    @HiveField(1) required final String name,
+    @HiveField(2) required final String groupId,
+    @HiveField(3) final String? assignedServantId,
+    @HiveField(4) final String? assignedServantName,
+    @HiveField(5) final bool isArchived,
+    @HiveField(6) @_TimestampConverter() final DateTime? archivedAt,
+    @HiveField(7) final String? archivedByUserId,
+    @HiveField(8) final String? archiveReason,
+    @HiveField(9) @_TimestampConverter() final DateTime? restoredAt,
+    @HiveField(10) final String? restoredByUserId,
+    @HiveField(11) final SyncStatus syncStatus,
+  }) = _$TeamModelImpl;
   const _TeamModel._() : super._();
 
   factory _TeamModel.fromJson(Map<String, dynamic> json) =
       _$TeamModelImpl.fromJson;
 
   @override
-
   /// Firestore document ID.
   @HiveField(0)
   String get id;
   @override
-
   /// Team display name (e.g. "فريق مارمرقس").
   @HiveField(1)
   String get name;
   @override
-
   /// The group/year this team belongs to (e.g. "year1").
   @HiveField(2)
   String get groupId;
   @override
-
   /// UID of the servant assigned to this team (optional).
   @HiveField(3)
   String? get assignedServantId;
   @override
-
   /// Denormalized servant name for display.
   @HiveField(4)
   String? get assignedServantName;

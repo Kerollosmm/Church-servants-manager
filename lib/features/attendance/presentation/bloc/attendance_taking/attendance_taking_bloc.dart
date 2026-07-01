@@ -49,32 +49,24 @@ class AttendanceTakingBloc
   String? _cachedTeamId;
   String? _cachedSessionId;
 
-  /// Whether the user permission for this session is already cached.
-  bool get isPermissionCached =>
-      _permissionGranted && _cachedTeamId != null && _cachedSessionId != null;
-
   Future<void> _onInitializeSession(
     InitializeSessionEvent event,
     Emitter<AttendanceTakingState> emit,
   ) async {
     emit(const AttendanceTakingLoading());
-
     try {
-      await _fetchAndEmitSessionData(event.teamId, event.sessionId, emit);
-      _startSessionTicker(event.teamId, event.sessionId);
-
       if (event.actor != null) {
-        unawaited(
-          _preloadPermission(
-            actor: event.actor!,
-            teamId: event.teamId,
-            sessionId: event.sessionId,
-          ),
+        await _preloadPermission(
+          actor: event.actor!,
+          teamId: event.teamId,
+          sessionId: event.sessionId,
         );
       }
+      await _fetchAndEmitSessionData(event.teamId, event.sessionId, emit);
+      _startSessionTicker(event.teamId, event.sessionId);
     } catch (error, stackTrace) {
       developer.log(
-        'initialize failed',
+        'initialization failed',
         error: error,
         stackTrace: stackTrace,
         name: 'AttendanceTakingBloc',
@@ -154,7 +146,7 @@ class AttendanceTakingBloc
 
     final currentPending = currentState is AttendanceTakingLoaded
         ? currentState.pendingLocalMarks
-        : const <String, AttendanceMarkStatus>{};
+        : const <String, ({AttendanceMarkStatus status, DateTime markedAt})>{};
 
     return AttendanceTakingLoaded(
       session: snapshot.session,
@@ -184,26 +176,42 @@ class AttendanceTakingBloc
     MarkStudentPresentEvent event,
     Emitter<AttendanceTakingState> emit,
   ) {
-    _handleMarkUpdate(event.item.studentId, AttendanceMarkStatus.present, emit);
+    _handleMarkUpdate(
+      event.item.studentId,
+      AttendanceMarkStatus.present,
+      event.actor,
+      emit,
+    );
   }
 
   void _onMarkStudentAbsent(
     MarkStudentAbsentEvent event,
     Emitter<AttendanceTakingState> emit,
   ) {
-    _handleMarkUpdate(event.item.studentId, AttendanceMarkStatus.absent, emit);
+    _handleMarkUpdate(
+      event.item.studentId,
+      AttendanceMarkStatus.absent,
+      event.actor,
+      emit,
+    );
   }
 
   void _onMarkStudentLate(
     MarkStudentLateEvent event,
     Emitter<AttendanceTakingState> emit,
   ) {
-    _handleMarkUpdate(event.item.studentId, AttendanceMarkStatus.late, emit);
+    _handleMarkUpdate(
+      event.item.studentId,
+      AttendanceMarkStatus.late,
+      event.actor,
+      emit,
+    );
   }
 
   void _handleMarkUpdate(
     String studentId,
     AttendanceMarkStatus targetStatus,
+    AuthUser actor,
     Emitter<AttendanceTakingState> emit,
   ) {
     if (_shouldSkipMutation(studentId, targetStatus)) return;
@@ -216,10 +224,10 @@ class AttendanceTakingBloc
       return;
     }
 
-    emit(cs.withPendingMark(studentId, targetStatus));
+    final markedAt = _nowProvider();
+    emit(cs.withPendingMark(studentId, targetStatus, markedAt));
 
     // Persist to Hive immediately for crash resilience
-    final now = DateTime.now();
     unawaited(
       _localDatasource.cacheMark(
         teamId: cs.session.teamId,
@@ -229,10 +237,10 @@ class AttendanceTakingBloc
           studentId: studentId,
           studentNameSnapshot: cs.session.studentNameSnapshots[studentId] ?? '',
           status: targetStatus,
-          markedByUserId: '',
-          markedByName: '',
-          markedAt: now,
-          updatedAt: now,
+          markedByUserId: actor.uid,
+          markedByName: actor.name,
+          markedAt: markedAt,
+          updatedAt: markedAt,
         ),
       ),
     );
@@ -267,9 +275,10 @@ class AttendanceTakingBloc
     if (cs is! AttendanceTakingLoaded) return;
     if (cs.pendingLocalMarks.isEmpty) return;
 
-    final pendingSnapshot = Map<String, AttendanceMarkStatus>.from(
-      cs.pendingLocalMarks,
-    );
+    final pendingSnapshot =
+        Map<String, ({AttendanceMarkStatus status, DateTime markedAt})>.from(
+          cs.pendingLocalMarks,
+        );
 
     await _runMutation(
       emit: emit,

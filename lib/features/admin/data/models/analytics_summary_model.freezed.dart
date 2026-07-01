@@ -12,10 +12,12 @@ part of 'analytics_summary_model.dart';
 T _$identity<T>(T value) => value;
 
 final _privateConstructorUsedError = UnsupportedError(
-    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
+  'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
+);
 
 AnalyticsSummaryModel _$AnalyticsSummaryModelFromJson(
-    Map<String, dynamic> json) {
+  Map<String, dynamic> json,
+) {
   return _AnalyticsSummaryModel.fromJson(json);
 }
 
@@ -59,23 +61,27 @@ mixin _$AnalyticsSummaryModel {
 
 /// @nodoc
 abstract class $AnalyticsSummaryModelCopyWith<$Res> {
-  factory $AnalyticsSummaryModelCopyWith(AnalyticsSummaryModel value,
-          $Res Function(AnalyticsSummaryModel) then) =
-      _$AnalyticsSummaryModelCopyWithImpl<$Res, AnalyticsSummaryModel>;
+  factory $AnalyticsSummaryModelCopyWith(
+    AnalyticsSummaryModel value,
+    $Res Function(AnalyticsSummaryModel) then,
+  ) = _$AnalyticsSummaryModelCopyWithImpl<$Res, AnalyticsSummaryModel>;
   @useResult
-  $Res call(
-      {@HiveField(0) String sectorId,
-      @HiveField(1) int totalStudentsCount,
-      @HiveField(2) double averageAttendanceRate,
-      @HiveField(3) int pendingVisitationsCount,
-      @HiveField(4) Map<String, int> topActiveServants,
-      @HiveField(5) @_TimestampConverter() DateTime lastComputedAt,
-      @HiveField(6) @_TimestampConverter() DateTime fetchedAt});
+  $Res call({
+    @HiveField(0) String sectorId,
+    @HiveField(1) int totalStudentsCount,
+    @HiveField(2) double averageAttendanceRate,
+    @HiveField(3) int pendingVisitationsCount,
+    @HiveField(4) Map<String, int> topActiveServants,
+    @HiveField(5) @_TimestampConverter() DateTime lastComputedAt,
+    @HiveField(6) @_TimestampConverter() DateTime fetchedAt,
+  });
 }
 
 /// @nodoc
-class _$AnalyticsSummaryModelCopyWithImpl<$Res,
-        $Val extends AnalyticsSummaryModel>
+class _$AnalyticsSummaryModelCopyWithImpl<
+  $Res,
+  $Val extends AnalyticsSummaryModel
+>
     implements $AnalyticsSummaryModelCopyWith<$Res> {
   _$AnalyticsSummaryModelCopyWithImpl(this._value, this._then);
 
@@ -95,36 +101,39 @@ class _$AnalyticsSummaryModelCopyWithImpl<$Res,
     Object? lastComputedAt = null,
     Object? fetchedAt = null,
   }) {
-    return _then(_value.copyWith(
-      sectorId: null == sectorId
-          ? _value.sectorId
-          : sectorId // ignore: cast_nullable_to_non_nullable
-              as String,
-      totalStudentsCount: null == totalStudentsCount
-          ? _value.totalStudentsCount
-          : totalStudentsCount // ignore: cast_nullable_to_non_nullable
-              as int,
-      averageAttendanceRate: null == averageAttendanceRate
-          ? _value.averageAttendanceRate
-          : averageAttendanceRate // ignore: cast_nullable_to_non_nullable
-              as double,
-      pendingVisitationsCount: null == pendingVisitationsCount
-          ? _value.pendingVisitationsCount
-          : pendingVisitationsCount // ignore: cast_nullable_to_non_nullable
-              as int,
-      topActiveServants: null == topActiveServants
-          ? _value.topActiveServants
-          : topActiveServants // ignore: cast_nullable_to_non_nullable
-              as Map<String, int>,
-      lastComputedAt: null == lastComputedAt
-          ? _value.lastComputedAt
-          : lastComputedAt // ignore: cast_nullable_to_non_nullable
-              as DateTime,
-      fetchedAt: null == fetchedAt
-          ? _value.fetchedAt
-          : fetchedAt // ignore: cast_nullable_to_non_nullable
-              as DateTime,
-    ) as $Val);
+    return _then(
+      _value.copyWith(
+            sectorId: null == sectorId
+                ? _value.sectorId
+                : sectorId // ignore: cast_nullable_to_non_nullable
+                      as String,
+            totalStudentsCount: null == totalStudentsCount
+                ? _value.totalStudentsCount
+                : totalStudentsCount // ignore: cast_nullable_to_non_nullable
+                      as int,
+            averageAttendanceRate: null == averageAttendanceRate
+                ? _value.averageAttendanceRate
+                : averageAttendanceRate // ignore: cast_nullable_to_non_nullable
+                      as double,
+            pendingVisitationsCount: null == pendingVisitationsCount
+                ? _value.pendingVisitationsCount
+                : pendingVisitationsCount // ignore: cast_nullable_to_non_nullable
+                      as int,
+            topActiveServants: null == topActiveServants
+                ? _value.topActiveServants
+                : topActiveServants // ignore: cast_nullable_to_non_nullable
+                      as Map<String, int>,
+            lastComputedAt: null == lastComputedAt
+                ? _value.lastComputedAt
+                : lastComputedAt // ignore: cast_nullable_to_non_nullable
+                      as DateTime,
+            fetchedAt: null == fetchedAt
+                ? _value.fetchedAt
+                : fetchedAt // ignore: cast_nullable_to_non_nullable
+                      as DateTime,
+          )
+          as $Val,
+    );
   }
 }
 
@@ -132,29 +141,31 @@ class _$AnalyticsSummaryModelCopyWithImpl<$Res,
 abstract class _$$AnalyticsSummaryModelImplCopyWith<$Res>
     implements $AnalyticsSummaryModelCopyWith<$Res> {
   factory _$$AnalyticsSummaryModelImplCopyWith(
-          _$AnalyticsSummaryModelImpl value,
-          $Res Function(_$AnalyticsSummaryModelImpl) then) =
-      __$$AnalyticsSummaryModelImplCopyWithImpl<$Res>;
+    _$AnalyticsSummaryModelImpl value,
+    $Res Function(_$AnalyticsSummaryModelImpl) then,
+  ) = __$$AnalyticsSummaryModelImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call(
-      {@HiveField(0) String sectorId,
-      @HiveField(1) int totalStudentsCount,
-      @HiveField(2) double averageAttendanceRate,
-      @HiveField(3) int pendingVisitationsCount,
-      @HiveField(4) Map<String, int> topActiveServants,
-      @HiveField(5) @_TimestampConverter() DateTime lastComputedAt,
-      @HiveField(6) @_TimestampConverter() DateTime fetchedAt});
+  $Res call({
+    @HiveField(0) String sectorId,
+    @HiveField(1) int totalStudentsCount,
+    @HiveField(2) double averageAttendanceRate,
+    @HiveField(3) int pendingVisitationsCount,
+    @HiveField(4) Map<String, int> topActiveServants,
+    @HiveField(5) @_TimestampConverter() DateTime lastComputedAt,
+    @HiveField(6) @_TimestampConverter() DateTime fetchedAt,
+  });
 }
 
 /// @nodoc
 class __$$AnalyticsSummaryModelImplCopyWithImpl<$Res>
-    extends _$AnalyticsSummaryModelCopyWithImpl<$Res,
-        _$AnalyticsSummaryModelImpl>
+    extends
+        _$AnalyticsSummaryModelCopyWithImpl<$Res, _$AnalyticsSummaryModelImpl>
     implements _$$AnalyticsSummaryModelImplCopyWith<$Res> {
-  __$$AnalyticsSummaryModelImplCopyWithImpl(_$AnalyticsSummaryModelImpl _value,
-      $Res Function(_$AnalyticsSummaryModelImpl) _then)
-      : super(_value, _then);
+  __$$AnalyticsSummaryModelImplCopyWithImpl(
+    _$AnalyticsSummaryModelImpl _value,
+    $Res Function(_$AnalyticsSummaryModelImpl) _then,
+  ) : super(_value, _then);
 
   @pragma('vm:prefer-inline')
   @override
@@ -167,52 +178,54 @@ class __$$AnalyticsSummaryModelImplCopyWithImpl<$Res>
     Object? lastComputedAt = null,
     Object? fetchedAt = null,
   }) {
-    return _then(_$AnalyticsSummaryModelImpl(
-      sectorId: null == sectorId
-          ? _value.sectorId
-          : sectorId // ignore: cast_nullable_to_non_nullable
-              as String,
-      totalStudentsCount: null == totalStudentsCount
-          ? _value.totalStudentsCount
-          : totalStudentsCount // ignore: cast_nullable_to_non_nullable
-              as int,
-      averageAttendanceRate: null == averageAttendanceRate
-          ? _value.averageAttendanceRate
-          : averageAttendanceRate // ignore: cast_nullable_to_non_nullable
-              as double,
-      pendingVisitationsCount: null == pendingVisitationsCount
-          ? _value.pendingVisitationsCount
-          : pendingVisitationsCount // ignore: cast_nullable_to_non_nullable
-              as int,
-      topActiveServants: null == topActiveServants
-          ? _value._topActiveServants
-          : topActiveServants // ignore: cast_nullable_to_non_nullable
-              as Map<String, int>,
-      lastComputedAt: null == lastComputedAt
-          ? _value.lastComputedAt
-          : lastComputedAt // ignore: cast_nullable_to_non_nullable
-              as DateTime,
-      fetchedAt: null == fetchedAt
-          ? _value.fetchedAt
-          : fetchedAt // ignore: cast_nullable_to_non_nullable
-              as DateTime,
-    ));
+    return _then(
+      _$AnalyticsSummaryModelImpl(
+        sectorId: null == sectorId
+            ? _value.sectorId
+            : sectorId // ignore: cast_nullable_to_non_nullable
+                  as String,
+        totalStudentsCount: null == totalStudentsCount
+            ? _value.totalStudentsCount
+            : totalStudentsCount // ignore: cast_nullable_to_non_nullable
+                  as int,
+        averageAttendanceRate: null == averageAttendanceRate
+            ? _value.averageAttendanceRate
+            : averageAttendanceRate // ignore: cast_nullable_to_non_nullable
+                  as double,
+        pendingVisitationsCount: null == pendingVisitationsCount
+            ? _value.pendingVisitationsCount
+            : pendingVisitationsCount // ignore: cast_nullable_to_non_nullable
+                  as int,
+        topActiveServants: null == topActiveServants
+            ? _value._topActiveServants
+            : topActiveServants // ignore: cast_nullable_to_non_nullable
+                  as Map<String, int>,
+        lastComputedAt: null == lastComputedAt
+            ? _value.lastComputedAt
+            : lastComputedAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime,
+        fetchedAt: null == fetchedAt
+            ? _value.fetchedAt
+            : fetchedAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime,
+      ),
+    );
   }
 }
 
 /// @nodoc
 @JsonSerializable()
 class _$AnalyticsSummaryModelImpl extends _AnalyticsSummaryModel {
-  const _$AnalyticsSummaryModelImpl(
-      {@HiveField(0) required this.sectorId,
-      @HiveField(1) this.totalStudentsCount = 0,
-      @HiveField(2) this.averageAttendanceRate = 0.0,
-      @HiveField(3) this.pendingVisitationsCount = 0,
-      @HiveField(4) final Map<String, int> topActiveServants = const {},
-      @HiveField(5) @_TimestampConverter() required this.lastComputedAt,
-      @HiveField(6) @_TimestampConverter() required this.fetchedAt})
-      : _topActiveServants = topActiveServants,
-        super._();
+  const _$AnalyticsSummaryModelImpl({
+    @HiveField(0) required this.sectorId,
+    @HiveField(1) this.totalStudentsCount = 0,
+    @HiveField(2) this.averageAttendanceRate = 0.0,
+    @HiveField(3) this.pendingVisitationsCount = 0,
+    @HiveField(4) final Map<String, int> topActiveServants = const {},
+    @HiveField(5) @_TimestampConverter() required this.lastComputedAt,
+    @HiveField(6) @_TimestampConverter() required this.fetchedAt,
+  }) : _topActiveServants = topActiveServants,
+       super._();
 
   factory _$AnalyticsSummaryModelImpl.fromJson(Map<String, dynamic> json) =>
       _$$AnalyticsSummaryModelImplFromJson(json);
@@ -283,10 +296,14 @@ class _$AnalyticsSummaryModelImpl extends _AnalyticsSummaryModel {
             (identical(other.averageAttendanceRate, averageAttendanceRate) ||
                 other.averageAttendanceRate == averageAttendanceRate) &&
             (identical(
-                    other.pendingVisitationsCount, pendingVisitationsCount) ||
+                  other.pendingVisitationsCount,
+                  pendingVisitationsCount,
+                ) ||
                 other.pendingVisitationsCount == pendingVisitationsCount) &&
-            const DeepCollectionEquality()
-                .equals(other._topActiveServants, _topActiveServants) &&
+            const DeepCollectionEquality().equals(
+              other._topActiveServants,
+              _topActiveServants,
+            ) &&
             (identical(other.lastComputedAt, lastComputedAt) ||
                 other.lastComputedAt == lastComputedAt) &&
             (identical(other.fetchedAt, fetchedAt) ||
@@ -296,81 +313,73 @@ class _$AnalyticsSummaryModelImpl extends _AnalyticsSummaryModel {
   @JsonKey(ignore: true)
   @override
   int get hashCode => Object.hash(
-      runtimeType,
-      sectorId,
-      totalStudentsCount,
-      averageAttendanceRate,
-      pendingVisitationsCount,
-      const DeepCollectionEquality().hash(_topActiveServants),
-      lastComputedAt,
-      fetchedAt);
+    runtimeType,
+    sectorId,
+    totalStudentsCount,
+    averageAttendanceRate,
+    pendingVisitationsCount,
+    const DeepCollectionEquality().hash(_topActiveServants),
+    lastComputedAt,
+    fetchedAt,
+  );
 
   @JsonKey(ignore: true)
   @override
   @pragma('vm:prefer-inline')
   _$$AnalyticsSummaryModelImplCopyWith<_$AnalyticsSummaryModelImpl>
-      get copyWith => __$$AnalyticsSummaryModelImplCopyWithImpl<
-          _$AnalyticsSummaryModelImpl>(this, _$identity);
+  get copyWith =>
+      __$$AnalyticsSummaryModelImplCopyWithImpl<_$AnalyticsSummaryModelImpl>(
+        this,
+        _$identity,
+      );
 
   @override
   Map<String, dynamic> toJson() {
-    return _$$AnalyticsSummaryModelImplToJson(
-      this,
-    );
+    return _$$AnalyticsSummaryModelImplToJson(this);
   }
 }
 
 abstract class _AnalyticsSummaryModel extends AnalyticsSummaryModel {
-  const factory _AnalyticsSummaryModel(
-      {@HiveField(0) required final String sectorId,
-      @HiveField(1) final int totalStudentsCount,
-      @HiveField(2) final double averageAttendanceRate,
-      @HiveField(3) final int pendingVisitationsCount,
-      @HiveField(4) final Map<String, int> topActiveServants,
-      @HiveField(5)
-      @_TimestampConverter()
-      required final DateTime lastComputedAt,
-      @HiveField(6)
-      @_TimestampConverter()
-      required final DateTime fetchedAt}) = _$AnalyticsSummaryModelImpl;
+  const factory _AnalyticsSummaryModel({
+    @HiveField(0) required final String sectorId,
+    @HiveField(1) final int totalStudentsCount,
+    @HiveField(2) final double averageAttendanceRate,
+    @HiveField(3) final int pendingVisitationsCount,
+    @HiveField(4) final Map<String, int> topActiveServants,
+    @HiveField(5) @_TimestampConverter() required final DateTime lastComputedAt,
+    @HiveField(6) @_TimestampConverter() required final DateTime fetchedAt,
+  }) = _$AnalyticsSummaryModelImpl;
   const _AnalyticsSummaryModel._() : super._();
 
   factory _AnalyticsSummaryModel.fromJson(Map<String, dynamic> json) =
       _$AnalyticsSummaryModelImpl.fromJson;
 
   @override
-
   /// Sector document ID.
   @HiveField(0)
   String get sectorId;
   @override
-
   /// Total students enrolled in this sector.
   @HiveField(1)
   int get totalStudentsCount;
   @override
-
   /// Average attendance rate (0.0 – 1.0).
   @HiveField(2)
   double get averageAttendanceRate;
   @override
-
   /// Number of pending pastoral visitations.
   @HiveField(3)
   int get pendingVisitationsCount;
   @override
-
   /// Top active servants as `{servantName: sessionCount}`.
   @HiveField(4)
   Map<String, int> get topActiveServants;
   @override
-
   /// When these stats were last computed server-side.
   @HiveField(5)
   @_TimestampConverter()
   DateTime get lastComputedAt;
   @override
-
   /// Client-side timestamp for cooldown enforcement (not in Firestore doc).
   @HiveField(6)
   @_TimestampConverter()
@@ -378,5 +387,5 @@ abstract class _AnalyticsSummaryModel extends AnalyticsSummaryModel {
   @override
   @JsonKey(ignore: true)
   _$$AnalyticsSummaryModelImplCopyWith<_$AnalyticsSummaryModelImpl>
-      get copyWith => throw _privateConstructorUsedError;
+  get copyWith => throw _privateConstructorUsedError;
 }

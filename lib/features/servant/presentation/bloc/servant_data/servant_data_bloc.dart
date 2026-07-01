@@ -8,10 +8,17 @@ import 'package:church_management_system/features/servant/domain/usecases/provis
 import 'package:church_management_system/features/servant/presentation/bloc/servant_data/servant_data_state.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:rxdart/rxdart.dart';
 
 export 'servant_data_state.dart';
 
 part 'servant_data_event.dart';
+
+EventTransformer<Event> debounceRestartable<Event>({
+  Duration duration = const Duration(milliseconds: 300),
+}) {
+  return (events, mapper) => events.debounceTime(duration).switchMap(mapper);
+}
 
 /// Bloc managing servant list state with pagination, search,
 /// and CRUD operations.
@@ -26,7 +33,10 @@ class ServantDataBloc extends Bloc<ServantDataEvent, ServantDataState> {
        _provisionUseCase = provisionUseCase,
        super(const ServantDataInitial()) {
     on<ServantsLoadRequested>(_onServantsLoadRequested);
-    on<ServantsSearchRequested>(_onServantsSearchRequested);
+    on<ServantsSearchRequested>(
+      _onServantsSearchRequested,
+      transformer: debounceRestartable(),
+    );
     on<ServantCreateRequested>(_onServantCreateRequested);
     on<ServantUpdateRequested>(_onServantUpdateRequested);
     on<ServantDeleted>(_onServantDeleted);
