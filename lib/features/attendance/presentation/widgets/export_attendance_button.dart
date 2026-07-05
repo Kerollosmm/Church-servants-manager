@@ -75,17 +75,16 @@ class _ExportAttendanceButtonState extends State<ExportAttendanceButton> {
       final exportService = DataExportService();
       final List<String> headers = [
         'اسم الطالب',
-        ...closedSessions.map((s) => s.title ?? s.startsAt.toIso8601String().split('T')[0]),
+        ...closedSessions.map(
+          (s) => s.title ?? s.startsAt.toIso8601String().split('T')[0],
+        ),
       ];
       final List<List<Object?>> rows = [];
       for (final student in students) {
         final attendanceList = studentAttendanceMap[student.docID] ?? [];
         rows.add([student.name, ...attendanceList]);
       }
-      final csvString = exportService.generateCsv(
-        headers,
-        rows,
-      );
+      final csvString = exportService.generateCsv(headers, rows);
 
       final directory = await getTemporaryDirectory();
       final file = File('${directory.path}/تقرير_حضور_${widget.teamName}.csv');

@@ -8,7 +8,6 @@ import 'package:mocktail/mocktail.dart';
 
 class MockSyncService extends Mock implements SyncService {}
 
-
 class MockResultsLocalDatasource extends Mock
     implements ResultsLocalDatasource {}
 
