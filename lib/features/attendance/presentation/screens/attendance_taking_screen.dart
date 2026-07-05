@@ -200,7 +200,7 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
                                           content: Text(
                                             'الطالب ليس في قائمة هذه الجلسة',
                                           ),
-                                          backgroundColor: Colors.orange,
+                                          backgroundColor: AppColors.warning,
                                         ),
                                       );
                                     }
@@ -293,7 +293,7 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
                             builder: (context, connState) {
                               if (connState is ConnectivityOffline) {
                                 return Container(
-                                  color: Colors.amber[800],
+                                  color: AppColors.warning,
                                   width: double.infinity,
                                   padding: const EdgeInsets.symmetric(
                                     vertical: 8,
@@ -304,7 +304,7 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
                                     children: [
                                       Icon(
                                         Icons.offline_pin_outlined,
-                                        color: Colors.white,
+                                        color: AppColors.white,
                                         size: 20,
                                       ),
                                       SizedBox(width: 8),
@@ -312,7 +312,7 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
                                         child: Text(
                                           'يتم حفظ الحضور محلياً وسيتم المزامنة لاحقاً',
                                           style: TextStyle(
-                                            color: Colors.white,
+                                            color: AppColors.white,
                                             fontSize: 14,
                                             fontWeight: FontWeight.bold,
                                           ),
@@ -441,7 +441,7 @@ class _RosterItemCard extends StatelessWidget {
       case AttendanceEffectiveStatus.present:
         return AppColors.secondary;
       case AttendanceEffectiveStatus.late:
-        return Colors.orange;
+        return AppColors.warning;
       case AttendanceEffectiveStatus.absent:
         return AppColors.error;
       case AttendanceEffectiveStatus.unmarked:

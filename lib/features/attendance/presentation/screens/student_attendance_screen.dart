@@ -43,7 +43,7 @@ class _StudentAttendanceScreenState extends State<StudentAttendanceScreen> {
       case AttendanceEffectiveStatus.present:
         return AppColors.secondary;
       case AttendanceEffectiveStatus.late:
-        return Colors.orange;
+        return AppColors.warning;
       case AttendanceEffectiveStatus.absent:
         return AppColors.error;
       case AttendanceEffectiveStatus.unmarked:
@@ -188,7 +188,7 @@ class _StatTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7F7F8),
+        color: AppColors.background,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(

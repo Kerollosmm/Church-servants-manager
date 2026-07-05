@@ -13,7 +13,10 @@ class AppColors {
   static const Color error = Color(0xFFB42318); // Red 700
   static const Color errorContainer = Color(0xFFFECACA);
   static const Color success = Color(0xFF15803D); // Green 700
+  static const Color successLight = Color(0xFFDCFCE7); // Green 100
   static const Color warning = Color(0xFFB45309); // Amber 700
+  static const Color warningContainer = Color(0xFFFEF3C7); // Amber 100
+  static const Color warningDark = Color(0xFF78350F); // Amber 900
 
   // Neutral Colors
   static const Color white = Colors.white;
@@ -22,6 +25,7 @@ class AppColors {
 
   static const Color surface = Color(0xFFFFFFFF);
   static const Color background = Color(0xFFF7F7F6);
+  static const Color neutralContainer = Color(0xFFF3F4F6);
   static const Color surfaceContainer = Color(0xFFF5EEDC);
   static const Color surfaceContainerLow = Color(0xFFF7F7F6);
   static const Color outline = Color(0xFFC9B896);

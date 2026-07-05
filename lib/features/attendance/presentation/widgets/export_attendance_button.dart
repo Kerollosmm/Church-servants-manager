@@ -102,7 +102,7 @@ class _ExportAttendanceButtonState extends State<ExportAttendanceButton> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('فشل تصدير التقرير: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppColors.error,
           ),
         );
       }

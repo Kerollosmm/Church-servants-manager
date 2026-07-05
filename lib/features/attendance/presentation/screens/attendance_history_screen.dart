@@ -364,9 +364,9 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                                           child: AppInfoBanner(
                                             icon: Icons.cloud_off,
                                             backgroundColor:
-                                                Colors.amber.shade100,
+                                                AppColors.warningContainer,
                                             foregroundColor:
-                                                Colors.amber.shade900,
+                                                AppColors.warningDark,
                                             message:
                                                 'عرض البيانات المخزنة محلياً. قد لا تكون محدثة.',
                                           ),
@@ -492,7 +492,7 @@ class _ActiveSessionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: const Color(0xFFF4FBF2),
+      color: AppColors.successLight,
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
@@ -558,7 +558,7 @@ class _SessionHistoryCard extends StatelessWidget {
       child: ListTile(
         onTap: onTap,
         leading: const CircleAvatar(
-          backgroundColor: Color(0xFFF3F4F6),
+          backgroundColor: AppColors.neutralContainer,
           child: Icon(Icons.history, color: AppColors.primary),
         ),
         title: Text(

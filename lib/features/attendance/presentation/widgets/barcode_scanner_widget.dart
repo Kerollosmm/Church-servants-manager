@@ -36,7 +36,7 @@ class BarcodeScannerWidget extends StatelessWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('الطالب غير موجود في القائمة المحلية'),
-          backgroundColor: Colors.red,
+          backgroundColor: AppColors.error,
         ),
       );
     }

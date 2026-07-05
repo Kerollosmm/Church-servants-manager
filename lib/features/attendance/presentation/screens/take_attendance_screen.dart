@@ -71,7 +71,7 @@ class TakeAttendanceScreen extends StatelessWidget {
                       padding: const EdgeInsets.all(16.0),
                       child: Text(
                         state.message,
-                        style: const TextStyle(color: Colors.red, fontSize: 16),
+                        style: const TextStyle(color: AppColors.error, fontSize: 16),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -147,10 +147,10 @@ class _RosterItemCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             side: BorderSide(
               color: isPresent
-                  ? Colors.green.shade300
+                  ? AppColors.success
                   : isAbsent
-                  ? Colors.red.shade300
-                  : Colors.grey.shade300,
+                  ? AppColors.error
+                  : AppColors.outline,
               width: (isPresent || isAbsent) ? 2 : 1,
             ),
           ),
@@ -162,7 +162,7 @@ class _RosterItemCard extends StatelessWidget {
             subtitle: item.isMarked
                 ? Text(
                     'تم تسجيله بواسطة: ${item.markedByName}',
-                    style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                    style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
                   )
                 : const Text(
                     'لم يتم التسجيل بعد',
@@ -175,7 +175,7 @@ class _RosterItemCard extends StatelessWidget {
                 IconButton(
                   icon: Icon(
                     Icons.check_circle,
-                    color: isPresent ? Colors.green : Colors.grey.shade400,
+                    color: isPresent ? AppColors.success : AppColors.outline,
                     size: 32,
                   ),
                   onPressed: () {
@@ -195,7 +195,7 @@ class _RosterItemCard extends StatelessWidget {
                 IconButton(
                   icon: Icon(
                     Icons.cancel,
-                    color: isAbsent ? Colors.red : Colors.grey.shade400,
+                    color: isAbsent ? AppColors.error : AppColors.outline,
                     size: 32,
                   ),
                   onPressed: () {
