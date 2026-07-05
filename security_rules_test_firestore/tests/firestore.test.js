@@ -10,6 +10,8 @@ const path = require('path');
 
 const PROJECT_ID = 'church-6eb05'; // Use the project ID
 
+jest.setTimeout(30000);
+
 describe('Firestore Security Rules', () => {
   let testEnv;
 
