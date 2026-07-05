@@ -49,6 +49,7 @@ class AttendanceRepository implements IAttendanceRepository {
        ),
        _commandService = AttendanceCommandService(
          firestore: firestore,
+         syncServiceGetter: syncServiceGetter,
          nowProvider: nowProvider,
          connectivity: connectivity,
          studentQueryService: studentQueryService,

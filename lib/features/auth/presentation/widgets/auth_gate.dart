@@ -16,7 +16,7 @@ import 'package:church_management_system/shared/widgets/offline_indicator.dart';
 import 'package:church_management_system/shared/widgets/sync_status_indicator.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:church_management_system/l10n/app_localizations.dart';
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});

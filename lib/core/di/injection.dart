@@ -181,12 +181,16 @@ void _registerRepositories() {
       () => AttendanceQueryService(firestore: getIt()),
     )
     ..registerLazySingleton<AttendanceCommandService>(
-      () => AttendanceCommandService(firestore: getIt()),
+      () => AttendanceCommandService(
+        firestore: getIt(),
+        syncServiceGetter: getIt.call,
+      ),
     )
     ..registerLazySingleton<AttendanceSessionRepository>(
       () => AttendanceSessionRepository(
         firestore: getIt(),
         localDatasource: getIt<AttendanceSessionLocalDatasource>(),
+        syncServiceGetter: getIt.call,
       ),
     )
     ..registerLazySingleton<StudentLocalDatasource>(StudentLocalDatasource.new)

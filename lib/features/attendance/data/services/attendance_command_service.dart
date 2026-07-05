@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:church_management_system/core/constants/firestore_collections.dart';
-import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/models/sync_entry.dart';
 import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/core/utils/bulk_operation_result.dart';
@@ -21,11 +20,13 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 class AttendanceCommandService {
   AttendanceCommandService({
     required FirebaseFirestore firestore,
+    required SyncService Function() syncServiceGetter,
     StudentQueryService? studentQueryService,
     DateTime Function()? nowProvider,
     AttendanceSessionLocalDatasource? localDatasource,
     Connectivity? connectivity,
   }) : _firestore = firestore,
+       _syncServiceGetter = syncServiceGetter,
        _studentQueryService =
            studentQueryService ?? StudentQueryService(firestore: firestore),
        _nowProvider = nowProvider ?? DateTime.now,
@@ -33,6 +34,7 @@ class AttendanceCommandService {
        _connectivity = connectivity ?? Connectivity();
 
   final FirebaseFirestore _firestore;
+  final SyncService Function() _syncServiceGetter;
   final StudentQueryService _studentQueryService;
   final DateTime Function() _nowProvider;
   final AttendanceSessionLocalDatasource _localDatasource;
@@ -143,7 +145,7 @@ class AttendanceCommandService {
           payload: AttendanceSessionModel.fromDomain(candidate).toMap(),
           createdAt: DateTime.now(),
         );
-        await getIt<SyncService>().enqueue(syncEntry);
+        await _syncServiceGetter().enqueue(syncEntry);
         await _localDatasource.cacheSession(candidate);
         return candidate;
       }
@@ -230,7 +232,7 @@ class AttendanceCommandService {
             payload: AttendanceSessionModel.fromDomain(candidate).toMap(),
             createdAt: DateTime.now(),
           );
-          await getIt<SyncService>().enqueue(syncEntry);
+          await _syncServiceGetter().enqueue(syncEntry);
           successfulItems.add(entry.key);
           return;
         }

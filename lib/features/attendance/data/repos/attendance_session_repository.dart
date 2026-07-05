@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:church_management_system/core/constants/firestore_collections.dart';
-import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/models/sync_entry.dart';
 import 'package:church_management_system/core/services/cache_tracker.dart';
 import 'package:church_management_system/core/services/sync_service.dart';
@@ -15,11 +14,14 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 class AttendanceSessionRepository {
   AttendanceSessionRepository({
     required FirebaseFirestore firestore,
+    required SyncService Function() syncServiceGetter,
     AttendanceSessionLocalDatasource? localDatasource,
   }) : _firestore = firestore,
+       _syncServiceGetter = syncServiceGetter,
        _localDatasource = localDatasource ?? AttendanceSessionLocalDatasource();
 
   final FirebaseFirestore _firestore;
+  final SyncService Function() _syncServiceGetter;
   final AttendanceSessionLocalDatasource _localDatasource;
 
   CollectionReference<Map<String, dynamic>> get _sessionsCol =>
@@ -192,7 +194,7 @@ class AttendanceSessionRepository {
     try {
       final connectivity = await Connectivity().checkConnectivity();
       if (connectivity.contains(ConnectivityResult.none)) {
-        await getIt<SyncService>().enqueue(syncEntry);
+        await _syncServiceGetter().enqueue(syncEntry);
         return;
       }
 
@@ -207,7 +209,7 @@ class AttendanceSessionRepository {
           error: error,
           name: 'AttendanceSessionRepository',
         );
-        await getIt<SyncService>().enqueue(syncEntry);
+        await _syncServiceGetter().enqueue(syncEntry);
       } else {
         throw mapExceptionToAttendanceFailure(error);
       }
@@ -217,7 +219,7 @@ class AttendanceSessionRepository {
         error: error,
         name: 'AttendanceSessionRepository',
       );
-      await getIt<SyncService>().enqueue(syncEntry);
+      await _syncServiceGetter().enqueue(syncEntry);
     }
   }
 
