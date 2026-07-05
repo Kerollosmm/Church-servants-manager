@@ -15,3 +15,4 @@ Welcome to the Conductor workspace for **CSMS (Church Servants Management System
 ## Tracks
 - [Offline Attendance & Idempotent Client Sync](file:///C:/Users/KimoStore/church_managment_system/conductor/tracks/offline_attendance_and_sync/index.md) (Status: Planned)
 - [Project State Code Audit & Gap Analysis](file:///C:/Users/KimoStore/church_managment_system/conductor/tracks/project_state_audit/index.md) (Status: Completed)
+- [Codebase Hardening & Gap Analysis Remediation](file:///C:/Users/KimoStore/church_managment_system/conductor/tracks/codebase_hardening/index.md) (Status: In Progress)
