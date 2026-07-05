@@ -1,3 +1,4 @@
+import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/widgets/sync_status_banner.dart';
 import 'package:church_management_system/features/attendance/domain/entities/attendance_enums.dart';
 import 'package:church_management_system/features/attendance/domain/entities/attendance_roster_item.dart';
