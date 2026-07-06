@@ -201,42 +201,17 @@ class AttendanceCommandService {
   }) async {
     final connectivity = await _connectivity.checkConnectivity();
     final isOffline = connectivity.contains(ConnectivityResult.none);
+    if (isOffline) {
+      throw const AttendanceValidationFailure(
+        'لا يمكن إنشاء جلسات متعددة بدون اتصال بالإنترنت.',
+      );
+    }
 
     final successfulItems = <String>[];
     final failedItems = <String>[];
 
     final futures = teamIdsAndNames.entries.map((entry) async {
       try {
-        if (isOffline) {
-          final now = _nowProvider();
-          final sessionId = _buildSessionId(startsAt, title);
-          final candidate = AttendanceSession(
-            id: sessionId,
-            teamId: entry.key,
-            teamNameSnapshot: entry.value.trim().isEmpty
-                ? null
-                : entry.value.trim(),
-            title: title?.trim().isEmpty == true ? null : title?.trim(),
-            dateKey: AttendanceSession.buildDateKey(startsAt),
-            startsAt: startsAt,
-            endsAt: startsAt.add(Duration(minutes: durationMinutes)),
-            durationMinutes: durationMinutes,
-            createdByUserId: createdBy.uid,
-            createdByName: createdBy.name,
-            createdAt: now,
-            updatedAt: now,
-          );
-          final syncEntry = SyncEntry(
-            id: 'create_session_${candidate.id}',
-            actionType: 'CREATE_SESSION',
-            payload: AttendanceSessionModel.fromDomain(candidate).toMap(),
-            createdAt: DateTime.now(),
-          );
-          await _syncServiceGetter().enqueue(syncEntry);
-          successfulItems.add(entry.key);
-          return;
-        }
-
         await createSession(
           teamId: entry.key,
           teamNameSnapshot: entry.value,
@@ -298,15 +273,17 @@ class AttendanceCommandService {
       final studentMarks = <String, ({String status, Timestamp? markedAt})>{};
 
       for (final doc in marksSnapshot.docs) {
-        final studentId = doc.id.split('_').first;
+        final data = doc.data();
+        final studentId =
+            data['studentId'] as String? ?? doc.id.split('_').first;
         markedStudentIds.add(studentId);
-        final status = doc.data()['status'] as String? ?? 'absent';
+        final status = data['status'] as String? ?? 'absent';
         if (status == 'present') {
           presentStudentIds.add(studentId);
         } else if (status == 'late') {
           lateStudentIds.add(studentId);
         }
-        final dbTimestamp = doc.data()['markedAt'] ?? doc.data()['updatedAt'];
+        final dbTimestamp = data['markedAt'] ?? data['updatedAt'];
         final markedAt = dbTimestamp is Timestamp ? dbTimestamp : null;
         studentMarks[studentId] = (status: status, markedAt: markedAt);
       }
@@ -418,6 +395,7 @@ class AttendanceCommandService {
             }, SetOptions(merge: true))
             ..update(sRef, {
               'isClosed': true,
+              'closeSessionStatus': FieldValue.delete(),
               'updatedAt': FieldValue.serverTimestamp(),
               'presentCount': presentStudentIds.length,
               'lateCount': lateStudentIds.length,
@@ -426,6 +404,12 @@ class AttendanceCommandService {
         });
       } else {
         // Fallback for very large groups: multi-batch (Not fully atomic, but idempotent)
+        // Set in-progress flag
+        await sessionRef.update({
+          'closeSessionStatus': 'in_progress',
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
         // 1. Mark unmarked as absent in chunks
         for (final chunk in unmarkedStudents.chunk(450)) {
           final batch = _firestore.batch();
@@ -529,6 +513,7 @@ class AttendanceCommandService {
             }, SetOptions(merge: true))
             ..update(sRef, {
               'isClosed': true,
+              'closeSessionStatus': FieldValue.delete(),
               'updatedAt': FieldValue.serverTimestamp(),
               'presentCount': presentStudentIds.length,
               'lateCount': lateStudentIds.length,
@@ -693,100 +678,94 @@ class AttendanceCommandService {
         );
       }
 
-      const int chunkSize = 490; // stay safely under Firestore's 500-op limit
-      int presentDelta = 0;
-
-      // Chunk the payloads so we never exceed the WriteBatch limit.
+      const int chunkSize = 400; // stay safely under Firestore's 500-op limit
       for (int offset = 0; offset < payloads.length; offset += chunkSize) {
         final chunk = payloads.sublist(
           offset,
           (offset + chunkSize).clamp(0, payloads.length),
         );
 
-        final batch = _firestore.batch();
-        bool batchHasOps = false;
+        await _firestore.runTransaction((transaction) async {
+          int chunkPresentDelta = 0;
 
-        for (final payload in chunk) {
-          final studentId = payload['studentId'] as String? ?? '';
-          if (studentId.isEmpty) continue;
+          // 1. Gather all documents
+          final markRefsAndPayloads =
+              <DocumentReference<Map<String, dynamic>>, Map<String, dynamic>>{};
+          final existingDocs =
+              <
+                DocumentReference<Map<String, dynamic>>,
+                DocumentSnapshot<Map<String, dynamic>>
+              >{};
 
-          final statusString = payload['status'] as String? ?? 'absent';
-          final markedByUid = payload['markedByUid'] as String? ?? 'system';
-          final markedByName = payload['markedByName'] as String? ?? 'النظام';
-          final rawCreatedAt = payload['createdAt'] as String?;
-          final createdAt = rawCreatedAt != null
-              ? DateTime.tryParse(rawCreatedAt) ?? DateTime.now()
-              : DateTime.now();
+          for (final payload in chunk) {
+            final studentId = payload['studentId'] as String? ?? '';
+            if (studentId.isEmpty) continue;
+            final markRef = _markDoc(teamId, sessionId, studentId);
+            markRefsAndPayloads[markRef] = payload;
+            existingDocs[markRef] = await transaction.get(markRef);
+          }
 
-          final markRef = _markDoc(teamId, sessionId, studentId);
+          // 2. Perform transactional updates
+          for (final entry in markRefsAndPayloads.entries) {
+            final markRef = entry.key;
+            final payload = entry.value;
+            final studentId = payload['studentId'] as String;
+            final statusString = payload['status'] as String? ?? 'absent';
+            final markedByUid = payload['markedByUid'] as String? ?? 'system';
+            final markedByName = payload['markedByName'] as String? ?? 'النظام';
+            final rawCreatedAt = payload['createdAt'] as String?;
+            final createdAt = rawCreatedAt != null
+                ? DateTime.tryParse(rawCreatedAt) ?? DateTime.now()
+                : DateTime.now();
 
-          // ── LWW check (cache-first read) ─────────────────────────────────
-          final existingDoc = await _cachedGet(markRef);
-          String? oldStatus;
+            final existingDoc = existingDocs[markRef]!;
+            String? oldStatus;
 
-          if (existingDoc.exists) {
-            final data = existingDoc.data();
-            if (data != null) {
-              oldStatus = data['status'] as String?;
-              final dbTimestamp = data['updatedAt'] ?? data['markedAt'];
-              if (dbTimestamp is Timestamp &&
-                  dbTimestamp.toDate().isAfter(createdAt)) {
-                // Server is newer — skip this mark (LWW).
-                developer.log(
-                  'LWW: skipping mark for student $studentId '
-                  '(server is newer).',
-                  name: 'AttendanceCommandService',
-                );
-                continue;
+            if (existingDoc.exists) {
+              final data = existingDoc.data();
+              if (data != null) {
+                oldStatus = data['status'] as String?;
+                final dbTimestamp = data['updatedAt'] ?? data['markedAt'];
+                if (dbTimestamp is Timestamp &&
+                    dbTimestamp.toDate().isAfter(createdAt)) {
+                  // Server is newer — skip this mark (LWW).
+                  continue;
+                }
               }
             }
+
+            final markData = <String, dynamic>{
+              'studentId': studentId,
+              'teamId': teamId,
+              'sessionId': sessionId,
+              'status': statusString,
+              'markedByUserId': markedByUid,
+              'markedByName': markedByName,
+              'updatedAt': FieldValue.serverTimestamp(),
+            };
+
+            if (!existingDoc.exists) {
+              markData['markedAt'] = Timestamp.fromDate(createdAt);
+              final snapshotName = payload['studentNameSnapshot'] as String?;
+              markData['studentNameSnapshot'] =
+                  (snapshotName?.isNotEmpty == true) ? snapshotName! : 'مخدوم';
+            }
+
+            transaction.set(markRef, markData, SetOptions(merge: true));
+
+            if (statusString == 'present' && oldStatus != 'present') {
+              chunkPresentDelta++;
+            } else if (oldStatus == 'present' && statusString != 'present') {
+              chunkPresentDelta--;
+            }
           }
-          // ─────────────────────────────────────────────────────────────────
 
-          final markData = <String, dynamic>{
-            'studentId': studentId,
-            'teamId': teamId,
-            'sessionId': sessionId,
-            'status': statusString,
-            'markedByUserId': markedByUid,
-            'markedByName': markedByName,
-            'updatedAt': FieldValue.serverTimestamp(),
-          };
-
-          if (!existingDoc.exists) {
-            markData['markedAt'] = Timestamp.fromDate(createdAt);
-            final snapshotName = payload['studentNameSnapshot'] as String?;
-            markData['studentNameSnapshot'] = (snapshotName?.isNotEmpty == true)
-                ? snapshotName!
-                : 'مخدوم';
+          if (chunkPresentDelta != 0) {
+            transaction.update(sessionRef, {
+              'presentCount': FieldValue.increment(chunkPresentDelta),
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
           }
-
-          batch.set(markRef, markData, SetOptions(merge: true));
-          batchHasOps = true;
-
-          // Track presentCount delta.
-          if (statusString == 'present' && oldStatus != 'present') {
-            presentDelta++;
-          } else if (oldStatus == 'present' && statusString != 'present') {
-            presentDelta--;
-          }
-        }
-
-        if (batchHasOps) {
-          await batch.commit();
-          developer.log(
-            'Committed WriteBatch for ${chunk.length} marks '
-            '(session $sessionId, offset $offset).',
-            name: 'AttendanceCommandService',
-          );
-        }
-      }
-
-      // Apply the aggregated presentCount delta in a single atomic write.
-      if (presentDelta != 0) {
-        await _sessionDoc(teamId, sessionId).update({
-          'presentCount': FieldValue.increment(presentDelta),
-          'updatedAt': FieldValue.serverTimestamp(),
         });
       }
     } catch (error) {
@@ -876,10 +855,17 @@ class AttendanceCommandService {
   }
 
   String _slugifyTitle(String? title) {
+    if (title == null || title.trim().isEmpty) return 'session';
     final normalized = _normalizeTitle(title);
     final slug = normalized.replaceAll(RegExp(r'[^a-z0-9]+'), '-');
     final cleaned = slug.replaceAll(RegExp(r'^-+|-+$'), '');
-    if (cleaned.isEmpty) return 'session';
+    if (cleaned.isEmpty) {
+      final hashStr = title.hashCode.abs().toString();
+      final hash = hashStr.length >= 6
+          ? hashStr.substring(0, 6)
+          : hashStr.padRight(6, '0');
+      return 'session-$hash';
+    }
     if (cleaned.length <= 40) return cleaned;
     return cleaned.substring(0, 40);
   }
@@ -915,58 +901,92 @@ class AttendanceCommandService {
         );
       }
 
-      final marksToWrite =
-          <String, ({AttendanceMarkStatus status, DateTime markedAt})>{};
-      for (final entry in marks.entries) {
-        final studentId = entry.key;
-        final payloadMarkedAt = entry.value.markedAt;
-        final markRef = _markDoc(teamId, sessionId, studentId);
-        final existingDoc = await _cachedGet(markRef);
-        if (existingDoc.exists) {
-          final data = existingDoc.data();
-          final dbTimestamp = data?['updatedAt'] ?? data?['markedAt'];
-          if (dbTimestamp is Timestamp &&
-              dbTimestamp.toDate().isAfter(payloadMarkedAt)) {
-            developer.log(
-              'LWW: skipping batchWriteMarks for student $studentId (server is newer).',
-              name: 'AttendanceCommandService',
-            );
-            continue;
-          }
-        }
-        marksToWrite[studentId] = entry.value;
-      }
+      if (marks.isEmpty) return;
 
-      if (marksToWrite.isEmpty) return;
-
-      final entries = marksToWrite.entries.toList(growable: false);
+      final entries = marks.entries.toList(growable: false);
       for (final chunk in entries.chunk(400)) {
-        final batch = _firestore.batch();
-        for (final entry in chunk) {
-          final studentId = entry.key;
-          final status = entry.value.status;
-          final markRef = _markDoc(teamId, sessionId, studentId);
-          final studentName =
-              session.studentNameSnapshots[studentId] ?? 'مخدوم';
-          batch.set(markRef, {
-            'studentId': studentId,
-            'studentNameSnapshot': studentName,
-            'status': status.name,
-            'markedByUserId': markedBy.uid,
-            'markedByName': markedBy.name,
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
-        }
-        await batch.commit();
-      }
+        await _firestore.runTransaction((transaction) async {
+          int chunkPresentDelta = 0;
 
-      final presentCount = marksToWrite.values
-          .where((v) => v.status == AttendanceMarkStatus.present)
-          .length;
-      await sessionRef.update({
-        'presentCount': FieldValue.increment(presentCount),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+          // 1. Gather all documents
+          final markRefsAndEntries =
+              <
+                DocumentReference<Map<String, dynamic>>,
+                MapEntry<
+                  String,
+                  ({AttendanceMarkStatus status, DateTime markedAt})
+                >
+              >{};
+          final existingDocs =
+              <
+                DocumentReference<Map<String, dynamic>>,
+                DocumentSnapshot<Map<String, dynamic>>
+              >{};
+
+          for (final entry in chunk) {
+            final studentId = entry.key;
+            final markRef = _markDoc(teamId, sessionId, studentId);
+            markRefsAndEntries[markRef] = entry;
+            existingDocs[markRef] = await transaction.get(markRef);
+          }
+
+          // 2. Perform transactional updates
+          for (final entry in markRefsAndEntries.entries) {
+            final markRef = entry.key;
+            final studentId = entry.value.key;
+            final targetStatus = entry.value.value.status;
+            final payloadMarkedAt = entry.value.value.markedAt;
+
+            final existingDoc = existingDocs[markRef]!;
+            String? oldStatus;
+
+            if (existingDoc.exists) {
+              final data = existingDoc.data();
+              if (data != null) {
+                oldStatus = data['status'] as String?;
+                final dbTimestamp = data['updatedAt'] ?? data['markedAt'];
+                if (dbTimestamp is Timestamp &&
+                    dbTimestamp.toDate().isAfter(payloadMarkedAt)) {
+                  // Server is newer — skip (LWW)
+                  continue;
+                }
+              }
+            }
+
+            final studentName =
+                session.studentNameSnapshots[studentId] ?? 'مخدوم';
+            final markData = <String, dynamic>{
+              'studentId': studentId,
+              'studentNameSnapshot': studentName,
+              'status': targetStatus.name,
+              'markedByUserId': markedBy.uid,
+              'markedByName': markedBy.name,
+              'updatedAt': FieldValue.serverTimestamp(),
+            };
+
+            if (!existingDoc.exists) {
+              markData['markedAt'] = Timestamp.fromDate(payloadMarkedAt);
+            }
+
+            transaction.set(markRef, markData, SetOptions(merge: true));
+
+            if (targetStatus == AttendanceMarkStatus.present &&
+                oldStatus != 'present') {
+              chunkPresentDelta++;
+            } else if (oldStatus == 'present' &&
+                targetStatus != AttendanceMarkStatus.present) {
+              chunkPresentDelta--;
+            }
+          }
+
+          if (chunkPresentDelta != 0) {
+            transaction.update(sessionRef, {
+              'presentCount': FieldValue.increment(chunkPresentDelta),
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+          }
+        });
+      }
     } catch (error) {
       if (error is AttendanceFailure) rethrow;
       throw mapExceptionToAttendanceFailure(error);
@@ -994,7 +1014,10 @@ class AttendanceCommandService {
         sessionId,
       ).get(const GetOptions());
       final existingMarkedStudentIds = existingMarksSnapshot.docs
-          .map((doc) => doc.id.split('_').first)
+          .map(
+            (doc) =>
+                doc.data()['studentId'] as String? ?? doc.id.split('_').first,
+          )
           .toSet();
 
       final unmarkedStudents = session.studentIdsSnapshot

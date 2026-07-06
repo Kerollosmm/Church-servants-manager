@@ -388,6 +388,9 @@ void main() {
       AttendanceEffectiveStatus.present,
     );
 
+    // Reset currentTime back so we can mark student late
+    currentTime = currentTime.subtract(const Duration(minutes: 31));
+
     await repository.markStudentLate(
       teamId: 'team-1',
       sessionId: session.id,
@@ -395,6 +398,9 @@ void main() {
       studentNameSnapshot: 'Mina',
       markedBy: servant,
     );
+
+    // Advance time again to close the session
+    currentTime = currentTime.add(const Duration(minutes: 31));
 
     final lateRoster = await repository.getSessionRoster(
       teamId: 'team-1',

@@ -13,7 +13,7 @@ class AttendanceLocalDatasource {
     if (!Hive.isBoxOpen(_marksCacheBox)) {
       await Hive.openBox<AttendanceMark>(
         _marksCacheBox,
-        compactionStrategy: (entries, deletedEntries) => deletedEntries > 50,
+        compactionStrategy: (entries, deletedEntries) => deletedEntries > 10,
       );
     }
   }

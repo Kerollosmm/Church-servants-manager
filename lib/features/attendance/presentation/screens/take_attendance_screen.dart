@@ -72,7 +72,10 @@ class TakeAttendanceScreen extends StatelessWidget {
                       padding: const EdgeInsets.all(16.0),
                       child: Text(
                         state.message,
-                        style: const TextStyle(color: AppColors.error, fontSize: 16),
+                        style: const TextStyle(
+                          color: AppColors.error,
+                          fontSize: 16,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -163,7 +166,10 @@ class _RosterItemCard extends StatelessWidget {
             subtitle: item.isMarked
                 ? Text(
                     'تم تسجيله بواسطة: ${item.markedByName}',
-                    style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                    ),
                   )
                 : const Text(
                     'لم يتم التسجيل بعد',

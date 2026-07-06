@@ -24,6 +24,9 @@ import 'package:church_management_system/features/student/data/services/student_
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
+/// Note: `AttendanceMarkRepository` has been retired.
+/// [AttendanceRepository] paired with [SyncService] is the active,
+/// canonical offline synchronization path.
 class AttendanceRepository implements IAttendanceRepository {
   final AttendanceQueryService _queryService;
   final AttendanceCommandService _commandService;
@@ -163,7 +166,7 @@ class AttendanceRepository implements IAttendanceRepository {
       throw AttendanceSessionNotFoundFailure();
     }
     final now = _nowProvider();
-    final canMark = !session.isClosed || session.isOpenAt(now);
+    final canMark = !session.isClosed && session.isOpenAt(now);
     if (!canMark) {
       throw AttendanceSessionClosedFailure();
     }

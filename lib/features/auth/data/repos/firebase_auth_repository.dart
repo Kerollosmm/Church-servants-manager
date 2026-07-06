@@ -246,7 +246,19 @@ class FirebaseAuthRepository implements AuthRepository {
 
       return appUser;
     } catch (e) {
-      if (!profileSaved) {
+      if (profileSaved) {
+        final currentUser = _identityProvider.currentUser;
+        if (currentUser != null) {
+          try {
+            await _userProfileStore.deleteUser(currentUser.uid);
+            await currentUser.delete();
+          } catch (_) {
+            throw const GenericAuthException(
+              'Account setup failed and cleanup was incomplete. Please contact support or try again later.',
+            );
+          }
+        }
+      } else {
         final currentUser = _identityProvider.currentUser;
         if (currentUser != null && currentUser.email == email) {
           try {

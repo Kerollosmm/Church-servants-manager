@@ -183,9 +183,10 @@ class AttendanceQueryService {
 
     for (final doc in marksSnapshot.docs) {
       try {
-        final parts = doc.id.split('_');
-        final studentId = parts.first;
-        final mark = AttendanceMark.fromMap(doc.data(), studentId);
+        final data = doc.data();
+        final studentId =
+            data['studentId'] as String? ?? doc.id.split('_').first;
+        final mark = AttendanceMark.fromMap(data, studentId);
 
         if (!studentMarks.containsKey(studentId)) {
           studentMarks[studentId] = [];
