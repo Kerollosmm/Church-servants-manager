@@ -362,13 +362,19 @@ service cloud.firestore {
 
         allow create: if isSignedIn() && (
           isAdmin() ||
-          (request.resource.data.get('teamId', '') != '' ? callerManagesTeam(request.resource.data.teamId) : false)
+          (
+            request.resource.data.get('teamId', '') != '' &&
+            request.resource.data.teamId == get(/databases/$(database)/documents/AttendanceSessions/$(sessionId)).data.teamId &&
+            callerManagesTeam(request.resource.data.teamId)
+          )
         );
 
         allow update: if isSignedIn() && (
           isAdmin() ||
           (
-            (resource.data.get('teamId', '') != '' ? callerManagesTeam(resource.data.teamId) : false) &&
+            resource.data.get('teamId', '') != '' &&
+            resource.data.teamId == get(/databases/$(database)/documents/AttendanceSessions/$(sessionId)).data.teamId &&
+            callerManagesTeam(resource.data.teamId) &&
             isImmutable('markedByUserId')
           )
         );

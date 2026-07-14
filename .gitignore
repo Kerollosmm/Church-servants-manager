@@ -70,7 +70,9 @@ gha-creds-*.json
 n u l
 
 # Antigravity/Agent/Tooling files
-.agents/
+!.agents/
+.agents/*
+!.agents/rules/
 .antigravitycli/
 .antigravityrules
 .opencode/

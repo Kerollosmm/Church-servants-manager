@@ -121,6 +121,8 @@ abstract class IAttendanceRepository {
 
   Future<void> syncOfflineMark(Map<String, dynamic> payload);
 
+  Future<void> syncOfflineClear(Map<String, dynamic> payload);
+
   /// Persists multiple offline attendance-mark payloads for the same session
   /// in a single Firestore [WriteBatch].
   ///

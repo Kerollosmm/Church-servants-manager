@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:developer' as developer;
 
+import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/models/sync_entry.dart';
 import 'package:church_management_system/core/services/cache_tracker.dart';
-import 'package:church_management_system/core/services/sync_service.dart'
-    hide SyncStatus;
+import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/core/utils/bulk_operation_result.dart';
 import 'package:church_management_system/features/attendance/data/local/attendance_local_datasource.dart';
 import 'package:church_management_system/features/attendance/data/local/attendance_session_local_datasource.dart';
@@ -612,6 +612,39 @@ class AttendanceRepository implements IAttendanceRepository {
     } catch (e) {
       developer.log(
         'Failed to update local cache after syncOfflineMark: $e',
+        name: 'AttendanceRepository',
+      );
+    }
+  }
+
+  @override
+  Future<void> syncOfflineClear(Map<String, dynamic> payload) async {
+    final teamId = payload['teamId'] as String;
+    final sessionId = payload['sessionId'] as String;
+    final studentId = payload['studentId'] as String;
+    final requestedByUid = payload['requestedByUid'] as String;
+
+    await _commandService.clearStudentMark(
+      teamId: teamId,
+      sessionId: sessionId,
+      studentId: studentId,
+      requestedBy: AuthUser(
+        uid: requestedByUid,
+        name: 'System',
+        email: '',
+        role: UserRole.servant,
+      ),
+    );
+
+    try {
+      await _attendanceLocalDatasource.removeCachedMark(
+        teamId: teamId,
+        sessionId: sessionId,
+        studentId: studentId,
+      );
+    } catch (e) {
+      developer.log(
+        'Failed to remove local cache after syncOfflineClear: $e',
         name: 'AttendanceRepository',
       );
     }

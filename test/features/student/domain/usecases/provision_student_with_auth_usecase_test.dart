@@ -1,6 +1,4 @@
 import 'package:church_management_system/core/constants/enums.dart';
-import 'package:church_management_system/features/auth/data/models/auth_user.dart';
-import 'package:church_management_system/features/auth/data/services/admin_user_provisioning_service.dart';
 import 'package:church_management_system/features/student/domain/entities/student.dart';
 import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
 import 'package:church_management_system/features/student/domain/usecases/provision_student_with_auth_usecase.dart';
@@ -9,12 +7,8 @@ import 'package:mocktail/mocktail.dart';
 
 class MockIStudentRepository extends Mock implements IStudentRepository {}
 
-class MockAdminUserProvisioningService extends Mock
-    implements AdminUserProvisioningService {}
-
 void main() {
   late MockIStudentRepository studentRepo;
-  late MockAdminUserProvisioningService provisioningService;
   late ProvisionStudentWithAuthUseCase useCase;
 
   setUpAll(() {
@@ -35,20 +29,17 @@ void main() {
         classId: '',
       ),
     );
-    registerFallbackValue(UserRole.student);
   });
 
   setUp(() {
     studentRepo = MockIStudentRepository();
-    provisioningService = MockAdminUserProvisioningService();
     useCase = ProvisionStudentWithAuthUseCase(
       studentRepository: studentRepo,
-      provisioningService: provisioningService,
     );
   });
 
   group('ProvisionStudentWithAuthUseCase', () {
-    test('creates student without auth when no credentials provided', () async {
+    test('delegates createStudent to repository', () async {
       final student = Student(
         uid: '',
         docID: '',
@@ -66,58 +57,11 @@ void main() {
       );
 
       when(
-        () => studentRepo.createStudent(any()),
-      ).thenAnswer((_) async => 'doc1');
-
-      final result = await useCase(student: student);
-
-      expect(result, 'doc1');
-      verify(() => studentRepo.createStudent(any())).called(1);
-      verifyNever(
-        () => provisioningService.createUser(
+        () => studentRepo.createStudent(
+          any(),
           email: any(named: 'email'),
           password: any(named: 'password'),
-          name: any(named: 'name'),
-          role: any(named: 'role'),
         ),
-      );
-    });
-
-    test('creates student with auth when credentials provided', () async {
-      final student = Student(
-        uid: '',
-        docID: '',
-        name: 'Test Student',
-        role: UserRole.student,
-        mobile: '01234567890',
-        group: Group.year1,
-        teamName: 'Team A',
-        motherPhone: '01234567890',
-        fatherPhone: '01234567890',
-        grade: 1,
-        educationStage: EducationStage.preparatory,
-        fatherOfConfession: 'Fr. Test',
-        classId: 'team1',
-      );
-
-      final authUser = AuthUser(
-        uid: 'auth-uid',
-        email: 'test@example.com',
-        name: 'Test Student',
-        role: UserRole.student,
-      );
-
-      when(
-        () => provisioningService.createUser(
-          email: any(named: 'email'),
-          password: any(named: 'password'),
-          name: any(named: 'name'),
-          role: any(named: 'role'),
-        ),
-      ).thenAnswer((_) async => authUser);
-
-      when(
-        () => studentRepo.createStudent(any()),
       ).thenAnswer((_) async => 'doc1');
 
       final result = await useCase(
@@ -128,132 +72,50 @@ void main() {
 
       expect(result, 'doc1');
       verify(
-        () => provisioningService.createUser(
+        () => studentRepo.createStudent(
+          student,
           email: 'test@example.com',
           password: 'password123',
-          name: 'Test Student',
         ),
       ).called(1);
-
-      final captured =
-          verify(() => studentRepo.createStudent(captureAny())).captured.single
-              as Student;
-      expect(captured.uid, 'auth-uid');
     });
 
-    test('rolls back auth user if Firestore creation fails', () async {
-      final student = Student(
-        uid: '',
-        docID: '',
-        name: 'Test Student',
-        role: UserRole.student,
-        mobile: '01234567890',
-        group: Group.year1,
-        teamName: 'Team A',
-        motherPhone: '01234567890',
-        fatherPhone: '01234567890',
-        grade: 1,
-        educationStage: EducationStage.preparatory,
-        fatherOfConfession: 'Fr. Test',
-        classId: 'team1',
-      );
-
-      final authUser = AuthUser(
-        uid: 'auth-uid',
-        email: 'test@example.com',
-        name: 'Test Student',
-        role: UserRole.student,
-      );
-
+    test('delegates archiveStudent to repository', () async {
       when(
-        () => provisioningService.createUser(
-          email: any(named: 'email'),
-          password: any(named: 'password'),
-          name: any(named: 'name'),
-          role: any(named: 'role'),
-        ),
-      ).thenAnswer((_) async => authUser);
-
-      when(
-        () => studentRepo.createStudent(any()),
-      ).thenThrow(Exception('Firestore failed'));
-
-      when(
-        () => provisioningService.rollbackCreatedUser(
-          uid: any(named: 'uid'),
-          email: any(named: 'email'),
-          password: any(named: 'password'),
+        () => studentRepo.archiveStudent(
+          any(),
+          performedByUid: any(named: 'performedByUid'),
         ),
       ).thenAnswer((_) async {});
 
-      await expectLater(
-        () => useCase(
-          student: student,
-          email: 'test@example.com',
-          password: 'password123',
-        ),
-        throwsA(isA<Exception>()),
+      await useCase.archive(
+        docId: 's1',
+        performedByUid: 'admin1',
+        linkedUid: 'u1',
       );
 
       verify(
-        () => provisioningService.rollbackCreatedUser(
-          uid: 'auth-uid',
-          email: 'test@example.com',
-          password: 'password123',
-        ),
+        () => studentRepo.archiveStudent('s1', performedByUid: 'admin1'),
       ).called(1);
     });
 
-    test(
-      'archive calls provisioningService.archiveUser and repo.archiveStudent',
-      () async {
-        when(
-          () => provisioningService.archiveUser(uid: any(named: 'uid')),
-        ).thenAnswer((_) async {});
-        when(
-          () => studentRepo.archiveStudent(
-            any(),
-            performedByUid: any(named: 'performedByUid'),
-          ),
-        ).thenAnswer((_) async {});
+    test('delegates restoreStudent to repository', () async {
+      when(
+        () => studentRepo.restoreStudent(
+          any(),
+          performedByUid: any(named: 'performedByUid'),
+        ),
+      ).thenAnswer((_) async {});
 
-        await useCase.archive(
-          docId: 's1',
-          performedByUid: 'admin1',
-          linkedUid: 'u1',
-        );
+      await useCase.restore(
+        docId: 's1',
+        performedByUid: 'admin1',
+        linkedUid: 'u1',
+      );
 
-        verify(() => provisioningService.archiveUser(uid: 'u1')).called(1);
-        verify(
-          () => studentRepo.archiveStudent('s1', performedByUid: 'admin1'),
-        ).called(1);
-      },
-    );
-
-    test(
-      'restore calls provisioningService.restoreUser and repo.restoreStudent',
-      () async {
-        when(
-          () => provisioningService.restoreUser(uid: any(named: 'uid')),
-        ).thenAnswer((_) async {});
-        when(
-          () => studentRepo.restoreStudent(
-            any(),
-            performedByUid: any(named: 'performedByUid'),
-          ),
-        ).thenAnswer((_) async {});
-
-        await useCase.restore(
-          docId: 's1',
-          performedByUid: 'admin1',
-          linkedUid: 'u1',
-        );
-
-        verify(() => provisioningService.restoreUser(uid: 'u1')).called(1);
-        verify(
-          () => studentRepo.restoreStudent('s1', performedByUid: 'admin1'),
-        ).called(1);
-      },
-    );
+      verify(
+        () => studentRepo.restoreStudent('s1', performedByUid: 'admin1'),
+      ).called(1);
+    });
   });
 }

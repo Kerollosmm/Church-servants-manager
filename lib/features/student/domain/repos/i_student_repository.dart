@@ -39,7 +39,11 @@ abstract class IStudentRepository {
     bool includeArchived,
   });
 
-  Future<String> createStudent(Student student);
+  Future<String> createStudent(
+    Student student, {
+    String? email,
+    String? password,
+  });
 
   Future<void> updateStudent(Student student);
 
@@ -72,4 +76,5 @@ abstract class IStudentRepository {
   Future<void> syncOfflineUpsert(Map<String, dynamic> payload);
   Future<void> syncOfflineArchive(Map<String, dynamic> payload);
   Future<void> syncOfflineRestore(Map<String, dynamic> payload);
+  Future<void> syncOfflineCreateWithAuth(Map<String, dynamic> payload);
 }

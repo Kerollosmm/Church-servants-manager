@@ -296,7 +296,6 @@ void _registerUseCases() {
     ..registerLazySingleton<ProvisionStudentWithAuthUseCase>(
       () => ProvisionStudentWithAuthUseCase(
         studentRepository: getIt<IStudentRepository>(),
-        provisioningService: getIt<AdminUserProvisioningService>(),
       ),
     )
     ..registerLazySingleton<ProvisionServantWithAuthUseCase>(

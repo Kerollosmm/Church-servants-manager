@@ -86,7 +86,13 @@ class AttendanceSessionRepository {
                   CacheTracker.markFetched(cacheKey);
                 }
               })
-              .catchError((_) {}),
+              .catchError((e) {
+                developer.log(
+                  'Background revalidation failed for active sessions',
+                  error: e,
+                  name: 'AttendanceSessionRepository',
+                );
+              }),
         );
       }
       return cached..sort((a, b) => b.startsAt.compareTo(a.startsAt));
@@ -135,7 +141,13 @@ class AttendanceSessionRepository {
                   CacheTracker.markFetched(cacheKey);
                 }
               })
-              .catchError((_) {}),
+              .catchError((e) {
+                developer.log(
+                  'Background revalidation failed for all sessions',
+                  error: e,
+                  name: 'AttendanceSessionRepository',
+                );
+              }),
         );
       }
       return cached..sort((a, b) => b.startsAt.compareTo(a.startsAt));
@@ -289,7 +301,13 @@ class AttendanceSessionRepository {
                   CacheTracker.markFetched(cacheKey);
                 }
               })
-              .catchError((_) {}),
+              .catchError((e) {
+                developer.log(
+                  'Background revalidation failed for sessions on date',
+                  error: e,
+                  name: 'AttendanceSessionRepository',
+                );
+              }),
         );
       }
       return cached..sort((a, b) => b.startsAt.compareTo(a.startsAt));

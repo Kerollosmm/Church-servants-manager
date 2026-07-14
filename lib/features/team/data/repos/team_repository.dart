@@ -4,9 +4,9 @@ import 'dart:developer' as developer;
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/core/models/sync_entry.dart';
-import 'package:church_management_system/core/services/sync_service.dart'
-    hide SyncStatus;
+import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/core/utils/list_extensions.dart';
+import 'package:church_management_system/core/utils/sync_error_classifier.dart';
 import 'package:church_management_system/features/team/data/datasources/team_local_datasource.dart';
 import 'package:church_management_system/features/team/data/models/team_model.dart';
 import 'package:church_management_system/features/team/domain/entities/team.dart';
@@ -458,6 +458,9 @@ class TeamRepository implements ITeamRepository {
         if (e is StateError) {
           throw TeamValidationFailure(e.message);
         }
+        if (!SyncErrorClassifier.isRetriable(e)) {
+          rethrow;
+        }
         developer.log(
           'Create team online transaction failed, relying on offline sync queue',
           error: e,
@@ -575,6 +578,9 @@ class TeamRepository implements ITeamRepository {
         if (e is TeamNotFoundFailure) rethrow;
         if (e is StateError) {
           throw TeamValidationFailure(e.message);
+        }
+        if (!SyncErrorClassifier.isRetriable(e)) {
+          rethrow;
         }
         developer.log(
           'Update team online transaction failed, relying on offline sync queue',
@@ -705,6 +711,9 @@ class TeamRepository implements ITeamRepository {
         }
       } catch (e) {
         if (e is TeamNotFoundFailure) rethrow;
+        if (!SyncErrorClassifier.isRetriable(e)) {
+          rethrow;
+        }
         developer.log(
           'Delete team online transaction failed, relying on offline sync queue',
           error: e,
@@ -816,6 +825,9 @@ class TeamRepository implements ITeamRepository {
         if (e is TeamNotFoundFailure) rethrow;
         if (e is StateError) {
           throw TeamValidationFailure(e.message);
+        }
+        if (!SyncErrorClassifier.isRetriable(e)) {
+          rethrow;
         }
         developer.log(
           'Restore team online transaction failed, relying on offline sync queue',

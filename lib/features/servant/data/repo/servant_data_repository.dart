@@ -3,9 +3,9 @@ import 'dart:developer' as developer;
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/core/models/sync_entry.dart';
-import 'package:church_management_system/core/services/sync_service.dart'
-    hide SyncStatus;
+import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/core/utils/pagination_cursor.dart';
+import 'package:church_management_system/core/utils/sync_error_classifier.dart';
 import 'package:church_management_system/features/servant/data/local/servant_local_datasource.dart';
 import 'package:church_management_system/features/servant/data/models/servant_models.dart'
     hide ServantsPage;
@@ -362,6 +362,9 @@ class ServantDataRepository implements IServantRepository {
         );
         await _localDatasource.cacheServant(syncedServant);
       } catch (e) {
+        if (!SyncErrorClassifier.isRetriable(e)) {
+          rethrow;
+        }
         final syncEntry = SyncEntry(
           id: 'create_servant_${docRef.id}',
           actionType: 'CREATE_SERVANT',
@@ -414,6 +417,9 @@ class ServantDataRepository implements IServantRepository {
         );
         await _localDatasource.cacheServant(syncedServant);
       } catch (e) {
+        if (!SyncErrorClassifier.isRetriable(e)) {
+          rethrow;
+        }
         final syncEntry = SyncEntry(
           id: 'upsert_servant_${servant.docID}',
           actionType: 'UPDATE_SERVANT',
@@ -473,6 +479,9 @@ class ServantDataRepository implements IServantRepository {
           await _localDatasource.cacheServant(synced);
         }
       } catch (e) {
+        if (!SyncErrorClassifier.isRetriable(e)) {
+          rethrow;
+        }
         final syncEntry = SyncEntry(
           id: 'update_servant_$docId',
           actionType: 'UPDATE_SERVANT',
@@ -538,7 +547,10 @@ class ServantDataRepository implements IServantRepository {
           );
           await _localDatasource.cacheServant(synced);
         }
-      } catch (_) {
+      } catch (e) {
+        if (!SyncErrorClassifier.isRetriable(e)) {
+          rethrow;
+        }
         final syncEntry = SyncEntry(
           id: 'archive_servant_$docId',
           actionType: 'ARCHIVE_SERVANT',
@@ -619,7 +631,10 @@ class ServantDataRepository implements IServantRepository {
           );
           await _localDatasource.cacheServant(synced);
         }
-      } catch (_) {
+      } catch (e) {
+        if (!SyncErrorClassifier.isRetriable(e)) {
+          rethrow;
+        }
         final syncEntry = SyncEntry(
           id: 'restore_servant_$docId',
           actionType: 'RESTORE_SERVANT',

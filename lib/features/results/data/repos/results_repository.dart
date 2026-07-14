@@ -5,6 +5,7 @@ import 'package:church_management_system/core/models/sync_entry.dart';
 import 'package:church_management_system/core/services/cache_tracker.dart';
 import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/core/utils/pagination_cursor.dart';
+import 'package:church_management_system/core/utils/sync_error_classifier.dart';
 import 'package:church_management_system/features/results/data/datasources/results_local_datasource.dart';
 import 'package:church_management_system/features/results/data/models/results_model.dart';
 import 'package:church_management_system/features/results/domain/entities/result.dart';
@@ -233,6 +234,9 @@ class ResultsRepository implements IResultsRepository {
         rethrow;
       }
     } catch (e) {
+      if (!SyncErrorClassifier.isRetriable(e)) {
+        rethrow;
+      }
       developer.log(
         'Update result failed, enqueuing for offline sync',
         error: e,

@@ -9,7 +9,7 @@ export 'sync_state.dart';
 /// Cubit responsible for bridging the background [SyncService] to the UI.
 class SyncCubit extends Cubit<SyncState> {
   final SyncService _syncService;
-  StreamSubscription<SyncStatus>? _syncSubscription;
+  StreamSubscription<SyncEngineStatus>? _syncSubscription;
   Timer? _resetTimer;
 
   SyncCubit({required SyncService syncService})

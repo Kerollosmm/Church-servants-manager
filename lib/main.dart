@@ -40,7 +40,25 @@ void callbackDispatcher() {
       await _initializeFirebase();
 
       final payloadUid = inputData?['userId'] as String?;
-      final currentUid = FirebaseAuth.instance.currentUser?.uid;
+      String? currentUid = FirebaseAuth.instance.currentUser?.uid;
+
+      if (currentUid == null && payloadUid != null) {
+        developer.log(
+          'Firebase Auth currentUser is null. Waiting for auth state to restore...',
+          name: 'Workmanager',
+        );
+        try {
+          final user = await FirebaseAuth.instance
+              .authStateChanges()
+              .firstWhere((user) => user != null)
+              .timeout(const Duration(seconds: 5));
+          currentUid = user?.uid;
+        } catch (_) {
+          // Fallback to whatever current user is after timeout (e.g. still null or restored)
+          currentUid = FirebaseAuth.instance.currentUser?.uid;
+        }
+      }
+
       if (payloadUid == null ||
           currentUid == null ||
           currentUid != payloadUid) {

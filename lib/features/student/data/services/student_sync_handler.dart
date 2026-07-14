@@ -12,6 +12,9 @@ class StudentSyncHandler implements SyncHandler {
       case 'UPSERT_STUDENT':
         await _studentRepository.syncOfflineUpsert(entry.payload);
         break;
+      case 'CREATE_STUDENT_WITH_AUTH':
+        await _studentRepository.syncOfflineCreateWithAuth(entry.payload);
+        break;
       case 'UPDATE_STUDENT':
         await _studentRepository.syncOfflineUpdate(entry.payload);
         break;

@@ -276,7 +276,8 @@ class AttendanceQueryService {
         final markedAt = markedAtTimestamp?.toDate();
         final sessionId = data['sessionId'] as String? ?? doc.id;
         final docTeamId = data['teamId'] as String? ?? '';
-        final teamNameSnapshot = data['studentName'] as String?;
+        final teamNameSnapshot = data['teamNameSnapshot'] as String?;
+        final durationMinutes = data['durationMinutes'] as int? ?? 120;
 
         history.add(
           StudentAttendanceHistoryItem(
@@ -286,9 +287,7 @@ class AttendanceQueryService {
             title: data['title'] as String?,
             dateKey: startsAt.toIso8601String().substring(0, 10),
             sessionStartsAt: startsAt,
-            sessionEndsAt: startsAt.add(
-              const Duration(hours: 2),
-            ), // Default estimate duration
+            sessionEndsAt: startsAt.add(Duration(minutes: durationMinutes)),
             effectiveStatus: status,
             isSessionClosed: true,
             markedAt: markedAt,
@@ -336,11 +335,8 @@ class AttendanceQueryService {
   }) async {
     try {
       if (startDate != null || endDate != null) {
-        // Range-based queries aren't supported with the aggregate document approach,
-        // and falling back to a full collection scan violates quota constraints.
-        developer.log(
-          'Warning: getTeamAttendanceStats called with a date range, but server-side aggregation does not support arbitrary date ranges. Ignoring range.',
-          name: 'AttendanceQueryService',
+        throw const AttendanceValidationFailure(
+          'تصفية الإحصائيات حسب التاريخ غير مدعومة حالياً.',
         );
       }
 
@@ -493,46 +489,5 @@ class AttendanceQueryService {
     }
 
     return AttendanceRosterSnapshot(session: session, roster: roster);
-  }
-
-  Query<Map<String, dynamic>> _studentSessionsQuery({
-    required String studentId,
-    String? teamId,
-  }) {
-    final normalizedTeamId = teamId?.trim() ?? '';
-    if (normalizedTeamId.isNotEmpty) {
-      return _sessionsCol
-          .where('teamId', isEqualTo: normalizedTeamId)
-          .where('studentIdsSnapshot', arrayContains: studentId);
-    }
-
-    return _firestore
-        .collectionGroup(FirestoreCollections.attendanceSessions)
-        .where('studentIdsSnapshot', arrayContains: studentId);
-  }
-
-  Future<List<AttendanceSession>> _loadStudentSessions({
-    required String studentId,
-    String? teamId,
-    DateTime? startDate,
-    DateTime? endDate,
-  }) async {
-    final snapshot = await _studentSessionsQuery(
-      studentId: studentId,
-      teamId: teamId,
-    ).get();
-    final sessions = _mapSessionsSnapshot(snapshot);
-    if (startDate == null && endDate == null) return sessions;
-    return sessions
-        .where((session) {
-          if (startDate != null && session.startsAt.isBefore(startDate)) {
-            return false;
-          }
-          if (endDate != null && session.startsAt.isAfter(endDate)) {
-            return false;
-          }
-          return true;
-        })
-        .toList(growable: false);
   }
 }

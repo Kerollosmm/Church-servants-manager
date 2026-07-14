@@ -1,8 +1,6 @@
-import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/models/sync_entry.dart';
 import 'package:church_management_system/core/services/sync_handler.dart';
 import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
-import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 
 /// Handles synchronization of attendance mark mutations.
 class AttendanceSyncHandler implements SyncHandler {
@@ -13,21 +11,7 @@ class AttendanceSyncHandler implements SyncHandler {
     if (entry.actionType == 'MARK_ATTENDANCE') {
       await _attendanceRepository.syncOfflineMark(entry.payload);
     } else if (entry.actionType == 'CLEAR_ATTENDANCE') {
-      final teamId = entry.payload['teamId'] as String;
-      final sessionId = entry.payload['sessionId'] as String;
-      final studentId = entry.payload['studentId'] as String;
-      final requestedByUid = entry.payload['requestedByUid'] as String;
-      await _attendanceRepository.clearStudentMark(
-        teamId: teamId,
-        sessionId: sessionId,
-        studentId: studentId,
-        requestedBy: AuthUser(
-          uid: requestedByUid,
-          name: 'System',
-          email: '',
-          role: UserRole.servant,
-        ),
-      );
+      await _attendanceRepository.syncOfflineClear(entry.payload);
     } else {
       throw UnimplementedError(
         'Action type ${entry.actionType} not supported by AttendanceSyncHandler',
@@ -38,9 +22,18 @@ class AttendanceSyncHandler implements SyncHandler {
   @override
   Future<void> executeBatch(List<SyncEntry> entries) async {
     if (entries.isEmpty) return;
-    // Group entries by teamId and sessionId to execute batches together
+
+    // Filter mark attendance entries for batch processing
+    final markEntries = entries
+        .where((e) => e.actionType == 'MARK_ATTENDANCE')
+        .toList();
+    final nonMarkEntries = entries
+        .where((e) => e.actionType != 'MARK_ATTENDANCE')
+        .toList();
+
+    // Group mark entries by teamId and sessionId to execute batches together
     final groups = <String, List<SyncEntry>>{};
-    for (final entry in entries) {
+    for (final entry in markEntries) {
       final teamId = entry.payload['teamId'] as String? ?? '';
       final sessionId = entry.payload['sessionId'] as String? ?? '';
       final key = '${teamId}_$sessionId';
@@ -56,6 +49,11 @@ class AttendanceSyncHandler implements SyncHandler {
         sessionId: sessionId,
         payloads: group.map((e) => e.payload).toList(),
       );
+    }
+
+    // Process non-mark entries individually
+    for (final entry in nonMarkEntries) {
+      await execute(entry);
     }
   }
 }

@@ -357,12 +357,14 @@ class AttendanceCommandService {
             transaction.set(studentSessionRef, {
               'sessionId': sessionId,
               'teamId': teamId,
+              'teamNameSnapshot': session.teamNameSnapshot,
               'studentId': studentId,
               'studentName': session.studentNameSnapshots[studentId] ?? 'مخدوم',
               'status': status,
               'markedAt': markedAt,
               'startsAt': Timestamp.fromDate(session.startsAt),
               'closedAt': FieldValue.serverTimestamp(),
+              'durationMinutes': session.durationMinutes,
             });
           }
 
@@ -465,12 +467,14 @@ class AttendanceCommandService {
             batch.set(studentSessionRef, {
               'sessionId': sessionId,
               'teamId': teamId,
+              'teamNameSnapshot': session.teamNameSnapshot,
               'studentId': studentId,
               'studentName': session.studentNameSnapshots[studentId] ?? 'مخدوم',
               'status': status,
               'markedAt': markedAt,
               'startsAt': Timestamp.fromDate(session.startsAt),
               'closedAt': FieldValue.serverTimestamp(),
+              'durationMinutes': session.durationMinutes,
             });
           }
           await batch.commit();

@@ -5,8 +5,8 @@ import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/core/models/sync_entry.dart';
 import 'package:church_management_system/core/services/cache_tracker.dart';
-import 'package:church_management_system/core/services/sync_service.dart'
-    hide SyncStatus;
+import 'package:church_management_system/core/services/sync_service.dart';
+import 'package:church_management_system/core/utils/sync_error_classifier.dart';
 import 'package:church_management_system/features/student/data/datasources/pastoral_local_datasource.dart';
 import 'package:church_management_system/features/student/data/models/pastoral_record_model.dart';
 import 'package:church_management_system/features/student/domain/repos/i_pastoral_repository.dart';
@@ -91,6 +91,9 @@ class PastoralRepository implements IPastoralRepository {
         rethrow;
       }
     } catch (e) {
+      if (!SyncErrorClassifier.isRetriable(e)) {
+        rethrow;
+      }
       developer.log(
         'Create pastoral record failed, enqueuing for offline sync',
         error: e,

@@ -1,6 +1,3 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/routing/app_router.dart';
@@ -18,6 +15,8 @@ import 'package:church_management_system/l10n/app_localizations.dart';
 import 'package:church_management_system/role_user_route.dart';
 import 'package:church_management_system/shared/widgets/offline_indicator.dart';
 import 'package:church_management_system/shared/widgets/sync_status_indicator.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});

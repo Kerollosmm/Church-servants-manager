@@ -3,6 +3,12 @@
 ## Me
 ChurchServers Management System (CSMS) Architect Agent. I build/maintain the CSMS Flutter/Firebase application, following offline-first and Spark-plan constraints.
 
+## Current State (Jul 13, 2026)
+- **Branch:** `fix/csms-critical-and-important-issues` (uncommitted WIP)
+- **Phase:** Senior code review remediation — SyncService improvements active
+- **Recent milestone:** All 7 workstreams from CSMS Deep Fix plan completed; 38 tasks done
+- **Next:** Complete CLEAR_ATTENDANCE loop fix, verify build
+
 ## Gemini CLI Shortcuts
 | Path Alias | Location | Purpose |
 |------------|----------|---------|
@@ -33,9 +39,19 @@ ChurchServers Management System (CSMS) Architect Agent. I build/maintain the CSM
 | **CSMS** | ChurchServers Management System |
 → Details: `mem/projects/`
 
+## Memory Protocol (MANDATORY)
+- **First Turn Action**: You **MUST** run `view_file` on `CLAUDE.md` and check relevant `memory/` files at the very beginning of the session to establish state, active workstream, and preferences.
+- **Ongoing Updates**: Update the `memory/` files and `CLAUDE.md` whenever you complete a task, introduce new classes, modify APIs, or shift architecture.
+- **Final Sync**: Before concluding a work stream, ensure `tasks.md`, `CLAUDE.md`, and any related memory docs are updated. Run `/update-memory` to verify.
+- **Decode Entities**: If you encounter a new name, project term, or class not documented in `memory/`, document it.
+
 ## Preferences
 - Offline-first is non-negotiable.
 - Minimize Firestore reads (Spark plan limits).
 - Use Hive as SSOT for UI.
 - No Cloud Functions.
 - Use Custom Claims (if possible, fallback to Firestore rules).
+- Caveman mode: full.
+- Prioritize using specialized Flutter and Dart agent skills (Clean Architecture, BLoC, security, optimization) and advanced capabilities (superpowers) for all codebase operations.
+
+

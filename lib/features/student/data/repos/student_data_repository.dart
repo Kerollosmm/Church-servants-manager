@@ -1,11 +1,12 @@
+import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/core/models/sync_entry.dart';
-import 'package:church_management_system/core/services/sync_service.dart'
-    hide SyncStatus;
+import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/core/utils/pagination_cursor.dart';
+import 'package:church_management_system/core/utils/sync_error_classifier.dart';
 import 'package:church_management_system/features/student/data/datasources/student_local_datasource.dart';
 import 'package:church_management_system/features/student/data/models/student_model.dart';
 import 'package:church_management_system/features/student/data/services/student_linked_user_sync_service.dart';
@@ -14,7 +15,6 @@ import 'package:church_management_system/features/student/domain/entities/studen
 import 'package:church_management_system/features/student/domain/failures/student_failures.dart';
 import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:uuid/uuid.dart';
 
 /// Repository for student data operations.
@@ -27,7 +27,6 @@ class StudentDataRepository implements IStudentRepository {
   final StudentLinkedUserSyncService _linkedUserSyncService;
   final StudentLocalDatasource _localDatasource;
   final SyncService Function() _syncServiceGetter;
-  final Connectivity _connectivity;
 
   StudentDataRepository({
     required FirebaseFirestore firestore,
@@ -35,7 +34,6 @@ class StudentDataRepository implements IStudentRepository {
     StudentLinkedUserSyncService? linkedUserSyncService,
     StudentLocalDatasource? localDatasource,
     required SyncService Function() syncServiceGetter,
-    Connectivity? connectivity,
   }) : _firestore = firestore,
        _queryService =
            queryService ?? StudentQueryService(firestore: firestore),
@@ -43,8 +41,7 @@ class StudentDataRepository implements IStudentRepository {
            linkedUserSyncService ??
            StudentLinkedUserSyncService(firestore: firestore),
        _localDatasource = localDatasource ?? StudentLocalDatasource(),
-       _syncServiceGetter = syncServiceGetter,
-       _connectivity = connectivity ?? Connectivity();
+       _syncServiceGetter = syncServiceGetter;
 
   CollectionReference<Map<String, dynamic>> get _studentsCollection =>
       _firestore.collection(FirestoreCollections.students);
@@ -70,45 +67,35 @@ class StudentDataRepository implements IStudentRepository {
     required UserRole previousRole,
     String? updatedEmail,
   }) async {
-    final model = StudentModel.fromDomain(updatedStudent);
-    final pendingStudent = model.copyWith(
-      syncStatus: SyncStatus.pending,
-      clientUpdatedAt: DateTime.now(),
-    );
-
-    // Save to local cache first
-    await _localDatasource.saveStudent(pendingStudent);
-
-    final syncEntry = SyncEntry(
-      id: 'upsert_student_${updatedStudent.docID}',
-      actionType: 'UPSERT_STUDENT',
-      payload: {
-        'student': pendingStudent.toMap(),
-        'syncLinkedUser': true,
-        'previousRole': previousRole.name,
-        'updatedEmail': updatedEmail,
-      },
-      createdAt: DateTime.now(),
-    );
-
     try {
-      await _linkedUserSyncService.updateStudentAndSyncLinkedUserRole(
-        updatedStudent: pendingStudent,
-        previousRole: previousRole,
-        updatedEmail: updatedEmail,
+      final model = StudentModel.fromDomain(updatedStudent);
+      final pendingStudent = model.copyWith(
+        syncStatus: SyncStatus.pending,
+        clientUpdatedAt: DateTime.now(),
       );
-      final syncedStudent = pendingStudent.copyWith(
-        syncStatus: SyncStatus.synced,
+
+      // Save to local cache first
+      await _localDatasource.saveStudent(pendingStudent);
+
+      final syncEntry = SyncEntry(
+        id: 'upsert_student_${updatedStudent.docID}',
+        actionType: 'UPSERT_STUDENT',
+        payload: {
+          'student': pendingStudent.toMap(),
+          'syncLinkedUser': true,
+          'previousRole': previousRole.name,
+          'updatedEmail': updatedEmail,
+        },
+        createdAt: DateTime.now(),
       );
-      await _localDatasource.saveStudent(syncedStudent);
-    } catch (e) {
-      developer.log(
-        'Failed to update student online, enqueuing for offline sync',
-        error: e,
-        name: 'StudentDataRepository',
-      );
-      // Fallback to offline sync queue if the online write fails
+
+      // Enqueue to offline sync queue immediately
       await _syncServiceGetter().enqueue(syncEntry);
+
+      // Trigger background processing asynchronously
+      unawaited(_syncServiceGetter().processQueue());
+    } catch (e) {
+      throw mapExceptionToStudentFailure(e);
     }
   }
 
@@ -268,13 +255,27 @@ class StudentDataRepository implements IStudentRepository {
   }
 
   @override
-  Future<String> createStudent(Student student) async {
+  Future<String> createStudent(
+    Student student, {
+    String? email,
+    String? password,
+  }) async {
     try {
       final docId = student.docID.isNotEmpty
           ? student.docID
-          : const Uuid().v4();
+          : (email != null && email.trim().isNotEmpty
+                ? email.trim().toLowerCase()
+                : const Uuid().v4());
+
+      final studentUid = student.uid.isNotEmpty
+          ? student.uid
+          : (email != null && email.trim().isNotEmpty
+                ? email.trim().toLowerCase()
+                : '');
+
       final finalStudent = StudentModel.fromDomain(student).copyWith(
         docID: docId,
+        uid: studentUid,
         syncStatus: SyncStatus.pending,
         clientUpdatedAt: DateTime.now(),
       );
@@ -282,48 +283,32 @@ class StudentDataRepository implements IStudentRepository {
       // Save to local cache first
       await _localDatasource.saveStudent(finalStudent);
 
-      final connectivity = await _connectivity.checkConnectivity();
-      final isOffline = connectivity.contains(ConnectivityResult.none);
+      final hasCredentials =
+          email != null &&
+          email.trim().isNotEmpty &&
+          password != null &&
+          password.trim().isNotEmpty;
 
       final syncEntry = SyncEntry(
         id: 'upsert_student_$docId',
-        actionType: 'UPSERT_STUDENT',
-        payload: {'student': finalStudent.toMap()},
+        actionType: hasCredentials
+            ? 'CREATE_STUDENT_WITH_AUTH'
+            : 'UPSERT_STUDENT',
+        payload: {
+          'student': finalStudent.toMap(),
+          if (hasCredentials) ...{
+            'email': email.trim().toLowerCase(),
+            'password': password.trim(),
+          },
+        },
         createdAt: DateTime.now(),
       );
 
-      if (isOffline) {
-        await _syncServiceGetter().enqueue(syncEntry);
-        return docId;
-      }
+      // Enqueue to offline sync queue immediately
+      await _syncServiceGetter().enqueue(syncEntry);
 
-      try {
-        await _firestore.runTransaction((transaction) async {
-          final docRef = _studentsCollection.doc(docId);
-          final existingDoc = await transaction.get(docRef);
-          if (existingDoc.exists) {
-            throw const StudentCreateFailure('المخدوم موجود مسبقاً.');
-          }
-          transaction.set(docRef, {
-            ...finalStudent.toMap(),
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
-        });
-
-        final syncedStudent = finalStudent.copyWith(
-          syncStatus: SyncStatus.synced,
-        );
-        await _localDatasource.saveStudent(syncedStudent);
-      } catch (e) {
-        if (e is StudentCreateFailure) rethrow;
-        developer.log(
-          'Failed to create student online, enqueuing for offline sync',
-          error: e,
-          name: 'StudentDataRepository',
-        );
-        // Fallback to queue on failure
-        await _syncServiceGetter().enqueue(syncEntry);
-      }
+      // Trigger background processing asynchronously
+      unawaited(_syncServiceGetter().processQueue());
 
       return docId;
     } catch (e) {
@@ -360,32 +345,11 @@ class StudentDataRepository implements IStudentRepository {
         createdAt: DateTime.now(),
       );
 
-      try {
-        if (hasLinkedUser) {
-          await _linkedUserSyncService.updateStudentAndSyncLinkedUserRole(
-            updatedStudent: pendingStudent,
-            previousRole: previousRole,
-          );
-        } else {
-          await _studentsCollection.doc(student.docID).set({
-            ...pendingStudent.toMap(),
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
-        }
+      // Enqueue to offline sync queue immediately
+      await _syncServiceGetter().enqueue(syncEntry);
 
-        final syncedStudent = pendingStudent.copyWith(
-          syncStatus: SyncStatus.synced,
-        );
-        await _localDatasource.saveStudent(syncedStudent);
-      } catch (e) {
-        developer.log(
-          'Failed to update student online, enqueuing for offline sync',
-          error: e,
-          name: 'StudentDataRepository',
-        );
-        // Fallback to queue on failure
-        await _syncServiceGetter().enqueue(syncEntry);
-      }
+      // Trigger background processing asynchronously
+      unawaited(_syncServiceGetter().processQueue());
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
     }
@@ -437,6 +401,9 @@ class StudentDataRepository implements IStudentRepository {
         );
         await _localDatasource.saveStudent(syncedStudent);
       } catch (e) {
+        if (!SyncErrorClassifier.isRetriable(e)) {
+          rethrow;
+        }
         developer.log(
           'Failed to upsert student online, enqueuing for offline sync',
           error: e,
@@ -461,49 +428,31 @@ class StudentDataRepository implements IStudentRepository {
         return;
       }
 
-      // Update local cache
-      final archivedStudent = StudentModel.fromDomain(
-        student,
-      ).copyWith(isArchived: true);
+      // Update local cache first
+      final archivedStudent = StudentModel.fromDomain(student).copyWith(
+        isArchived: true,
+        archivedAt: DateTime.now(),
+        syncStatus: SyncStatus.pending,
+        clientUpdatedAt: DateTime.now(),
+      );
       await _localDatasource.saveStudent(archivedStudent);
 
       final syncEntry = SyncEntry(
-        id: 'archive_student_${docId}_${DateTime.now().millisecondsSinceEpoch}',
+        id: 'archive_student_$docId',
         actionType: 'ARCHIVE_STUDENT',
-        payload: {'docId': docId, 'performedByUid': performedByUid},
+        payload: {
+          'docId': docId,
+          'performedByUid': performedByUid,
+          'clientUpdatedAt': archivedStudent.clientUpdatedAt?.toIso8601String(),
+        },
         createdAt: DateTime.now(),
       );
 
-      try {
-        final doc = _studentsCollection.doc(docId);
-        final batch = _firestore.batch()
-          ..set(doc, {
-            'isArchived': true,
-            'archivedAt': FieldValue.serverTimestamp(),
-            'archivedByUserId': performedByUid,
-            'restoredAt': FieldValue.delete(),
-            'restoredByUserId': FieldValue.delete(),
-          }, SetOptions(merge: true));
+      // Enqueue to offline sync queue immediately
+      await _syncServiceGetter().enqueue(syncEntry);
 
-        final normalizedUid = student.uid.trim();
-        if (normalizedUid.isNotEmpty) {
-          batch.set(_usersCollection.doc(normalizedUid), {
-            'isArchived': true,
-            'archivedAt': FieldValue.serverTimestamp(),
-            'restorePendingPasswordReset': false,
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
-        }
-
-        await batch.commit();
-      } catch (e) {
-        developer.log(
-          'Failed to archive student online, enqueuing for offline sync',
-          error: e,
-          name: 'StudentDataRepository',
-        );
-        await _syncServiceGetter().enqueue(syncEntry);
-      }
+      // Trigger background processing asynchronously
+      unawaited(_syncServiceGetter().processQueue());
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
     }
@@ -520,47 +469,31 @@ class StudentDataRepository implements IStudentRepository {
         return;
       }
 
-      // Update local cache
-      final restoredStudent = StudentModel.fromDomain(
-        student,
-      ).copyWith(isArchived: false);
+      // Update local cache first
+      final restoredStudent = StudentModel.fromDomain(student).copyWith(
+        isArchived: false,
+        restoredAt: DateTime.now(),
+        syncStatus: SyncStatus.pending,
+        clientUpdatedAt: DateTime.now(),
+      );
       await _localDatasource.saveStudent(restoredStudent);
 
       final syncEntry = SyncEntry(
-        id: 'restore_student_${docId}_${DateTime.now().millisecondsSinceEpoch}',
+        id: 'restore_student_$docId',
         actionType: 'RESTORE_STUDENT',
-        payload: {'docId': docId, 'performedByUid': performedByUid},
+        payload: {
+          'docId': docId,
+          'performedByUid': performedByUid,
+          'clientUpdatedAt': restoredStudent.clientUpdatedAt?.toIso8601String(),
+        },
         createdAt: DateTime.now(),
       );
 
-      try {
-        final doc = _studentsCollection.doc(docId);
-        final batch = _firestore.batch()
-          ..set(doc, {
-            'isArchived': false,
-            'restoredAt': FieldValue.serverTimestamp(),
-            'restoredByUserId': performedByUid,
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
+      // Enqueue to offline sync queue immediately
+      await _syncServiceGetter().enqueue(syncEntry);
 
-        final normalizedUid = student.uid.trim();
-        if (normalizedUid.isNotEmpty) {
-          batch.set(_usersCollection.doc(normalizedUid), {
-            'isArchived': false,
-            'restoredAt': FieldValue.serverTimestamp(),
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
-        }
-
-        await batch.commit();
-      } catch (e) {
-        developer.log(
-          'Failed to restore student online, enqueuing for offline sync',
-          error: e,
-          name: 'StudentDataRepository',
-        );
-        await _syncServiceGetter().enqueue(syncEntry);
-      }
+      // Trigger background processing asynchronously
+      unawaited(_syncServiceGetter().processQueue());
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
     }
@@ -574,12 +507,8 @@ class StudentDataRepository implements IStudentRepository {
 
   @override
   Future<void> syncOfflineUpdate(Map<String, dynamic> payload) async {
-    final studentData = payload['student'] as Map<String, dynamic>;
-    final student = StudentModel.fromMap(
-      studentData,
-      studentData['docID'] as String,
-    );
-    await updateStudent(student.toDomain());
+    // Redirect to upsert to execute direct Firestore write instead of enqueuing loop
+    await syncOfflineUpsert(payload);
   }
 
   @override
@@ -623,8 +552,77 @@ class StudentDataRepository implements IStudentRepository {
         }, SetOptions(merge: true));
       }
 
-      final syncedStudent = student.copyWith(syncStatus: SyncStatus.synced);
-      await _localDatasource.saveStudent(syncedStudent);
+      // Last-Write-Wins (LWW) Cache Overwrite Protection
+      final localStudent = await _localDatasource.getStudent(student.docID);
+      if (localStudent != null) {
+        final localTime = localStudent.clientUpdatedAt;
+        final syncTime = student.clientUpdatedAt;
+        if (localTime == null ||
+            syncTime == null ||
+            !localTime.isAfter(syncTime)) {
+          final syncedStudent = student.copyWith(syncStatus: SyncStatus.synced);
+          await _localDatasource.saveStudent(syncedStudent);
+        }
+      } else {
+        final syncedStudent = student.copyWith(syncStatus: SyncStatus.synced);
+        await _localDatasource.saveStudent(syncedStudent);
+      }
+    } catch (e) {
+      throw mapExceptionToStudentFailure(e);
+    }
+  }
+
+  @override
+  Future<void> syncOfflineCreateWithAuth(Map<String, dynamic> payload) async {
+    final studentData = payload['student'] as Map<String, dynamic>;
+    final student = StudentModel.fromMap(
+      studentData,
+      studentData['docID'] as String,
+    );
+    final email = payload['email'] as String;
+
+    try {
+      // 1. Create invitation
+      final invitationId = email.trim().toLowerCase();
+      await _firestore
+          .collection(FirestoreCollections.invitations)
+          .doc(invitationId)
+          .set({
+            'email': email.trim().toLowerCase(),
+            'role': student.role.name,
+            'name': student.name.trim(),
+            'invitedAt': FieldValue.serverTimestamp(),
+            'status': 'pending',
+          });
+
+      // 2. Set student doc in transaction to prevent duplicates
+      await _firestore.runTransaction((transaction) async {
+        final docRef = _studentsCollection.doc(student.docID);
+        final existingDoc = await transaction.get(docRef);
+        if (existingDoc.exists) {
+          throw const StudentCreateFailure('المخدوم موجود مسبقاً.');
+        }
+        transaction.set(docRef, {
+          ...student.toMap(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      });
+
+      // Last-Write-Wins (LWW) Cache Overwrite Protection
+      final localStudent = await _localDatasource.getStudent(student.docID);
+      if (localStudent != null) {
+        final localTime = localStudent.clientUpdatedAt;
+        final syncTime = student.clientUpdatedAt;
+        if (localTime == null ||
+            syncTime == null ||
+            !localTime.isAfter(syncTime)) {
+          final syncedStudent = student.copyWith(syncStatus: SyncStatus.synced);
+          await _localDatasource.saveStudent(syncedStudent);
+        }
+      } else {
+        final syncedStudent = student.copyWith(syncStatus: SyncStatus.synced);
+        await _localDatasource.saveStudent(syncedStudent);
+      }
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
     }
@@ -634,6 +632,10 @@ class StudentDataRepository implements IStudentRepository {
   Future<void> syncOfflineArchive(Map<String, dynamic> payload) async {
     final docId = payload['docId'] as String;
     final performedByUid = payload['performedByUid'] as String;
+    final payloadTimeStr = payload['clientUpdatedAt'] as String?;
+    final payloadTime = payloadTimeStr != null
+        ? DateTime.parse(payloadTimeStr)
+        : null;
 
     final student = await getStudentById(docId, includeArchived: true);
     if (student == null) return;
@@ -660,6 +662,20 @@ class StudentDataRepository implements IStudentRepository {
       }
 
       await batch.commit();
+
+      // Last-Write-Wins (LWW) Cache Overwrite Protection
+      final localStudent = await _localDatasource.getStudent(docId);
+      if (localStudent != null) {
+        final localTime = localStudent.clientUpdatedAt;
+        if (localTime == null ||
+            payloadTime == null ||
+            !localTime.isAfter(payloadTime)) {
+          final syncedStudent = localStudent.copyWith(
+            syncStatus: SyncStatus.synced,
+          );
+          await _localDatasource.saveStudent(syncedStudent);
+        }
+      }
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
     }
@@ -669,6 +685,10 @@ class StudentDataRepository implements IStudentRepository {
   Future<void> syncOfflineRestore(Map<String, dynamic> payload) async {
     final docId = payload['docId'] as String;
     final performedByUid = payload['performedByUid'] as String;
+    final payloadTimeStr = payload['clientUpdatedAt'] as String?;
+    final payloadTime = payloadTimeStr != null
+        ? DateTime.parse(payloadTimeStr)
+        : null;
 
     final student = await getStudentById(docId, includeArchived: true);
     if (student == null) return;
@@ -693,6 +713,20 @@ class StudentDataRepository implements IStudentRepository {
       }
 
       await batch.commit();
+
+      // Last-Write-Wins (LWW) Cache Overwrite Protection
+      final localStudent = await _localDatasource.getStudent(docId);
+      if (localStudent != null) {
+        final localTime = localStudent.clientUpdatedAt;
+        if (localTime == null ||
+            payloadTime == null ||
+            !localTime.isAfter(payloadTime)) {
+          final syncedStudent = localStudent.copyWith(
+            syncStatus: SyncStatus.synced,
+          );
+          await _localDatasource.saveStudent(syncedStudent);
+        }
+      }
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
     }

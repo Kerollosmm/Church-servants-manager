@@ -155,6 +155,9 @@ void main() {
           payloads: any(named: 'payloads'),
         ),
       ).thenThrow(Exception('Network error'));
+      when(
+        () => attendanceRepo.syncOfflineMark(any()),
+      ).thenThrow(Exception('Network error'));
       await syncService.enqueue(entry(id: 'retry_1'));
       when(
         () => connectivity.checkConnectivity(),
@@ -172,7 +175,10 @@ void main() {
           sessionId: any(named: 'sessionId'),
           payloads: any(named: 'payloads'),
         ),
-      ).thenThrow(Exception('Persistent failure'));
+      ).thenThrow(Exception('Network error'));
+      when(
+        () => attendanceRepo.syncOfflineMark(any()),
+      ).thenThrow(Exception('Network error'));
       await syncService.enqueue(entry(id: 'max_retry_1'));
       when(
         () => connectivity.checkConnectivity(),
@@ -230,7 +236,7 @@ void main() {
       when(
         () => connectivity.checkConnectivity(),
       ).thenAnswer((_) async => [ConnectivityResult.wifi]);
-      final statuses = <SyncStatus>[];
+      final statuses = <SyncEngineStatus>[];
       syncService.statusStream.listen(statuses.add);
       await syncService.processQueue();
       expect(statuses.any((s) => s.isSyncing), isTrue);

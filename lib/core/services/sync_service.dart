@@ -4,13 +4,14 @@ import 'dart:math';
 import 'package:church_management_system/core/models/sync_entry.dart';
 import 'package:church_management_system/core/services/dead_letter_queue.dart';
 import 'package:church_management_system/core/services/sync_handler.dart';
+import 'package:church_management_system/core/utils/sync_error_classifier.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:hive/hive.dart';
 import 'package:workmanager/workmanager.dart';
 
 /// Represents the current state of the sync engine.
-class SyncStatus {
+class SyncEngineStatus {
   final bool isSyncing;
   final int pendingCount;
   final int totalCount;
@@ -21,7 +22,7 @@ class SyncStatus {
   /// The UI must surface a manual-intervention warning in this case.
   final String? dlqEntryId;
   final String? dlqActionType;
-  const SyncStatus({
+  const SyncEngineStatus({
     this.isSyncing = false,
     this.pendingCount = 0,
     this.totalCount = 0,
@@ -30,16 +31,20 @@ class SyncStatus {
     this.dlqEntryId,
     this.dlqActionType,
   });
-  factory SyncStatus.idle() => const SyncStatus();
-  factory SyncStatus.processing(int pending, int total) =>
-      SyncStatus(isSyncing: true, pendingCount: pending, totalCount: total);
-  factory SyncStatus.success() => const SyncStatus();
-  factory SyncStatus.error(String message) =>
-      SyncStatus(hasError: true, errorMessage: message);
+  factory SyncEngineStatus.idle() => const SyncEngineStatus();
+  factory SyncEngineStatus.processing(int pending, int total) =>
+      SyncEngineStatus(
+        isSyncing: true,
+        pendingCount: pending,
+        totalCount: total,
+      );
+  factory SyncEngineStatus.success() => const SyncEngineStatus();
+  factory SyncEngineStatus.error(String message) =>
+      SyncEngineStatus(hasError: true, errorMessage: message);
 
   /// Emitted when an entry has been evicted to the dead-letter queue.
-  factory SyncStatus.dlqEviction(String entryId, String actionType) =>
-      SyncStatus(dlqEntryId: entryId, dlqActionType: actionType);
+  factory SyncEngineStatus.dlqEviction(String entryId, String actionType) =>
+      SyncEngineStatus(dlqEntryId: entryId, dlqActionType: actionType);
 }
 
 /// Centralized offline sync engine using the Outbox pattern.
@@ -61,11 +66,11 @@ class SyncService {
 
   String? _activeUserId;
   Box<SyncEntry>? _activeBox;
-  final _statusController = StreamController<SyncStatus>.broadcast();
+  final _statusController = StreamController<SyncEngineStatus>.broadcast();
   final _random = Random();
 
   /// Stream of sync status updates for the UI to listen to.
-  Stream<SyncStatus> get statusStream => _statusController.stream;
+  Stream<SyncEngineStatus> get statusStream => _statusController.stream;
 
   /// Returns the current number of enqueued sync entries for the active user.
   int get pendingCount =>
@@ -73,6 +78,10 @@ class SyncService {
 
   /// Returns whether the sync queue is currently processing.
   bool get isProcessing => _isProcessing;
+
+  /// Returns whether the active user's sync queue box is successfully mounted.
+  bool get isBoxMounted => _activeBox != null && _activeBox!.isOpen;
+
   SyncService({
     required DeadLetterQueue deadLetterQueue,
     required Map<String, SyncHandler> handlers,
@@ -95,11 +104,26 @@ class SyncService {
     _activeUserId = userId;
     if (userId != null) {
       final boxName = _boxNameForUser(userId);
-      _activeBox = await Hive.openBox<SyncEntry>(
-        boxName,
-        compactionStrategy: (entries, deletedEntries) => deletedEntries > 50,
-      );
-      developer.log('Mounted sync queue box: $boxName', name: 'SyncService');
+      try {
+        _activeBox = await Hive.openBox<SyncEntry>(
+          boxName,
+          compactionStrategy: (entries, deletedEntries) => deletedEntries > 50,
+        );
+        developer.log('Mounted sync queue box: $boxName', name: 'SyncService');
+      } catch (e, stack) {
+        developer.log(
+          'Failed to mount sync queue box: $boxName',
+          error: e,
+          stackTrace: stack,
+          name: 'SyncService',
+        );
+        _statusController.add(
+          SyncEngineStatus.error(
+            'فشل في تحميل خزان المزامنة المحلي. الرجاء إعادة تسجيل الدخول.',
+          ),
+        );
+        rethrow;
+      }
 
       // Register periodic sync task for this user
       try {
@@ -146,7 +170,7 @@ class SyncService {
         );
       }
     }
-    _statusController.add(SyncStatus.idle());
+    _statusController.add(SyncEngineStatus.idle());
   }
 
   /// Initializes the Hive box and starts listening to connectivity changes.
@@ -187,13 +211,11 @@ class SyncService {
       return;
     }
     try {
-      final box =
-          _activeBox ??
-          await Hive.openBox<SyncEntry>(
-            _boxNameForUser(_activeUserId!),
-            compactionStrategy: (entries, deletedEntries) =>
-                deletedEntries > 50,
-          );
+      _activeBox ??= await Hive.openBox<SyncEntry>(
+        _boxNameForUser(_activeUserId!),
+        compactionStrategy: (entries, deletedEntries) => deletedEntries > 50,
+      );
+      final box = _activeBox!;
 
       // Ensure the entry is stamped with the active userId
       final stampedEntry = SyncEntry(
@@ -207,12 +229,7 @@ class SyncService {
         lastErrorMessage: entry.lastErrorMessage,
       );
       await box.put(stampedEntry.id, stampedEntry);
-      _statusController.add(SyncStatus.idle());
-
-      if (_isProcessing) {
-        _hasPendingTriggers = true;
-        return;
-      }
+      _statusController.add(SyncEngineStatus.idle());
 
       // Attempt to sync immediately if online
       final results = await _connectivity.checkConnectivity();
@@ -257,7 +274,9 @@ class SyncService {
           'Evicted successfully processed entry $entryId from queue',
           name: 'SyncService',
         );
-        _statusController.add(SyncStatus.idle());
+        if (!_isProcessing) {
+          _statusController.add(SyncEngineStatus.idle());
+        }
       }
     } catch (e, stack) {
       developer.log(
@@ -272,55 +291,54 @@ class SyncService {
   /// Retries all entries currently in the dead-letter queue by re-enqueuing them.
   Future<void> retryDlq() async {
     if (_activeUserId == null) return;
-    final box =
-        _activeBox ??
-        await Hive.openBox<SyncEntry>(
-          _boxNameForUser(_activeUserId!),
-          compactionStrategy: (entries, deletedEntries) => deletedEntries > 50,
-        );
+    _activeBox ??= await Hive.openBox<SyncEntry>(
+      _boxNameForUser(_activeUserId!),
+      compactionStrategy: (entries, deletedEntries) => deletedEntries > 50,
+    );
+    final box = _activeBox!;
     if (!box.isOpen) return;
 
-    final dlqEntries = _dlq.getAll();
-    if (dlqEntries.isEmpty) return;
+    try {
+      final dlqEntries = _dlq.getAll();
+      if (dlqEntries.isEmpty) return;
 
-    for (final entry in dlqEntries) {
-      final resetEntry = SyncEntry(
-        id: entry.id,
-        actionType: entry.actionType,
-        payload: Map<String, dynamic>.from(entry.payload),
-        createdAt: entry.createdAt,
-        userId: _activeUserId,
-      );
-      await box.put(resetEntry.id, resetEntry);
-      await _dlq.remove(entry.id);
+      for (final entry in dlqEntries) {
+        final resetEntry = SyncEntry(
+          id: entry.id,
+          actionType: entry.actionType,
+          payload: Map<String, dynamic>.from(entry.payload),
+          createdAt: entry.createdAt,
+          userId: _activeUserId,
+        );
+        await box.put(resetEntry.id, resetEntry);
+        await _dlq.remove(entry.id);
+      }
+
+      // Trigger queue processing
+      unawaited(processQueue());
+    } catch (e) {
+      developer.log('Failed to retry DLQ: $e', name: 'SyncService');
     }
-
-    // Trigger queue processing
-    unawaited(processQueue());
   }
 
   /// Processes the active user's queue sequentially (FIFO) with Consecutive Chunking.
   Future<void> processQueue() async {
-    if (_isProcessing) return;
+    if (_isProcessing) {
+      _hasPendingTriggers = true;
+      return;
+    }
     if (_activeUserId == null || _activeBox == null) return;
     final targetBox = _activeBox;
     if (targetBox == null || !targetBox.isOpen) return;
     if (targetBox.isEmpty) return;
     _isProcessing = true;
-    // Snapshot length BEFORE we start — used for progress reporting.
-    final int totalEntries = targetBox.length;
-    int processedEntries = 0;
-    _statusController.add(SyncStatus.processing(totalEntries, totalEntries));
+
+    int totalEntries = targetBox.length;
+    _statusController.add(
+      SyncEngineStatus.processing(targetBox.length, totalEntries),
+    );
     try {
-      // FIFO order: sort ascending by creation time.
-      final entries = targetBox.values.toList()
-        ..sort((a, b) {
-          final timeCompare = a.createdAt.compareTo(b.createdAt);
-          if (timeCompare != 0) return timeCompare;
-          return a.id.compareTo(b.id);
-        });
-      int i = 0;
-      while (i < entries.length) {
+      while (targetBox.isOpen && targetBox.isNotEmpty) {
         // Re-check box state each iteration to prevent stall conditions
         if (_activeUserId == null || _activeBox == null || !targetBox.isOpen) {
           developer.log(
@@ -333,35 +351,48 @@ class SyncService {
         final connectivity = await _connectivity.checkConnectivity();
         if (connectivity.contains(ConnectivityResult.none)) {
           developer.log(
-            'Network lost — pausing sync queue at index $i.',
+            'Network lost — pausing sync queue.',
             name: 'SyncService',
           );
           _statusController.add(
-            SyncStatus.error('انقطع الاتصال بالإنترنت أثناء المزامنة.'),
+            SyncEngineStatus.error('انقطع الاتصال بالإنترنت أثناء المزامنة.'),
           );
           break;
         }
-        final entry = entries[i];
+
+        // Get sorted list of current entries in the box
+        final entries = targetBox.values.toList()
+          ..sort((a, b) {
+            final timeCompare = a.createdAt.compareTo(b.createdAt);
+            if (timeCompare != 0) return timeCompare;
+            return a.id.compareTo(b.id);
+          });
+
+        if (entries.isEmpty) break;
+        final entry = entries.first;
+
+        // Dynamically update totalEntries if the box length grows
+        if (targetBox.length > totalEntries) {
+          totalEntries = targetBox.length;
+        }
+
         // DLQ threshold protection
         if (entry.retryCount >= _maxRetries) {
           await _evictToDlq(entry, targetBox);
-          processedEntries++;
+          if (!targetBox.isOpen) break;
           _statusController.add(
-            SyncStatus.processing(
-              totalEntries - processedEntries,
-              totalEntries,
-            ),
+            SyncEngineStatus.processing(targetBox.length, totalEntries),
           );
-          i++;
           continue;
         }
+
         // Consecutive Chunking for MARK_ATTENDANCE
         if (entry.actionType == 'MARK_ATTENDANCE') {
           final teamId = entry.payload['teamId'] as String?;
           final sessionId = entry.payload['sessionId'] as String?;
           if (teamId != null && sessionId != null) {
             final batchEntries = <SyncEntry>[];
-            int j = i;
+            int j = 0;
             while (j < entries.length &&
                 entries[j].actionType == 'MARK_ATTENDANCE' &&
                 entries[j].payload['teamId'] == teamId &&
@@ -386,7 +417,6 @@ class SyncService {
               if (batchBox != null && batchBox.isOpen) {
                 for (final batchEntry in batchEntries) {
                   await batchBox.delete(batchEntry.id);
-                  processedEntries++;
                 }
               }
               developer.log(
@@ -419,7 +449,6 @@ class SyncService {
                   if (individualBox != null && individualBox.isOpen) {
                     await individualBox.delete(batchEntry.id);
                   }
-                  processedEntries++;
                 } catch (individualError) {
                   // Intercept network outage in individual fallback loop
                   final currentConn = await _connectivity.checkConnectivity();
@@ -434,7 +463,7 @@ class SyncService {
                   }
                   if (isNetworkError) {
                     developer.log(
-                      'Network issue (isNoInternet: $isNoInternet, firebase unavailable: ${individualError is FirebaseException && individualError.code == 'unavailable'}) during fallback. Halting execution without penalizing remaining items.',
+                      'Network issue (isNoInternet: $isNoInternet) during fallback. Halting execution without penalizing remaining items.',
                       error: individualError,
                       name: 'SyncService',
                     );
@@ -450,16 +479,14 @@ class SyncService {
                 }
               }
             }
+            if (!targetBox.isOpen) break;
             _statusController.add(
-              SyncStatus.processing(
-                totalEntries - processedEntries,
-                totalEntries,
-              ),
+              SyncEngineStatus.processing(targetBox.length, totalEntries),
             );
-            i = j; // Advance past the batch window
             continue;
           }
         }
+
         // All other action types — individual execution
         try {
           final handler = _handlers[entry.actionType];
@@ -474,22 +501,19 @@ class SyncService {
           if (individualBox != null && individualBox.isOpen) {
             await individualBox.delete(entry.id);
           }
-          processedEntries++;
+          if (!targetBox.isOpen) break;
           _statusController.add(
-            SyncStatus.processing(
-              totalEntries - processedEntries,
-              totalEntries,
-            ),
+            SyncEngineStatus.processing(targetBox.length, totalEntries),
           );
         } catch (e) {
           final errorBox = _activeBox;
           await _handleEntryFailure(entry, e, errorBox);
+          if (!targetBox.isOpen) break;
           await _applyBackoff(entry.retryCount);
         }
-        i++;
       }
       if (targetBox.isOpen && targetBox.isEmpty) {
-        _statusController.add(SyncStatus.success());
+        _statusController.add(SyncEngineStatus.success());
       }
     } finally {
       if (_hasPendingTriggers) {
@@ -513,16 +537,30 @@ class SyncService {
       'Failed to process SyncEntry ${entry.id} (retry count ${entry.retryCount}): $error',
       name: 'SyncService',
     );
-    entry
-      ..retryCount = entry.retryCount + 1
-      ..failedAt = DateTime.now()
-      ..lastErrorMessage = error.toString();
-    if (entry.retryCount >= _maxRetries) {
-      await _evictToDlq(entry, box);
+    final isRetriable = SyncErrorClassifier.isRetriable(error);
+    final updated = SyncEntry(
+      id: entry.id,
+      actionType: entry.actionType,
+      payload: entry.payload,
+      createdAt: entry.createdAt,
+      retryCount: isRetriable ? entry.retryCount + 1 : _maxRetries,
+      failedAt: DateTime.now(),
+      userId: entry.userId,
+      lastErrorMessage: error.toString(),
+    );
+    if (updated.retryCount >= _maxRetries) {
+      await _evictToDlq(updated, box);
+      if (!isRetriable) {
+        _statusController.add(
+          SyncEngineStatus.error(
+            'فشل المزامنة بشكل دائم بسبب صلاحيات المستخدم أو خطأ في البيانات.',
+          ),
+        );
+      }
     } else {
-      await box.put(entry.id, entry);
+      await box.put(updated.id, updated);
       _statusController.add(
-        SyncStatus.error(
+        SyncEngineStatus.error(
           'حدث خطأ أثناء مزامنة بعض البيانات. سيتم المحاولة لاحقاً.',
         ),
       );
@@ -554,7 +592,9 @@ class SyncService {
     );
     await _dlq.add(cleanCopy);
     await box.delete(entry.id);
-    _statusController.add(SyncStatus.dlqEviction(entry.id, entry.actionType));
+    _statusController.add(
+      SyncEngineStatus.dlqEviction(entry.id, entry.actionType),
+    );
   }
 
   /// Applies exponential backoff delay with random jitter.
