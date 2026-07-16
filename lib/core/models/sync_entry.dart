@@ -38,6 +38,9 @@ class SyncEntry extends HiveObject {
   @HiveField(7)
   String? lastErrorMessage;
 
+  @HiveField(8)
+  final int? schemaVersion;
+
   SyncEntry({
     required this.id,
     required this.actionType,
@@ -47,6 +50,7 @@ class SyncEntry extends HiveObject {
     this.failedAt,
     this.userId,
     this.lastErrorMessage,
+    this.schemaVersion = 2,
   });
 
   /// Deterministic key for deduplication.
@@ -60,5 +64,6 @@ class SyncEntry extends HiveObject {
     'failedAt': failedAt?.toIso8601String(),
     'userId': userId,
     'lastErrorMessage': lastErrorMessage,
+    'schemaVersion': schemaVersion,
   };
 }

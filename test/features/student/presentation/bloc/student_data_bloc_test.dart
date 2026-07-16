@@ -5,7 +5,7 @@ import 'package:church_management_system/features/student/data/repos/student_dat
 import 'package:church_management_system/features/student/domain/entities/student.dart';
 import 'package:church_management_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
 import 'package:church_management_system/features/student/domain/usecases/get_students_list_usecase.dart';
-import 'package:church_management_system/features/student/domain/usecases/provision_student_with_auth_usecase.dart';
+import 'package:church_management_system/features/student/domain/usecases/provision_student_invitation_usecase.dart';
 import 'package:church_management_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -18,14 +18,14 @@ class MockGetStudentsListUseCase extends Mock
 class MockCanMutateStudentUseCase extends Mock
     implements CanMutateStudentUseCase {}
 
-class MockProvisionStudentWithAuthUseCase extends Mock
-    implements ProvisionStudentWithAuthUseCase {}
+class MockProvisionStudentInvitationUseCase extends Mock
+    implements ProvisionStudentInvitationUseCase {}
 
 void main() {
   late MockStudentDataRepository repository;
   late MockGetStudentsListUseCase getStudentsList;
   late MockCanMutateStudentUseCase canMutateStudent;
-  late MockProvisionStudentWithAuthUseCase provisionUseCase;
+  late MockProvisionStudentInvitationUseCase provisionUseCase;
 
   AuthUser actor(UserRole role) => AuthUser(
     uid: 'u1',
@@ -68,7 +68,7 @@ void main() {
     repository = MockStudentDataRepository();
     getStudentsList = MockGetStudentsListUseCase();
     canMutateStudent = MockCanMutateStudentUseCase();
-    provisionUseCase = MockProvisionStudentWithAuthUseCase();
+    provisionUseCase = MockProvisionStudentInvitationUseCase();
   });
 
   test(
@@ -295,8 +295,7 @@ void main() {
     when(
       () => provisionUseCase(
         student: newStudent,
-        email: 'student@example.com',
-        password: 'secret123',
+        email: any(named: 'email'),
       ),
     ).thenAnswer((_) async => 'auth-uid');
 
@@ -323,17 +322,12 @@ void main() {
         actor: admin,
         student: newStudent,
         email: 'student@example.com',
-        password: 'secret123',
       ),
     );
 
     await expectation;
     verify(
-      () => provisionUseCase(
-        student: newStudent,
-        email: 'student@example.com',
-        password: 'secret123',
-      ),
+      () => provisionUseCase(student: newStudent, email: 'student@example.com'),
     ).called(1);
     await bloc.close();
   });
@@ -390,11 +384,8 @@ void main() {
     ).thenReturn(true);
 
     when(
-      () => provisionUseCase.archive(
-        docId: 's3',
-        performedByUid: adminActor.uid,
-        linkedUid: existing.uid,
-      ),
+      () =>
+          provisionUseCase.archive(docId: 's3', performedByUid: adminActor.uid),
     ).thenAnswer((_) async {});
 
     final bloc = StudentDataBloc(
@@ -418,11 +409,8 @@ void main() {
     bloc.add(StudentDeleted(actor: adminActor, docId: 's3'));
     await expectation;
     verify(
-      () => provisionUseCase.archive(
-        docId: 's3',
-        performedByUid: adminActor.uid,
-        linkedUid: existing.uid,
-      ),
+      () =>
+          provisionUseCase.archive(docId: 's3', performedByUid: adminActor.uid),
     ).called(1);
     await bloc.close();
   });
@@ -436,11 +424,8 @@ void main() {
     ).thenAnswer((_) async => archived);
 
     when(
-      () => provisionUseCase.restore(
-        docId: 's4',
-        performedByUid: adminActor.uid,
-        linkedUid: archived.uid,
-      ),
+      () =>
+          provisionUseCase.restore(docId: 's4', performedByUid: adminActor.uid),
     ).thenAnswer((_) async {});
 
     final bloc = StudentDataBloc(
@@ -464,11 +449,8 @@ void main() {
     bloc.add(StudentRestored(actor: adminActor, docId: 's4'));
     await expectation;
     verify(
-      () => provisionUseCase.restore(
-        docId: 's4',
-        performedByUid: adminActor.uid,
-        linkedUid: archived.uid,
-      ),
+      () =>
+          provisionUseCase.restore(docId: 's4', performedByUid: adminActor.uid),
     ).called(1);
     await bloc.close();
   });

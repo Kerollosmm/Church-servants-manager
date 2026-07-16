@@ -1,7 +1,7 @@
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/student/domain/entities/student.dart';
 import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
-import 'package:church_management_system/features/student/domain/usecases/provision_student_with_auth_usecase.dart';
+import 'package:church_management_system/features/student/domain/usecases/provision_student_invitation_usecase.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -9,7 +9,7 @@ class MockIStudentRepository extends Mock implements IStudentRepository {}
 
 void main() {
   late MockIStudentRepository studentRepo;
-  late ProvisionStudentWithAuthUseCase useCase;
+  late ProvisionStudentInvitationUseCase useCase;
 
   setUpAll(() {
     registerFallbackValue(
@@ -33,12 +33,10 @@ void main() {
 
   setUp(() {
     studentRepo = MockIStudentRepository();
-    useCase = ProvisionStudentWithAuthUseCase(
-      studentRepository: studentRepo,
-    );
+    useCase = ProvisionStudentInvitationUseCase(studentRepository: studentRepo);
   });
 
-  group('ProvisionStudentWithAuthUseCase', () {
+  group('ProvisionStudentInvitationUseCase', () {
     test('delegates createStudent to repository', () async {
       final student = Student(
         uid: '',
@@ -57,26 +55,14 @@ void main() {
       );
 
       when(
-        () => studentRepo.createStudent(
-          any(),
-          email: any(named: 'email'),
-          password: any(named: 'password'),
-        ),
+        () => studentRepo.createStudent(any(), email: any(named: 'email')),
       ).thenAnswer((_) async => 'doc1');
 
-      final result = await useCase(
-        student: student,
-        email: 'test@example.com',
-        password: 'password123',
-      );
+      final result = await useCase(student: student, email: 'test@example.com');
 
       expect(result, 'doc1');
       verify(
-        () => studentRepo.createStudent(
-          student,
-          email: 'test@example.com',
-          password: 'password123',
-        ),
+        () => studentRepo.createStudent(student, email: 'test@example.com'),
       ).called(1);
     });
 
@@ -88,11 +74,7 @@ void main() {
         ),
       ).thenAnswer((_) async {});
 
-      await useCase.archive(
-        docId: 's1',
-        performedByUid: 'admin1',
-        linkedUid: 'u1',
-      );
+      await useCase.archive(docId: 's1', performedByUid: 'admin1');
 
       verify(
         () => studentRepo.archiveStudent('s1', performedByUid: 'admin1'),
@@ -107,11 +89,7 @@ void main() {
         ),
       ).thenAnswer((_) async {});
 
-      await useCase.restore(
-        docId: 's1',
-        performedByUid: 'admin1',
-        linkedUid: 'u1',
-      );
+      await useCase.restore(docId: 's1', performedByUid: 'admin1');
 
       verify(
         () => studentRepo.restoreStudent('s1', performedByUid: 'admin1'),

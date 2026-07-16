@@ -1,4 +1,5 @@
 import 'package:church_management_system/core/constants/enums.dart';
+import 'package:church_management_system/core/models/sync_entry.dart';
 import 'package:church_management_system/core/utils/pagination_cursor.dart';
 import 'package:church_management_system/features/student/domain/entities/student.dart';
 
@@ -39,11 +40,7 @@ abstract class IStudentRepository {
     bool includeArchived,
   });
 
-  Future<String> createStudent(
-    Student student, {
-    String? email,
-    String? password,
-  });
+  Future<String> createStudent(Student student, {String? email});
 
   Future<void> updateStudent(Student student);
 
@@ -77,4 +74,5 @@ abstract class IStudentRepository {
   Future<void> syncOfflineArchive(Map<String, dynamic> payload);
   Future<void> syncOfflineRestore(Map<String, dynamic> payload);
   Future<void> syncOfflineCreateWithAuth(Map<String, dynamic> payload);
+  Future<void> syncBatchedStudents(List<SyncEntry> entries);
 }

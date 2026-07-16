@@ -35,6 +35,11 @@ class GenericStudentFailure extends StudentFailure {
   const GenericStudentFailure(super.message);
 }
 
+/// Thrown when an invalid argument is provided to a method.
+class ArgumentFailure extends StudentFailure {
+  const ArgumentFailure([super.message = 'Invalid argument']);
+}
+
 /// Helper to map exceptions to failures
 StudentFailure mapExceptionToStudentFailure(Object e) {
   if (isPermissionDeniedException(e)) {

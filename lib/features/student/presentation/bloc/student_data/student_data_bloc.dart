@@ -7,7 +7,7 @@ import 'package:church_management_system/features/student/domain/entities/studen
 import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
 import 'package:church_management_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
 import 'package:church_management_system/features/student/domain/usecases/get_students_list_usecase.dart';
-import 'package:church_management_system/features/student/domain/usecases/provision_student_with_auth_usecase.dart';
+import 'package:church_management_system/features/student/domain/usecases/provision_student_invitation_usecase.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -22,7 +22,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
   final IStudentRepository _studentRepository;
   final GetStudentsListUseCase _getStudentsList;
   final CanMutateStudentUseCase _canMutateStudent;
-  final ProvisionStudentWithAuthUseCase _provisionUseCase;
+  final ProvisionStudentInvitationUseCase _provisionUseCase;
 
   Completer<void>? _pendingRefreshCompleter;
 
@@ -30,7 +30,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
     required IStudentRepository studentRepository,
     required GetStudentsListUseCase getStudentsList,
     required CanMutateStudentUseCase canMutateStudent,
-    required ProvisionStudentWithAuthUseCase provisionUseCase,
+    required ProvisionStudentInvitationUseCase provisionUseCase,
   }) : _studentRepository = studentRepository,
        _getStudentsList = getStudentsList,
        _canMutateStudent = canMutateStudent,
@@ -516,11 +516,7 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
         return;
       }
 
-      await _provisionUseCase(
-        student: event.student,
-        email: event.email,
-        password: event.password,
-      );
+      await _provisionUseCase(student: event.student, email: event.email);
 
       _emitSuccessWithData(emit, 'تم إنشاء المخدوم بنجاح');
       // Reload students
@@ -603,7 +599,6 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
       await _provisionUseCase.archive(
         docId: event.docId,
         performedByUid: event.actor.uid,
-        linkedUid: existing.uid,
       );
 
       _emitSuccessWithData(
@@ -638,7 +633,6 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
       await _provisionUseCase.restore(
         docId: event.docId,
         performedByUid: event.actor.uid,
-        linkedUid: existing.uid,
       );
 
       _emitSuccessWithData(

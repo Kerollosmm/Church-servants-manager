@@ -157,8 +157,84 @@ class HivePruningService {
     }
   }
 
+  /// Runs password strip migration on all sync queue boxes.
+  Future<void> runMigrationStripPassword() async {
+    final flagsBox = await Hive.openBox('migrationFlags');
+    if (flagsBox.get('password_strip_v1') == true) {
+      await flagsBox.close();
+      return;
+    }
+
+    final List<String> syncBoxNames = [];
+    final path = (Hive as dynamic).homePath as String?;
+    if (path != null) {
+      final dir = Directory(path);
+      if (dir.existsSync()) {
+        final discovered = dir
+            .listSync()
+            .whereType<File>()
+            .map((file) {
+              final name = file.path.split(Platform.pathSeparator).last;
+              if (name.endsWith('.hive')) {
+                return name.substring(0, name.length - 5);
+              } else if (name.endsWith('.hivec')) {
+                return name.substring(0, name.length - 6);
+              }
+              return null;
+            })
+            .whereType<String>()
+            .where((name) => name.startsWith('sync_queue_'))
+            .toList();
+        syncBoxNames.addAll(discovered);
+      }
+    }
+
+    for (final boxName in syncBoxNames) {
+      final wasOpen = Hive.isBoxOpen(boxName);
+      final Box<SyncEntry> box = wasOpen
+          ? Hive.box<SyncEntry>(boxName)
+          : await Hive.openBox<SyncEntry>(boxName);
+
+      for (final key in box.keys) {
+        final entry = box.get(key);
+        if (entry != null && entry.payload.containsKey('password')) {
+          final updatedPayload = Map<String, dynamic>.from(entry.payload)
+            ..remove('password');
+          final updatedEntry = SyncEntry(
+            id: entry.id,
+            actionType: entry.actionType,
+            payload: updatedPayload,
+            createdAt: entry.createdAt,
+            schemaVersion: entry.schemaVersion,
+            retryCount: entry.retryCount,
+          );
+          await box.put(key, updatedEntry);
+        }
+      }
+
+      if (!wasOpen) {
+        await box.close();
+      }
+    }
+
+    await flagsBox.put('password_strip_v1', true);
+    await flagsBox.close();
+  }
+
   /// Runs pruning across all known cache boxes.
   Future<PruneResult> pruneAll({Duration maxAge = _defaultMaxAge}) async {
+    // Run password strip migration
+    try {
+      await runMigrationStripPassword();
+    } catch (e, st) {
+      developer.log(
+        'Failed to run password strip migration',
+        error: e,
+        stackTrace: st,
+        name: 'HivePruningService',
+      );
+    }
+
     final perBox = <String, int>{};
 
     perBox['sync_queue_box'] = await pruneSyncQueue(maxAge: maxAge);

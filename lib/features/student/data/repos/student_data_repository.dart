@@ -4,6 +4,7 @@ import 'dart:developer' as developer;
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/core/models/sync_entry.dart';
+import 'package:church_management_system/core/services/firestore_batch_util.dart';
 import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/core/utils/pagination_cursor.dart';
 import 'package:church_management_system/core/utils/sync_error_classifier.dart';
@@ -77,6 +78,10 @@ class StudentDataRepository implements IStudentRepository {
       // Save to local cache first
       await _localDatasource.saveStudent(pendingStudent);
 
+      // SyncEntry.id is the Hive box key — Stable per logical operation is
+      // REQUIRED for dedup: box.put() overwrites by id, so re-enqueuing the
+      // same upsert must collapse onto the prior queued (unsent) entry rather
+      // than append a second one. A timestamp/UUID suffix would defeat this.
       final syncEntry = SyncEntry(
         id: 'upsert_student_${updatedStudent.docID}',
         actionType: 'UPSERT_STUDENT',
@@ -93,7 +98,16 @@ class StudentDataRepository implements IStudentRepository {
       await _syncServiceGetter().enqueue(syncEntry);
 
       // Trigger background processing asynchronously
-      unawaited(_syncServiceGetter().processQueue());
+      unawaited(
+        _syncServiceGetter().processQueue().catchError((e, st) {
+          developer.log(
+            'Failed to process sync queue after student creation',
+            error: e,
+            stackTrace: st,
+            name: 'StudentDataRepository',
+          );
+        }),
+      );
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
     }
@@ -255,23 +269,17 @@ class StudentDataRepository implements IStudentRepository {
   }
 
   @override
-  Future<String> createStudent(
-    Student student, {
-    String? email,
-    String? password,
-  }) async {
+  Future<String> createStudent(Student student, {String? email}) async {
     try {
       final docId = student.docID.isNotEmpty
           ? student.docID
-          : (email != null && email.trim().isNotEmpty
-                ? email.trim().toLowerCase()
-                : const Uuid().v4());
+          : const Uuid().v4();
 
-      final studentUid = student.uid.isNotEmpty
-          ? student.uid
-          : (email != null && email.trim().isNotEmpty
-                ? email.trim().toLowerCase()
-                : '');
+      if (email != null && docId == email.trim().toLowerCase()) {
+        throw const ArgumentFailure('Student docID must not be email');
+      }
+
+      final studentUid = student.uid.isNotEmpty ? student.uid : '';
 
       final finalStudent = StudentModel.fromDomain(student).copyWith(
         docID: docId,
@@ -283,23 +291,14 @@ class StudentDataRepository implements IStudentRepository {
       // Save to local cache first
       await _localDatasource.saveStudent(finalStudent);
 
-      final hasCredentials =
-          email != null &&
-          email.trim().isNotEmpty &&
-          password != null &&
-          password.trim().isNotEmpty;
+      final hasEmail = email != null && email.trim().isNotEmpty;
 
       final syncEntry = SyncEntry(
         id: 'upsert_student_$docId',
-        actionType: hasCredentials
-            ? 'CREATE_STUDENT_WITH_AUTH'
-            : 'UPSERT_STUDENT',
+        actionType: hasEmail ? 'CREATE_STUDENT_INVITATION' : 'UPSERT_STUDENT',
         payload: {
           'student': finalStudent.toMap(),
-          if (hasCredentials) ...{
-            'email': email.trim().toLowerCase(),
-            'password': password.trim(),
-          },
+          if (hasEmail) ...{'email': email.trim().toLowerCase()},
         },
         createdAt: DateTime.now(),
       );
@@ -308,7 +307,16 @@ class StudentDataRepository implements IStudentRepository {
       await _syncServiceGetter().enqueue(syncEntry);
 
       // Trigger background processing asynchronously
-      unawaited(_syncServiceGetter().processQueue());
+      unawaited(
+        _syncServiceGetter().processQueue().catchError((e, st) {
+          developer.log(
+            'Failed to process sync queue after student update',
+            error: e,
+            stackTrace: st,
+            name: 'StudentDataRepository',
+          );
+        }),
+      );
 
       return docId;
     } catch (e) {
@@ -349,7 +357,16 @@ class StudentDataRepository implements IStudentRepository {
       await _syncServiceGetter().enqueue(syncEntry);
 
       // Trigger background processing asynchronously
-      unawaited(_syncServiceGetter().processQueue());
+      unawaited(
+        _syncServiceGetter().processQueue().catchError((e, st) {
+          developer.log(
+            'Failed to process sync queue after student upsert',
+            error: e,
+            stackTrace: st,
+            name: 'StudentDataRepository',
+          );
+        }),
+      );
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
     }
@@ -438,7 +455,7 @@ class StudentDataRepository implements IStudentRepository {
       await _localDatasource.saveStudent(archivedStudent);
 
       final syncEntry = SyncEntry(
-        id: 'archive_student_$docId',
+        id: 'archive_student_${docId}_${DateTime.now().millisecondsSinceEpoch}',
         actionType: 'ARCHIVE_STUDENT',
         payload: {
           'docId': docId,
@@ -452,7 +469,16 @@ class StudentDataRepository implements IStudentRepository {
       await _syncServiceGetter().enqueue(syncEntry);
 
       // Trigger background processing asynchronously
-      unawaited(_syncServiceGetter().processQueue());
+      unawaited(
+        _syncServiceGetter().processQueue().catchError((e, st) {
+          developer.log(
+            'Failed to process sync queue after student archiving',
+            error: e,
+            stackTrace: st,
+            name: 'StudentDataRepository',
+          );
+        }),
+      );
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
     }
@@ -479,7 +505,7 @@ class StudentDataRepository implements IStudentRepository {
       await _localDatasource.saveStudent(restoredStudent);
 
       final syncEntry = SyncEntry(
-        id: 'restore_student_$docId',
+        id: 'restore_student_${docId}_${DateTime.now().millisecondsSinceEpoch}',
         actionType: 'RESTORE_STUDENT',
         payload: {
           'docId': docId,
@@ -493,7 +519,16 @@ class StudentDataRepository implements IStudentRepository {
       await _syncServiceGetter().enqueue(syncEntry);
 
       // Trigger background processing asynchronously
-      unawaited(_syncServiceGetter().processQueue());
+      unawaited(
+        _syncServiceGetter().processQueue().catchError((e, st) {
+          developer.log(
+            'Failed to process sync queue after student restoration',
+            error: e,
+            stackTrace: st,
+            name: 'StudentDataRepository',
+          );
+        }),
+      );
     } catch (e) {
       throw mapExceptionToStudentFailure(e);
     }
@@ -725,6 +760,229 @@ class StudentDataRepository implements IStudentRepository {
             syncStatus: SyncStatus.synced,
           );
           await _localDatasource.saveStudent(syncedStudent);
+        }
+      }
+    } catch (e) {
+      throw mapExceptionToStudentFailure(e);
+    }
+  }
+
+  @override
+  Future<void> syncBatchedStudents(List<SyncEntry> entries) async {
+    if (entries.isEmpty) return;
+
+    final List<void Function(WriteBatch)> ops = [];
+    final List<StudentModel> studentsToLocalCache = [];
+    final List<
+      ({
+        String docId,
+        bool archive,
+        String performedByUid,
+        DateTime? clientTime,
+      })
+    >
+    archiveRestoreCacheOps = [];
+
+    for (final entry in entries) {
+      if (entry.actionType == 'UPSERT_STUDENT' ||
+          entry.actionType == 'UPDATE_STUDENT') {
+        final studentData = entry.payload['student'] as Map<String, dynamic>;
+        final student = StudentModel.fromMap(
+          studentData,
+          studentData['docID'] as String,
+        );
+        final docRef = _studentsCollection.doc(student.docID);
+        final syncLinkedUser =
+            entry.payload['syncLinkedUser'] as bool? ?? false;
+        final uid = student.uid.trim();
+
+        if (syncLinkedUser && uid.isNotEmpty) {
+          final previousRoleName = entry.payload['previousRole'] as String;
+          final previousRole = UserRole.values.byName(previousRoleName);
+          final updatedEmail = entry.payload['updatedEmail'] as String?;
+          final linkedUserPatch = _linkedUserSyncService
+              .buildLinkedUserRolePatch(
+                updatedStudent: student,
+                previousRole: previousRole,
+                updatedEmail: updatedEmail,
+              );
+          ops.add((batch) {
+            batch
+              ..set(docRef, {
+                ...student.toMap(),
+                'updatedAt': FieldValue.serverTimestamp(),
+              }, SetOptions(merge: true))
+              ..set(
+                _usersCollection.doc(uid),
+                linkedUserPatch,
+                SetOptions(merge: true),
+              );
+          });
+        } else {
+          ops.add((batch) {
+            batch.set(docRef, {
+              ...student.toMap(),
+              'updatedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+          });
+        }
+        studentsToLocalCache.add(student);
+      } else if (entry.actionType == 'CREATE_STUDENT_INVITATION' ||
+          entry.actionType == 'CREATE_STUDENT_WITH_AUTH') {
+        final studentData = entry.payload['student'] as Map<String, dynamic>;
+        final student = StudentModel.fromMap(
+          studentData,
+          studentData['docID'] as String,
+        );
+        final email = entry.payload['email'] as String? ?? '';
+        final docRef = _studentsCollection.doc(student.docID);
+
+        if (email.trim().isNotEmpty) {
+          final invitationId = email.trim().toLowerCase();
+          ops.add((batch) {
+            batch.set(
+              _firestore
+                  .collection(FirestoreCollections.invitations)
+                  .doc(invitationId),
+              {
+                'email': email.trim().toLowerCase(),
+                'role': student.role.name,
+                'name': student.name.trim(),
+                'invitedAt': FieldValue.serverTimestamp(),
+                'status': 'pending',
+              },
+              SetOptions(merge: true),
+            );
+          });
+        }
+
+        ops.add((batch) {
+          batch.set(docRef, {
+            ...student.toMap(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        });
+        studentsToLocalCache.add(student);
+      } else if (entry.actionType == 'ARCHIVE_STUDENT') {
+        final docId = entry.payload['docId'] as String;
+        final performedByUid = entry.payload['performedByUid'] as String;
+        final payloadTimeStr = entry.payload['clientUpdatedAt'] as String?;
+        final payloadTime = payloadTimeStr != null
+            ? DateTime.parse(payloadTimeStr)
+            : null;
+        final doc = _studentsCollection.doc(docId);
+
+        ops.add((batch) {
+          batch.set(doc, {
+            'isArchived': true,
+            'archivedAt': FieldValue.serverTimestamp(),
+            'archivedByUserId': performedByUid,
+            'restoredAt': FieldValue.delete(),
+            'restoredByUserId': FieldValue.delete(),
+          }, SetOptions(merge: true));
+        });
+
+        archiveRestoreCacheOps.add((
+          docId: docId,
+          archive: true,
+          performedByUid: performedByUid,
+          clientTime: payloadTime,
+        ));
+      } else if (entry.actionType == 'RESTORE_STUDENT') {
+        final docId = entry.payload['docId'] as String;
+        final performedByUid = entry.payload['performedByUid'] as String;
+        final payloadTimeStr = entry.payload['clientUpdatedAt'] as String?;
+        final payloadTime = payloadTimeStr != null
+            ? DateTime.parse(payloadTimeStr)
+            : null;
+        final doc = _studentsCollection.doc(docId);
+
+        ops.add((batch) {
+          batch.set(doc, {
+            'isArchived': false,
+            'restoredAt': FieldValue.serverTimestamp(),
+            'restoredByUserId': performedByUid,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        });
+
+        archiveRestoreCacheOps.add((
+          docId: docId,
+          archive: false,
+          performedByUid: performedByUid,
+          clientTime: payloadTime,
+        ));
+      }
+    }
+
+    final studentFutures = archiveRestoreCacheOps.map(
+      (op) => getStudentById(op.docId, includeArchived: true),
+    );
+    final fetchedStudents = await Future.wait(studentFutures);
+
+    for (var i = 0; i < archiveRestoreCacheOps.length; i++) {
+      final op = archiveRestoreCacheOps[i];
+      final student = fetchedStudents[i];
+      if (student == null) continue;
+
+      final normalizedUid = student.uid.trim();
+      if (normalizedUid.isNotEmpty) {
+        if (op.archive) {
+          ops.add((batch) {
+            batch.set(_usersCollection.doc(normalizedUid), {
+              'isArchived': true,
+              'archivedAt': FieldValue.serverTimestamp(),
+              'restorePendingPasswordReset': false,
+              'updatedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+          });
+        } else {
+          ops.add((batch) {
+            batch.set(_usersCollection.doc(normalizedUid), {
+              'isArchived': false,
+              'restoredAt': FieldValue.serverTimestamp(),
+              'updatedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+          });
+        }
+      }
+    }
+
+    try {
+      await chunkedBatch(firestore: _firestore, ops: ops);
+
+      for (final student in studentsToLocalCache) {
+        final localStudent = await _localDatasource.getStudent(student.docID);
+        if (localStudent != null) {
+          final localTime = localStudent.clientUpdatedAt;
+          final syncTime = student.clientUpdatedAt;
+          if (localTime == null ||
+              syncTime == null ||
+              !localTime.isAfter(syncTime)) {
+            final syncedStudent = student.copyWith(
+              syncStatus: SyncStatus.synced,
+            );
+            await _localDatasource.saveStudent(syncedStudent);
+          }
+        } else {
+          final syncedStudent = student.copyWith(syncStatus: SyncStatus.synced);
+          await _localDatasource.saveStudent(syncedStudent);
+        }
+      }
+
+      for (final op in archiveRestoreCacheOps) {
+        final localStudent = await _localDatasource.getStudent(op.docId);
+        if (localStudent != null) {
+          final localTime = localStudent.clientUpdatedAt;
+          if (localTime == null ||
+              op.clientTime == null ||
+              !localTime.isAfter(op.clientTime!)) {
+            final syncedStudent = localStudent.copyWith(
+              isArchived: op.archive,
+              syncStatus: SyncStatus.synced,
+            );
+            await _localDatasource.saveStudent(syncedStudent);
+          }
         }
       }
     } catch (e) {

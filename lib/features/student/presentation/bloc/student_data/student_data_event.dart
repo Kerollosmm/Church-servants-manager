@@ -40,13 +40,11 @@ final class StudentCreated extends StudentDataEvent {
   final AuthUser actor;
   final Student student;
   final String? email;
-  final String? password;
 
   const StudentCreated({
     required this.actor,
     required this.student,
     this.email,
-    this.password,
   });
 }
 

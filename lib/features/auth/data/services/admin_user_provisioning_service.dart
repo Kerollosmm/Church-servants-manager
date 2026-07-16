@@ -52,9 +52,8 @@ class ClientAdminUserProvisioningService
     var profileSaved = false;
 
     try {
-      createdAuthUser = await _adminAuthClient.createUser(
+      createdAuthUser = await _adminAuthClient.writeInvitation(
         email: email,
-        password: password,
         name: name,
         role: role,
       );

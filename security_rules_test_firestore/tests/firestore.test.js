@@ -247,6 +247,107 @@ describe('Firestore Security Rules', () => {
         markedByUserId: 'system',
       }));
     });
+
+    test('servant cannot create mark with missing teamId', async () => {
+      const servantId = 'servant-1';
+      const teamId = 'team-1';
+      const sessionId = 'session-1';
+      await seedUser(servantId, { assignedTeamId: teamId, role: 'servant' });
+      await seedSession(sessionId, { teamId, studentIdsSnapshot: ['student-1'] });
+
+      const db = testEnv.authenticatedContext(servantId, { role: 'servant', assignedTeamId: teamId }).firestore();
+      await assertFails(setDoc(doc(db, 'AttendanceSessions', sessionId, 'records', 'student-1_session-1'), {
+        studentId: 'student-1',
+        status: 'present',
+        markedByUserId: servantId,
+      }));
+    });
+
+    test('servant cannot create mark with mismatching markedByUserId', async () => {
+      const servantId = 'servant-1';
+      const teamId = 'team-1';
+      const sessionId = 'session-1';
+      await seedUser(servantId, { assignedTeamId: teamId, role: 'servant' });
+      await seedSession(sessionId, { teamId, studentIdsSnapshot: ['student-1'] });
+
+      const db = testEnv.authenticatedContext(servantId, { role: 'servant', assignedTeamId: teamId }).firestore();
+      await assertFails(setDoc(doc(db, 'AttendanceSessions', sessionId, 'records', 'student-1_session-1'), {
+        teamId: teamId,
+        studentId: 'student-1',
+        status: 'present',
+        markedByUserId: 'other-user-id',
+      }));
+    });
+
+    test('servant cannot create mark with own teamId under a foreign session', async () => {
+      const servantId = 'servant-1';
+      const ownTeamId = 'team-1';
+      const foreignTeamId = 'team-2';
+      const sessionId = 'session-foreign';
+      // Servant manages team-1 only.
+      await seedUser(servantId, { assignedTeamId: ownTeamId, role: 'servant' });
+      // But the session belongs to team-2.
+      await seedSession(sessionId, { teamId: foreignTeamId, studentIdsSnapshot: ['student-1'] });
+
+      const db = testEnv.authenticatedContext(servantId, { role: 'servant', assignedTeamId: ownTeamId }).firestore();
+      // Servant marks the doc with their own teamId and own uid — both would
+      // pass the previous guards, but the session↔teamId invariant must reject.
+      await assertFails(setDoc(doc(db, 'AttendanceSessions', sessionId, 'records', 'student-1_session-foreign'), {
+        teamId: ownTeamId,
+        studentId: 'student-1',
+        status: 'present',
+        markedByUserId: servantId,
+      }));
+    });
+
+    test('servant can update legacy mark where teamId is missing', async () => {
+      const servantId = 'servant-1';
+      const teamId = 'team-1';
+      const sessionId = 'session-1';
+      await seedUser(servantId, { assignedTeamId: teamId, role: 'servant' });
+      await seedSession(sessionId, { teamId, studentIdsSnapshot: ['student-1'] });
+
+      // Seed a legacy mark without teamId and markedByUserId
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        const db = context.firestore();
+        await setDoc(doc(db, 'AttendanceSessions', sessionId, 'records', 'student-1_session-1'), {
+          studentId: 'student-1',
+          status: 'absent',
+        });
+      });
+
+      const db = testEnv.authenticatedContext(servantId, { role: 'servant', assignedTeamId: teamId }).firestore();
+      await assertSucceeds(setDoc(doc(db, 'AttendanceSessions', sessionId, 'records', 'student-1_session-1'), {
+        teamId: teamId,
+        studentId: 'student-1',
+        status: 'present',
+        markedByUserId: servantId,
+      }, { merge: true }));
+    });
+
+    test('servant cannot update mark to change markedByUserId', async () => {
+      const servantId = 'servant-1';
+      const teamId = 'team-1';
+      const sessionId = 'session-1';
+      await seedUser(servantId, { assignedTeamId: teamId, role: 'servant' });
+      await seedSession(sessionId, { teamId, studentIdsSnapshot: ['student-1'] });
+
+      // Seed mark with servant-1
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        const db = context.firestore();
+        await setDoc(doc(db, 'AttendanceSessions', sessionId, 'records', 'student-1_session-1'), {
+          teamId: teamId,
+          studentId: 'student-1',
+          status: 'present',
+          markedByUserId: servantId,
+        });
+      });
+
+      const db = testEnv.authenticatedContext(servantId, { role: 'servant', assignedTeamId: teamId }).firestore();
+      await assertFails(updateDoc(doc(db, 'AttendanceSessions', sessionId, 'records', 'student-1_session-1'), {
+        markedByUserId: 'other-user',
+      }));
+    });
   });
 
   // --- Tests added for Feature 024 ---

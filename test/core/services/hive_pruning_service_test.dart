@@ -138,5 +138,31 @@ void main() {
 
       await syncBox.close();
     });
+
+    test('runMigrationStripPassword strips passwords and sets flags', () async {
+      final syncBox = await Hive.openBox<SyncEntry>('sync_queue_box');
+      await syncBox.put(
+        'entry_with_password',
+        SyncEntry(
+          id: 'entry_with_password',
+          actionType: 'CREATE_STUDENT_WITH_AUTH',
+          payload: {'email': 'test@example.com', 'password': 'hunter2'},
+          createdAt: DateTime.now(),
+        ),
+      );
+
+      await pruner.runMigrationStripPassword();
+
+      final updatedEntry = syncBox.get('entry_with_password');
+      expect(updatedEntry, isNotNull);
+      expect(updatedEntry!.payload.containsKey('password'), isFalse);
+      expect(updatedEntry.payload['email'], 'test@example.com');
+
+      final flagsBox = await Hive.openBox('migrationFlags');
+      expect(flagsBox.get('password_strip_v1'), isTrue);
+
+      await syncBox.close();
+      await flagsBox.close();
+    });
   });
 }

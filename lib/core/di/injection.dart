@@ -49,7 +49,7 @@ import 'package:church_management_system/features/student/domain/repos/i_pastora
 import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
 import 'package:church_management_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
 import 'package:church_management_system/features/student/domain/usecases/get_students_list_usecase.dart';
-import 'package:church_management_system/features/student/domain/usecases/provision_student_with_auth_usecase.dart';
+import 'package:church_management_system/features/student/domain/usecases/provision_student_invitation_usecase.dart';
 import 'package:church_management_system/features/team/data/datasources/team_local_datasource.dart';
 import 'package:church_management_system/features/team/data/repos/team_repository.dart';
 import 'package:church_management_system/features/team/data/services/team_sync_handler.dart';
@@ -293,8 +293,8 @@ void _registerUseCases() {
         authService: getIt<AuthRepository>(),
       ),
     )
-    ..registerLazySingleton<ProvisionStudentWithAuthUseCase>(
-      () => ProvisionStudentWithAuthUseCase(
+    ..registerLazySingleton<ProvisionStudentInvitationUseCase>(
+      () => ProvisionStudentInvitationUseCase(
         studentRepository: getIt<IStudentRepository>(),
       ),
     )

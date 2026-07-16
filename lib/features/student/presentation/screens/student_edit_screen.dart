@@ -169,7 +169,6 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
         actor: actor,
         student: student,
         email: _nullableTrimmed(_controllers.email.text),
-        password: _nullableTrimmed(_controllers.password.text),
       ),
     );
   }
@@ -303,7 +302,6 @@ class _StudentEditScreenState extends State<StudentEditScreen> {
                                 nameController: _controllers.name,
                                 mobileController: _controllers.mobile,
                                 emailController: _controllers.email,
-                                passwordController: _controllers.password,
                                 actorRole: actor.role,
                                 isEditing: isEditing,
                                 selectedRole: _selectedRole,
@@ -363,7 +361,6 @@ class _StudentEditControllers {
     required this.name,
     required this.mobile,
     required this.email,
-    required this.password,
     required this.motherPhone,
     required this.fatherPhone,
     required this.school,
@@ -378,7 +375,6 @@ class _StudentEditControllers {
       name: TextEditingController(text: student?.name ?? ''),
       mobile: TextEditingController(text: student?.mobile ?? ''),
       email: TextEditingController(),
-      password: TextEditingController(),
       motherPhone: TextEditingController(text: student?.motherPhone ?? ''),
       fatherPhone: TextEditingController(text: student?.fatherPhone ?? ''),
       school: TextEditingController(text: student?.school ?? ''),
@@ -394,7 +390,6 @@ class _StudentEditControllers {
   final TextEditingController name;
   final TextEditingController mobile;
   final TextEditingController email;
-  final TextEditingController password;
   final TextEditingController motherPhone;
   final TextEditingController fatherPhone;
   final TextEditingController school;
@@ -412,7 +407,6 @@ class _StudentEditControllers {
       return name.text.isNotEmpty ||
           mobile.text.isNotEmpty ||
           email.text.isNotEmpty ||
-          password.text.isNotEmpty ||
           motherPhone.text.isNotEmpty ||
           fatherPhone.text.isNotEmpty ||
           school.text.isNotEmpty ||
@@ -440,7 +434,6 @@ class _StudentEditControllers {
     name.dispose();
     mobile.dispose();
     email.dispose();
-    password.dispose();
     motherPhone.dispose();
     fatherPhone.dispose();
     school.dispose();

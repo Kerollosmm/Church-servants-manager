@@ -16,7 +16,6 @@ class StudentBasicsSection extends StatelessWidget {
     required this.nameController,
     required this.mobileController,
     required this.emailController,
-    required this.passwordController,
     required this.actorRole,
     required this.isEditing,
     required this.selectedRole,
@@ -34,7 +33,6 @@ class StudentBasicsSection extends StatelessWidget {
   final TextEditingController nameController;
   final TextEditingController mobileController;
   final TextEditingController emailController;
-  final TextEditingController passwordController;
   final UserRole actorRole;
   final bool isEditing;
   final UserRole selectedRole;
@@ -80,15 +78,7 @@ class StudentBasicsSection extends StatelessWidget {
               controller: emailController,
               label: 'البريد الإلكتروني',
               prefixIcon: Icons.email_outlined,
-              validator: Validators.validateEmailArabic,
-            ),
-            AppSpacing.gapMd,
-            OchreTextField(
-              controller: passwordController,
-              label: 'كلمة المرور',
-              prefixIcon: Icons.lock_outline,
-              obscureText: true,
-              validator: Validators.validatePasswordArabic,
+              validator: Validators.validateOptionalEmailArabic,
             ),
           ],
           if (_canEditRole) ...[

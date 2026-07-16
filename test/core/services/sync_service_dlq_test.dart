@@ -142,7 +142,7 @@ void main() {
       var callCount = 0;
       when(() => mockAttendance.syncOfflineMark(any())).thenAnswer((_) async {
         callCount++;
-        if (callCount <= 3) throw Exception('temporary failure');
+        if (callCount <= 3) throw Exception('temporary network failure');
       });
 
       final entry = SyncEntry(

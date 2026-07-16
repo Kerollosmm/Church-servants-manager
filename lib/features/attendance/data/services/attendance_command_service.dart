@@ -961,6 +961,8 @@ class AttendanceCommandService {
                 session.studentNameSnapshots[studentId] ?? 'مخدوم';
             final markData = <String, dynamic>{
               'studentId': studentId,
+              'teamId': teamId,
+              'sessionId': sessionId,
               'studentNameSnapshot': studentName,
               'status': targetStatus.name,
               'markedByUserId': markedBy.uid,
@@ -1037,6 +1039,8 @@ class AttendanceCommandService {
 
           batch.set(markRef, {
             'studentId': studentId,
+            'teamId': teamId,
+            'sessionId': sessionId,
             'studentNameSnapshot': studentName,
             'status': AttendanceMarkStatus.present.name,
             'markedByUserId': markedBy.uid,

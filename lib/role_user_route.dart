@@ -7,7 +7,7 @@ import 'package:church_management_system/features/servant/presentation/bloc/serv
 import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
 import 'package:church_management_system/features/student/domain/usecases/can_mutate_student_usecase.dart';
 import 'package:church_management_system/features/student/domain/usecases/get_students_list_usecase.dart';
-import 'package:church_management_system/features/student/domain/usecases/provision_student_with_auth_usecase.dart';
+import 'package:church_management_system/features/student/domain/usecases/provision_student_invitation_usecase.dart';
 import 'package:church_management_system/features/student/presentation/bloc/student_data/student_data_bloc.dart';
 import 'package:church_management_system/features/student/presentation/bloc/student_profile/student_profile_bloc.dart';
 import 'package:flutter/material.dart';
@@ -32,7 +32,7 @@ class RoleUserRoute extends StatelessWidget {
               studentRepository: getIt<IStudentRepository>(),
               getStudentsList: getIt<GetStudentsListUseCase>(),
               canMutateStudent: getIt<CanMutateStudentUseCase>(),
-              provisionUseCase: getIt<ProvisionStudentWithAuthUseCase>(),
+              provisionUseCase: getIt<ProvisionStudentInvitationUseCase>(),
             ),
           ),
           BlocProvider<ServantDataBloc>(

@@ -467,7 +467,8 @@ class SyncService {
                       error: individualError,
                       name: 'SyncService',
                     );
-                    break; // immediately halt loop, retaining original retryCount of current and remaining items
+                    _isProcessing = false;
+                    return; // immediately halt processQueue, retaining original retryCount of current and remaining items
                   }
                   final errorBox = _activeBox;
                   await _handleEntryFailure(
@@ -475,7 +476,13 @@ class SyncService {
                     individualError,
                     errorBox,
                   );
-                  await _applyBackoff(batchEntry.retryCount);
+                  // Apply backoff before halting so a retried entry (with its
+                  // newly-bumped retryCount) doesn't immediately re-enter the
+                  // queue and hammer Firestore on repeated failures. Tests pass
+                  // backoffProvider: (_) => Duration.zero to keep this fast.
+                  await _applyBackoff(batchEntry.retryCount + 1);
+                  _isProcessing = false;
+                  return;
                 }
               }
             }
@@ -508,8 +515,11 @@ class SyncService {
         } catch (e) {
           final errorBox = _activeBox;
           await _handleEntryFailure(entry, e, errorBox);
-          if (!targetBox.isOpen) break;
-          await _applyBackoff(entry.retryCount);
+          // See comment above — same backoff-on-retry intent for the individual
+          // handler failure path.
+          await _applyBackoff(entry.retryCount + 1);
+          _isProcessing = false;
+          return;
         }
       }
       if (targetBox.isOpen && targetBox.isEmpty) {

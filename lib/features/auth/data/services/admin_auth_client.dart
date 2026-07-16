@@ -10,9 +10,8 @@ class AdminAuthUserHandle {
 }
 
 abstract class AdminAuthClient {
-  Future<AdminAuthUserHandle> createUser({
+  Future<AdminAuthUserHandle> writeInvitation({
     required String email,
-    required String password,
     required String name,
     required UserRole role,
   });
@@ -33,12 +32,12 @@ class FirebaseAdminAuthClient implements AdminAuthClient {
   final FirebaseFirestore _db;
 
   @override
-  Future<AdminAuthUserHandle> createUser({
+  Future<AdminAuthUserHandle> writeInvitation({
     required String email,
-    required String password,
     required String name,
     required UserRole role,
   }) async {
+    // no Auth account is created on Spark; see research.md §2
     try {
       // SPARK PLAN WORKAROUND:
       // Client-side code cannot create other users' Auth accounts or set Custom Claims.

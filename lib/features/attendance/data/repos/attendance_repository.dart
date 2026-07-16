@@ -126,8 +126,13 @@ class AttendanceRepository implements IAttendanceRepository {
                   CacheTracker.markFetched(cacheKey);
                 }
               })
-              .catchError((_) {
-                // Ignore network errors on background refresh
+              .catchError((e, st) {
+                developer.log(
+                  'Background sessions sync failed',
+                  error: e,
+                  stackTrace: st,
+                  name: 'AttendanceRepository',
+                );
               }),
         );
       }
@@ -139,7 +144,13 @@ class AttendanceRepository implements IAttendanceRepository {
         await _sessionLocalDatasource.cacheSessions(remote);
       }
       return (sessions: remote, isFromCache: false);
-    } catch (_) {
+    } catch (e, st) {
+      developer.log(
+        'Failed to fetch sessions from remote, falling back to empty list',
+        error: e,
+        stackTrace: st,
+        name: 'AttendanceRepository',
+      );
       return (sessions: const <AttendanceSession>[], isFromCache: true);
     }
   }
@@ -572,18 +583,38 @@ class AttendanceRepository implements IAttendanceRepository {
 
   @override
   Future<void> syncOfflineMark(Map<String, dynamic> payload) async {
-    await _commandService.syncOfflineMark(payload);
+    var resolvedPayload = Map<String, dynamic>.from(payload);
+    var teamId = resolvedPayload['teamId'] as String?;
+    final sessionId = resolvedPayload['sessionId'] as String;
+
+    if (teamId == null || teamId.isEmpty) {
+      final cachedSession = await _sessionLocalDatasource.getCachedSessionById(
+        sessionId,
+      );
+      if (cachedSession != null) {
+        teamId = cachedSession.teamId;
+        resolvedPayload['teamId'] = teamId;
+      }
+    }
+
+    var markedByUid = resolvedPayload['markedByUid'] as String?;
+    if (markedByUid == null || markedByUid.isEmpty) {
+      markedByUid = resolvedPayload['markedByUserId'] as String? ?? 'system';
+      resolvedPayload['markedByUid'] = markedByUid;
+    }
+
+    await _commandService.syncOfflineMark(resolvedPayload);
     try {
-      final teamId = payload['teamId'] as String;
-      final sessionId = payload['sessionId'] as String;
-      final studentId = payload['studentId'] as String;
-      final statusString = payload['status'] as String;
-      final markedByUid = payload['markedByUid'] as String;
-      final markedByName = payload['markedByName'] as String;
-      final createdAt = DateTime.parse(payload['createdAt'] as String);
+      final finalTeamId = resolvedPayload['teamId'] as String? ?? '';
+      final studentId = resolvedPayload['studentId'] as String;
+      final statusString = resolvedPayload['status'] as String;
+      final finalMarkedByUid = resolvedPayload['markedByUid'] as String;
+      final markedByName =
+          resolvedPayload['markedByName'] as String? ?? 'النظام';
+      final createdAt = DateTime.parse(resolvedPayload['createdAt'] as String);
 
       final existing = _attendanceLocalDatasource.getCachedMark(
-        teamId: teamId,
+        teamId: finalTeamId,
         sessionId: sessionId,
         studentId: studentId,
       );
@@ -592,40 +623,54 @@ class AttendanceRepository implements IAttendanceRepository {
         studentId: studentId,
         studentNameSnapshot:
             existing?.studentNameSnapshot ??
-            (payload['studentNameSnapshot'] as String?) ??
+            (resolvedPayload['studentNameSnapshot'] as String?) ??
             'مخدوم',
         status: const AttendanceMarkStatusJsonConverter().fromJson(
           statusString,
         ),
-        markedByUserId: markedByUid,
+        markedByUserId: finalMarkedByUid,
         markedByName: markedByName,
         markedAt: existing?.markedAt ?? createdAt,
         updatedAt: DateTime.now(),
       );
 
       await _attendanceLocalDatasource.cacheMark(
-        teamId: teamId,
+        teamId: finalTeamId,
         sessionId: sessionId,
         studentId: studentId,
         mark: updatedMark,
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
       developer.log(
         'Failed to update local cache after syncOfflineMark: $e',
         name: 'AttendanceRepository',
+        error: e,
+        stackTrace: stackTrace,
       );
     }
   }
 
   @override
   Future<void> syncOfflineClear(Map<String, dynamic> payload) async {
-    final teamId = payload['teamId'] as String;
-    final sessionId = payload['sessionId'] as String;
-    final studentId = payload['studentId'] as String;
-    final requestedByUid = payload['requestedByUid'] as String;
+    var resolvedPayload = Map<String, dynamic>.from(payload);
+    var teamId = resolvedPayload['teamId'] as String?;
+    final sessionId = resolvedPayload['sessionId'] as String;
+    final studentId = resolvedPayload['studentId'] as String;
+    final requestedByUid = resolvedPayload['requestedByUid'] as String;
+
+    if (teamId == null || teamId.isEmpty) {
+      final cachedSession = await _sessionLocalDatasource.getCachedSessionById(
+        sessionId,
+      );
+      if (cachedSession != null) {
+        teamId = cachedSession.teamId;
+      }
+    }
+
+    final finalTeamId = teamId ?? '';
 
     await _commandService.clearStudentMark(
-      teamId: teamId,
+      teamId: finalTeamId,
       sessionId: sessionId,
       studentId: studentId,
       requestedBy: AuthUser(
@@ -638,14 +683,16 @@ class AttendanceRepository implements IAttendanceRepository {
 
     try {
       await _attendanceLocalDatasource.removeCachedMark(
-        teamId: teamId,
+        teamId: finalTeamId,
         sessionId: sessionId,
         studentId: studentId,
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
       developer.log(
         'Failed to remove local cache after syncOfflineClear: $e',
         name: 'AttendanceRepository',
+        error: e,
+        stackTrace: stackTrace,
       );
     }
   }
@@ -656,13 +703,36 @@ class AttendanceRepository implements IAttendanceRepository {
     required String sessionId,
     required List<Map<String, dynamic>> payloads,
   }) async {
+    var effectiveTeamId = teamId;
+    if (effectiveTeamId.isEmpty) {
+      final cached = await _sessionLocalDatasource.getCachedSessionById(
+        sessionId,
+      );
+      if (cached != null) {
+        effectiveTeamId = cached.teamId;
+      }
+    }
+
+    final patchedPayloads = payloads.map((payload) {
+      var patched = Map<String, dynamic>.from(payload);
+      if (patched['teamId'] == null || (patched['teamId'] as String).isEmpty) {
+        patched['teamId'] = effectiveTeamId;
+      }
+      var markedByUid = patched['markedByUid'] as String?;
+      if (markedByUid == null || markedByUid.isEmpty) {
+        markedByUid = patched['markedByUserId'] as String? ?? 'system';
+        patched['markedByUid'] = markedByUid;
+      }
+      return patched;
+    }).toList();
+
     await _commandService.syncBatchedMarks(
-      teamId: teamId,
+      teamId: effectiveTeamId,
       sessionId: sessionId,
-      payloads: payloads,
+      payloads: patchedPayloads,
     );
     try {
-      for (final payload in payloads) {
+      for (final payload in patchedPayloads) {
         final studentId = payload['studentId'] as String? ?? '';
         if (studentId.isEmpty) continue;
         final statusString = payload['status'] as String? ?? 'absent';
@@ -674,7 +744,7 @@ class AttendanceRepository implements IAttendanceRepository {
             : DateTime.now();
 
         final existing = _attendanceLocalDatasource.getCachedMark(
-          teamId: teamId,
+          teamId: effectiveTeamId,
           sessionId: sessionId,
           studentId: studentId,
         );
@@ -695,16 +765,18 @@ class AttendanceRepository implements IAttendanceRepository {
         );
 
         await _attendanceLocalDatasource.cacheMark(
-          teamId: teamId,
+          teamId: effectiveTeamId,
           sessionId: sessionId,
           studentId: studentId,
           mark: updatedMark,
         );
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       developer.log(
         'Failed to update local cache after syncBatchedMarks: $e',
         name: 'AttendanceRepository',
+        error: e,
+        stackTrace: stackTrace,
       );
     }
   }
