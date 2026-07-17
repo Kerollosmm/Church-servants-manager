@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:developer' as developer;
 
+import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/features/attendance/data/local/attendance_local_datasource.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_mark.dart';
@@ -28,16 +29,25 @@ class AttendanceTakingBloc
        _localDatasource = localDatasource,
        _nowProvider = nowProvider ?? DateTime.now,
        super(const AttendanceTakingInitial()) {
-    on<InitializeSessionEvent>(_onInitializeSession);
-    on<RefreshSessionEvent>(_onRefreshSession);
-    on<MarkStudentPresentEvent>(_onMarkStudentPresent);
-    on<MarkStudentAbsentEvent>(_onMarkStudentAbsent);
-    on<MarkStudentLateEvent>(_onMarkStudentLate);
-    on<ClearStudentMarkEvent>(_onClearStudentMark);
-    on<SubmitSessionEvent>(_onSubmitSession);
-    on<MarkAllRemainingPresentEvent>(_onMarkAllRemainingPresent);
+    on<InitializeSessionEvent>(
+      _onInitializeSession,
+      transformer: restartable(),
+    );
+    on<RefreshSessionEvent>(_onRefreshSession, transformer: restartable());
+    on<MarkStudentPresentEvent>(
+      _onMarkStudentPresent,
+      transformer: droppable(),
+    );
+    on<MarkStudentAbsentEvent>(_onMarkStudentAbsent, transformer: droppable());
+    on<MarkStudentLateEvent>(_onMarkStudentLate, transformer: droppable());
+    on<ClearStudentMarkEvent>(_onClearStudentMark, transformer: droppable());
+    on<SubmitSessionEvent>(_onSubmitSession, transformer: droppable());
+    on<MarkAllRemainingPresentEvent>(
+      _onMarkAllRemainingPresent,
+      transformer: droppable(),
+    );
     on<ResetMutationStatusEvent>(_onResetMutationStatus);
-    on<SessionTickEvent>(_onSessionTick);
+    on<SessionTickEvent>(_onSessionTick, transformer: restartable());
   }
 
   final AttendanceRepository _repository;
@@ -47,7 +57,6 @@ class AttendanceTakingBloc
   Timer? _sessionTickerTimer;
   bool _permissionGranted = false;
   String? _cachedTeamId;
-  String? _cachedSessionId;
 
   Future<void> _onInitializeSession(
     InitializeSessionEvent event,
@@ -124,7 +133,6 @@ class AttendanceTakingBloc
         teamId: teamId,
       );
       _cachedTeamId = teamId;
-      _cachedSessionId = sessionId;
     } catch (_) {
       _permissionGranted = false;
     }
@@ -424,7 +432,6 @@ class AttendanceTakingBloc
     _sessionTickerTimer?.cancel();
     _permissionGranted = false;
     _cachedTeamId = null;
-    _cachedSessionId = null;
     return super.close();
   }
 }

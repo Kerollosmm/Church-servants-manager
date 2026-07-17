@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:developer' as developer;
 import 'dart:math';
+import 'package:church_management_system/core/constants/sync_action_type.dart';
 import 'package:church_management_system/core/models/sync_entry.dart';
 import 'package:church_management_system/core/services/dead_letter_queue.dart';
 import 'package:church_management_system/core/services/sync_handler.dart';
@@ -57,7 +58,8 @@ class SyncService {
   static const int _baseBackoffMs = 1000;
   final Connectivity _connectivity;
   final DeadLetterQueue _dlq;
-  final Map<String, SyncHandler> _handlers;
+  final Map<SyncActionType, SyncHandler> _handlers;
+  final FirebaseAuth? _auth;
   final Duration Function(int)? _backoffProvider;
 
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
@@ -84,12 +86,14 @@ class SyncService {
 
   SyncService({
     required DeadLetterQueue deadLetterQueue,
-    required Map<String, SyncHandler> handlers,
+    required Map<SyncActionType, SyncHandler> handlers,
     Connectivity? connectivity,
+    FirebaseAuth? auth,
     Duration Function(int)? backoffProvider,
   }) : _dlq = deadLetterQueue,
        _handlers = handlers,
        _connectivity = connectivity ?? Connectivity(),
+       _auth = auth,
        _backoffProvider = backoffProvider;
 
   /// Gets the name of the Hive box for a specific user.
@@ -194,7 +198,7 @@ class SyncService {
   /// Lightweight bootstrap used exclusively by the Workmanager background task.
   Future<void> initAndProcessOnce() async {
     await _dlq.init();
-    final firebaseUid = FirebaseAuth.instance.currentUser?.uid;
+    final firebaseUid = (_auth ?? FirebaseAuth.instance).currentUser?.uid;
     if (firebaseUid != null) {
       await setAuthenticatedUser(firebaseUid);
       await processQueue();
@@ -387,14 +391,14 @@ class SyncService {
         }
 
         // Consecutive Chunking for MARK_ATTENDANCE
-        if (entry.actionType == 'MARK_ATTENDANCE') {
+        if (entry.actionType == SyncActionType.markAttendance.value) {
           final teamId = entry.payload['teamId'] as String?;
           final sessionId = entry.payload['sessionId'] as String?;
           if (teamId != null && sessionId != null) {
             final batchEntries = <SyncEntry>[];
             int j = 0;
             while (j < entries.length &&
-                entries[j].actionType == 'MARK_ATTENDANCE' &&
+                entries[j].actionType == SyncActionType.markAttendance.value &&
                 entries[j].payload['teamId'] == teamId &&
                 entries[j].payload['sessionId'] == sessionId &&
                 entries[j].retryCount < _maxRetries &&
@@ -403,7 +407,7 @@ class SyncService {
               j++;
             }
             try {
-              final handler = _handlers['MARK_ATTENDANCE'];
+              final handler = _handlers[SyncActionType.markAttendance];
               if (handler == null) {
                 throw UnimplementedError(
                   'No handler registered for MARK_ATTENDANCE',
@@ -441,7 +445,7 @@ class SyncService {
                   break;
                 }
                 try {
-                  final handler = _handlers['MARK_ATTENDANCE'];
+                  final handler = _handlers[SyncActionType.markAttendance];
                   if (handler == null) throw UnimplementedError();
                   // Capture local box reference before the async call
                   final individualBox = _activeBox;
@@ -496,7 +500,8 @@ class SyncService {
 
         // All other action types — individual execution
         try {
-          final handler = _handlers[entry.actionType];
+          final actionType = SyncActionType.fromValue(entry.actionType);
+          final handler = actionType != null ? _handlers[actionType] : null;
           if (handler == null) {
             throw UnimplementedError(
               'No sync handler registered for action: ${entry.actionType}',

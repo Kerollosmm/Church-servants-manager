@@ -2,6 +2,7 @@ import 'dart:developer' as developer;
 
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
+import 'package:church_management_system/core/constants/sync_action_type.dart';
 import 'package:church_management_system/core/models/sync_entry.dart';
 import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/core/utils/pagination_cursor.dart';
@@ -345,9 +346,9 @@ class ServantDataRepository implements IServantRepository {
       final isOffline = connectivity.contains(ConnectivityResult.none);
 
       if (isOffline) {
-        final syncEntry = SyncEntry(
+        final syncEntry = SyncEntry.create(
           id: 'create_servant_${docRef.id}',
-          actionType: 'CREATE_SERVANT',
+          action: SyncActionType.createServant,
           payload: _normalizeServantWriteData(finalServant.toDomain()),
           createdAt: DateTime.now(),
         );
@@ -365,9 +366,9 @@ class ServantDataRepository implements IServantRepository {
         if (!SyncErrorClassifier.isRetriable(e)) {
           rethrow;
         }
-        final syncEntry = SyncEntry(
+        final syncEntry = SyncEntry.create(
           id: 'create_servant_${docRef.id}',
-          actionType: 'CREATE_SERVANT',
+          action: SyncActionType.createServant,
           payload: _normalizeServantWriteData(finalServant.toDomain()),
           createdAt: DateTime.now(),
         );
@@ -395,9 +396,9 @@ class ServantDataRepository implements IServantRepository {
       final isOffline = connectivity.contains(ConnectivityResult.none);
 
       if (isOffline) {
-        final syncEntry = SyncEntry(
+        final syncEntry = SyncEntry.create(
           id: 'upsert_servant_${servant.docID}',
-          actionType: 'UPDATE_SERVANT',
+          action: SyncActionType.updateServant,
           payload: _normalizeServantWriteData(finalServant.toDomain()),
           createdAt: DateTime.now(),
         );
@@ -420,9 +421,9 @@ class ServantDataRepository implements IServantRepository {
         if (!SyncErrorClassifier.isRetriable(e)) {
           rethrow;
         }
-        final syncEntry = SyncEntry(
+        final syncEntry = SyncEntry.create(
           id: 'upsert_servant_${servant.docID}',
-          actionType: 'UPDATE_SERVANT',
+          action: SyncActionType.updateServant,
           payload: _normalizeServantWriteData(finalServant.toDomain()),
           createdAt: DateTime.now(),
         );
@@ -458,9 +459,9 @@ class ServantDataRepository implements IServantRepository {
       final isOffline = connectivity.contains(ConnectivityResult.none);
 
       if (isOffline) {
-        final syncEntry = SyncEntry(
+        final syncEntry = SyncEntry.create(
           id: 'update_servant_$docId',
-          actionType: 'UPDATE_SERVANT',
+          action: SyncActionType.updateServant,
           payload: {'docId': docId, ...fields},
           createdAt: DateTime.now(),
         );
@@ -482,9 +483,9 @@ class ServantDataRepository implements IServantRepository {
         if (!SyncErrorClassifier.isRetriable(e)) {
           rethrow;
         }
-        final syncEntry = SyncEntry(
+        final syncEntry = SyncEntry.create(
           id: 'update_servant_$docId',
-          actionType: 'UPDATE_SERVANT',
+          action: SyncActionType.updateServant,
           payload: {'docId': docId, ...fields},
           createdAt: DateTime.now(),
         );
@@ -524,9 +525,9 @@ class ServantDataRepository implements IServantRepository {
       final isOffline = connectivity.contains(ConnectivityResult.none);
 
       if (isOffline) {
-        final syncEntry = SyncEntry(
+        final syncEntry = SyncEntry.create(
           id: 'archive_servant_$docId',
-          actionType: 'ARCHIVE_SERVANT',
+          action: SyncActionType.archiveServant,
           payload: {
             'docId': docId,
             'archivedByUserId': performedByUid,
@@ -551,9 +552,9 @@ class ServantDataRepository implements IServantRepository {
         if (!SyncErrorClassifier.isRetriable(e)) {
           rethrow;
         }
-        final syncEntry = SyncEntry(
+        final syncEntry = SyncEntry.create(
           id: 'archive_servant_$docId',
-          actionType: 'ARCHIVE_SERVANT',
+          action: SyncActionType.archiveServant,
           payload: {
             'docId': docId,
             'archivedByUserId': performedByUid,
@@ -612,9 +613,9 @@ class ServantDataRepository implements IServantRepository {
       if (assignedTeamIds != null) payload['assignedTeamIds'] = assignedTeamIds;
 
       if (isOffline) {
-        final syncEntry = SyncEntry(
+        final syncEntry = SyncEntry.create(
           id: 'restore_servant_$docId',
-          actionType: 'RESTORE_SERVANT',
+          action: SyncActionType.restoreServant,
           payload: payload,
           createdAt: DateTime.now(),
         );
@@ -635,9 +636,9 @@ class ServantDataRepository implements IServantRepository {
         if (!SyncErrorClassifier.isRetriable(e)) {
           rethrow;
         }
-        final syncEntry = SyncEntry(
+        final syncEntry = SyncEntry.create(
           id: 'restore_servant_$docId',
-          actionType: 'RESTORE_SERVANT',
+          action: SyncActionType.restoreServant,
           payload: payload,
           createdAt: DateTime.now(),
         );

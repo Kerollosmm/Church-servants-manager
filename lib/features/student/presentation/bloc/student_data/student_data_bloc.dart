@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:developer' as developer;
 
+import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/student/domain/entities/student.dart';
@@ -36,13 +37,16 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
        _canMutateStudent = canMutateStudent,
        _provisionUseCase = provisionUseCase,
        super(const StudentDataInitial()) {
-    on<StudentsLoadRequested>(_onLoadStudents);
-    on<StudentsSearchRequested>(_onSearchStudents);
-    on<StudentCreated>(_onCreateStudent);
-    on<StudentUpdated>(_onUpdateStudent);
-    on<StudentDeleted>(_onDeleteStudent);
-    on<StudentRestored>(_onRestoreStudent);
-    on<StudentsRefreshRequested>(_onRefreshStudents);
+    on<StudentsLoadRequested>(_onLoadStudents, transformer: restartable());
+    on<StudentsSearchRequested>(_onSearchStudents, transformer: restartable());
+    on<StudentCreated>(_onCreateStudent, transformer: droppable());
+    on<StudentUpdated>(_onUpdateStudent, transformer: droppable());
+    on<StudentDeleted>(_onDeleteStudent, transformer: droppable());
+    on<StudentRestored>(_onRestoreStudent, transformer: droppable());
+    on<StudentsRefreshRequested>(
+      _onRefreshStudents,
+      transformer: restartable(),
+    );
     on<StudentsListeningStopped>(_onStopListening);
   }
 

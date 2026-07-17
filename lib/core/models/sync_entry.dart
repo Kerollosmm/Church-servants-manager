@@ -1,3 +1,4 @@
+import 'package:church_management_system/core/constants/sync_action_type.dart';
 import 'package:hive/hive.dart';
 
 part 'sync_entry.g.dart';
@@ -52,6 +53,28 @@ class SyncEntry extends HiveObject {
     this.lastErrorMessage,
     this.schemaVersion = 2,
   });
+
+  factory SyncEntry.create({
+    required String id,
+    required SyncActionType action,
+    required Map<String, Object?> payload,
+    required DateTime createdAt,
+    int retryCount = 0,
+    DateTime? failedAt,
+    String? userId,
+    String? lastErrorMessage,
+    int? schemaVersion = 2,
+  }) => SyncEntry(
+    id: id,
+    actionType: action.value,
+    payload: payload,
+    createdAt: createdAt,
+    retryCount: retryCount,
+    failedAt: failedAt,
+    userId: userId,
+    lastErrorMessage: lastErrorMessage,
+    schemaVersion: schemaVersion,
+  );
 
   /// Deterministic key for deduplication.
   /// By default, overwriting the same `id` in Hive will update the entry.

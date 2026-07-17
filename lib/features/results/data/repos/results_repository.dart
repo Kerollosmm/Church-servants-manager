@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:developer' as developer;
 
+import 'package:church_management_system/core/constants/sync_action_type.dart';
 import 'package:church_management_system/core/models/sync_entry.dart';
 import 'package:church_management_system/core/services/cache_tracker.dart';
 import 'package:church_management_system/core/services/sync_service.dart';
@@ -197,9 +198,9 @@ class ResultsRepository implements IResultsRepository {
     }
 
     // 2. Try online write or fallback to outbox queue
-    final syncEntry = SyncEntry(
+    final syncEntry = SyncEntry.create(
       id: 'update_result_${model.studentId}_${model.termId}',
-      actionType: 'UPDATE_RESULT',
+      action: SyncActionType.updateResult,
       payload: model.toMap(),
       createdAt: DateTime.now(),
     );

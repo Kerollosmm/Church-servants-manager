@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:io';
+
+import 'package:church_management_system/core/constants/sync_action_type.dart';
 import 'package:church_management_system/core/models/sync_entry.dart';
 import 'package:church_management_system/core/services/dead_letter_queue.dart';
 import 'package:church_management_system/core/services/sync_service.dart';
@@ -89,16 +91,15 @@ void main() {
       connectivity: connectivity,
       backoffProvider: (_) => Duration.zero,
       handlers: {
-        'MARK_ATTENDANCE': AttendanceSyncHandler(attendanceRepo),
-        'CLEAR_ATTENDANCE': AttendanceSyncHandler(attendanceRepo),
-        'UPSERT_STUDENT': StudentSyncHandler(studentRepo),
-        'UPDATE_STUDENT': StudentSyncHandler(studentRepo),
-        'ARCHIVE_STUDENT': StudentSyncHandler(studentRepo),
-        'RESTORE_STUDENT': StudentSyncHandler(studentRepo),
-        'UPDATE_RESULT': ResultsSyncHandler(resultsRepo),
-        'CREATE_SESSION': AttendanceSessionSyncHandler(sessionRepo),
-        'CLOSE_SESSION': AttendanceSessionSyncHandler(sessionRepo),
-        'CREATE_PASTORAL_RECORD': PastoralSyncHandler(pastoralRepo),
+        SyncActionType.markAttendance: AttendanceSyncHandler(attendanceRepo),
+        SyncActionType.clearAttendance: AttendanceSyncHandler(attendanceRepo),
+        SyncActionType.upsertStudent: StudentSyncHandler(studentRepo),
+        SyncActionType.archiveStudent: StudentSyncHandler(studentRepo),
+        SyncActionType.restoreStudent: StudentSyncHandler(studentRepo),
+        SyncActionType.updateResult: ResultsSyncHandler(resultsRepo),
+        SyncActionType.createSession: AttendanceSessionSyncHandler(sessionRepo),
+        SyncActionType.closeSession: AttendanceSessionSyncHandler(sessionRepo),
+        SyncActionType.createPastoralRecord: PastoralSyncHandler(pastoralRepo),
       },
     );
     await syncService.init();

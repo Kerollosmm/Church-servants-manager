@@ -1,3 +1,4 @@
+import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/utils/pagination_cursor.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
@@ -32,17 +33,32 @@ class ServantDataBloc extends Bloc<ServantDataEvent, ServantDataState> {
   }) : _repository = repository,
        _provisionUseCase = provisionUseCase,
        super(const ServantDataInitial()) {
-    on<ServantsLoadRequested>(_onServantsLoadRequested);
+    on<ServantsLoadRequested>(
+      _onServantsLoadRequested,
+      transformer: restartable(),
+    );
     on<ServantsSearchRequested>(
       _onServantsSearchRequested,
       transformer: debounceRestartable(),
     );
-    on<ServantCreateRequested>(_onServantCreateRequested);
-    on<ServantUpdateRequested>(_onServantUpdateRequested);
-    on<ServantDeleted>(_onServantDeleted);
-    on<ServantRestored>(_onServantRestored);
-    on<ServantsRefreshRequested>(_onServantsRefreshRequested);
-    on<ServantsLoadMoreRequested>(_onServantsLoadMoreRequested);
+    on<ServantCreateRequested>(
+      _onServantCreateRequested,
+      transformer: droppable(),
+    );
+    on<ServantUpdateRequested>(
+      _onServantUpdateRequested,
+      transformer: droppable(),
+    );
+    on<ServantDeleted>(_onServantDeleted, transformer: droppable());
+    on<ServantRestored>(_onServantRestored, transformer: droppable());
+    on<ServantsRefreshRequested>(
+      _onServantsRefreshRequested,
+      transformer: restartable(),
+    );
+    on<ServantsLoadMoreRequested>(
+      _onServantsLoadMoreRequested,
+      transformer: restartable(),
+    );
   }
 
   final IServantRepository _repository;

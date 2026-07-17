@@ -1,5 +1,6 @@
 import 'dart:developer' as developer;
 
+import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:church_management_system/features/admin/data/admin_team_service.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/servant/domain/entities/servant.dart';
@@ -29,17 +30,29 @@ class TeamBloc extends Bloc<TeamEvent, TeamState> {
   }) : _teamRepository = teamRepository,
        _adminTeamService = adminTeamService,
        super(const TeamInitial()) {
-    on<TeamLoadRequested>(_onTeamLoadRequested);
-    on<TeamLoadAllRequested>(_onTeamLoadAllRequested);
-    on<TeamLoadByIdsRequested>(_onTeamLoadByIdsRequested);
-    on<TeamCreateRequested>(_onTeamCreateRequested);
-    on<TeamUpdateRequested>(_onTeamUpdateRequested);
-    on<TeamDeleteRequested>(_onTeamDeleteRequested);
-    on<TeamRestoreRequested>(_onTeamRestoreRequested);
+    on<TeamLoadRequested>(_onTeamLoadRequested, transformer: restartable());
+    on<TeamLoadAllRequested>(
+      _onTeamLoadAllRequested,
+      transformer: restartable(),
+    );
+    on<TeamLoadByIdsRequested>(
+      _onTeamLoadByIdsRequested,
+      transformer: restartable(),
+    );
+    on<TeamCreateRequested>(_onTeamCreateRequested, transformer: droppable());
+    on<TeamUpdateRequested>(_onTeamUpdateRequested, transformer: droppable());
+    on<TeamDeleteRequested>(_onTeamDeleteRequested, transformer: droppable());
+    on<TeamRestoreRequested>(_onTeamRestoreRequested, transformer: droppable());
     on<TeamSelected>(_onTeamSelected);
-    on<ServantAssignedToTeam>(_onServantAssignedToTeam);
-    on<ServantUnassignedFromTeam>(_onServantUnassignedFromTeam);
-    on<TeamMembersSet>(_onTeamMembersSet);
+    on<ServantAssignedToTeam>(
+      _onServantAssignedToTeam,
+      transformer: droppable(),
+    );
+    on<ServantUnassignedFromTeam>(
+      _onServantUnassignedFromTeam,
+      transformer: droppable(),
+    );
+    on<TeamMembersSet>(_onTeamMembersSet, transformer: droppable());
   }
 
   void _emitUserFacingError(

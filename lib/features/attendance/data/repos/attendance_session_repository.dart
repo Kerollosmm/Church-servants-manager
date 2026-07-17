@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:church_management_system/core/constants/firestore_collections.dart';
+import 'package:church_management_system/core/constants/sync_action_type.dart';
 import 'package:church_management_system/core/models/sync_entry.dart';
 import 'package:church_management_system/core/services/cache_tracker.dart';
 import 'package:church_management_system/core/services/sync_service.dart';
@@ -196,9 +197,9 @@ class AttendanceSessionRepository {
     }
 
     // 2. Try online write or fallback to outbox queue
-    final syncEntry = SyncEntry(
+    final syncEntry = SyncEntry.create(
       id: 'close_session_$sessionId',
-      actionType: 'CLOSE_SESSION',
+      action: SyncActionType.closeSession,
       payload: {'teamId': teamId, 'sessionId': sessionId, 'isClosed': isClosed},
       createdAt: DateTime.now(),
     );

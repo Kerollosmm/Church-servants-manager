@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:developer' as developer;
 
+import 'package:church_management_system/core/constants/sync_action_type.dart';
 import 'package:church_management_system/core/models/sync_entry.dart';
 import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
@@ -126,9 +127,9 @@ class AttendanceBloc extends Bloc<AttendanceEvent, AttendanceState> {
     emit(currentState.copyWith(roster: updatedRoster));
 
     // 2. Background Sync
-    final syncEntry = SyncEntry(
+    final syncEntry = SyncEntry.create(
       id: 'mark_${currentState.session.id}_${event.studentId}',
-      actionType: 'MARK_ATTENDANCE',
+      action: SyncActionType.markAttendance,
       payload: {
         'teamId': currentState.session.teamId,
         'sessionId': currentState.session.id,

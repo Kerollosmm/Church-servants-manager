@@ -1,5 +1,6 @@
 import 'package:church_management_system/core/blocs/connectivity/connectivity_cubit.dart';
 import 'package:church_management_system/core/blocs/sync/sync_cubit.dart';
+import 'package:church_management_system/core/constants/sync_action_type.dart';
 import 'package:church_management_system/core/routing/app_router.dart';
 import 'package:church_management_system/core/services/dead_letter_queue.dart';
 import 'package:church_management_system/core/services/hive_pruning_service.dart';
@@ -107,23 +108,23 @@ void _registerCore() {
       () => SyncService(
         deadLetterQueue: getIt<DeadLetterQueue>(),
         handlers: {
-          'MARK_ATTENDANCE': getIt<AttendanceSyncHandler>(),
-          'CLEAR_ATTENDANCE': getIt<AttendanceSyncHandler>(),
-          'UPSERT_STUDENT': getIt<StudentSyncHandler>(),
-          'ARCHIVE_STUDENT': getIt<StudentSyncHandler>(),
-          'RESTORE_STUDENT': getIt<StudentSyncHandler>(),
-          'UPDATE_RESULT': getIt<ResultsSyncHandler>(),
-          'CREATE_SESSION': getIt<AttendanceSessionSyncHandler>(),
-          'CLOSE_SESSION': getIt<AttendanceSessionSyncHandler>(),
-          'CREATE_PASTORAL_RECORD': getIt<PastoralSyncHandler>(),
-          'CREATE_TEAM': getIt<TeamSyncHandler>(),
-          'UPDATE_TEAM': getIt<TeamSyncHandler>(),
-          'DELETE_TEAM': getIt<TeamSyncHandler>(),
-          'RESTORE_TEAM': getIt<TeamSyncHandler>(),
-          'CREATE_SERVANT': getIt<ServantSyncHandler>(),
-          'UPDATE_SERVANT': getIt<ServantSyncHandler>(),
-          'ARCHIVE_SERVANT': getIt<ServantSyncHandler>(),
-          'RESTORE_SERVANT': getIt<ServantSyncHandler>(),
+          SyncActionType.markAttendance: getIt<AttendanceSyncHandler>(),
+          SyncActionType.clearAttendance: getIt<AttendanceSyncHandler>(),
+          SyncActionType.upsertStudent: getIt<StudentSyncHandler>(),
+          SyncActionType.archiveStudent: getIt<StudentSyncHandler>(),
+          SyncActionType.restoreStudent: getIt<StudentSyncHandler>(),
+          SyncActionType.updateResult: getIt<ResultsSyncHandler>(),
+          SyncActionType.createSession: getIt<AttendanceSessionSyncHandler>(),
+          SyncActionType.closeSession: getIt<AttendanceSessionSyncHandler>(),
+          SyncActionType.createPastoralRecord: getIt<PastoralSyncHandler>(),
+          SyncActionType.createTeam: getIt<TeamSyncHandler>(),
+          SyncActionType.updateTeam: getIt<TeamSyncHandler>(),
+          SyncActionType.deleteTeam: getIt<TeamSyncHandler>(),
+          SyncActionType.restoreTeam: getIt<TeamSyncHandler>(),
+          SyncActionType.createServant: getIt<ServantSyncHandler>(),
+          SyncActionType.updateServant: getIt<ServantSyncHandler>(),
+          SyncActionType.archiveServant: getIt<ServantSyncHandler>(),
+          SyncActionType.restoreServant: getIt<ServantSyncHandler>(),
         },
       ),
     )

@@ -91,9 +91,12 @@ class _ExportAttendanceButtonState extends State<ExportAttendanceButton> {
       final file = File('${directory.path}/تقرير_حضور_${widget.teamName}.csv');
       await file.writeAsString(csvString);
 
-      await Share.shareXFiles([
-        XFile(file.path),
-      ], text: 'تقرير حضور فريق ${widget.teamName}');
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path)],
+          text: 'تقرير حضور فريق ${widget.teamName}',
+        ),
+      );
 
       if (await file.exists()) {
         await file.delete();

@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
+import 'package:church_management_system/core/constants/sync_action_type.dart';
 import 'package:church_management_system/core/models/sync_entry.dart';
 import 'package:church_management_system/core/services/firestore_batch_util.dart';
 import 'package:church_management_system/core/services/sync_service.dart';
@@ -82,9 +83,9 @@ class StudentDataRepository implements IStudentRepository {
       // REQUIRED for dedup: box.put() overwrites by id, so re-enqueuing the
       // same upsert must collapse onto the prior queued (unsent) entry rather
       // than append a second one. A timestamp/UUID suffix would defeat this.
-      final syncEntry = SyncEntry(
+      final syncEntry = SyncEntry.create(
         id: 'upsert_student_${updatedStudent.docID}',
-        actionType: 'UPSERT_STUDENT',
+        action: SyncActionType.upsertStudent,
         payload: {
           'student': pendingStudent.toMap(),
           'syncLinkedUser': true,
@@ -293,9 +294,11 @@ class StudentDataRepository implements IStudentRepository {
 
       final hasEmail = email != null && email.trim().isNotEmpty;
 
-      final syncEntry = SyncEntry(
+      final syncEntry = SyncEntry.create(
         id: 'upsert_student_$docId',
-        actionType: hasEmail ? 'CREATE_STUDENT_INVITATION' : 'UPSERT_STUDENT',
+        action: hasEmail
+            ? SyncActionType.createStudentInvitation
+            : SyncActionType.upsertStudent,
         payload: {
           'student': finalStudent.toMap(),
           if (hasEmail) ...{'email': email.trim().toLowerCase()},
@@ -340,9 +343,9 @@ class StudentDataRepository implements IStudentRepository {
       await _localDatasource.saveStudent(pendingStudent);
 
       final hasLinkedUser = student.uid.trim().isNotEmpty;
-      final syncEntry = SyncEntry(
+      final syncEntry = SyncEntry.create(
         id: 'upsert_student_${student.docID}',
-        actionType: 'UPSERT_STUDENT',
+        action: SyncActionType.upsertStudent,
         payload: {
           'student': pendingStudent.toMap(),
           if (hasLinkedUser) ...{
@@ -387,9 +390,9 @@ class StudentDataRepository implements IStudentRepository {
       await _localDatasource.saveStudent(pendingStudent);
 
       final hasLinkedUser = student.uid.trim().isNotEmpty;
-      final syncEntry = SyncEntry(
+      final syncEntry = SyncEntry.create(
         id: 'upsert_student_${student.docID}',
-        actionType: 'UPSERT_STUDENT',
+        action: SyncActionType.upsertStudent,
         payload: {
           'student': pendingStudent.toMap(),
           if (hasLinkedUser) ...{
@@ -454,9 +457,9 @@ class StudentDataRepository implements IStudentRepository {
       );
       await _localDatasource.saveStudent(archivedStudent);
 
-      final syncEntry = SyncEntry(
+      final syncEntry = SyncEntry.create(
         id: 'archive_student_${docId}_${DateTime.now().millisecondsSinceEpoch}',
-        actionType: 'ARCHIVE_STUDENT',
+        action: SyncActionType.archiveStudent,
         payload: {
           'docId': docId,
           'performedByUid': performedByUid,
@@ -504,9 +507,9 @@ class StudentDataRepository implements IStudentRepository {
       );
       await _localDatasource.saveStudent(restoredStudent);
 
-      final syncEntry = SyncEntry(
+      final syncEntry = SyncEntry.create(
         id: 'restore_student_${docId}_${DateTime.now().millisecondsSinceEpoch}',
-        actionType: 'RESTORE_STUDENT',
+        action: SyncActionType.restoreStudent,
         payload: {
           'docId': docId,
           'performedByUid': performedByUid,

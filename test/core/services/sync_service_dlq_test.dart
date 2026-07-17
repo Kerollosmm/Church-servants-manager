@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:church_management_system/core/constants/sync_action_type.dart';
 import 'package:church_management_system/core/models/sync_entry.dart';
 import 'package:church_management_system/core/services/dead_letter_queue.dart';
 import 'package:church_management_system/core/services/sync_service.dart';
@@ -80,16 +81,15 @@ void main() {
       connectivity: mockConnectivity,
       backoffProvider: (_) => Duration.zero,
       handlers: {
-        'MARK_ATTENDANCE': AttendanceSyncHandler(mockAttendance),
-        'CLEAR_ATTENDANCE': AttendanceSyncHandler(mockAttendance),
-        'UPSERT_STUDENT': StudentSyncHandler(mockStudent),
-        'UPDATE_STUDENT': StudentSyncHandler(mockStudent),
-        'ARCHIVE_STUDENT': StudentSyncHandler(mockStudent),
-        'RESTORE_STUDENT': StudentSyncHandler(mockStudent),
-        'UPDATE_RESULT': ResultsSyncHandler(mockResults),
-        'CREATE_SESSION': AttendanceSessionSyncHandler(mockSession),
-        'CLOSE_SESSION': AttendanceSessionSyncHandler(mockSession),
-        'CREATE_PASTORAL_RECORD': PastoralSyncHandler(mockPastoral),
+        SyncActionType.markAttendance: AttendanceSyncHandler(mockAttendance),
+        SyncActionType.clearAttendance: AttendanceSyncHandler(mockAttendance),
+        SyncActionType.upsertStudent: StudentSyncHandler(mockStudent),
+        SyncActionType.archiveStudent: StudentSyncHandler(mockStudent),
+        SyncActionType.restoreStudent: StudentSyncHandler(mockStudent),
+        SyncActionType.updateResult: ResultsSyncHandler(mockResults),
+        SyncActionType.createSession: AttendanceSessionSyncHandler(mockSession),
+        SyncActionType.closeSession: AttendanceSessionSyncHandler(mockSession),
+        SyncActionType.createPastoralRecord: PastoralSyncHandler(mockPastoral),
       },
     );
     await syncService.init();

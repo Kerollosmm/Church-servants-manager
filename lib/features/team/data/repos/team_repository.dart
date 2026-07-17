@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
+import 'package:church_management_system/core/constants/sync_action_type.dart';
 import 'package:church_management_system/core/models/sync_entry.dart';
 import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/core/utils/list_extensions.dart';
@@ -412,9 +413,9 @@ class TeamRepository implements ITeamRepository {
       // Write to Hive first
       await _localDatasource.cacheTeam(model);
 
-      final syncEntry = SyncEntry(
+      final syncEntry = SyncEntry.create(
         id: 'create_team_$generatedId',
-        actionType: 'CREATE_TEAM',
+        action: SyncActionType.createTeam,
         payload: {'team': model.toMap(), 'registryId': registryId},
         createdAt: DateTime.now(),
       );
@@ -492,9 +493,9 @@ class TeamRepository implements ITeamRepository {
       // Write to Hive first
       await _localDatasource.cacheTeam(model);
 
-      final syncEntry = SyncEntry(
+      final syncEntry = SyncEntry.create(
         id: 'update_team_${team.id}',
-        actionType: 'UPDATE_TEAM',
+        action: SyncActionType.updateTeam,
         payload: model.toMap(),
         createdAt: DateTime.now(),
       );
@@ -617,9 +618,9 @@ class TeamRepository implements ITeamRepository {
         await _localDatasource.cacheTeam(updated);
       }
 
-      final syncEntry = SyncEntry(
+      final syncEntry = SyncEntry.create(
         id: 'delete_team_$id',
-        actionType: 'DELETE_TEAM',
+        action: SyncActionType.deleteTeam,
         payload: {'id': id},
         createdAt: DateTime.now(),
       );
@@ -747,9 +748,9 @@ class TeamRepository implements ITeamRepository {
         await _localDatasource.cacheTeam(updated);
       }
 
-      final syncEntry = SyncEntry(
+      final syncEntry = SyncEntry.create(
         id: 'restore_team_$id',
-        actionType: 'RESTORE_TEAM',
+        action: SyncActionType.restoreTeam,
         payload: {'id': id},
         createdAt: DateTime.now(),
       );

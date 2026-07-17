@@ -326,12 +326,15 @@ class StudentDetailScreen extends StatelessWidget {
               Expanded(
                 child: InkWell(
                   onTap: () {
-                    Share.share(
-                      'تفاصيل المخدوم:\n'
-                      'الاسم: ${student.name}\n'
-                      'الصف: ${_getGradeText(student.grade, student.educationStage)}\n'
-                      'المجموعة: ${student.group.displayName}\n'
-                      'الموبايل: ${student.mobile}',
+                    SharePlus.instance.share(
+                      ShareParams(
+                        text:
+                            'تفاصيل المخدوم:\n'
+                            'الاسم: ${student.name}\n'
+                            'الصف: ${_getGradeText(student.grade, student.educationStage)}\n'
+                            'المجموعة: ${student.group.displayName}\n'
+                            'الموبايل: ${student.mobile}',
+                      ),
                     );
                   },
                   borderRadius: BorderRadius.circular(8),

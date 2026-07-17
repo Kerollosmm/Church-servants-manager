@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:church_management_system/core/constants/enums.dart';
+import 'package:church_management_system/core/constants/sync_action_type.dart';
 import 'package:church_management_system/core/models/sync_entry.dart';
 import 'package:church_management_system/core/services/cache_tracker.dart';
 import 'package:church_management_system/core/services/sync_service.dart';
@@ -212,9 +213,9 @@ class AttendanceRepository implements IAttendanceRepository {
     );
 
     await _syncServiceGetter().enqueue(
-      SyncEntry(
+      SyncEntry.create(
         id: 'mark_${sessionId}_$studentId',
-        actionType: 'MARK_ATTENDANCE',
+        action: SyncActionType.markAttendance,
         payload: {
           'teamId': teamId,
           'sessionId': sessionId,
@@ -260,9 +261,9 @@ class AttendanceRepository implements IAttendanceRepository {
     );
 
     await _syncServiceGetter().enqueue(
-      SyncEntry(
+      SyncEntry.create(
         id: 'mark_${sessionId}_$studentId',
-        actionType: 'MARK_ATTENDANCE',
+        action: SyncActionType.markAttendance,
         payload: {
           'teamId': teamId,
           'sessionId': sessionId,
@@ -294,9 +295,9 @@ class AttendanceRepository implements IAttendanceRepository {
 
     final now = _nowProvider();
     await _syncServiceGetter().enqueue(
-      SyncEntry(
+      SyncEntry.create(
         id: 'mark_${sessionId}_$studentId',
-        actionType: 'CLEAR_ATTENDANCE',
+        action: SyncActionType.clearAttendance,
         payload: {
           'teamId': teamId,
           'sessionId': sessionId,
@@ -340,9 +341,9 @@ class AttendanceRepository implements IAttendanceRepository {
       );
 
       await _syncServiceGetter().enqueue(
-        SyncEntry(
+        SyncEntry.create(
           id: 'mark_${sessionId}_${item.studentId}',
-          actionType: 'MARK_ATTENDANCE',
+          action: SyncActionType.markAttendance,
           payload: {
             'teamId': teamId,
             'sessionId': sessionId,
@@ -583,7 +584,7 @@ class AttendanceRepository implements IAttendanceRepository {
 
   @override
   Future<void> syncOfflineMark(Map<String, dynamic> payload) async {
-    var resolvedPayload = Map<String, dynamic>.from(payload);
+    final resolvedPayload = Map<String, dynamic>.from(payload);
     var teamId = resolvedPayload['teamId'] as String?;
     final sessionId = resolvedPayload['sessionId'] as String;
 
@@ -652,7 +653,7 @@ class AttendanceRepository implements IAttendanceRepository {
 
   @override
   Future<void> syncOfflineClear(Map<String, dynamic> payload) async {
-    var resolvedPayload = Map<String, dynamic>.from(payload);
+    final resolvedPayload = Map<String, dynamic>.from(payload);
     var teamId = resolvedPayload['teamId'] as String?;
     final sessionId = resolvedPayload['sessionId'] as String;
     final studentId = resolvedPayload['studentId'] as String;
@@ -714,7 +715,7 @@ class AttendanceRepository implements IAttendanceRepository {
     }
 
     final patchedPayloads = payloads.map((payload) {
-      var patched = Map<String, dynamic>.from(payload);
+      final patched = Map<String, dynamic>.from(payload);
       if (patched['teamId'] == null || (patched['teamId'] as String).isEmpty) {
         patched['teamId'] = effectiveTeamId;
       }

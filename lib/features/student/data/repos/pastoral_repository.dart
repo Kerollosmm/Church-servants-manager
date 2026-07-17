@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
+import 'package:church_management_system/core/constants/sync_action_type.dart';
 import 'package:church_management_system/core/models/sync_entry.dart';
 import 'package:church_management_system/core/services/cache_tracker.dart';
 import 'package:church_management_system/core/services/sync_service.dart';
@@ -52,9 +53,9 @@ class PastoralRepository implements IPastoralRepository {
     // Save to local cache first
     await _localDatasource.savePastoralRecord(pendingRecord);
 
-    final syncEntry = SyncEntry(
+    final syncEntry = SyncEntry.create(
       id: 'create_pastoral_record_${pendingRecord.recordId}',
-      actionType: 'CREATE_PASTORAL_RECORD',
+      action: SyncActionType.createPastoralRecord,
       payload: pendingRecord.toMap(),
       createdAt: DateTime.now(),
     );

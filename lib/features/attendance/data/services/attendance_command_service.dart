@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:church_management_system/core/constants/firestore_collections.dart';
+import 'package:church_management_system/core/constants/sync_action_type.dart';
 import 'package:church_management_system/core/models/sync_entry.dart';
 import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/core/utils/bulk_operation_result.dart';
@@ -139,9 +140,9 @@ class AttendanceCommandService {
       );
 
       if (isOffline) {
-        final syncEntry = SyncEntry(
+        final syncEntry = SyncEntry.create(
           id: 'create_session_${candidate.id}',
-          actionType: 'CREATE_SESSION',
+          action: SyncActionType.createSession,
           payload: AttendanceSessionModel.fromDomain(candidate).toMap(),
           createdAt: DateTime.now(),
         );
