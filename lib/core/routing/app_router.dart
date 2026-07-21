@@ -1,8 +1,12 @@
+import 'package:flutter/material.dart';
+
 import 'package:church_management_system/core/constants/routes.dart';
+import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/routing/route_args.dart';
 import 'package:church_management_system/core/widgets/not_found_screen.dart';
 import 'package:church_management_system/features/admin/presentation/screens/admin_dashboard_screen.dart';
 import 'package:church_management_system/features/admin/presentation/widget/admin_gate.dart';
+import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
 import 'package:church_management_system/features/attendance/presentation/screens/attendance_history_screen.dart';
 import 'package:church_management_system/features/attendance/presentation/screens/attendance_session_create_screen.dart';
 import 'package:church_management_system/features/attendance/presentation/screens/attendance_taking_screen.dart';
@@ -20,7 +24,6 @@ import 'package:church_management_system/features/student/presentation/screens/s
 import 'package:church_management_system/features/student/presentation/screens/student_management_screen.dart';
 import 'package:church_management_system/features/team/presentation/screens/team_management_screen.dart';
 import 'package:church_management_system/features/team/presentation/screens/team_members_screen.dart';
-import 'package:flutter/material.dart';
 
 class AppRouter {
   Route<Object?> _buildPageRoute({
@@ -140,7 +143,10 @@ class AppRouter {
       case attendanceTaking:
         return _buildArgsValidatedRoute<AttendanceTakingArgs>(
           settings: settings,
-          builder: (args) => AttendanceTakingScreen(args: args),
+          builder: (args) => AttendanceTakingScreen(
+            args: args,
+            attendanceRepository: getIt<IAttendanceRepository>(),
+          ),
           invalidMessage: 'Invalid attendance session data',
         );
       case attendanceHistory:

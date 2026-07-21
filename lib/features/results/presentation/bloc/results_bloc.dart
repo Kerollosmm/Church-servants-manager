@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'package:church_management_system/features/results/domain/entities/result.dart';
 import 'package:church_management_system/features/results/domain/repos/i_results_repository.dart';
 import 'package:church_management_system/features/results/presentation/bloc/results_event.dart';
@@ -35,7 +36,13 @@ class ResultsBloc extends Bloc<ResultsEvent, ResultsState> {
 
       // If we wanted a double-emit (cache then server), we'd need more granular repo methods.
       // For now, the repo's getResultsForServant does cache-then-server internally if cache is empty.
-    } catch (e) {
+    } catch (e, stackTrace) {
+      developer.log(
+        'Failed to load results',
+        name: 'ResultsBloc',
+        error: e,
+        stackTrace: stackTrace,
+      );
       emit(ResultsError(message: e.toString()));
     }
   }
@@ -44,8 +51,14 @@ class ResultsBloc extends Bloc<ResultsEvent, ResultsState> {
     ResultUpdateRequested event,
     Emitter<ResultsState> emit,
   ) async {
+    List<Result>? previousResults;
+    bool previousIsFromCache = false;
+
     if (state is ResultsLoaded) {
       final currentState = state as ResultsLoaded;
+      previousResults = List<Result>.from(currentState.results);
+      previousIsFromCache = currentState.isFromCache;
+
       final updatedResults = List<Result>.from(currentState.results);
       final index = updatedResults.indexWhere(
         (r) => r.studentId == event.result.studentId,
@@ -68,9 +81,23 @@ class ResultsBloc extends Bloc<ResultsEvent, ResultsState> {
 
     try {
       await _resultsRepository.updateResult(event.result);
-    } catch (e) {
-      // Revert or show error
-      emit(ResultsError(message: e.toString()));
+    } catch (e, stackTrace) {
+      developer.log(
+        'Failed to update result',
+        name: 'ResultsBloc',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      // Revert optimistic update if previous state existed
+      if (previousResults != null) {
+        emit(
+          ResultsLoaded(
+            results: previousResults,
+            isFromCache: previousIsFromCache,
+          ),
+        );
+      }
+      emit(const ResultsError(message: 'تعذر تحديث الدرجات. يرجى المحاولة مرة أخرى.'));
     }
   }
 }

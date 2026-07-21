@@ -99,7 +99,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       } else {
         emit(AuthAuthenticated(user));
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      developer.log(
+        'Auth check failed, using cached state',
+        name: 'AuthBloc',
+        error: e,
+        stackTrace: stackTrace,
+      );
       final cached = _authService.lastKnownAppUser;
       if (cached != null) {
         if (cached.isArchived) {
@@ -256,7 +262,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       emit(const AuthUnauthenticated());
     } on AuthFailure catch (e) {
       emit(AuthError(e.message));
-    } catch (_) {
+    } catch (e, stackTrace) {
+      developer.log(
+        'Sign out failed',
+        name: 'AuthBloc',
+        error: e,
+        stackTrace: stackTrace,
+      );
       emit(const AuthError('Sign out failed. Please try again.'));
     }
   }
@@ -319,7 +331,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       } else {
         emit(AuthAuthenticated(user));
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      developer.log(
+        'Auth check on session change failed',
+        name: 'AuthBloc',
+        error: e,
+        stackTrace: stackTrace,
+      );
       final cached = _authService.lastKnownAppUser;
       if (cached != null) {
         if (cached.isArchived) {
@@ -405,7 +423,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       }
 
       emit(const AuthPasswordResetSuccess());
-    } catch (e) {
+    } catch (e, stackTrace) {
+      developer.log(
+        'Failed to force password reset',
+        name: 'AuthBloc',
+        error: e,
+        stackTrace: stackTrace,
+      );
       emit(const AuthError('فشل في تغيير كلمة المرور. حاول مرة أخرى.'));
     }
   }

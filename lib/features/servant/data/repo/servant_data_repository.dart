@@ -313,12 +313,20 @@ class ServantDataRepository implements IServantRepository {
 
       final remoteResults = _servantsFromDocs(snapshot.docs, includeArchived);
       // Cache remote results locally
-      for (final doc in snapshot.docs) {
-        try {
-          await _localDatasource.cacheServant(
-            ServantModel.fromMap(doc.data(), doc.id),
-          );
-        } catch (_) {}
+      try {
+        final models = snapshot.docs
+            .map((doc) => ServantModel.fromMap(doc.data(), doc.id))
+            .toList();
+        if (models.isNotEmpty) {
+          await _localDatasource.cacheServants(models);
+        }
+      } catch (e, stackTrace) {
+        developer.log(
+          'Failed to batch cache servants in searchServantsByQuery',
+          name: 'ServantDataRepository',
+          error: e,
+          stackTrace: stackTrace,
+        );
       }
       return remoteResults;
     } catch (e) {

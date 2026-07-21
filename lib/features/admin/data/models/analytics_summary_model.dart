@@ -61,8 +61,6 @@ class AnalyticsSummaryModel with _$AnalyticsSummaryModel {
 
   /// Serializes to a Firestore-compatible map (excludes client-only [fetchedAt]).
   Map<String, dynamic> toMap() {
-    final json = toJson();
-    json.remove('fetchedAt');
-    return json;
+    return toJson()..remove('fetchedAt');
   }
 }

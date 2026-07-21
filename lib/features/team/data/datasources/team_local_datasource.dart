@@ -36,6 +36,18 @@ class TeamLocalDatasource {
     return _teamsBox!.get(id);
   }
 
+  Future<List<TeamModel>> getCachedTeamsByIds(List<String> ids) async {
+    await init();
+    final result = <TeamModel>[];
+    for (final id in ids) {
+      final team = _teamsBox!.get(id);
+      if (team != null) {
+        result.add(team);
+      }
+    }
+    return result;
+  }
+
   /// Returns all cached teams, optionally filtering out archived ones.
   Future<List<TeamModel>> getCachedTeams({bool includeArchived = false}) async {
     await init();

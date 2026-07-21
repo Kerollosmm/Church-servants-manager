@@ -108,10 +108,14 @@ class TeamRepository implements ITeamRepository {
         });
       }
 
-      for (final chunk in userIds.chunk(10)) {
-        final usersSnapshot = await _usersCollection
+      final chunkFutures = userIds.chunk(10).map((chunk) {
+        return _usersCollection
             .where(FieldPath.documentId, whereIn: chunk)
             .get(const GetOptions(source: Source.server));
+      });
+      final chunkSnapshots = await Future.wait(chunkFutures);
+
+      for (final usersSnapshot in chunkSnapshots) {
         for (final userDoc in usersSnapshot.docs) {
           operations.add((batch) {
             batch.set(userDoc.reference, {
@@ -330,11 +334,14 @@ class TeamRepository implements ITeamRepository {
   }) async {
     if (ids.isEmpty) return [];
 
+    final cachedList = await _localDatasource.getCachedTeamsByIds(ids);
+    final cachedMap = {for (final t in cachedList) t.id: t};
+
     final localTeams = <Team>[];
     final missingIds = <String>[];
 
     for (final id in ids) {
-      final cached = await _localDatasource.getCachedTeamById(id);
+      final cached = cachedMap[id];
       if (cached != null) {
         if (includeArchived || !cached.isArchived) {
           localTeams.add(cached.toDomain());
