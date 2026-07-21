@@ -19,6 +19,140 @@ service cloud.firestore {
       allow write: if hasRole('admin');
     }
 
+    function isAdmin() {
+      return isSignedIn() && callerRole() == 'admin';
+    }
+
+    function isActiveUser() {
+      return getCallerData().get('isArchived', false) == false;
+    }
+
+    function isServantOrAdmin() {
+      return isSignedIn() && isActiveUser() && callerRole() in ['admin', 'servant', 'teacher'];
+    }
+
+    // ───────────────────────────────────────────────────────────────
+    // SECTOR-SCOPED RBAC HELPERS
+    // ───────────────────────────────────────────────────────────────
+
+    function callerManagesSector(sectorId) {
+      let callerData = getCallerData();
+      let callerSectors = callerData.get('assignedSectorIds', []);
+      return isServantOrAdmin() && (
+        isAdmin() ||
+        sectorId in callerSectors
+      );
+    }
+
+    // Returns true when the caller can manage the student's sector.
+    function callerManagesStudentSector(studentData) {
+      return studentData != null &&
+             callerManagesSector(studentData.get('sectorId', '__none__'));
+    }
+
+    // Returns true when the caller can manage the student's sector or team.
+    function callerManagesStudent(studentData) {
+      return studentData != null && (
+        callerManagesSector(studentData.get('sectorId', '__none__')) ||
+        callerManagesTeam(studentData.get('classId', '__none__'))
+      );
+    }
+
+    // ───────────────────────────────────────────────────────────────
+    // TEAM / CLASS HELPERS  (preserves existing team-based access)
+    // ───────────────────────────────────────────────────────────────
+
+    function callerManagesTeam(classId) {
+      let callerData = getCallerData();
+      let callerTeamId = callerData.get('assignedTeamId', '');
+      let callerTeamIds = callerData.get('assignedTeamIds', []);
+      return isServantOrAdmin() && (
+        isAdmin() ||
+        classId == callerTeamId ||
+        classId in callerTeamIds
+      );
+    }
+
+    // ───────────────────────────────────────────────────────────────
+    // FIELD GUARDS
+    // ───────────────────────────────────────────────────────────────
+
+    function isImmutable(field) {
+      return !(field in resource.data) ||
+             !(field in request.resource.data) ||
+             request.resource.data[field] == resource.data[field];
+    }
+
+    function valInResource(field) {
+      return field in request.resource.data;
+    }
+
+    function isPrivilegedStudentField() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny([
+        'role', 'uid', 'isArchived', 'classId', 'group',
+        'sectorId', 'assignedTeamIds', 'assignedTeamId'
+      ]);
+    }
+
+    // ───────────────────────────────────────────────────────────────
+    // VALIDATION HELPERS
+    // ───────────────────────────────────────────────────────────────
+
+    function validName(field) {
+      return field is string && field.size() > 0 && field.size() <= 200;
+    }
+
+    function validPointsDelta() {
+      let d = request.resource.data.delta;
+      return d is int && d != 0 && d >= -1000 && d <= 1000;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // DEFAULT DENY
+    // ═══════════════════════════════════════════════════════════════
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // SERVANTS COLLECTION
+    // ═══════════════════════════════════════════════════════════════
+
+    match /Users/{servantId} {
+      // Own profile, admin, or any signed-in servant.
+      allow read: if isSignedIn() && (servantId == uid() || isServantOrAdmin());
+
+      // Only admin can create servants/admins; authenticated users can self-register with default student role.
+      allow create: if (
+        isSignedIn() &&
+        servantId == uid() &&
+        request.resource.data.get('role', '') == 'student' &&
+        request.resource.data.get('assignedSectorIds', []).size() == 0 &&
+        request.resource.data.get('assignedTeamIds', []).size() == 0 &&
+        request.resource.data.get('assignedTeamId', '') == ''
+      ) || isAdmin();
+
+      // Servants can edit their own non-privileged fields.
+      allow update: if isSignedIn() && (
+        isAdmin() || (
+          servantId == uid() &&
+          isImmutable('role') &&
+          isImmutable('uid') &&
+          isImmutable('isArchived') &&
+          isImmutable('assignedTeamIds') &&
+          isImmutable('assignedSectorIds') &&
+          isImmutable('assignedTeamId')
+        )
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // STUDENTS COLLECTION
+    // ═══════════════════════════════════════════════════════════════
+
     match /Students/{studentId} {
       allow read: if isStudentOwner(studentId) || hasRole('servant') || hasRole('admin');
       allow write: if hasRole('servant') || hasRole('admin');
@@ -30,17 +164,154 @@ service cloud.firestore {
     }
 
     match /AttendanceSessions/{sessionId} {
-      allow read, write: if hasRole('servant') || hasRole('admin');
+      allow read: if isSignedIn() && (
+        isAdmin() ||
+        callerManagesTeam(resource.data.teamId) ||
+        uid() in resource.data.get('studentIdsSnapshot', [])
+      );
+      allow create: if isSignedIn() && (
+        isAdmin() || callerManagesTeam(request.resource.data.teamId)
+      );
+      allow update: if isSignedIn() && (
+        isAdmin() || (
+          callerManagesTeam(resource.data.teamId) &&
+          isImmutable('teamId')
+        )
+      );
+      allow delete: if isAdmin();
 
-      match /marks/{studentDocId} {
-        allow read: if isStudentOwner(resource.data.studentId) || hasRole('servant') || hasRole('admin');
-        allow write: if hasRole('servant') || hasRole('admin');
+      match /records/{markId} {
+        allow read: if isSignedIn() && (
+          isAdmin() ||
+          (resource.data.get('teamId', '') != '' ? callerManagesTeam(resource.data.teamId) : false) ||
+          resource.data.get('studentId', '') == uid()
+        );
+
+        allow create: if isSignedIn() && (
+          isAdmin() ||
+          (
+            request.resource.data.get('teamId', '') != '' &&
+            request.resource.data.get('markedByUserId', '') == uid() &&
+            request.resource.data.teamId == get(/databases/$(database)/documents/AttendanceSessions/$(sessionId)).data.get('teamId', '') &&
+            callerManagesTeam(request.resource.data.teamId)
+          )
+        );
+
+        allow update: if isSignedIn() && (
+          isAdmin() ||
+          (
+            isImmutable('studentId') &&
+            isImmutable('teamId') &&
+            (resource.data.get('teamId', '') == '' || callerManagesTeam(resource.data.teamId)) &&
+            (resource.data.get('markedByUserId', '') == '' || resource.data.get('markedByUserId', '') == uid()) &&
+            (
+              !('markedByUserId' in resource.data) ||
+              !('markedByUserId' in request.resource.data) ||
+              request.resource.data.get('markedByUserId', '') == resource.data.get('markedByUserId', '')
+            )
+          )
+        );
+
+        allow delete: if isAdmin();
       }
     }
 
-    match /attendance_marks/{markId} {
-      allow read: if isStudentOwner(resource.data.studentId) || hasRole('servant') || hasRole('admin');
-      allow write: if hasRole('servant') || hasRole('admin');
+    // ═══════════════════════════════════════════════════════════════
+    // RESULTS COLLECTION
+    // ═══════════════════════════════════════════════════════════════
+
+    match /results/{studentId} {
+      allow read: if isSignedIn() && (
+        studentId == uid() ||
+        isAdmin() ||
+        (isServantOrAdmin() && callerManagesStudent(get(/databases/$(database)/documents/Students/$(studentId)).data))
+      );
+      allow write: if isAdmin() || (
+        isServantOrAdmin() &&
+        callerManagesStudent(get(/databases/$(database)/documents/Students/$(studentId)).data)
+      );
+
+      match /terms/{termId} {
+        allow read: if isSignedIn() && (
+          studentId == uid() ||
+          isAdmin() ||
+          (isServantOrAdmin() && callerManagesStudent(get(/databases/$(database)/documents/Students/$(studentId)).data))
+        );
+        allow write: if isAdmin() || (
+          isServantOrAdmin() &&
+          callerManagesStudent(get(/databases/$(database)/documents/Students/$(studentId)).data)
+        );
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // SECTORS ANALYTICS (Pre-aggregated, read-only for authorized users)
+    // ═══════════════════════════════════════════════════════════════
+
+    match /SectorsAnalytics/{sectorId} {
+      allow read: if isSignedIn() && (
+        isAdmin() ||
+        callerManagesSector(sectorId)
+      );
+
+      allow write: if false;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // SUPPORTING COLLECTIONS
+    // ═══════════════════════════════════════════════════════════════
+
+    match /team_uniqueness_registry/{registryId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /Invitations/{email} {
+      allow get: if isAdmin();
+      allow list: if false;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /admin/{document=**} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /audit_logs/{logId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // COLLECTION GROUP RULES (Required for global collection group queries)
+    // ═══════════════════════════════════════════════════════════════
+
+    match /{path=**}/AttendanceSessions/{sessionId} {
+      allow read: if isSignedIn() && (
+        isAdmin() ||
+        callerManagesTeam(resource.data.teamId) ||
+        uid() in resource.data.get('studentIdsSnapshot', [])
+      );
+    }
+
+    match /{path=**}/records/{markId} {
+      allow read: if isSignedIn() && (
+        isAdmin() ||
+        resource.data.get('studentId', '') == uid() ||
+        (resource.data.get('teamId', '') != '' ? callerManagesTeam(resource.data.teamId) : false)
+      );
+    }
+
+    match /{path=**}/terms/{termId} {
+      allow read: if isSignedIn() && (
+        resource.data.studentId == uid() ||
+        isAdmin() ||
+        (isServantOrAdmin() && callerManagesStudent(get(/databases/$(database)/documents/Students/$(resource.data.studentId)).data))
+      );
+    }
+
+    match /{path=**}/PastoralRecords/{recordId} {
+      allow read: if isAdmin();
     }
   }
 }

@@ -78,7 +78,7 @@ describe('Firestore Security Rules', () => {
   async function seedSession(sessionId, data) {
     await testEnv.withSecurityRulesDisabled(async (context) => {
       const db = context.firestore();
-      await setDoc(doc(db, 'attendance', sessionId), {
+      await setDoc(doc(db, 'AttendanceSessions', sessionId), {
         teamId: 'team-1',
         startsAt: new Date(),
         endsAt: new Date(Date.now() + 30 * 60000),
@@ -131,6 +131,13 @@ describe('Firestore Security Rules', () => {
       await seedUser(uid, { role: 'servant' });
       const db = testEnv.authenticatedContext(uid).firestore();
       await assertFails(updateDoc(doc(db, 'Users', uid), { role: 'admin' }));
+    });
+
+    test('user cannot change their own assignedTeamId', async () => {
+      const uid = 'user-123';
+      await seedUser(uid, { role: 'servant', assignedTeamId: 'team-1' });
+      const db = testEnv.authenticatedContext(uid).firestore();
+      await assertFails(updateDoc(doc(db, 'Users', uid), { assignedTeamId: 'team-2' }));
     });
   });
 
@@ -413,6 +420,120 @@ describe('Firestore Security Rules', () => {
         sectorId: 'sector-1',
         classId: 'team-2',
         isArchived: false,
+      }));
+    });
+
+    test('new user cannot self-register with pre-seeded privileged fields', async () => {
+      const newUid = 'new-user-preseeded';
+      const db = testEnv.authenticatedContext(newUid).firestore();
+      await assertFails(setDoc(doc(db, 'Users', newUid), {
+        uid: newUid,
+        name: 'Malicious Student',
+        email: 'preseeded@example.com',
+        role: 'student',
+        isArchived: false,
+        assignedSectorIds: ['sector-1'],
+        assignedTeamIds: ['team-1'],
+        assignedTeamId: 'team-1',
+      }));
+    });
+
+    test('servant cannot update session to change teamId', async () => {
+      const servantId = 'servant-1';
+      const sessionId = 'session-123';
+      await seedUser(servantId, { role: 'servant', assignedTeamIds: ['team-1', 'team-2'] });
+      await seedSession(sessionId, { teamId: 'team-1' });
+      const db = testEnv.authenticatedContext(servantId, { role: 'servant' }).firestore();
+      await assertFails(updateDoc(doc(db, 'AttendanceSessions', sessionId), {
+        teamId: 'team-2',
+      }));
+    });
+
+    test('servant cannot update mark to change studentId or teamId', async () => {
+      const servantId = 'servant-1';
+      const sessionId = 'session-123';
+      const markId = 'mark-123';
+      await seedUser(servantId, { role: 'servant', assignedTeamIds: ['team-1'] });
+      await seedSession(sessionId, { teamId: 'team-1' });
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        const db = context.firestore();
+        await setDoc(doc(db, 'AttendanceSessions', sessionId, 'records', markId), {
+          studentId: 'student-1',
+          teamId: 'team-1',
+          status: 'present',
+          markedByUserId: servantId,
+        });
+      });
+      const db = testEnv.authenticatedContext(servantId, { role: 'servant' }).firestore();
+      await assertFails(updateDoc(doc(db, 'AttendanceSessions', sessionId, 'records', markId), {
+        studentId: 'student-2',
+      }));
+      await assertFails(updateDoc(doc(db, 'AttendanceSessions', sessionId, 'records', markId), {
+        teamId: 'team-2',
+      }));
+    });
+  });
+
+  // --- Tests: Admin Collection ---
+  describe('Admin collection', () => {
+    test('admin can read admin collection docs', async () => {
+      const adminId = 'admin-1';
+      await seedUser(adminId, { role: 'admin' });
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        const db = context.firestore();
+        await setDoc(doc(db, 'admin', 'config'), {
+          someKey: 'someValue',
+        });
+      });
+      const db = testEnv.authenticatedContext(adminId, { role: 'admin' }).firestore();
+      await assertSucceeds(getDoc(doc(db, 'admin', 'config')));
+    });
+
+    test('admin cannot write/update/delete admin collection docs', async () => {
+      const adminId = 'admin-1';
+      await seedUser(adminId, { role: 'admin' });
+      const db = testEnv.authenticatedContext(adminId, { role: 'admin' }).firestore();
+      await assertFails(setDoc(doc(db, 'admin', 'config'), {
+        someKey: 'maliciousUpdate',
+      }));
+    });
+
+    test('non-admin has zero access to admin collection docs', async () => {
+      const servantId = 'servant-1';
+      await seedUser(servantId, { role: 'servant' });
+      const db = testEnv.authenticatedContext(servantId, { role: 'servant' }).firestore();
+      await assertFails(getDoc(doc(db, 'admin', 'config')));
+      await assertFails(setDoc(doc(db, 'admin', 'config'), {
+        someKey: 'unauthorized',
+      }));
+    });
+  });
+
+  // --- Tests: Active Status & Teacher Role ---
+  describe('Active Status & Teacher Role Rules', () => {
+    test('archived servant (isArchived: true) is denied read and write access', async () => {
+      const servantId = 'servant-archived-1';
+      const teamId = 'team-archived-1';
+      await seedUser(servantId, { assignedTeamId: teamId, role: 'servant', isArchived: true });
+      await seedStudent('student-archived-1', { classId: teamId });
+
+      const db = testEnv.authenticatedContext(servantId, { role: 'servant', assignedTeamId: teamId }).firestore();
+      await assertFails(getDoc(doc(db, 'Students', 'student-archived-1')));
+      await assertFails(updateDoc(doc(db, 'Students', 'student-archived-1'), { name: 'New Name' }));
+    });
+
+    test('teacher role can read team students and create attendance session', async () => {
+      const teacherId = 'teacher-1';
+      const teamId = 'team-teacher-1';
+      await seedUser(teacherId, { assignedTeamId: teamId, role: 'teacher', isArchived: false });
+      await seedStudent('student-teacher-1', { classId: teamId });
+
+      const db = testEnv.authenticatedContext(teacherId, { role: 'teacher', assignedTeamId: teamId }).firestore();
+      await assertSucceeds(getDoc(doc(db, 'Students', 'student-teacher-1')));
+      await assertSucceeds(setDoc(doc(db, 'AttendanceSessions', 'session-teacher-1'), {
+        teamId: teamId,
+        startsAt: '2026-03-09T18:00:00Z',
+        isClosed: false,
       }));
     });
   });
