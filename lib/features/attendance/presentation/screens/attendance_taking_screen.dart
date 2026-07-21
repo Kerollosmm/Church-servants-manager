@@ -1,31 +1,35 @@
+import 'package:flutter/material.dart';
+
+import 'package:flutter_bloc/flutter_bloc.dart';
+
 import 'package:church_management_system/core/blocs/connectivity/connectivity_cubit.dart';
 import 'package:church_management_system/core/constants/enums.dart';
-import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/routing/route_args.dart';
-import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
 import 'package:church_management_system/core/widgets/common/app_info_banner.dart';
 import 'package:church_management_system/core/widgets/feedback/app_snackbars.dart';
-import 'package:church_management_system/features/attendance/data/local/attendance_local_datasource.dart';
-import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
-import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
 import 'package:church_management_system/features/attendance/domain/entities/attendance_enums.dart';
 import 'package:church_management_system/features/attendance/domain/entities/attendance_roster_item.dart';
+import 'package:church_management_system/features/attendance/domain/entities/attendance_session.dart';
+import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_bloc.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_event.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_state.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/session_admin/attendance_session_admin_cubit.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/session_admin/attendance_session_admin_state.dart';
 import 'package:church_management_system/features/attendance/presentation/widgets/barcode_scanner_widget.dart';
-import 'package:church_management_system/features/auth/data/models/auth_user.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:church_management_system/features/auth/domain/entities/auth_user.dart';
 
 class AttendanceTakingScreen extends StatefulWidget {
-  const AttendanceTakingScreen({super.key, required this.args});
+  const AttendanceTakingScreen({
+    super.key,
+    required this.args,
+    required this.attendanceRepository,
+  });
 
   final AttendanceTakingArgs args;
+  final IAttendanceRepository attendanceRepository;
 
   @override
   State<AttendanceTakingScreen> createState() => _AttendanceTakingScreenState();
@@ -49,21 +53,18 @@ class _AttendanceTakingScreenState extends State<AttendanceTakingScreen> {
       providers: [
         BlocProvider<AttendanceTakingBloc>(
           create: (context) =>
-              AttendanceTakingBloc(
-                repository: getIt<AttendanceRepository>(),
-                localDatasource: getIt<AttendanceLocalDatasource>(),
-                syncService: getIt<SyncService>(),
-              )..add(
-                InitializeSessionEvent(
-                  teamId: widget.args.teamId,
-                  sessionId: widget.args.sessionId,
-                  actor: widget.args.actor,
+              AttendanceTakingBloc(repository: widget.attendanceRepository)
+                ..add(
+                  InitializeSessionEvent(
+                    teamId: widget.args.teamId,
+                    sessionId: widget.args.sessionId,
+                    actor: widget.args.actor,
+                  ),
                 ),
-              ),
         ),
         BlocProvider<AttendanceSessionAdminCubit>(
           create: (context) => AttendanceSessionAdminCubit(
-            repository: getIt<AttendanceRepository>(),
+            repository: widget.attendanceRepository,
           ),
         ),
       ],

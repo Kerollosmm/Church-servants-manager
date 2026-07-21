@@ -51,6 +51,17 @@ class AttendanceLocalDatasource {
     await _cache.put(_key(teamId, sessionId, studentId), mark);
   }
 
+  /// Saves multiple marks to the local cache in a batch.
+  Future<void> cacheMarks({
+    required String teamId,
+    required String sessionId,
+    required Map<String, AttendanceMark> marks,
+  }) async {
+    await _ensureBoxOpen();
+    final entries = marks.map((studentId, mark) => MapEntry(_key(teamId, sessionId, studentId), mark));
+    await _cache.putAll(entries);
+  }
+
   /// Returns a cached mark, or `null` if absent.
   AttendanceMark? getCachedMark({
     required String teamId,

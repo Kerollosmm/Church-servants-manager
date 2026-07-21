@@ -1,4 +1,5 @@
 import 'package:church_management_system/core/utils/bulk_operation_result.dart';
+import 'package:church_management_system/features/attendance/data/models/attendance_mark.dart';
 import 'package:church_management_system/features/attendance/domain/entities/attendance_enums.dart';
 import 'package:church_management_system/features/attendance/domain/entities/attendance_roster_item.dart';
 import 'package:church_management_system/features/attendance/domain/entities/attendance_roster_snapshot.dart';
@@ -137,5 +138,39 @@ abstract class IAttendanceRepository {
     required String teamId,
     required String sessionId,
     required List<Map<String, dynamic>> payloads,
+  });
+
+  /// Caches a mark locally.
+  Future<void> cacheMark({
+    required String teamId,
+    required String sessionId,
+    required String studentId,
+    required AttendanceMark mark,
+  });
+
+  /// Caches multiple marks locally in a single batch.
+  Future<void> cacheMarks({
+    required String teamId,
+    required String sessionId,
+    required Map<String, AttendanceMark> marks,
+  });
+
+  /// Clears the local attendance mark cache.
+  Future<void> clearLocalCache();
+
+  /// Gets cached marks for a session from local storage.
+  Map<String, AttendanceMark> getCachedMarksForSession({
+    required String teamId,
+    required String sessionId,
+  });
+
+  /// Batches writes attendance marks online with offline fallback.
+  Future<void> batchWriteMarks({
+    required String teamId,
+    required String sessionId,
+    required Map<String, ({AttendanceMarkStatus status, DateTime markedAt})>
+    marks,
+    required AuthUser markedBy,
+    bool cachedPermission = false,
   });
 }

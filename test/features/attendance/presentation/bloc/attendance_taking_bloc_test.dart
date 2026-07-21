@@ -1,5 +1,4 @@
 import 'package:church_management_system/core/constants/enums.dart';
-import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/features/attendance/data/local/attendance_local_datasource.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_mark.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_session.dart';
@@ -20,8 +19,6 @@ class MockAttendanceRepository extends Mock implements AttendanceRepository {}
 class MockAttendanceLocalDatasource extends Mock
     implements AttendanceLocalDatasource {}
 
-class MockSyncService extends Mock implements SyncService {}
-
 class AuthUserFake extends Fake implements AuthUser {}
 
 class FakeAttendanceMark extends Fake implements AttendanceMark {}
@@ -29,7 +26,6 @@ class FakeAttendanceMark extends Fake implements AttendanceMark {}
 void main() {
   late MockAttendanceRepository repository;
   late MockAttendanceLocalDatasource localDatasource;
-  late MockSyncService mockSyncService;
 
   setUpAll(() {
     registerFallbackValue(AuthUserFake());
@@ -39,7 +35,6 @@ void main() {
   setUp(() {
     repository = MockAttendanceRepository();
     localDatasource = MockAttendanceLocalDatasource();
-    mockSyncService = MockSyncService();
     when(
       () => localDatasource.cacheMark(
         teamId: any(named: 'teamId'),
@@ -141,6 +136,23 @@ void main() {
         teamId: any(named: 'teamId'),
       ),
     ).thenAnswer((_) async => true);
+    when(
+      () => repository.cacheMark(
+        teamId: any(named: 'teamId'),
+        sessionId: any(named: 'sessionId'),
+        studentId: any(named: 'studentId'),
+        mark: any(named: 'mark'),
+      ),
+    ).thenAnswer((_) async {});
+    when(
+      () => repository.clearLocalCache(),
+    ).thenAnswer((_) async {});
+    when(
+      () => repository.getCachedMarksForSession(
+        teamId: any(named: 'teamId'),
+        sessionId: any(named: 'sessionId'),
+      ),
+    ).thenReturn({});
   });
 
   tearDown(() async {});
@@ -149,8 +161,6 @@ void main() {
     test('emits Loading then Loaded on initialize', () async {
       final bloc = AttendanceTakingBloc(
         repository: repository,
-        localDatasource: localDatasource,
-        syncService: mockSyncService,
         nowProvider: () => DateTime(2026, 3, 9, 18, 10),
       );
 
@@ -210,8 +220,6 @@ void main() {
 
       final bloc = AttendanceTakingBloc(
         repository: repository,
-        localDatasource: localDatasource,
-        syncService: mockSyncService,
         nowProvider: () => DateTime(2026, 3, 9, 18, 10),
       );
       when(
@@ -283,8 +291,6 @@ void main() {
 
         final bloc = AttendanceTakingBloc(
           repository: repository,
-          localDatasource: localDatasource,
-          syncService: mockSyncService,
           nowProvider: () => DateTime(2026, 3, 9, 18, 10),
         );
         when(
@@ -357,8 +363,6 @@ void main() {
 
       final bloc = AttendanceTakingBloc(
         repository: repository,
-        localDatasource: localDatasource,
-        syncService: mockSyncService,
         nowProvider: () => DateTime(2026, 3, 9, 18, 10),
       );
       when(
@@ -426,8 +430,6 @@ void main() {
 
         final bloc = AttendanceTakingBloc(
           repository: repository,
-          localDatasource: localDatasource,
-          syncService: mockSyncService,
           nowProvider: () => DateTime(2026, 3, 9, 18, 10),
         );
         when(
@@ -487,8 +489,6 @@ void main() {
 
       final bloc = AttendanceTakingBloc(
         repository: repository,
-        localDatasource: localDatasource,
-        syncService: mockSyncService,
         nowProvider: () => DateTime(2026, 3, 9, 18, 10),
       );
       when(
@@ -558,8 +558,6 @@ void main() {
 
       final bloc = AttendanceTakingBloc(
         repository: repository,
-        localDatasource: localDatasource,
-        syncService: mockSyncService,
         nowProvider: () => DateTime(2026, 3, 9, 18, 10),
       );
 

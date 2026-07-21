@@ -910,29 +910,45 @@ class AttendanceCommandService {
 
       final entries = marks.entries.toList(growable: false);
       for (final chunk in entries.chunk(400)) {
+        // Pre-fetch all existing docs in parallel before running the transaction to avoid N sequential gets inside it
+        final preFetchFutures = <Future<DocumentSnapshot<Map<String, dynamic>>>>[];
+        final markRefsAndEntries =
+            <
+              DocumentReference<Map<String, dynamic>>,
+              MapEntry<
+                String,
+                ({AttendanceMarkStatus status, DateTime markedAt})
+              >
+            >{};
+
+        for (final entry in chunk) {
+          final studentId = entry.key;
+          final markRef = _markDoc(teamId, sessionId, studentId);
+          markRefsAndEntries[markRef] = entry;
+          preFetchFutures.add(_cachedGet(markRef));
+        }
+
+        final snapshots = await Future.wait(preFetchFutures);
+        final existingDocsMap = {
+          for (int i = 0; i < snapshots.length; i++) snapshots[i].reference: snapshots[i]
+        };
+
         await _firestore.runTransaction((transaction) async {
           int chunkPresentDelta = 0;
 
-          // 1. Gather all documents
-          final markRefsAndEntries =
-              <
-                DocumentReference<Map<String, dynamic>>,
-                MapEntry<
-                  String,
-                  ({AttendanceMarkStatus status, DateTime markedAt})
-                >
-              >{};
           final existingDocs =
               <
                 DocumentReference<Map<String, dynamic>>,
                 DocumentSnapshot<Map<String, dynamic>>
               >{};
 
-          for (final entry in chunk) {
-            final studentId = entry.key;
-            final markRef = _markDoc(teamId, sessionId, studentId);
-            markRefsAndEntries[markRef] = entry;
-            existingDocs[markRef] = await transaction.get(markRef);
+          for (final markRef in markRefsAndEntries.keys) {
+            final cachedDoc = existingDocsMap[markRef];
+            if (cachedDoc != null && cachedDoc.exists) {
+              existingDocs[markRef] = cachedDoc;
+            } else {
+              existingDocs[markRef] = await transaction.get(markRef);
+            }
           }
 
           // 2. Perform transactional updates

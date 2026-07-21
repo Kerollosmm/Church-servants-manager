@@ -169,6 +169,20 @@ void main() {
       cachedMarks.putIfAbsent(sessionId, () => {})[studentId] = mark;
     });
 
+    when(
+      () => attendanceLocalDatasource.cacheMarks(
+        teamId: any(named: 'teamId'),
+        sessionId: any(named: 'sessionId'),
+        marks: any(named: 'marks'),
+      ),
+    ).thenAnswer((invocation) async {
+      final sessionId =
+          invocation.namedArguments[const Symbol('sessionId')] as String;
+      final marks =
+          invocation.namedArguments[const Symbol('marks')] as Map<String, AttendanceMark>;
+      cachedMarks.putIfAbsent(sessionId, () => {}).addAll(marks);
+    });
+
     // We mock getStudentsByClass to return students that were seeded in firestore
     when(
       () => studentQueryService.getStudentsByClass(

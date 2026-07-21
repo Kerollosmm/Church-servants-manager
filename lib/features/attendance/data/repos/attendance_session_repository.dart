@@ -39,7 +39,14 @@ class AttendanceSessionRepository {
     try {
       final cached = await ref.get(const GetOptions(source: Source.cache));
       if (cached.exists) return cached;
-    } catch (_) {}
+    } catch (e, stackTrace) {
+      developer.log(
+        'Failed to read from cache inside _cachedGet',
+        name: 'AttendanceSessionRepository',
+        error: e,
+        stackTrace: stackTrace,
+      );
+    }
     return ref.get(const GetOptions(source: Source.server));
   }
 
@@ -108,13 +115,25 @@ class AttendanceSessionRepository {
       final sessions = _mapSessionsSnapshot(snapshot);
       await _localDatasource.cacheSessions(sessions);
       return sessions;
-    } catch (_) {
+    } catch (e, stackTrace) {
+      developer.log(
+        'Failed to get active sessions from server, falling back to cache',
+        name: 'AttendanceSessionRepository',
+        error: e,
+        stackTrace: stackTrace,
+      );
       try {
         final cachedSnapshot = await query.get(
           const GetOptions(source: Source.cache),
         );
         return _mapSessionsSnapshot(cachedSnapshot);
-      } catch (_) {
+      } catch (innerError, innerStack) {
+        developer.log(
+          'Failed to get active sessions from cache fallback',
+          name: 'AttendanceSessionRepository',
+          error: innerError,
+          stackTrace: innerStack,
+        );
         return [];
       }
     }
@@ -161,13 +180,25 @@ class AttendanceSessionRepository {
       final sessions = _mapSessionsSnapshot(snapshot);
       await _localDatasource.cacheSessions(sessions);
       return sessions;
-    } catch (_) {
+    } catch (e, stackTrace) {
+      developer.log(
+        'Failed to get all sessions from server, falling back to cache',
+        name: 'AttendanceSessionRepository',
+        error: e,
+        stackTrace: stackTrace,
+      );
       try {
         final cachedSnapshot = await query.get(
           const GetOptions(source: Source.cache),
         );
         return _mapSessionsSnapshot(cachedSnapshot);
-      } catch (_) {
+      } catch (innerError, innerStack) {
+        developer.log(
+          'Failed to get all sessions from cache fallback',
+          name: 'AttendanceSessionRepository',
+          error: innerError,
+          stackTrace: innerStack,
+        );
         return [];
       }
     }
@@ -323,13 +354,25 @@ class AttendanceSessionRepository {
       final sessions = _mapSessionsSnapshot(snapshot);
       await _localDatasource.cacheSessions(sessions);
       return sessions;
-    } catch (_) {
+    } catch (e, stackTrace) {
+      developer.log(
+        'Failed to get sessions by date key from server, falling back to cache',
+        name: 'AttendanceSessionRepository',
+        error: e,
+        stackTrace: stackTrace,
+      );
       try {
         final cachedSnapshot = await query.get(
           const GetOptions(source: Source.cache),
         );
         return _mapSessionsSnapshot(cachedSnapshot);
-      } catch (_) {
+      } catch (innerError, innerStack) {
+        developer.log(
+          'Failed to get sessions by date key from cache fallback',
+          name: 'AttendanceSessionRepository',
+          error: innerError,
+          stackTrace: innerStack,
+        );
         return [];
       }
     }

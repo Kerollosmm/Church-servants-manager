@@ -321,7 +321,11 @@ class AttendanceRepository implements IAttendanceRepository {
     );
 
     final unmarked = snapshot.roster.where((item) => !item.isMarked).toList();
+    if (unmarked.isEmpty) return;
+
     final now = _nowProvider();
+    final marksToCache = <String, AttendanceMark>{};
+    final syncEntries = <SyncEntry>[];
 
     for (final item in unmarked) {
       final mark = AttendanceMark(
@@ -333,14 +337,9 @@ class AttendanceRepository implements IAttendanceRepository {
         markedAt: now,
         updatedAt: now,
       );
-      await _attendanceLocalDatasource.cacheMark(
-        teamId: teamId,
-        sessionId: sessionId,
-        studentId: item.studentId,
-        mark: mark,
-      );
+      marksToCache[item.studentId] = mark;
 
-      await _syncServiceGetter().enqueue(
+      syncEntries.add(
         SyncEntry.create(
           id: 'mark_${sessionId}_${item.studentId}',
           action: SyncActionType.markAttendance,
@@ -358,6 +357,16 @@ class AttendanceRepository implements IAttendanceRepository {
         ),
       );
     }
+
+    // Batch cache all marks in a single operation
+    await _attendanceLocalDatasource.cacheMarks(
+      teamId: teamId,
+      sessionId: sessionId,
+      marks: marksToCache,
+    );
+
+    // Batch enqueue all sync entries
+    await _syncServiceGetter().enqueueBatch(syncEntries);
   }
 
   @override
@@ -444,9 +453,10 @@ class AttendanceRepository implements IAttendanceRepository {
                 await _sessionLocalDatasource.cacheSession(
                   remoteSnapshot.session,
                 );
+                final marksToCache = <String, AttendanceMark>{};
                 for (final item in remoteSnapshot.roster) {
                   if (item.isMarked && item.manualStatus != null) {
-                    final mark = AttendanceMark(
+                    marksToCache[item.studentId] = AttendanceMark(
                       studentId: item.studentId,
                       studentNameSnapshot: item.studentName,
                       status: item.manualStatus!,
@@ -455,13 +465,14 @@ class AttendanceRepository implements IAttendanceRepository {
                       markedAt: item.markedAt ?? DateTime.now(),
                       updatedAt: item.markedAt ?? DateTime.now(),
                     );
-                    await _attendanceLocalDatasource.cacheMark(
-                      teamId: teamId,
-                      sessionId: sessionId,
-                      studentId: item.studentId,
-                      mark: mark,
-                    );
                   }
+                }
+                if (marksToCache.isNotEmpty) {
+                  await _attendanceLocalDatasource.cacheMarks(
+                    teamId: teamId,
+                    sessionId: sessionId,
+                    marks: marksToCache,
+                  );
                 }
                 CacheTracker.markFetched(cacheKey);
               })
@@ -485,9 +496,10 @@ class AttendanceRepository implements IAttendanceRepository {
     );
 
     await _sessionLocalDatasource.cacheSession(remoteSnapshot.session);
+    final marksToCache = <String, AttendanceMark>{};
     for (final item in remoteSnapshot.roster) {
       if (item.isMarked && item.manualStatus != null) {
-        final mark = AttendanceMark(
+        marksToCache[item.studentId] = AttendanceMark(
           studentId: item.studentId,
           studentNameSnapshot: item.studentName,
           status: item.manualStatus!,
@@ -496,13 +508,14 @@ class AttendanceRepository implements IAttendanceRepository {
           markedAt: item.markedAt ?? DateTime.now(),
           updatedAt: item.markedAt ?? DateTime.now(),
         );
-        await _attendanceLocalDatasource.cacheMark(
-          teamId: teamId,
-          sessionId: sessionId,
-          studentId: item.studentId,
-          mark: mark,
-        );
       }
+    }
+    if (marksToCache.isNotEmpty) {
+      await _attendanceLocalDatasource.cacheMarks(
+        teamId: teamId,
+        sessionId: sessionId,
+        marks: marksToCache,
+      );
     }
 
     if (cachedMarks.isEmpty) {
@@ -733,6 +746,7 @@ class AttendanceRepository implements IAttendanceRepository {
       payloads: patchedPayloads,
     );
     try {
+      final marksToCache = <String, AttendanceMark>{};
       for (final payload in patchedPayloads) {
         final studentId = payload['studentId'] as String? ?? '';
         if (studentId.isEmpty) continue;
@@ -765,11 +779,13 @@ class AttendanceRepository implements IAttendanceRepository {
           updatedAt: DateTime.now(),
         );
 
-        await _attendanceLocalDatasource.cacheMark(
+        marksToCache[studentId] = updatedMark;
+      }
+      if (marksToCache.isNotEmpty) {
+        await _attendanceLocalDatasource.cacheMarks(
           teamId: effectiveTeamId,
           sessionId: sessionId,
-          studentId: studentId,
-          mark: updatedMark,
+          marks: marksToCache,
         );
       }
     } catch (e, stackTrace) {
@@ -782,6 +798,45 @@ class AttendanceRepository implements IAttendanceRepository {
     }
   }
 
+  @override
+  Future<void> cacheMark({
+    required String teamId,
+    required String sessionId,
+    required String studentId,
+    required AttendanceMark mark,
+  }) => _attendanceLocalDatasource.cacheMark(
+    teamId: teamId,
+    sessionId: sessionId,
+    studentId: studentId,
+    mark: mark,
+  );
+
+  @override
+  Future<void> cacheMarks({
+    required String teamId,
+    required String sessionId,
+    required Map<String, AttendanceMark> marks,
+  }) => _attendanceLocalDatasource.cacheMarks(
+    teamId: teamId,
+    sessionId: sessionId,
+    marks: marks,
+  );
+
+  @override
+  Future<void> clearLocalCache() => _attendanceLocalDatasource.clearCache();
+
+  @override
+  Map<String, AttendanceMark> getCachedMarksForSession({
+    required String teamId,
+    required String sessionId,
+  }) {
+    return _attendanceLocalDatasource.getCachedMarksForSession(
+      teamId: teamId,
+      sessionId: sessionId,
+    );
+  }
+
+  @override
   Future<void> batchWriteMarks({
     required String teamId,
     required String sessionId,
@@ -789,11 +844,54 @@ class AttendanceRepository implements IAttendanceRepository {
     marks,
     required AuthUser markedBy,
     bool cachedPermission = false,
-  }) => _commandService.batchWriteMarks(
-    teamId: teamId,
-    sessionId: sessionId,
-    marks: marks,
-    markedBy: markedBy,
-    cachedPermission: cachedPermission,
-  );
+  }) async {
+    try {
+      await _commandService.batchWriteMarks(
+        teamId: teamId,
+        sessionId: sessionId,
+        marks: marks,
+        markedBy: markedBy,
+        cachedPermission: cachedPermission,
+      );
+    } catch (e, stackTrace) {
+      developer.log(
+        'batchWriteMarks failed online, fallback to offline sync queue...',
+        error: e,
+        stackTrace: stackTrace,
+        name: 'AttendanceRepository',
+      );
+
+      if (e is AttendancePermissionDeniedFailure ||
+          e is AttendanceSessionNotFoundFailure ||
+          e is AttendanceStudentNotInSessionFailure ||
+          e is AttendanceValidationFailure) {
+        rethrow;
+      }
+
+      final syncService = _syncServiceGetter();
+      for (final entry in marks.entries) {
+        final studentId = entry.key;
+        final markStatus = entry.value.status;
+        final markedAt = entry.value.markedAt;
+
+        final syncEntry = SyncEntry.create(
+          id: 'mark_${sessionId}_$studentId',
+          action: SyncActionType.markAttendance,
+          payload: {
+            'teamId': teamId,
+            'sessionId': sessionId,
+            'studentId': studentId,
+            'status': markStatus.name,
+            'markedByUserId': markedBy.uid,
+            'markedByUid': markedBy.uid,
+            'markedByName': markedBy.name,
+            'createdAt': markedAt.toIso8601String(),
+          },
+          createdAt: _nowProvider(),
+        );
+
+        await syncService.enqueue(syncEntry);
+      }
+    }
+  }
 }

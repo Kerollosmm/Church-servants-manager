@@ -2,13 +2,11 @@ import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:bloc_concurrency/bloc_concurrency.dart';
-import 'package:church_management_system/core/services/sync_service.dart';
-import 'package:church_management_system/features/attendance/data/local/attendance_local_datasource.dart';
 import 'package:church_management_system/features/attendance/data/models/attendance_mark.dart';
-import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
 import 'package:church_management_system/features/attendance/domain/entities/attendance_enums.dart';
 import 'package:church_management_system/features/attendance/domain/entities/attendance_roster_snapshot.dart';
 import 'package:church_management_system/features/attendance/domain/failures/attendance_failures.dart';
+import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_event.dart';
 import 'package:church_management_system/features/attendance/presentation/bloc/attendance_taking/attendance_taking_state.dart';
 import 'package:church_management_system/features/auth/domain/entities/auth_user.dart';
@@ -17,16 +15,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 /// Bloc for managing attendance-taking UI state during a session.
 ///
 /// Uses pull-to-refresh model for quota efficiency on Spark plan.
-/// Delegates mutations to [AttendanceRepository] with idempotency guards.
+/// Delegates mutations to [IAttendanceRepository] with idempotency guards.
 class AttendanceTakingBloc
     extends Bloc<AttendanceTakingEvent, AttendanceTakingState> {
   AttendanceTakingBloc({
-    required AttendanceRepository repository,
-    required AttendanceLocalDatasource localDatasource,
-    required SyncService syncService,
+    required IAttendanceRepository repository,
     DateTime Function()? nowProvider,
   }) : _repository = repository,
-       _localDatasource = localDatasource,
        _nowProvider = nowProvider ?? DateTime.now,
        super(const AttendanceTakingInitial()) {
     on<InitializeSessionEvent>(
@@ -50,8 +45,7 @@ class AttendanceTakingBloc
     on<SessionTickEvent>(_onSessionTick, transformer: restartable());
   }
 
-  final AttendanceRepository _repository;
-  final AttendanceLocalDatasource _localDatasource;
+  final IAttendanceRepository _repository;
   final DateTime Function() _nowProvider;
 
   Timer? _sessionTickerTimer;
@@ -119,7 +113,28 @@ class AttendanceTakingBloc
     final snapshot = results[0] as AttendanceRosterSnapshot;
     final status = results[1] as SessionStatus;
 
-    emit(_mapSnapshotToState(snapshot, status));
+    Map<String, ({AttendanceMarkStatus status, DateTime markedAt})>? restoredPending;
+    try {
+      final cachedMarksMap = _repository.getCachedMarksForSession(
+        teamId: teamId,
+        sessionId: sessionId,
+      );
+      if (cachedMarksMap.isNotEmpty) {
+        restoredPending = {
+          for (final entry in cachedMarksMap.entries)
+            entry.key: (status: entry.value.status, markedAt: entry.value.markedAt),
+        };
+      }
+    } catch (e, st) {
+      developer.log(
+        'Failed to restore cached pending marks',
+        error: e,
+        stackTrace: st,
+        name: 'AttendanceTakingBloc',
+      );
+    }
+
+    emit(_mapSnapshotToState(snapshot, status, restoredPendingMarks: restoredPending));
   }
 
   Future<void> _preloadPermission({
@@ -140,8 +155,9 @@ class AttendanceTakingBloc
 
   AttendanceTakingState _mapSnapshotToState(
     AttendanceRosterSnapshot snapshot,
-    SessionStatus status,
-  ) {
+    SessionStatus status, {
+    Map<String, ({AttendanceMarkStatus status, DateTime markedAt})>? restoredPendingMarks,
+  }) {
     final marksMap = {
       for (final item in snapshot.roster)
         if (item.manualStatus != null) item.studentId: item.manualStatus!,
@@ -152,9 +168,10 @@ class AttendanceTakingBloc
         ? currentState.mutationStatus
         : MutationStatus.idle;
 
-    final currentPending = currentState is AttendanceTakingLoaded
-        ? currentState.pendingLocalMarks
-        : const <String, ({AttendanceMarkStatus status, DateTime markedAt})>{};
+    final currentPending = restoredPendingMarks ??
+        (currentState is AttendanceTakingLoaded
+            ? currentState.pendingLocalMarks
+            : const <String, ({AttendanceMarkStatus status, DateTime markedAt})>{});
 
     return AttendanceTakingLoaded(
       session: snapshot.session,
@@ -185,10 +202,10 @@ class AttendanceTakingBloc
     Emitter<AttendanceTakingState> emit,
   ) {
     _handleMarkUpdate(
-      event.item.studentId,
-      AttendanceMarkStatus.present,
-      event.actor,
-      emit,
+      actor: event.actor,
+      studentId: event.item.studentId,
+      targetStatus: AttendanceMarkStatus.present,
+      emit: emit,
     );
   }
 
@@ -197,10 +214,10 @@ class AttendanceTakingBloc
     Emitter<AttendanceTakingState> emit,
   ) {
     _handleMarkUpdate(
-      event.item.studentId,
-      AttendanceMarkStatus.absent,
-      event.actor,
-      emit,
+      actor: event.actor,
+      studentId: event.item.studentId,
+      targetStatus: AttendanceMarkStatus.absent,
+      emit: emit,
     );
   }
 
@@ -209,19 +226,19 @@ class AttendanceTakingBloc
     Emitter<AttendanceTakingState> emit,
   ) {
     _handleMarkUpdate(
-      event.item.studentId,
-      AttendanceMarkStatus.late,
-      event.actor,
-      emit,
+      actor: event.actor,
+      studentId: event.item.studentId,
+      targetStatus: AttendanceMarkStatus.late,
+      emit: emit,
     );
   }
 
-  void _handleMarkUpdate(
-    String studentId,
-    AttendanceMarkStatus targetStatus,
-    AuthUser actor,
-    Emitter<AttendanceTakingState> emit,
-  ) {
+  void _handleMarkUpdate({
+    required AuthUser actor,
+    required String studentId,
+    required AttendanceMarkStatus targetStatus,
+    required Emitter<AttendanceTakingState> emit,
+  }) {
     if (_shouldSkipMutation(studentId, targetStatus)) return;
 
     final cs = state;
@@ -237,20 +254,29 @@ class AttendanceTakingBloc
 
     // Persist to Hive immediately for crash resilience
     unawaited(
-      _localDatasource.cacheMark(
-        teamId: cs.session.teamId,
-        sessionId: cs.session.id,
-        studentId: studentId,
-        mark: AttendanceMark(
-          studentId: studentId,
-          studentNameSnapshot: cs.session.studentNameSnapshots[studentId] ?? '',
-          status: targetStatus,
-          markedByUserId: actor.uid,
-          markedByName: actor.name,
-          markedAt: markedAt,
-          updatedAt: markedAt,
-        ),
-      ),
+      _repository
+          .cacheMark(
+            teamId: cs.session.teamId,
+            sessionId: cs.session.id,
+            studentId: studentId,
+            mark: AttendanceMark(
+              studentId: studentId,
+              studentNameSnapshot: cs.session.studentNameSnapshots[studentId] ?? '',
+              status: targetStatus,
+              markedByUserId: actor.uid,
+              markedByName: actor.name,
+              markedAt: markedAt,
+              updatedAt: markedAt,
+            ),
+          )
+          .catchError((Object error, StackTrace stackTrace) {
+            developer.log(
+              'Failed to cache mark locally',
+              error: error,
+              stackTrace: stackTrace,
+              name: 'AttendanceTakingBloc',
+            );
+          }),
     );
   }
 
@@ -304,7 +330,19 @@ class AttendanceTakingBloc
     final afterState = state;
     if (afterState is AttendanceTakingLoaded) {
       emit(afterState.copyWith(pendingLocalMarks: const {}));
-      unawaited(_localDatasource.clearCache());
+      unawaited(
+        _repository.clearLocalCache().catchError((
+          Object error,
+          StackTrace stackTrace,
+        ) {
+          developer.log(
+            'Failed to clear local cache',
+            error: error,
+            stackTrace: stackTrace,
+            name: 'AttendanceTakingBloc',
+          );
+        }),
+      );
     }
   }
 

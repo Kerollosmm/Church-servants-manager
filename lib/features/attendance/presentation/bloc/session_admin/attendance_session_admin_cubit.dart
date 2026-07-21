@@ -1,16 +1,18 @@
 import 'dart:developer' as developer;
-import 'package:church_management_system/features/attendance/data/repos/attendance_repository.dart';
-import 'package:church_management_system/features/attendance/domain/failures/attendance_failures.dart';
-import 'package:church_management_system/features/attendance/presentation/bloc/session_admin/attendance_session_admin_state.dart';
-import 'package:church_management_system/features/auth/data/models/auth_user.dart';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:church_management_system/features/attendance/domain/failures/attendance_failures.dart';
+import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
+import 'package:church_management_system/features/attendance/presentation/bloc/session_admin/attendance_session_admin_state.dart';
+import 'package:church_management_system/features/auth/domain/entities/auth_user.dart';
+
 class AttendanceSessionAdminCubit extends Cubit<AttendanceSessionAdminState> {
-  AttendanceSessionAdminCubit({required AttendanceRepository repository})
+  AttendanceSessionAdminCubit({required IAttendanceRepository repository})
     : _repository = repository,
       super(const AttendanceSessionAdminInitial());
 
-  final AttendanceRepository _repository;
+  final IAttendanceRepository _repository;
 
   Future<void> createSession({
     required AuthUser actor,
