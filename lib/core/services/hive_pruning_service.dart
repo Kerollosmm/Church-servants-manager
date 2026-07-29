@@ -279,7 +279,14 @@ class HivePruningService {
             map['queuedAt'] ??
             map['markedAt'];
         if (cachedAt is String) return DateTime.tryParse(cachedAt);
-      } catch (_) {}
+      } catch (e, stackTrace) {
+        developer.log(
+          'Failed to decode JSON string in _extractCachedAt',
+          name: 'HivePruningService',
+          error: e,
+          stackTrace: stackTrace,
+        );
+      }
     }
     if (val is AttendanceMark) return val.updatedAt;
     if (val is AttendanceSessionModel) return val.createdAt;

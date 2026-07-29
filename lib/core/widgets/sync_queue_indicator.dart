@@ -113,39 +113,50 @@ class _SyncQueueIndicatorState extends State<SyncQueueIndicator>
                   ),
                 ),
                 if (pendingCount > 0 && !isSyncing)
-                  Positioned(
-                    right: 6,
-                    top: 6,
-                    child: IgnorePointer(
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: AppColors.tertiary, // Burgundy
-                          shape: BoxShape.circle,
-                        ),
-                        constraints: const BoxConstraints(
-                          minWidth: 16,
-                          minHeight: 16,
-                        ),
-                        child: Center(
-                          child: Text(
-                            '$pendingCount',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 9,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+                  _PendingCountBadge(count: pendingCount),
               ],
             ),
           ),
         );
       },
+    );
+  }
+}
+
+class _PendingCountBadge extends StatelessWidget {
+  final int count;
+
+  const _PendingCountBadge({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      right: 6,
+      top: 6,
+      child: IgnorePointer(
+        child: Container(
+          padding: const EdgeInsets.all(4),
+          decoration: const BoxDecoration(
+            color: AppColors.tertiary, // Burgundy
+            shape: BoxShape.circle,
+          ),
+          constraints: const BoxConstraints(
+            minWidth: 16,
+            minHeight: 16,
+          ),
+          child: Center(
+            child: Text(
+              '$count',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 9,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

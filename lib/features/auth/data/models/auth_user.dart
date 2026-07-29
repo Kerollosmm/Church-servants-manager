@@ -93,6 +93,7 @@ class AuthUserModel with _$AuthUserModel {
       role: role,
       isEmailVerified: user.emailVerified,
       assignedTeamIds: assignedTeamIds,
+      // ignore: deprecated_member_use_from_same_package // Preserved for backward compatibility with legacy token claims
       assignedTeamId: legacyTeamId,
       isArchived: isArchived,
     );
@@ -109,6 +110,7 @@ class AuthUserModel with _$AuthUserModel {
         ids.add(trimmed);
       }
     }
+    // ignore: deprecated_member_use_from_same_package // Preserved for backward compatibility with legacy token claims
     final legacyAssignedTeamId = assignedTeamId?.trim();
     if (legacyAssignedTeamId != null && legacyAssignedTeamId.isNotEmpty) {
       ids.add(legacyAssignedTeamId);
@@ -141,6 +143,7 @@ class AuthUserModel with _$AuthUserModel {
       requiresTokenRefresh: requiresTokenRefresh,
       groupId: groupId,
       assignedTeamIds: assignedTeamIds,
+      // ignore: deprecated_member_use_from_same_package // Preserved for backward compatibility with legacy token claims
       assignedTeamId: assignedTeamId,
     );
   }
@@ -162,6 +165,7 @@ class AuthUserModel with _$AuthUserModel {
       requiresTokenRefresh: user.requiresTokenRefresh,
       groupId: user.groupId,
       assignedTeamIds: user.assignedTeamIds,
+      // ignore: deprecated_member_use_from_same_package // Preserved for backward compatibility with legacy token claims
       assignedTeamId: user.assignedTeamId,
     );
   }

@@ -27,17 +27,35 @@ class StudentQueryService {
     try {
       final cached = await ref.get(const GetOptions(source: Source.cache));
       if (cached.exists) return cached;
-    } catch (_) {
-      // Fallback to server if cache read fails
+    } catch (e, stackTrace) {
+      developer.log(
+        'Initial cache lookup failed for document ${ref.path}',
+        name: 'StudentQueryService',
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
     try {
       return await ref.get(const GetOptions(source: Source.server));
-    } catch (e) {
+    } catch (e, stackTrace) {
+      developer.log(
+        'Server fetch failed for document ${ref.path}',
+        name: 'StudentQueryService',
+        error: e,
+        stackTrace: stackTrace,
+      );
       // If server fetch fails, try cache one more time in case of connection loss
       try {
         final cached = await ref.get(const GetOptions(source: Source.cache));
         if (cached.exists) return cached;
-      } catch (_) {}
+      } catch (cacheErr, cacheStackTrace) {
+        developer.log(
+          'Secondary cache fallback failed for document ${ref.path}',
+          name: 'StudentQueryService',
+          error: cacheErr,
+          stackTrace: cacheStackTrace,
+        );
+      }
       rethrow;
     }
   }
@@ -419,14 +437,21 @@ class StudentQueryService {
     }
 
     final chunks = missingIds.chunk(10);
-
-    for (final chunk in chunks) {
-      final snapshot = await _studentsCollection
+    final chunkFutures = chunks.map(
+      (chunk) => _studentsCollection
           .where(FieldPath.documentId, whereIn: chunk)
-          .get(const GetOptions(source: Source.server));
-      final remoteStudents = mapStudentDocs(snapshot.docs).students;
-      await _localDatasource.saveStudents(remoteStudents);
-      students.addAll(remoteStudents);
+          .get(const GetOptions(source: Source.server)),
+    );
+    final snapshots = await Future.wait(chunkFutures);
+
+    final allRemoteStudents = <StudentModel>[];
+    for (final snapshot in snapshots) {
+      allRemoteStudents.addAll(mapStudentDocs(snapshot.docs).students);
+    }
+
+    if (allRemoteStudents.isNotEmpty) {
+      await _localDatasource.saveStudents(allRemoteStudents);
+      students.addAll(allRemoteStudents);
     }
 
     return students;

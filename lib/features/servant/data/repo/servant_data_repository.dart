@@ -151,8 +151,13 @@ class ServantDataRepository implements IServantRepository {
           isFromCache: true,
         );
       }
-    } catch (_) {
-      // Cache miss or other cache error is expected, fallback to server
+    } catch (e, stackTrace) {
+      developer.log(
+        'Cache lookup miss or error in getServantsForGroup',
+        name: 'ServantDataRepository',
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
 
     try {
@@ -193,8 +198,13 @@ class ServantDataRepository implements IServantRepository {
       if (cacheSnapshot.docs.isNotEmpty) {
         return _servantsFromDocs(cacheSnapshot.docs, includeArchived);
       }
-    } catch (_) {
-      // Cache miss or other cache error is expected, fallback to server
+    } catch (e, stackTrace) {
+      developer.log(
+        'Cache lookup miss or error in getAllServants',
+        name: 'ServantDataRepository',
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
 
     try {
@@ -260,8 +270,13 @@ class ServantDataRepository implements IServantRepository {
         if (cacheSnapshot.docs.isNotEmpty) {
           return _servantsFromDocs(cacheSnapshot.docs, includeArchived);
         }
-      } catch (_) {
-        // Cache miss or other cache error is expected, fallback to server
+      } catch (e, stackTrace) {
+        developer.log(
+          'Cache lookup miss or error in getServantsByTeam',
+          name: 'ServantDataRepository',
+          error: e,
+          stackTrace: stackTrace,
+        );
       }
 
       final snapshot = await _usersCollection

@@ -1,5 +1,5 @@
 import 'package:church_management_system/core/theme/app_colors.dart';
-import 'package:church_management_system/core/theme/app_spacing.dart';
+import 'package:church_management_system/core/widgets/app_state_card.dart';
 import 'package:flutter/material.dart';
 
 class AppEmptyState extends StatelessWidget {
@@ -24,44 +24,25 @@ class AppEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 64, color: AppColors.outline),
-            AppSpacing.gapMd,
-            Text(title, style: theme.textTheme.titleMedium),
-            AppSpacing.gapSm,
-            Text(
-              subtitle,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: AppColors.textSecondary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            if (onAction != null && actionLabel != null) ...[
-              AppSpacing.gapMd,
-              FilledButton.icon(
-                onPressed: onAction,
-                icon: const Icon(Icons.add),
-                label: Text(actionLabel!),
-              ),
-            ],
-            if (onRefresh != null) ...[
-              AppSpacing.gapMd,
-              TextButton.icon(
-                onPressed: onRefresh,
-                icon: const Icon(Icons.refresh),
-                label: Text(refreshLabel),
-              ),
-            ],
-          ],
-        ),
-      ),
+    return AppStateCard(
+      icon: icon,
+      iconColor: AppColors.outline,
+      title: title,
+      description: subtitle,
+      actions: [
+        if (onAction != null && actionLabel != null)
+          FilledButton.icon(
+            onPressed: onAction,
+            icon: const Icon(Icons.add),
+            label: Text(actionLabel!),
+          ),
+        if (onRefresh != null)
+          TextButton.icon(
+            onPressed: onRefresh,
+            icon: const Icon(Icons.refresh),
+            label: Text(refreshLabel),
+          ),
+      ],
     );
   }
 }

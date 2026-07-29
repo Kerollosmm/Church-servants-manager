@@ -205,6 +205,21 @@ class ResultsRepository implements IResultsRepository {
       createdAt: DateTime.now(),
     );
 
+    await _tryOnlineWriteOrEnqueue(
+      syncEntry: syncEntry,
+      onlineAction: () => _firestore
+          .collection('results')
+          .doc(model.studentId)
+          .collection('terms')
+          .doc(model.termId)
+          .set(model.toMap(), SetOptions(merge: true)),
+    );
+  }
+
+  Future<void> _tryOnlineWriteOrEnqueue({
+    required SyncEntry syncEntry,
+    required Future<void> Function() onlineAction,
+  }) async {
     try {
       final connectivity = await _connectivity.checkConnectivity();
       if (connectivity.contains(ConnectivityResult.none)) {
@@ -212,12 +227,7 @@ class ResultsRepository implements IResultsRepository {
         return;
       }
 
-      await _firestore
-          .collection('results')
-          .doc(model.studentId)
-          .collection('terms')
-          .doc(model.termId)
-          .set(model.toMap(), SetOptions(merge: true));
+      await onlineAction();
     } on FirebaseException catch (e) {
       if (e.code == 'unavailable' || e.code == 'deadline-exceeded') {
         developer.log(
@@ -228,7 +238,7 @@ class ResultsRepository implements IResultsRepository {
         await _syncServiceGetter().enqueue(syncEntry);
       } else {
         developer.log(
-          'Update result failed with firebase error',
+          'Online write failed with firebase error',
           error: e,
           name: 'ResultsRepository',
         );
@@ -239,7 +249,7 @@ class ResultsRepository implements IResultsRepository {
         rethrow;
       }
       developer.log(
-        'Update result failed, enqueuing for offline sync',
+        'Online write failed, enqueuing for offline sync',
         error: e,
         name: 'ResultsRepository',
       );

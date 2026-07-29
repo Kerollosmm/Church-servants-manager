@@ -73,21 +73,30 @@ final class ServantDataLoaded extends ServantDataState {
     bool clearFeedbackMessage = false,
     bool? isFromCache,
   }) {
+    T? resolve<T>(bool clear, T? value, T? fallback) =>
+        clear ? null : (value ?? fallback);
+
     return ServantDataLoaded(
       servants: servants ?? this.servants,
-      currentFilterTeamName: clearCurrentFilterTeamName
-          ? null
-          : (currentFilterTeamName ?? this.currentFilterTeamName),
-      currentQuery: clearCurrentQuery
-          ? null
-          : (currentQuery ?? this.currentQuery),
+      currentFilterTeamName: resolve(
+        clearCurrentFilterTeamName,
+        currentFilterTeamName,
+        this.currentFilterTeamName,
+      ),
+      currentQuery: resolve(
+        clearCurrentQuery,
+        currentQuery,
+        this.currentQuery,
+      ),
       hasMore: hasMore ?? this.hasMore,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       includeArchived: includeArchived ?? this.includeArchived,
       mutationStatus: mutationStatus ?? this.mutationStatus,
-      feedbackMessage: clearFeedbackMessage
-          ? null
-          : (feedbackMessage ?? this.feedbackMessage),
+      feedbackMessage: resolve(
+        clearFeedbackMessage,
+        feedbackMessage,
+        this.feedbackMessage,
+      ),
       isFromCache: isFromCache ?? this.isFromCache,
     );
   }

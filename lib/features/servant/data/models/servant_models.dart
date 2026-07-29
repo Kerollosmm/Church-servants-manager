@@ -154,6 +154,7 @@ class ServantModel with _$ServantModel {
         ids.add(trimmed);
       }
     }
+    // ignore: deprecated_member_use_from_same_package // Preserved for backward compatibility with legacy database entries
     final legacyId = assignedTeamId?.trim();
     if (legacyId != null && legacyId.isNotEmpty) {
       ids.add(legacyId);
@@ -183,6 +184,7 @@ class ServantModel with _$ServantModel {
       archiveReason: archiveReason,
       restoredAt: restoredAt,
       restoredByUserId: restoredByUserId,
+      // ignore: deprecated_member_use_from_same_package // Preserved for backward compatibility with legacy database entries
       assignedTeamId: assignedTeamId,
       assignedTeamIds: assignedTeamIds,
       groupAttendanceSummary: groupAttendanceSummary,
@@ -212,6 +214,7 @@ class ServantModel with _$ServantModel {
       archiveReason: servant.archiveReason,
       restoredAt: servant.restoredAt,
       restoredByUserId: servant.restoredByUserId,
+      // ignore: deprecated_member_use_from_same_package // Preserved for backward compatibility with legacy database entries
       assignedTeamId: servant.assignedTeamId,
       assignedTeamIds: servant.assignedTeamIds,
       groupAttendanceSummary: servant.groupAttendanceSummary,
