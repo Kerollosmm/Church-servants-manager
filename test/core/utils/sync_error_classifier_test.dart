@@ -18,7 +18,10 @@ void main() {
         ];
 
         for (final code in retriableCodes) {
-          final error = FirebaseException(plugin: 'cloud_firestore', code: code);
+          final error = FirebaseException(
+            plugin: 'cloud_firestore',
+            code: code,
+          );
           expect(
             SyncErrorClassifier.isRetriable(error),
             isTrue,
@@ -37,7 +40,10 @@ void main() {
         ];
 
         for (final code in nonRetriableCodes) {
-          final error = FirebaseException(plugin: 'cloud_firestore', code: code);
+          final error = FirebaseException(
+            plugin: 'cloud_firestore',
+            code: code,
+          );
           expect(
             SyncErrorClassifier.isRetriable(error),
             isFalse,
@@ -50,53 +56,68 @@ void main() {
     group('Typed Network / System Exceptions', () {
       test('returns true for SocketException', () {
         expect(
-          SyncErrorClassifier.isRetriable(const SocketException('Failed host lookup')),
+          SyncErrorClassifier.isRetriable(
+            const SocketException('Failed host lookup'),
+          ),
           isTrue,
         );
       });
 
       test('returns true for TimeoutException', () {
         expect(
-          SyncErrorClassifier.isRetriable(TimeoutException('Operation timed out')),
+          SyncErrorClassifier.isRetriable(
+            TimeoutException('Operation timed out'),
+          ),
           isTrue,
         );
       });
 
       test('returns true for HttpException', () {
         expect(
-          SyncErrorClassifier.isRetriable(const HttpException('503 Service Unavailable')),
+          SyncErrorClassifier.isRetriable(
+            const HttpException('503 Service Unavailable'),
+          ),
           isTrue,
         );
       });
     });
 
     group('Error String Matching Fallback', () {
-      test('returns true for exceptions/strings containing network error keywords', () {
-        expect(
-          SyncErrorClassifier.isRetriable(Exception('Custom SocketException: OS Error')),
-          isTrue,
-        );
-        expect(
-          SyncErrorClassifier.isRetriable('Request timeout after 30 seconds'),
-          isTrue,
-        );
-        expect(
-          SyncErrorClassifier.isRetriable('Database connection failed'),
-          isTrue,
-        );
-        expect(
-          SyncErrorClassifier.isRetriable('Mobile network unreachable'),
-          isTrue,
-        );
-        expect(
-          SyncErrorClassifier.isRetriable('Backend service is currently unavailable'),
-          isTrue,
-        );
-      });
+      test(
+        'returns true for exceptions/strings containing network error keywords',
+        () {
+          expect(
+            SyncErrorClassifier.isRetriable(
+              Exception('Custom SocketException: OS Error'),
+            ),
+            isTrue,
+          );
+          expect(
+            SyncErrorClassifier.isRetriable('Request timeout after 30 seconds'),
+            isTrue,
+          );
+          expect(
+            SyncErrorClassifier.isRetriable('Database connection failed'),
+            isTrue,
+          );
+          expect(
+            SyncErrorClassifier.isRetriable('Mobile network unreachable'),
+            isTrue,
+          );
+          expect(
+            SyncErrorClassifier.isRetriable(
+              'Backend service is currently unavailable',
+            ),
+            isTrue,
+          );
+        },
+      );
 
       test('returns false for non-retriable generic exceptions or strings', () {
         expect(
-          SyncErrorClassifier.isRetriable(Exception('FormatException: Invalid JSON')),
+          SyncErrorClassifier.isRetriable(
+            Exception('FormatException: Invalid JSON'),
+          ),
           isFalse,
         );
         expect(
@@ -104,7 +125,9 @@ void main() {
           isFalse,
         );
         expect(
-          SyncErrorClassifier.isRetriable(StateError('Invalid state transition')),
+          SyncErrorClassifier.isRetriable(
+            StateError('Invalid state transition'),
+          ),
           isFalse,
         );
       });

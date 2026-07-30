@@ -40,10 +40,7 @@ class AppStateCard extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
-            if (actions.isNotEmpty) ...[
-              AppSpacing.gapMd,
-              ...actions,
-            ],
+            if (actions.isNotEmpty) ...[AppSpacing.gapMd, ...actions],
           ],
         ),
       ),

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/routes.dart';
+import 'package:church_management_system/core/extensions/auth_context_extensions.dart';
 import 'package:church_management_system/core/routing/route_args.dart';
 import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
@@ -37,7 +38,7 @@ class _ServantListScreenState extends State<ServantListScreen> {
   @override
   void initState() {
     super.initState();
-    final actor = _currentActorOrNull();
+    final actor = context.currentActorOrNull;
     if (actor != null) {
       context.read<ServantDataBloc>().add(
         ServantsLoadRequested(actor: actor, includeArchived: _showArchived),
@@ -50,13 +51,6 @@ class _ServantListScreenState extends State<ServantListScreen> {
     _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
-  }
-
-  AuthUser? _currentActorOrNull() {
-    final state = context.read<AuthBloc>().state;
-    if (state is AuthAuthenticated) return state.user;
-    if (state is AuthDegraded) return state.user;
-    return null;
   }
 
   void _onSearchChanged(AuthUser actor, String value) {

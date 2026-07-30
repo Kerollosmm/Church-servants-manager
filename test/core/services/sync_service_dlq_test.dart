@@ -3,11 +3,10 @@ import 'dart:io';
 import 'package:church_management_system/core/constants/sync_action_type.dart';
 import 'package:church_management_system/core/models/sync_entry.dart';
 import 'package:church_management_system/core/services/dead_letter_queue.dart';
+import 'package:church_management_system/core/services/sync_handler.dart';
 import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_session_repository.dart';
 import 'package:church_management_system/features/attendance/data/services/attendance_season_sync_handler.dart';
-import 'package:church_management_system/features/attendance/data/services/attendance_sync_handler.dart';
-import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
 import 'package:church_management_system/features/results/data/services/result_sync_handler.dart';
 import 'package:church_management_system/features/results/domain/repos/i_results_repository.dart';
 import 'package:church_management_system/features/student/data/services/pastoral_sync_handler.dart';
@@ -19,7 +18,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:mocktail/mocktail.dart';
 
-class MockAttendanceRepository extends Mock implements IAttendanceRepository {}
+class MockSyncHandler extends Mock implements SyncHandler {}
 
 class MockStudentRepository extends Mock implements IStudentRepository {}
 
@@ -36,7 +35,7 @@ void main() {
   late Directory tempDir;
   late SyncService syncService;
   late DeadLetterQueue dlq;
-  late MockAttendanceRepository mockAttendance;
+  late MockSyncHandler mockAttendanceHandler;
   late MockStudentRepository mockStudent;
   late MockResultsRepository mockResults;
   late MockSessionRepository mockSession;
@@ -58,7 +57,7 @@ void main() {
   });
 
   setUp(() async {
-    mockAttendance = MockAttendanceRepository();
+    mockAttendanceHandler = MockSyncHandler();
     mockStudent = MockStudentRepository();
     mockResults = MockResultsRepository();
     mockSession = MockSessionRepository();
@@ -81,8 +80,8 @@ void main() {
       connectivity: mockConnectivity,
       backoffProvider: (_) => Duration.zero,
       handlers: {
-        SyncActionType.markAttendance: AttendanceSyncHandler(mockAttendance),
-        SyncActionType.clearAttendance: AttendanceSyncHandler(mockAttendance),
+        SyncActionType.markAttendance: mockAttendanceHandler,
+        SyncActionType.clearAttendance: mockAttendanceHandler,
         SyncActionType.upsertStudent: StudentSyncHandler(mockStudent),
         SyncActionType.archiveStudent: StudentSyncHandler(mockStudent),
         SyncActionType.restoreStudent: StudentSyncHandler(mockStudent),
@@ -113,7 +112,7 @@ void main() {
   group('SyncService DLQ integration', () {
     test('entry exceeding max retries is moved to DLQ, not deleted', () async {
       when(
-        () => mockAttendance.syncOfflineMark(any()),
+        () => mockAttendanceHandler.execute(any()),
       ).thenThrow(Exception('persistent failure'));
 
       final entry = SyncEntry(
@@ -140,7 +139,7 @@ void main() {
 
     test('entry that eventually succeeds does not go to DLQ', () async {
       var callCount = 0;
-      when(() => mockAttendance.syncOfflineMark(any())).thenAnswer((_) async {
+      when(() => mockAttendanceHandler.execute(any())).thenAnswer((_) async {
         callCount++;
         if (callCount <= 3) throw Exception('temporary network failure');
       });

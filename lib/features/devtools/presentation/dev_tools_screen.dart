@@ -122,10 +122,9 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                         onPressed: _busy
                             ? null
                             : () => _run(
-                                () =>
-                                    _seeder.assignMeAsStudentAndCreateProfile(
-                                      group: _selectedGroup,
-                                    ),
+                                () => _seeder.assignMeAsStudentAndCreateProfile(
+                                  group: _selectedGroup,
+                                ),
                                 'Role set to Student and profile created.',
                               ),
                         icon: const Icon(Icons.school),
@@ -270,4 +269,3 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     );
   }
 }
-

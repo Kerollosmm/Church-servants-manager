@@ -54,13 +54,16 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('AuthUserLocalStore Security Tests', () {
-    test('rethrows exception on secure storage failure without opening unencrypted storage', () async {
-      final mockStorage = MockFlutterSecureStorage();
-      mockStorage.throwsException = true;
+    test(
+      'rethrows exception on secure storage failure without opening unencrypted storage',
+      () async {
+        final mockStorage = MockFlutterSecureStorage();
+        mockStorage.throwsException = true;
 
-      final store = AuthUserLocalStore(secureStorage: mockStorage);
+        final store = AuthUserLocalStore(secureStorage: mockStorage);
 
-      expect(store.init, throwsA(isA<Exception>()));
-    });
+        expect(store.init, throwsA(isA<Exception>()));
+      },
+    );
   });
 }

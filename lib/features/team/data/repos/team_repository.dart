@@ -210,15 +210,16 @@ class TeamRepository implements ITeamRepository {
       );
       if (cached.isNotEmpty) {
         unawaited(
-          _refreshTeamsByGroupCache(groupId, includeArchived).catchError(
-            (e, st) {
-              developer.log(
-                'Failed background teams cache refresh',
-                error: e,
-                stackTrace: st,
-              );
-            },
-          ),
+          _refreshTeamsByGroupCache(groupId, includeArchived).catchError((
+            e,
+            st,
+          ) {
+            developer.log(
+              'Failed background teams cache refresh',
+              error: e,
+              stackTrace: st,
+            );
+          }),
         );
         final domainTeams = cached.map((m) => m.toDomain()).toList()
           ..sort((a, b) => a.name.compareTo(b.name));
@@ -270,15 +271,16 @@ class TeamRepository implements ITeamRepository {
       );
       if (cached.isNotEmpty) {
         unawaited(
-          _refreshTeamsByGroupCache(groupId, includeArchived).catchError(
-            (e, st) {
-              developer.log(
-                'Failed background teams cache refresh',
-                error: e,
-                stackTrace: st,
-              );
-            },
-          ),
+          _refreshTeamsByGroupCache(groupId, includeArchived).catchError((
+            e,
+            st,
+          ) {
+            developer.log(
+              'Failed background teams cache refresh',
+              error: e,
+              stackTrace: st,
+            );
+          }),
         );
         final domainTeams = cached.map((m) => m.toDomain()).toList()
           ..sort((a, b) => a.name.compareTo(b.name));

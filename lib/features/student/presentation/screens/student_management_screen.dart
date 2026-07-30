@@ -4,6 +4,7 @@ import 'dart:developer' as developer;
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/constants/routes.dart';
 import 'package:church_management_system/core/di/injection.dart';
+import 'package:church_management_system/core/extensions/auth_context_extensions.dart';
 import 'package:church_management_system/core/routing/route_args.dart';
 import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/theme/app_spacing.dart';
@@ -51,7 +52,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
       teamRepository: getIt<TeamRepository>(),
       adminTeamService: getIt<AdminTeamService>(),
     );
-    final actor = _currentActorOrNull();
+    final actor = context.currentActorOrNull;
     if (actor != null) {
       _selectedTeamId =
           actor.role == UserRole.servant &&
@@ -59,8 +60,9 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
           ? actor.effectiveAssignedTeamIds.first
           : null;
       _studentDataBloc.add(
-        StudentsLoadRequested(
+        StudentsSearchRequested(
           actor: actor,
+          query: '',
           teamId: _selectedTeamId,
           includeArchived: _showArchived,
         ),
@@ -76,13 +78,6 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
     _teamCubit.close();
     _searchController.dispose();
     super.dispose();
-  }
-
-  AuthUser? _currentActorOrNull() {
-    final state = context.read<AuthBloc>().state;
-    if (state is AuthAuthenticated) return state.user;
-    if (state is AuthDegraded) return state.user;
-    return null;
   }
 
   void _onSearchChanged(AuthUser actor, String value) {

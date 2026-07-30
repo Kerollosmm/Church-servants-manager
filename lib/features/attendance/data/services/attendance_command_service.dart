@@ -436,7 +436,9 @@ class AttendanceCommandService {
         await Future.wait(unmarkedFutures);
 
         // 2. Student Aggregates (Batched)
-        final aggregateFutures = presentAndLateStudentIds.chunk(450).map((chunk) {
+        final aggregateFutures = presentAndLateStudentIds.chunk(450).map((
+          chunk,
+        ) {
           final batch = _firestore.batch();
           for (final studentId in chunk) {
             final studentRef = _firestore
@@ -705,12 +707,22 @@ class AttendanceCommandService {
                 DocumentSnapshot<Map<String, dynamic>>
               >{};
 
+          final markRefs = <DocumentReference<Map<String, dynamic>>>[];
           for (final payload in chunk) {
             final studentId = payload['studentId'] as String? ?? '';
             if (studentId.isEmpty) continue;
             final markRef = _markDoc(teamId, sessionId, studentId);
             markRefsAndPayloads[markRef] = payload;
-            existingDocs[markRef] = await transaction.get(markRef);
+            markRefs.add(markRef);
+          }
+
+          if (markRefs.isNotEmpty) {
+            final snapshots = await Future.wait(
+              markRefs.map((ref) => transaction.get(ref)),
+            );
+            for (int i = 0; i < markRefs.length; i++) {
+              existingDocs[markRefs[i]] = snapshots[i];
+            }
           }
 
           // 2. Perform transactional updates
@@ -914,7 +926,8 @@ class AttendanceCommandService {
       final entries = marks.entries.toList(growable: false);
       for (final chunk in entries.chunk(400)) {
         // Pre-fetch all existing docs in parallel before running the transaction to avoid N sequential gets inside it
-        final preFetchFutures = <Future<DocumentSnapshot<Map<String, dynamic>>>>[];
+        final preFetchFutures =
+            <Future<DocumentSnapshot<Map<String, dynamic>>>>[];
         final markRefsAndEntries =
             <
               DocumentReference<Map<String, dynamic>>,
@@ -933,7 +946,8 @@ class AttendanceCommandService {
 
         final snapshots = await Future.wait(preFetchFutures);
         final existingDocsMap = {
-          for (int i = 0; i < snapshots.length; i++) snapshots[i].reference: snapshots[i]
+          for (int i = 0; i < snapshots.length; i++)
+            snapshots[i].reference: snapshots[i],
         };
 
         await _firestore.runTransaction((transaction) async {
@@ -945,12 +959,22 @@ class AttendanceCommandService {
                 DocumentSnapshot<Map<String, dynamic>>
               >{};
 
+          final missingRefs = <DocumentReference<Map<String, dynamic>>>[];
           for (final markRef in markRefsAndEntries.keys) {
             final cachedDoc = existingDocsMap[markRef];
             if (cachedDoc != null && cachedDoc.exists) {
               existingDocs[markRef] = cachedDoc;
             } else {
-              existingDocs[markRef] = await transaction.get(markRef);
+              missingRefs.add(markRef);
+            }
+          }
+
+          if (missingRefs.isNotEmpty) {
+            final missingSnapshots = await Future.wait(
+              missingRefs.map((ref) => transaction.get(ref)),
+            );
+            for (int i = 0; i < missingRefs.length; i++) {
+              existingDocs[missingRefs[i]] = missingSnapshots[i];
             }
           }
 

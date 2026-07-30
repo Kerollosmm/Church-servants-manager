@@ -9,6 +9,8 @@ import 'package:church_management_system/core/widgets/form/date_picker_field.dar
 import 'package:flutter/material.dart';
 
 class ServantPrimaryDetailsSection extends StatelessWidget {
+  static const String _phonePlaceholder = '01xxxxxxxxx';
+
   const ServantPrimaryDetailsSection({
     super.key,
     required this.nameController,
@@ -53,7 +55,7 @@ class ServantPrimaryDetailsSection extends StatelessWidget {
           OchreTextField(
             controller: phoneController,
             label: 'رقم الهاتف',
-            placeholder: '01xxxxxxxxx',
+            placeholder: _phonePlaceholder,
             prefixIcon: Icons.phone_outlined,
             validator: Validators.validatePhoneArabic,
           ),

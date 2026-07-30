@@ -16,52 +16,61 @@ void main() {
 
   group('ServantSyncHandler unit tests', () {
     group('CREATE_SERVANT & UPDATE_SERVANT', () {
-      test('upserts servant document with parsed timestamps and server timestamp', () async {
-        final entry = SyncEntry(
-          id: 'sync_1',
-          actionType: 'CREATE_SERVANT',
-          payload: {
-            'docId': 'servant_123',
-            'name': 'John Doe',
-            'email': 'john@example.com',
-            'role': 'servant',
-            'createdAt': '2026-05-10T12:00:00.000Z',
-          },
-          createdAt: DateTime.now(),
-        );
+      test(
+        'upserts servant document with parsed timestamps and server timestamp',
+        () async {
+          final entry = SyncEntry(
+            id: 'sync_1',
+            actionType: 'CREATE_SERVANT',
+            payload: {
+              'docId': 'servant_123',
+              'name': 'John Doe',
+              'email': 'john@example.com',
+              'role': 'servant',
+              'createdAt': '2026-05-10T12:00:00.000Z',
+            },
+            createdAt: DateTime.now(),
+          );
 
-        await syncHandler.execute(entry);
+          await syncHandler.execute(entry);
 
-        final docSnap = await fakeFirestore
-            .collection(FirestoreCollections.servants)
-            .doc('servant_123')
-            .get();
+          final docSnap = await fakeFirestore
+              .collection(FirestoreCollections.servants)
+              .doc('servant_123')
+              .get();
 
-        expect(docSnap.exists, isTrue);
-        final data = docSnap.data()!;
-        expect(data['name'], equals('John Doe'));
-        expect(data['email'], equals('john@example.com'));
-        expect(data['docId'], isNull); // Removed from payload during upsert
-        expect(data['createdAt'], isA<Timestamp>());
-        expect((data['createdAt'] as Timestamp).toDate().toUtc(), equals(DateTime.parse('2026-05-10T12:00:00.000Z')));
-        expect(data['updatedAt'], isNotNull);
-      });
+          expect(docSnap.exists, isTrue);
+          final data = docSnap.data()!;
+          expect(data['name'], equals('John Doe'));
+          expect(data['email'], equals('john@example.com'));
+          expect(data['docId'], isNull); // Removed from payload during upsert
+          expect(data['createdAt'], isA<Timestamp>());
+          expect(
+            (data['createdAt'] as Timestamp).toDate().toUtc(),
+            equals(DateTime.parse('2026-05-10T12:00:00.000Z')),
+          );
+          expect(data['updatedAt'], isNotNull);
+        },
+      );
 
-      test('returns early without throw when docId is missing in payload', () async {
-        final entry = SyncEntry(
-          id: 'sync_invalid',
-          actionType: 'UPDATE_SERVANT',
-          payload: {'name': 'No ID'},
-          createdAt: DateTime.now(),
-        );
+      test(
+        'returns early without throw when docId is missing in payload',
+        () async {
+          final entry = SyncEntry(
+            id: 'sync_invalid',
+            actionType: 'UPDATE_SERVANT',
+            payload: {'name': 'No ID'},
+            createdAt: DateTime.now(),
+          );
 
-        await syncHandler.execute(entry);
+          await syncHandler.execute(entry);
 
-        final collectionSnap = await fakeFirestore
-            .collection(FirestoreCollections.servants)
-            .get();
-        expect(collectionSnap.docs, isEmpty);
-      });
+          final collectionSnap = await fakeFirestore
+              .collection(FirestoreCollections.servants)
+              .get();
+          expect(collectionSnap.docs, isEmpty);
+        },
+      );
     });
 
     group('ARCHIVE_SERVANT', () {
@@ -69,10 +78,7 @@ void main() {
         final entry = SyncEntry(
           id: 'sync_archive',
           actionType: 'ARCHIVE_SERVANT',
-          payload: {
-            'docId': 'servant_456',
-            'archivedByUserId': 'admin_1',
-          },
+          payload: {'docId': 'servant_456', 'archivedByUserId': 'admin_1'},
           createdAt: DateTime.now(),
         );
 
@@ -108,35 +114,38 @@ void main() {
     });
 
     group('RESTORE_SERVANT', () {
-      test('sets isArchived to false and updates team assignments if provided', () async {
-        final entry = SyncEntry(
-          id: 'sync_restore',
-          actionType: 'RESTORE_SERVANT',
-          payload: {
-            'docId': 'servant_789',
-            'restoredByUserId': 'admin_2',
-            'assignedTeamId': 'team_A',
-            'assignedTeamIds': ['team_A', 'team_B'],
-          },
-          createdAt: DateTime.now(),
-        );
+      test(
+        'sets isArchived to false and updates team assignments if provided',
+        () async {
+          final entry = SyncEntry(
+            id: 'sync_restore',
+            actionType: 'RESTORE_SERVANT',
+            payload: {
+              'docId': 'servant_789',
+              'restoredByUserId': 'admin_2',
+              'assignedTeamId': 'team_A',
+              'assignedTeamIds': ['team_A', 'team_B'],
+            },
+            createdAt: DateTime.now(),
+          );
 
-        await syncHandler.execute(entry);
+          await syncHandler.execute(entry);
 
-        final docSnap = await fakeFirestore
-            .collection(FirestoreCollections.servants)
-            .doc('servant_789')
-            .get();
+          final docSnap = await fakeFirestore
+              .collection(FirestoreCollections.servants)
+              .doc('servant_789')
+              .get();
 
-        expect(docSnap.exists, isTrue);
-        final data = docSnap.data()!;
-        expect(data['isArchived'], isFalse);
-        expect(data['restoredByUserId'], equals('admin_2'));
-        expect(data['assignedTeamId'], equals('team_A'));
-        expect(data['assignedTeamIds'], equals(['team_A', 'team_B']));
-        expect(data['restoredAt'], isNotNull);
-        expect(data['updatedAt'], isNotNull);
-      });
+          expect(docSnap.exists, isTrue);
+          final data = docSnap.data()!;
+          expect(data['isArchived'], isFalse);
+          expect(data['restoredByUserId'], equals('admin_2'));
+          expect(data['assignedTeamId'], equals('team_A'));
+          expect(data['assignedTeamIds'], equals(['team_A', 'team_B']));
+          expect(data['restoredAt'], isNotNull);
+          expect(data['updatedAt'], isNotNull);
+        },
+      );
     });
 
     group('Batch execution & Unsupported actions', () {

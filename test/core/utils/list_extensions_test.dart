@@ -18,29 +18,44 @@ void main() {
     test('chunks list correctly when length is an exact multiple of size', () {
       final list = [1, 2, 3, 4, 5, 6];
       final chunks = list.chunk(2);
-      expect(chunks, equals([
-        [1, 2],
-        [3, 4],
-        [5, 6],
-      ]));
+      expect(
+        chunks,
+        equals([
+          [1, 2],
+          [3, 4],
+          [5, 6],
+        ]),
+      );
     });
 
-    test('chunks list correctly when length is not an exact multiple of size', () {
-      final list = [1, 2, 3, 4, 5];
-      final chunks = list.chunk(2);
-      expect(chunks, equals([
-        [1, 2],
-        [3, 4],
-        [5],
-      ]));
-    });
+    test(
+      'chunks list correctly when length is not an exact multiple of size',
+      () {
+        final list = [1, 2, 3, 4, 5];
+        final chunks = list.chunk(2);
+        expect(
+          chunks,
+          equals([
+            [1, 2],
+            [3, 4],
+            [5],
+          ]),
+        );
+      },
+    );
 
-    test('returns single chunk when chunk size is greater than list length', () {
-      final list = [1, 2, 3];
-      final chunks = list.chunk(10);
-      expect(chunks, equals([
-        [1, 2, 3],
-      ]));
-    });
+    test(
+      'returns single chunk when chunk size is greater than list length',
+      () {
+        final list = [1, 2, 3];
+        final chunks = list.chunk(10);
+        expect(
+          chunks,
+          equals([
+            [1, 2, 3],
+          ]),
+        );
+      },
+    );
   });
 }

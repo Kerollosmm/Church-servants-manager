@@ -46,13 +46,18 @@ class _ExportAttendanceButtonState extends State<ExportAttendanceButton> {
       final Map<String, List<String>> studentAttendanceMap = {};
       final closedSessions = widget.sessions.where((s) => s.isClosed).toList();
 
-      for (final session in closedSessions) {
-        final marksSnapshot = await firestore
-            .collection('AttendanceSessions')
-            .doc(session.id)
-            .collection('records')
-            .get();
+      final marksSnapshots = await Future.wait(
+        closedSessions.map(
+          (session) => firestore
+              .collection('AttendanceSessions')
+              .doc(session.id)
+              .collection('records')
+              .get(),
+        ),
+      );
 
+      for (int i = 0; i < closedSessions.length; i++) {
+        final marksSnapshot = marksSnapshots[i];
         final Map<String, String> sessionMarks = {};
         for (final doc in marksSnapshot.docs) {
           final data = doc.data();

@@ -3,6 +3,13 @@ part of 'auth_bloc.dart';
 sealed class AuthState extends Equatable {
   const AuthState();
 
+  AuthUser? get currentActorOrNull {
+    final self = this;
+    if (self is AuthAuthenticated) return self.user;
+    if (self is AuthDegraded) return self.user;
+    return null;
+  }
+
   @override
   List<Object?> get props => [];
 }

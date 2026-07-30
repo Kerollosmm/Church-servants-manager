@@ -140,10 +140,7 @@ class _PendingCountBadge extends StatelessWidget {
             color: AppColors.tertiary, // Burgundy
             shape: BoxShape.circle,
           ),
-          constraints: const BoxConstraints(
-            minWidth: 16,
-            minHeight: 16,
-          ),
+          constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
           child: Center(
             child: Text(
               '$count',

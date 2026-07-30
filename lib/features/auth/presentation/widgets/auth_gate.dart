@@ -79,6 +79,7 @@ class AuthGate extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocConsumer<AuthBloc, AuthState>(
       listenWhen: (previous, current) {
+        if (current is AuthRoleUpdated) return true;
         if (current is! AuthDegraded) return false;
         if (!_isAuthenticatedState(previous)) return false;
         if (previous is AuthDegraded) {

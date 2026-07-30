@@ -440,4 +440,3 @@ class DataSeeder {
     return '$prefix$number';
   }
 }
-

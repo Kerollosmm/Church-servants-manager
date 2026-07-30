@@ -4,11 +4,10 @@ import 'dart:io';
 import 'package:church_management_system/core/constants/sync_action_type.dart';
 import 'package:church_management_system/core/models/sync_entry.dart';
 import 'package:church_management_system/core/services/dead_letter_queue.dart';
+import 'package:church_management_system/core/services/sync_handler.dart';
 import 'package:church_management_system/core/services/sync_service.dart';
 import 'package:church_management_system/features/attendance/data/repos/attendance_session_repository.dart';
 import 'package:church_management_system/features/attendance/data/services/attendance_season_sync_handler.dart';
-import 'package:church_management_system/features/attendance/data/services/attendance_sync_handler.dart';
-import 'package:church_management_system/features/attendance/domain/repos/i_attendance_repository.dart';
 import 'package:church_management_system/features/results/data/services/result_sync_handler.dart';
 import 'package:church_management_system/features/results/domain/repos/i_results_repository.dart';
 import 'package:church_management_system/features/student/data/services/pastoral_sync_handler.dart';
@@ -20,8 +19,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:mocktail/mocktail.dart';
-
-class MockAttendanceRepository extends Mock implements IAttendanceRepository {}
 
 class MockStudentRepository extends Mock implements IStudentRepository {}
 
@@ -36,14 +33,16 @@ class MockConnectivity extends Mock implements Connectivity {}
 
 class MockDeadLetterQueue extends Mock implements DeadLetterQueue {}
 
+class MockSyncHandler extends Mock implements SyncHandler {}
+
 void main() {
-  late MockAttendanceRepository attendanceRepo;
   late MockStudentRepository studentRepo;
   late MockResultsRepository resultsRepo;
   late MockSessionRepository sessionRepo;
   late MockPastoralRepository pastoralRepo;
   late MockConnectivity connectivity;
   late MockDeadLetterQueue mockDlq;
+  late MockSyncHandler mockAttendanceHandler;
   late SyncService syncService;
   SyncEntry entry({required String id, String actionType = 'MARK_ATTENDANCE'}) {
     return SyncEntry(
@@ -71,13 +70,13 @@ void main() {
     );
   });
   setUp(() async {
-    attendanceRepo = MockAttendanceRepository();
     studentRepo = MockStudentRepository();
     resultsRepo = MockResultsRepository();
     sessionRepo = MockSessionRepository();
     pastoralRepo = MockPastoralRepository();
     connectivity = MockConnectivity();
     mockDlq = MockDeadLetterQueue();
+    mockAttendanceHandler = MockSyncHandler();
     when(() => mockDlq.init()).thenAnswer((_) async {});
     when(() => mockDlq.add(any())).thenAnswer((_) async {});
     when(
@@ -91,8 +90,8 @@ void main() {
       connectivity: connectivity,
       backoffProvider: (_) => Duration.zero,
       handlers: {
-        SyncActionType.markAttendance: AttendanceSyncHandler(attendanceRepo),
-        SyncActionType.clearAttendance: AttendanceSyncHandler(attendanceRepo),
+        SyncActionType.markAttendance: mockAttendanceHandler,
+        SyncActionType.clearAttendance: mockAttendanceHandler,
         SyncActionType.upsertStudent: StudentSyncHandler(studentRepo),
         SyncActionType.archiveStudent: StudentSyncHandler(studentRepo),
         SyncActionType.restoreStudent: StudentSyncHandler(studentRepo),
@@ -127,12 +126,9 @@ void main() {
     });
     test('processes MARK_ATTENDANCE entries and removes them', () async {
       when(
-        () => attendanceRepo.syncBatchedMarks(
-          teamId: any(named: 'teamId'),
-          sessionId: any(named: 'sessionId'),
-          payloads: any(named: 'payloads'),
-        ),
+        () => mockAttendanceHandler.executeBatch(any()),
       ).thenAnswer((_) async {});
+      when(() => mockAttendanceHandler.execute(any())).thenAnswer((_) async {});
       await syncService.enqueue(entry(id: 'process_1'));
       when(
         () => connectivity.checkConnectivity(),
@@ -140,24 +136,14 @@ void main() {
       await syncService.processQueue();
       final box = Hive.box<SyncEntry>('sync_queue_test_user');
       expect(box.length, 0);
-      verify(
-        () => attendanceRepo.syncBatchedMarks(
-          teamId: any(named: 'teamId'),
-          sessionId: any(named: 'sessionId'),
-          payloads: any(named: 'payloads'),
-        ),
-      ).called(1);
+      verify(() => mockAttendanceHandler.executeBatch(any())).called(1);
     });
     test('increments retryCount on failure', () async {
       when(
-        () => attendanceRepo.syncBatchedMarks(
-          teamId: any(named: 'teamId'),
-          sessionId: any(named: 'sessionId'),
-          payloads: any(named: 'payloads'),
-        ),
+        () => mockAttendanceHandler.executeBatch(any()),
       ).thenThrow(Exception('Network error'));
       when(
-        () => attendanceRepo.syncOfflineMark(any()),
+        () => mockAttendanceHandler.execute(any()),
       ).thenThrow(Exception('Network error'));
       await syncService.enqueue(entry(id: 'retry_1'));
       when(
@@ -171,14 +157,10 @@ void main() {
     });
     test('drops entry after max retries (5)', () async {
       when(
-        () => attendanceRepo.syncBatchedMarks(
-          teamId: any(named: 'teamId'),
-          sessionId: any(named: 'sessionId'),
-          payloads: any(named: 'payloads'),
-        ),
+        () => mockAttendanceHandler.executeBatch(any()),
       ).thenThrow(Exception('Network error'));
       when(
-        () => attendanceRepo.syncOfflineMark(any()),
+        () => mockAttendanceHandler.execute(any()),
       ).thenThrow(Exception('Network error'));
       await syncService.enqueue(entry(id: 'max_retry_1'));
       when(
@@ -192,13 +174,12 @@ void main() {
     });
     test('processes entries in FIFO order', () async {
       final processed = <String>[];
-      when(
-        () => attendanceRepo.syncBatchedMarks(
-          teamId: any(named: 'teamId'),
-          sessionId: any(named: 'sessionId'),
-          payloads: any(named: 'payloads'),
-        ),
-      ).thenAnswer((_) async {
+      when(() => mockAttendanceHandler.executeBatch(any())).thenAnswer((
+        _,
+      ) async {
+        processed.add('MARK_ATTENDANCE');
+      });
+      when(() => mockAttendanceHandler.execute(any())).thenAnswer((_) async {
         processed.add('MARK_ATTENDANCE');
       });
       when(() => studentRepo.syncOfflineUpsert(any())).thenAnswer((_) async {
@@ -227,12 +208,9 @@ void main() {
     });
     test('streams status updates during processing', () async {
       when(
-        () => attendanceRepo.syncBatchedMarks(
-          teamId: any(named: 'teamId'),
-          sessionId: any(named: 'sessionId'),
-          payloads: any(named: 'payloads'),
-        ),
+        () => mockAttendanceHandler.executeBatch(any()),
       ).thenAnswer((_) async {});
+      when(() => mockAttendanceHandler.execute(any())).thenAnswer((_) async {});
       await syncService.enqueue(entry(id: 'stream_1'));
       when(
         () => connectivity.checkConnectivity(),
@@ -244,14 +222,13 @@ void main() {
     });
     test('local box reference isolation on user switch mid-flight', () async {
       final completer = Completer<void>();
-      when(
-        () => attendanceRepo.syncBatchedMarks(
-          teamId: any(named: 'teamId'),
-          sessionId: any(named: 'sessionId'),
-          payloads: any(named: 'payloads'),
-        ),
-      ).thenAnswer((_) async {
-        // Switch user mid-flight!
+      when(() => mockAttendanceHandler.executeBatch(any())).thenAnswer((
+        _,
+      ) async {
+        await syncService.setAuthenticatedUser('user_b');
+        completer.complete();
+      });
+      when(() => mockAttendanceHandler.execute(any())).thenAnswer((_) async {
         await syncService.setAuthenticatedUser('user_b');
         completer.complete();
       });
@@ -261,13 +238,8 @@ void main() {
       ).thenAnswer((_) async => [ConnectivityResult.wifi]);
       await syncService.processQueue();
       await completer.future;
-      // The original user's box is closed now. Let's open it to check.
       final boxA = await Hive.openBox<SyncEntry>('sync_queue_test_user');
-      expect(
-        boxA.get('mid_flight_1'),
-        isNotNull,
-      ); // It was not deleted because original box was closed!
-      // User B's box remains empty
+      expect(boxA.get('mid_flight_1'), isNotNull);
       final boxB = Hive.box<SyncEntry>('sync_queue_user_b');
       expect(boxB.length, 0);
     });
@@ -280,16 +252,10 @@ void main() {
         await syncService.enqueue(entry1);
         await syncService.enqueue(entry2);
         await syncService.enqueue(entry3);
-        // Force batch to fail, triggering individual fallback
         when(
-          () => attendanceRepo.syncBatchedMarks(
-            teamId: any(named: 'teamId'),
-            sessionId: any(named: 'sessionId'),
-            payloads: any(named: 'payloads'),
-          ),
+          () => mockAttendanceHandler.executeBatch(any()),
         ).thenThrow(Exception('Batch failed'));
-        // Individual fallback throws FirebaseException 'unavailable'
-        when(() => attendanceRepo.syncOfflineMark(any())).thenThrow(
+        when(() => mockAttendanceHandler.execute(any())).thenThrow(
           FirebaseException(plugin: 'firestore', code: 'unavailable'),
         );
         when(
@@ -297,9 +263,7 @@ void main() {
         ).thenAnswer((_) async => [ConnectivityResult.wifi]);
         await syncService.processQueue();
         final box = Hive.box<SyncEntry>('sync_queue_test_user');
-        // Assert that none of the 3 items were deleted
         expect(box.length, 3);
-        // Assert that retry counts were NOT incremented
         expect(box.get('batch_item_1')?.retryCount, 0);
         expect(box.get('batch_item_2')?.retryCount, 0);
         expect(box.get('batch_item_3')?.retryCount, 0);
@@ -312,22 +276,16 @@ void main() {
         final entry2 = entry(id: 'batch_item_2');
         await syncService.enqueue(entry1);
         await syncService.enqueue(entry2);
-        // Force batch to fail
         when(
-          () => attendanceRepo.syncBatchedMarks(
-            teamId: any(named: 'teamId'),
-            sessionId: any(named: 'sessionId'),
-            payloads: any(named: 'payloads'),
-          ),
+          () => mockAttendanceHandler.executeBatch(any()),
         ).thenThrow(Exception('Batch failed'));
-        // During individual execution, network drops. We mock checkConnectivity to return none.
+        when(
+          () => mockAttendanceHandler.execute(any()),
+        ).thenAnswer((_) async {});
         var checkCount = 0;
         when(() => connectivity.checkConnectivity()).thenAnswer((_) async {
           checkCount++;
-          // First check in processQueue = wifi
-          // Second check before batch execution = wifi
-          // Third check before fallback individual loop item 1 = none
-          if (checkCount >= 3) {
+          if (checkCount >= 2) {
             return [ConnectivityResult.none];
           }
           return [ConnectivityResult.wifi];

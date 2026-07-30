@@ -10,7 +10,6 @@ export 'sync_state.dart';
 class SyncCubit extends Cubit<SyncState> {
   final SyncService _syncService;
   StreamSubscription<SyncEngineStatus>? _syncSubscription;
-  Timer? _resetTimer;
 
   SyncCubit({required SyncService syncService})
     : _syncService = syncService,
@@ -51,11 +50,6 @@ class SyncCubit extends Cubit<SyncState> {
         // If it was syncing and now it's not and no error, it's a success
         if (state is Syncing) {
           emit(const SyncSuccess());
-          // Optionally reset to idle after a few seconds so the success banner hides
-          _resetTimer?.cancel();
-          _resetTimer = Timer(const Duration(seconds: 3), () {
-            if (!isClosed) emit(const SyncIdle());
-          });
         } else {
           emit(const SyncIdle());
         }
@@ -76,7 +70,6 @@ class SyncCubit extends Cubit<SyncState> {
   @override
   Future<void> close() {
     _syncSubscription?.cancel();
-    _resetTimer?.cancel();
     return super.close();
   }
 }

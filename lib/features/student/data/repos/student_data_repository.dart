@@ -998,10 +998,12 @@ class StudentDataRepository implements IStudentRepository {
             if (localTime == null ||
                 op.clientTime == null ||
                 !localTime.isAfter(op.clientTime!)) {
-              toSave.add(localStudent.copyWith(
-                isArchived: op.archive,
-                syncStatus: SyncStatus.synced,
-              ));
+              toSave.add(
+                localStudent.copyWith(
+                  isArchived: op.archive,
+                  syncStatus: SyncStatus.synced,
+                ),
+              );
             }
           }
         }

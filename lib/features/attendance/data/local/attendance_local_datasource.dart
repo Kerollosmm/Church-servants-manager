@@ -58,7 +58,9 @@ class AttendanceLocalDatasource {
     required Map<String, AttendanceMark> marks,
   }) async {
     await _ensureBoxOpen();
-    final entries = marks.map((studentId, mark) => MapEntry(_key(teamId, sessionId, studentId), mark));
+    final entries = marks.map(
+      (studentId, mark) => MapEntry(_key(teamId, sessionId, studentId), mark),
+    );
     await _cache.putAll(entries);
   }
 

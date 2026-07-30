@@ -97,7 +97,11 @@ class ResultsBloc extends Bloc<ResultsEvent, ResultsState> {
           ),
         );
       }
-      emit(const ResultsError(message: 'تعذر تحديث الدرجات. يرجى المحاولة مرة أخرى.'));
+      emit(
+        const ResultsError(
+          message: 'تعذر تحديث الدرجات. يرجى المحاولة مرة أخرى.',
+        ),
+      );
     }
   }
 }

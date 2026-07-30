@@ -179,7 +179,8 @@ void main() {
       final sessionId =
           invocation.namedArguments[const Symbol('sessionId')] as String;
       final marks =
-          invocation.namedArguments[const Symbol('marks')] as Map<String, AttendanceMark>;
+          invocation.namedArguments[const Symbol('marks')]
+              as Map<String, AttendanceMark>;
       cachedMarks.putIfAbsent(sessionId, () => {}).addAll(marks);
     });
 

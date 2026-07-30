@@ -144,9 +144,7 @@ void main() {
         mark: any(named: 'mark'),
       ),
     ).thenAnswer((_) async {});
-    when(
-      () => repository.clearLocalCache(),
-    ).thenAnswer((_) async {});
+    when(() => repository.clearLocalCache()).thenAnswer((_) async {});
     when(
       () => repository.getCachedMarksForSession(
         teamId: any(named: 'teamId'),

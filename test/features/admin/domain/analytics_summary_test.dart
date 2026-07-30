@@ -23,7 +23,10 @@ void main() {
       expect(domain.totalStudentsCount, equals(42));
       expect(domain.averageAttendanceRate, equals(0.85));
       expect(domain.pendingVisitationsCount, equals(3));
-      expect(domain.topActiveServants, equals({'Servant A': 12, 'Servant B': 8}));
+      expect(
+        domain.topActiveServants,
+        equals({'Servant A': 12, 'Servant B': 8}),
+      );
       expect(domain.lastComputedAt, equals(now));
       expect(domain.fetchedAt, equals(now));
     });

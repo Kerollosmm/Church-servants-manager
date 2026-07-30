@@ -11,44 +11,40 @@ class AttendanceSyncHandler implements SyncHandler {
 
   @override
   Future<void> execute(SyncEntry entry) async {
-    final collection = _firestore.collection(FirestoreCollections.attendanceMarks);
+    final collection = _firestore.collection(
+      FirestoreCollections.attendanceMarks,
+    );
     final data = Map<String, dynamic>.from(entry.payload);
     data['lastModifiedAt'] = FieldValue.serverTimestamp();
     final recordId = (data['recordId'] as String?) ?? entry.id;
 
     if (entry.actionType == 'MARK_ATTENDANCE' || entry.actionType == 'CREATE') {
-      await collection.doc(recordId).set(
-            data,
-            SetOptions(merge: true),
-          );
-    } else if (entry.actionType == 'CLEAR_ATTENDANCE' || entry.actionType == 'DELETE') {
+      await collection.doc(recordId).set(data, SetOptions(merge: true));
+    } else if (entry.actionType == 'CLEAR_ATTENDANCE' ||
+        entry.actionType == 'DELETE') {
       await collection.doc(recordId).delete();
     } else {
-      await collection.doc(recordId).set(
-            data,
-            SetOptions(merge: true),
-          );
+      await collection.doc(recordId).set(data, SetOptions(merge: true));
     }
   }
 
   @override
   Future<void> executeBatch(List<SyncEntry> entries) async {
     final batch = _firestore.batch();
-    final collection = _firestore.collection(FirestoreCollections.attendanceMarks);
+    final collection = _firestore.collection(
+      FirestoreCollections.attendanceMarks,
+    );
 
     for (final entry in entries) {
       final data = Map<String, dynamic>.from(entry.payload);
       data['lastModifiedAt'] = FieldValue.serverTimestamp();
       final recordId = (data['recordId'] as String?) ?? entry.id;
 
-      if (entry.actionType == 'CLEAR_ATTENDANCE' || entry.actionType == 'DELETE') {
+      if (entry.actionType == 'CLEAR_ATTENDANCE' ||
+          entry.actionType == 'DELETE') {
         batch.delete(collection.doc(recordId));
       } else {
-        batch.set(
-          collection.doc(recordId),
-          data,
-          SetOptions(merge: true),
-        );
+        batch.set(collection.doc(recordId), data, SetOptions(merge: true));
       }
     }
 

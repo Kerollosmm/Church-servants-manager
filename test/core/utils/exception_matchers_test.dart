@@ -20,21 +20,29 @@ void main() {
       expect(isPermissionDeniedException(exc), isFalse);
     });
 
-    test('returns true for Exception or String containing permission-denied substring', () {
-      expect(
-        isPermissionDeniedException(
-          Exception('CloudFirestoreError: PERMISSION-DENIED occurred'),
-        ),
-        isTrue,
-      );
-      expect(
-        isPermissionDeniedException('User does not have permission denied error'),
-        isTrue,
-      );
-    });
+    test(
+      'returns true for Exception or String containing permission-denied substring',
+      () {
+        expect(
+          isPermissionDeniedException(
+            Exception('CloudFirestoreError: PERMISSION-DENIED occurred'),
+          ),
+          isTrue,
+        );
+        expect(
+          isPermissionDeniedException(
+            'User does not have permission denied error',
+          ),
+          isTrue,
+        );
+      },
+    );
 
     test('returns false for unrelated errors', () {
-      expect(isPermissionDeniedException(Exception('Network timeout')), isFalse);
+      expect(
+        isPermissionDeniedException(Exception('Network timeout')),
+        isFalse,
+      );
       expect(isPermissionDeniedException('Unknown error'), isFalse);
     });
   });
@@ -56,16 +64,19 @@ void main() {
       expect(isNotFoundException(exc), isFalse);
     });
 
-    test('returns true for Exception or String containing not-found / not found substring', () {
-      expect(
-        isNotFoundException(Exception('Document NOT-FOUND in collection')),
-        isTrue,
-      );
-      expect(
-        isNotFoundException('Requested resource was not found on server'),
-        isTrue,
-      );
-    });
+    test(
+      'returns true for Exception or String containing not-found / not found substring',
+      () {
+        expect(
+          isNotFoundException(Exception('Document NOT-FOUND in collection')),
+          isTrue,
+        );
+        expect(
+          isNotFoundException('Requested resource was not found on server'),
+          isTrue,
+        );
+      },
+    );
 
     test('returns false for unrelated errors', () {
       expect(isNotFoundException(Exception('Server error 500')), isFalse);

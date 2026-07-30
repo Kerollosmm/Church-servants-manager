@@ -75,26 +75,29 @@ void main() {
       );
     });
 
-    test('permission guards return true for admin role and false for non-admin', () {
-      expect(policy.canManageTeams(adminUser), isTrue);
-      expect(policy.canManageTeams(servantUser), isFalse);
-      expect(policy.canManageTeams(studentUser), isFalse);
-      expect(policy.canManageTeams(guestUser), isFalse);
+    test(
+      'permission guards return true for admin role and false for non-admin',
+      () {
+        expect(policy.canManageTeams(adminUser), isTrue);
+        expect(policy.canManageTeams(servantUser), isFalse);
+        expect(policy.canManageTeams(studentUser), isFalse);
+        expect(policy.canManageTeams(guestUser), isFalse);
 
-      expect(policy.canManageServants(adminUser), isTrue);
-      expect(policy.canManageServants(servantUser), isFalse);
-      expect(policy.canManageServants(studentUser), isFalse);
-      expect(policy.canManageServants(guestUser), isFalse);
+        expect(policy.canManageServants(adminUser), isTrue);
+        expect(policy.canManageServants(servantUser), isFalse);
+        expect(policy.canManageServants(studentUser), isFalse);
+        expect(policy.canManageServants(guestUser), isFalse);
 
-      expect(policy.canManageStudents(adminUser), isTrue);
-      expect(policy.canManageStudents(servantUser), isFalse);
-      expect(policy.canManageStudents(studentUser), isFalse);
-      expect(policy.canManageStudents(guestUser), isFalse);
+        expect(policy.canManageStudents(adminUser), isTrue);
+        expect(policy.canManageStudents(servantUser), isFalse);
+        expect(policy.canManageStudents(studentUser), isFalse);
+        expect(policy.canManageStudents(guestUser), isFalse);
 
-      expect(policy.canOpenDevTools(adminUser), isTrue);
-      expect(policy.canOpenDevTools(servantUser), isFalse);
-      expect(policy.canOpenDevTools(studentUser), isFalse);
-      expect(policy.canOpenDevTools(guestUser), isFalse);
-    });
+        expect(policy.canOpenDevTools(adminUser), isTrue);
+        expect(policy.canOpenDevTools(servantUser), isFalse);
+        expect(policy.canOpenDevTools(studentUser), isFalse);
+        expect(policy.canOpenDevTools(guestUser), isFalse);
+      },
+    );
   });
 }

@@ -15,10 +15,13 @@ void main() {
       expect(CacheTracker.shouldRevalidate(testKey), isTrue);
     });
 
-    test('markFetched updates last fetch time and prevents immediate revalidation', () {
-      CacheTracker.markFetched(testKey);
-      expect(CacheTracker.shouldRevalidate(testKey), isFalse);
-    });
+    test(
+      'markFetched updates last fetch time and prevents immediate revalidation',
+      () {
+        CacheTracker.markFetched(testKey);
+        expect(CacheTracker.shouldRevalidate(testKey), isFalse);
+      },
+    );
 
     test('shouldRevalidate returns true when elapsed time exceeds maxAge', () {
       CacheTracker.markFetched(testKey);

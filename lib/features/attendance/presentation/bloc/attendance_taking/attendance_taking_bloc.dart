@@ -113,7 +113,8 @@ class AttendanceTakingBloc
     final snapshot = results[0] as AttendanceRosterSnapshot;
     final status = results[1] as SessionStatus;
 
-    Map<String, ({AttendanceMarkStatus status, DateTime markedAt})>? restoredPending;
+    Map<String, ({AttendanceMarkStatus status, DateTime markedAt})>?
+    restoredPending;
     try {
       final cachedMarksMap = _repository.getCachedMarksForSession(
         teamId: teamId,
@@ -122,7 +123,10 @@ class AttendanceTakingBloc
       if (cachedMarksMap.isNotEmpty) {
         restoredPending = {
           for (final entry in cachedMarksMap.entries)
-            entry.key: (status: entry.value.status, markedAt: entry.value.markedAt),
+            entry.key: (
+              status: entry.value.status,
+              markedAt: entry.value.markedAt,
+            ),
         };
       }
     } catch (e, st) {
@@ -134,7 +138,13 @@ class AttendanceTakingBloc
       );
     }
 
-    emit(_mapSnapshotToState(snapshot, status, restoredPendingMarks: restoredPending));
+    emit(
+      _mapSnapshotToState(
+        snapshot,
+        status,
+        restoredPendingMarks: restoredPending,
+      ),
+    );
   }
 
   Future<void> _preloadPermission({
@@ -156,7 +166,8 @@ class AttendanceTakingBloc
   AttendanceTakingState _mapSnapshotToState(
     AttendanceRosterSnapshot snapshot,
     SessionStatus status, {
-    Map<String, ({AttendanceMarkStatus status, DateTime markedAt})>? restoredPendingMarks,
+    Map<String, ({AttendanceMarkStatus status, DateTime markedAt})>?
+    restoredPendingMarks,
   }) {
     final marksMap = {
       for (final item in snapshot.roster)
@@ -168,10 +179,14 @@ class AttendanceTakingBloc
         ? currentState.mutationStatus
         : MutationStatus.idle;
 
-    final currentPending = restoredPendingMarks ??
+    final currentPending =
+        restoredPendingMarks ??
         (currentState is AttendanceTakingLoaded
             ? currentState.pendingLocalMarks
-            : const <String, ({AttendanceMarkStatus status, DateTime markedAt})>{});
+            : const <
+                String,
+                ({AttendanceMarkStatus status, DateTime markedAt})
+              >{});
 
     return AttendanceTakingLoaded(
       session: snapshot.session,
@@ -261,7 +276,8 @@ class AttendanceTakingBloc
             studentId: studentId,
             mark: AttendanceMark(
               studentId: studentId,
-              studentNameSnapshot: cs.session.studentNameSnapshots[studentId] ?? '',
+              studentNameSnapshot:
+                  cs.session.studentNameSnapshots[studentId] ?? '',
               status: targetStatus,
               markedByUserId: actor.uid,
               markedByName: actor.name,

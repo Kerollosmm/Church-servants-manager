@@ -73,8 +73,9 @@ class StudentLinkedUserSyncService {
         updatedEmail: updatedEmail,
       );
       await _usersCollection.doc(uid).set(payload, SetOptions(merge: true));
+    } on StudentFailure {
+      rethrow;
     } catch (e) {
-      if (e is StudentFailure) rethrow;
       throw mapExceptionToStudentFailure(e);
     }
   }
@@ -110,8 +111,9 @@ class StudentLinkedUserSyncService {
           SetOptions(merge: true),
         );
       await batch.commit();
+    } on StudentFailure {
+      rethrow;
     } catch (e) {
-      if (e is StudentFailure) rethrow;
       throw mapExceptionToStudentFailure(e);
     }
   }

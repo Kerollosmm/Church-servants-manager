@@ -87,14 +87,17 @@ void main() {
       },
     );
 
-    test('assignMeAsStudentAndCreateProfile throws StateError when not signed in', () async {
-      when(() => mockAuth.currentUser).thenReturn(null);
+    test(
+      'assignMeAsStudentAndCreateProfile throws StateError when not signed in',
+      () async {
+        when(() => mockAuth.currentUser).thenReturn(null);
 
-      expect(
-        () => seeder.assignMeAsStudentAndCreateProfile(),
-        throwsA(isA<StateError>()),
-      );
-    });
+        expect(
+          () => seeder.assignMeAsStudentAndCreateProfile(),
+          throwsA(isA<StateError>()),
+        );
+      },
+    );
 
     test(
       'assignMeAsStudentAndCreateProfile creates user and student profile',

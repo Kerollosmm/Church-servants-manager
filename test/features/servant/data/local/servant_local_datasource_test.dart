@@ -62,22 +62,31 @@ void main() {
       expect(cached.name, equals('John'));
     });
 
-    test('cacheServants and getCachedServants with archive filtering', () async {
-      final s1 = buildTestServant(docID: 's1', name: 'Active 1');
-      final s2 = buildTestServant(docID: 's2', name: 'Active 2');
-      final s3 = buildTestServant(docID: 's3', name: 'Archived 1', isArchived: true);
+    test(
+      'cacheServants and getCachedServants with archive filtering',
+      () async {
+        final s1 = buildTestServant(docID: 's1', name: 'Active 1');
+        final s2 = buildTestServant(docID: 's2', name: 'Active 2');
+        final s3 = buildTestServant(
+          docID: 's3',
+          name: 'Archived 1',
+          isArchived: true,
+        );
 
-      await datasource.cacheServants([s1, s2, s3]);
+        await datasource.cacheServants([s1, s2, s3]);
 
-      final activeServants = await datasource.getCachedServants();
-      expect(activeServants.length, equals(2));
-      expect(activeServants.any((s) => s.docID == 's1'), isTrue);
-      expect(activeServants.any((s) => s.docID == 's2'), isTrue);
-      expect(activeServants.any((s) => s.docID == 's3'), isFalse);
+        final activeServants = await datasource.getCachedServants();
+        expect(activeServants.length, equals(2));
+        expect(activeServants.any((s) => s.docID == 's1'), isTrue);
+        expect(activeServants.any((s) => s.docID == 's2'), isTrue);
+        expect(activeServants.any((s) => s.docID == 's3'), isFalse);
 
-      final allServants = await datasource.getCachedServants(includeArchived: true);
-      expect(allServants.length, equals(3));
-    });
+        final allServants = await datasource.getCachedServants(
+          includeArchived: true,
+        );
+        expect(allServants.length, equals(3));
+      },
+    );
 
     test('getCachedServantsByGroup filters servants by teamName', () async {
       final s1 = buildTestServant(docID: 's1', teamName: 'GroupA');
@@ -86,12 +95,16 @@ void main() {
 
       await datasource.cacheServants([s1, s2, s3]);
 
-      final groupAServants = await datasource.getCachedServantsByGroup('GroupA');
+      final groupAServants = await datasource.getCachedServantsByGroup(
+        'GroupA',
+      );
       expect(groupAServants.length, equals(2));
       expect(groupAServants.any((s) => s.docID == 's1'), isTrue);
       expect(groupAServants.any((s) => s.docID == 's2'), isTrue);
 
-      final groupBServants = await datasource.getCachedServantsByGroup('GroupB');
+      final groupBServants = await datasource.getCachedServantsByGroup(
+        'GroupB',
+      );
       expect(groupBServants.length, equals(1));
       expect(groupBServants.first.docID, equals('s3'));
     });
