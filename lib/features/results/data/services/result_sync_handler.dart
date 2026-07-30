@@ -19,8 +19,6 @@ class ResultsSyncHandler implements SyncHandler {
 
   @override
   Future<void> executeBatch(List<SyncEntry> entries) async {
-    for (final entry in entries) {
-      await execute(entry);
-    }
+    await Future.wait(entries.map(execute));
   }
 }

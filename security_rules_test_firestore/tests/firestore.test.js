@@ -141,6 +141,28 @@ describe('Firestore Security Rules', () => {
     });
   });
 
+  // --- Tests: servants Collection ---
+  describe('servants collection', () => {
+    test('unauthenticated user cannot read servants', async () => {
+      const db = testEnv.unauthenticatedContext().firestore();
+      await assertFails(getDoc(doc(db, 'servants', 'any-servant')));
+    });
+
+    test('student role cannot read other servants', async () => {
+      const studentId = 'student-99';
+      await seedUser(studentId, { role: 'student' });
+      const db = testEnv.authenticatedContext(studentId, { role: 'student' }).firestore();
+      await assertFails(getDoc(doc(db, 'servants', 'other-servant')));
+    });
+
+    test('servant can read another servant', async () => {
+      const servantId = 'servant-1';
+      await seedUser(servantId, { role: 'servant' });
+      const db = testEnv.authenticatedContext(servantId, { role: 'servant' }).firestore();
+      await assertSucceeds(getDoc(doc(db, 'servants', 'other-servant')));
+    });
+  });
+
   // --- Tests: Students Collection ---
   describe('Students collection', () => {
     test('servant can read student in their assigned team', async () => {

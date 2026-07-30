@@ -1,7 +1,3 @@
-import 'package:flutter/material.dart';
-
-import 'package:flutter_bloc/flutter_bloc.dart';
-
 import 'package:church_management_system/core/blocs/connectivity/connectivity_cubit.dart';
 import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/routing/route_args.dart';
@@ -20,6 +16,8 @@ import 'package:church_management_system/features/attendance/presentation/bloc/s
 import 'package:church_management_system/features/attendance/presentation/bloc/session_admin/attendance_session_admin_state.dart';
 import 'package:church_management_system/features/attendance/presentation/widgets/barcode_scanner_widget.dart';
 import 'package:church_management_system/features/auth/domain/entities/auth_user.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class AttendanceTakingScreen extends StatefulWidget {
   const AttendanceTakingScreen({

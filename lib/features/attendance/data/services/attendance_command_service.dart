@@ -414,7 +414,7 @@ class AttendanceCommandService {
         });
 
         // 1. Mark unmarked as absent in chunks
-        for (final chunk in unmarkedStudents.chunk(450)) {
+        final unmarkedFutures = unmarkedStudents.chunk(450).map((chunk) {
           final batch = _firestore.batch();
           for (final studentId in chunk) {
             final markRef = _markDoc(teamId, sessionId, studentId);
@@ -431,11 +431,12 @@ class AttendanceCommandService {
               'updatedAt': FieldValue.serverTimestamp(),
             });
           }
-          await batch.commit();
-        }
+          return batch.commit();
+        });
+        await Future.wait(unmarkedFutures);
 
         // 2. Student Aggregates (Batched)
-        for (final chunk in presentAndLateStudentIds.chunk(450)) {
+        final aggregateFutures = presentAndLateStudentIds.chunk(450).map((chunk) {
           final batch = _firestore.batch();
           for (final studentId in chunk) {
             final studentRef = _firestore
@@ -449,12 +450,13 @@ class AttendanceCommandService {
               'updatedAt': FieldValue.serverTimestamp(),
             }, SetOptions(merge: true));
           }
-          await batch.commit();
-        }
+          return batch.commit();
+        });
+        await Future.wait(aggregateFutures);
 
         // 3. Write per-student subcollection docs (Batched) (Phase F)
         final rosterStudents = session.studentIdsSnapshot;
-        for (final chunk in rosterStudents.chunk(450)) {
+        final rosterFutures = rosterStudents.chunk(450).map((chunk) {
           final batch = _firestore.batch();
           for (final studentId in chunk) {
             final markData = studentMarks[studentId];
@@ -478,8 +480,9 @@ class AttendanceCommandService {
               'durationMinutes': session.durationMinutes,
             });
           }
-          await batch.commit();
-        }
+          return batch.commit();
+        });
+        await Future.wait(rosterFutures);
 
         // 4. Final IDEMPOTENT step for group aggregate and session status
         await _firestore.runTransaction((transaction) async {

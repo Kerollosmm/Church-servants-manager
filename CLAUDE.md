@@ -5,9 +5,9 @@ ChurchServers Management System (CSMS) Architect Agent. I build/maintain the CSM
 
 ## Current State (Jul 30, 2026)
 - **Branch:** `fix/csms-critical-and-important-issues`
-- **Phase:** Code Health & Refactoring Sweep Complete.
-- **Milestone:** Resolved 9 code health issues: replaced empty catches with `developer.log` across query, pruning, and repository services; handled backward compatibility for deprecated `assignedTeamId` in `servant_models.dart` and `auth_user.dart`; refactored state copy logic in `servant_data_state.dart`; extracted online write/enqueue helper in `ResultsRepository`; extracted `AppStateCard` presenter for empty/error state widgets; and extracted `_PendingCountBadge` in `SyncQueueIndicator`.
-- **Next:** Commit & prepare PR.
+- **Phase:** Testing Improvement Tasks Complete.
+- **Milestone:** Created and updated comprehensive unit test suites for HivePruningService, SyncErrorClassifier, JsonConverters, ServantSyncHandler, ServantLocalDatasource, AuthErrorMapper, AdminPolicy, ListChunking, CacheTracker, and Exception Matchers (64 tests total, 100% pass, 0 lints).
+- **Next:** Prepare PR for test coverage improvements.
 
 ## Gemini CLI Shortcuts
 | Path Alias | Location | Purpose |

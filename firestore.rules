@@ -119,6 +119,12 @@ service cloud.firestore {
     // SERVANTS COLLECTION
     // ═══════════════════════════════════════════════════════════════
 
+    match /servants/{servantId} {
+      // Own profile, admin, or any signed-in servant/teacher.
+      allow read: if isSignedIn() && (servantId == uid() || isServantOrAdmin());
+      allow write: if isAdmin();
+    }
+
     match /Users/{servantId} {
       // Own profile, admin, or any signed-in servant.
       allow read: if isSignedIn() && (servantId == uid() || isServantOrAdmin());

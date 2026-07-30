@@ -127,13 +127,14 @@ class TeamRepository implements ITeamRepository {
         }
       }
 
-      for (final chunk in operations.chunk(400)) {
+      final batchFutures = operations.chunk(400).map((chunk) {
         final batch = _firestore.batch();
         for (final operation in chunk) {
           operation(batch);
         }
-        await batch.commit();
-      }
+        return batch.commit();
+      });
+      await Future.wait(batchFutures);
     } catch (e) {
       developer.log('Failed to sync team name references', error: e);
     }
@@ -208,12 +209,28 @@ class TeamRepository implements ITeamRepository {
         includeArchived: includeArchived,
       );
       if (cached.isNotEmpty) {
-        unawaited(_refreshTeamsByGroupCache(groupId, includeArchived));
-        final domainTeams = cached.map((m) => m.toDomain()).toList();
-        domainTeams.sort((a, b) => a.name.compareTo(b.name));
+        unawaited(
+          _refreshTeamsByGroupCache(groupId, includeArchived).catchError(
+            (e, st) {
+              developer.log(
+                'Failed background teams cache refresh',
+                error: e,
+                stackTrace: st,
+              );
+            },
+          ),
+        );
+        final domainTeams = cached.map((m) => m.toDomain()).toList()
+          ..sort((a, b) => a.name.compareTo(b.name));
         return (teams: domainTeams, isFromCache: true);
       }
-    } catch (_) {}
+    } catch (e, st) {
+      developer.log(
+        'Failed reading cached teams by group',
+        error: e,
+        stackTrace: st,
+      );
+    }
 
     try {
       final snapshot = await _classesCollection
@@ -235,8 +252,8 @@ class TeamRepository implements ITeamRepository {
         groupId,
         includeArchived: includeArchived,
       );
-      final domainTeams = fallback.map((m) => m.toDomain()).toList();
-      domainTeams.sort((a, b) => a.name.compareTo(b.name));
+      final domainTeams = fallback.map((m) => m.toDomain()).toList()
+        ..sort((a, b) => a.name.compareTo(b.name));
       return (teams: domainTeams, isFromCache: true);
     }
   }
@@ -252,12 +269,28 @@ class TeamRepository implements ITeamRepository {
         includeArchived: includeArchived,
       );
       if (cached.isNotEmpty) {
-        unawaited(_refreshTeamsByGroupCache(groupId, includeArchived));
-        final domainTeams = cached.map((m) => m.toDomain()).toList();
-        domainTeams.sort((a, b) => a.name.compareTo(b.name));
+        unawaited(
+          _refreshTeamsByGroupCache(groupId, includeArchived).catchError(
+            (e, st) {
+              developer.log(
+                'Failed background teams cache refresh',
+                error: e,
+                stackTrace: st,
+              );
+            },
+          ),
+        );
+        final domainTeams = cached.map((m) => m.toDomain()).toList()
+          ..sort((a, b) => a.name.compareTo(b.name));
         return domainTeams;
       }
-    } catch (_) {}
+    } catch (e, st) {
+      developer.log(
+        'Failed reading cached teams by group',
+        error: e,
+        stackTrace: st,
+      );
+    }
 
     try {
       final snapshot = await _classesCollection
@@ -278,8 +311,8 @@ class TeamRepository implements ITeamRepository {
         groupId,
         includeArchived: includeArchived,
       );
-      final domainTeams = fallback.map((m) => m.toDomain()).toList();
-      domainTeams.sort((a, b) => a.name.compareTo(b.name));
+      final domainTeams = fallback.map((m) => m.toDomain()).toList()
+        ..sort((a, b) => a.name.compareTo(b.name));
       return domainTeams;
     }
   }
@@ -291,12 +324,26 @@ class TeamRepository implements ITeamRepository {
         includeArchived: includeArchived,
       );
       if (cached.isNotEmpty) {
-        unawaited(_refreshAllTeamsCache(includeArchived));
+        unawaited(
+          _refreshAllTeamsCache(includeArchived).catchError((e, st) {
+            developer.log(
+              'Failed background all teams cache refresh',
+              error: e,
+              stackTrace: st,
+            );
+          }),
+        );
         final domainTeams = cached.map((m) => m.toDomain()).toList();
         _sortTeams(domainTeams);
         return domainTeams;
       }
-    } catch (_) {}
+    } catch (e, st) {
+      developer.log(
+        'Failed reading cached all teams',
+        error: e,
+        stackTrace: st,
+      );
+    }
 
     try {
       final baseQuery = includeArchived
@@ -382,10 +429,24 @@ class TeamRepository implements ITeamRepository {
     try {
       final cached = await _localDatasource.getCachedTeamById(id);
       if (cached != null) {
-        unawaited(_refreshTeamByIdCache(id));
+        unawaited(
+          _refreshTeamByIdCache(id).catchError((e, st) {
+            developer.log(
+              'Failed background team by id cache refresh',
+              error: e,
+              stackTrace: st,
+            );
+          }),
+        );
         return cached.toDomain();
       }
-    } catch (_) {}
+    } catch (e, st) {
+      developer.log(
+        'Failed reading cached team by id',
+        error: e,
+        stackTrace: st,
+      );
+    }
 
     try {
       final doc = await _classesCollection
@@ -795,19 +856,19 @@ class TeamRepository implements ITeamRepository {
             );
           }
 
-          transaction.set(registryRef, {
-            'teamId': team.id,
-            'groupId': team.groupId,
-            'teamName': team.name,
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
-
-          transaction.set(teamRef, {
-            'isArchived': false,
-            'restoredAt': FieldValue.serverTimestamp(),
-            'restoredByUserId': 'system',
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
+          transaction
+            ..set(registryRef, {
+              'teamId': team.id,
+              'groupId': team.groupId,
+              'teamName': team.name,
+              'updatedAt': FieldValue.serverTimestamp(),
+            })
+            ..set(teamRef, {
+              'isArchived': false,
+              'restoredAt': FieldValue.serverTimestamp(),
+              'restoredByUserId': 'system',
+              'updatedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
 
           final assignedServantId = (teamData['assignedServantId'] as String?)
               ?.trim();
@@ -1080,19 +1141,19 @@ class TeamRepository implements ITeamRepository {
           }
         }
 
-        transaction.set(registryRef, {
-          'teamId': team.id,
-          'groupId': team.groupId,
-          'teamName': team.name,
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-
-        transaction.set(teamRef, {
-          'isArchived': false,
-          'restoredAt': FieldValue.serverTimestamp(),
-          'restoredByUserId': 'system',
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+        transaction
+          ..set(registryRef, {
+            'teamId': team.id,
+            'groupId': team.groupId,
+            'teamName': team.name,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true))
+          ..set(teamRef, {
+            'isArchived': false,
+            'restoredAt': FieldValue.serverTimestamp(),
+            'restoredByUserId': 'system',
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
 
         final assignedServantId = (teamData['assignedServantId'] as String?)
             ?.trim();

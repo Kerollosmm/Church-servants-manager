@@ -1,3 +1,4 @@
+import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/features/admin/utils/data_seeder.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -12,6 +13,7 @@ class DevToolsScreen extends StatefulWidget {
 class _DevToolsScreenState extends State<DevToolsScreen> {
   final _seeder = DataSeeder();
   final _countController = TextEditingController(text: '20');
+  Group _selectedGroup = Group.year1;
   bool _busy = false;
   String? _status;
 
@@ -59,6 +61,83 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Role Assignment (Debug Only)',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<Group>(
+                    initialValue: _selectedGroup,
+                    decoration: const InputDecoration(
+                      labelText: 'Target Group for Teacher/Student',
+                    ),
+                    items: Group.values.map((g) {
+                      return DropdownMenuItem(
+                        value: g,
+                        child: Text('${g.displayName} (${g.name})'),
+                      );
+                    }).toList(),
+                    onChanged: (val) {
+                      if (val != null) {
+                        setState(() => _selectedGroup = val);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: _busy
+                            ? null
+                            : () => _run(
+                                _seeder.assignMeAsAdmin,
+                                'Role set to Admin.',
+                              ),
+                        icon: const Icon(Icons.admin_panel_settings),
+                        label: const Text('Assign Me as Admin'),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: _busy
+                            ? null
+                            : () => _run(
+                                () => _seeder.assignMeAsTeacher(
+                                  group: _selectedGroup,
+                                ),
+                                'Role set to Servant/Teacher (${_selectedGroup.name}).',
+                              ),
+                        icon: const Icon(Icons.person_pin),
+                        label: const Text('Assign Me as Teacher'),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: _busy
+                            ? null
+                            : () => _run(
+                                () =>
+                                    _seeder.assignMeAsStudentAndCreateProfile(
+                                      group: _selectedGroup,
+                                    ),
+                                'Role set to Student and profile created.',
+                              ),
+                        icon: const Icon(Icons.school),
+                        label: const Text('Assign Me as Student'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -191,3 +270,4 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     );
   }
 }
+

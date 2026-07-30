@@ -1,4 +1,5 @@
 import 'package:church_management_system/core/utils/json_converters.dart';
+import 'package:church_management_system/features/admin/domain/entities/analytics_summary.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:hive/hive.dart';
 
@@ -62,5 +63,31 @@ class AnalyticsSummaryModel with _$AnalyticsSummaryModel {
   /// Serializes to a Firestore-compatible map (excludes client-only [fetchedAt]).
   Map<String, dynamic> toMap() {
     return toJson()..remove('fetchedAt');
+  }
+
+  /// Maps model to domain entity.
+  AnalyticsSummary toDomain() {
+    return AnalyticsSummary(
+      sectorId: sectorId,
+      totalStudentsCount: totalStudentsCount,
+      averageAttendanceRate: averageAttendanceRate,
+      pendingVisitationsCount: pendingVisitationsCount,
+      topActiveServants: Map.from(topActiveServants),
+      lastComputedAt: lastComputedAt,
+      fetchedAt: fetchedAt,
+    );
+  }
+
+  /// Creates model from domain entity.
+  factory AnalyticsSummaryModel.fromDomain(AnalyticsSummary domain) {
+    return AnalyticsSummaryModel(
+      sectorId: domain.sectorId,
+      totalStudentsCount: domain.totalStudentsCount,
+      averageAttendanceRate: domain.averageAttendanceRate,
+      pendingVisitationsCount: domain.pendingVisitationsCount,
+      topActiveServants: Map.from(domain.topActiveServants),
+      lastComputedAt: domain.lastComputedAt,
+      fetchedAt: domain.fetchedAt,
+    );
   }
 }

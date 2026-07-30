@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'dart:typed_data';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -7,19 +8,30 @@ import 'package:hive/hive.dart';
 class AuthUserLocalStore {
   static const String _boxName = 'auth_user_box';
   static const String _userKey = 'current_user';
+  static const _androidOptions = AndroidOptions(
+    // ignore: deprecated_member_use
+    encryptedSharedPreferences: true,
+  );
+  static const _iosOptions = IOSOptions(
+    accessibility: KeychainAccessibility.first_unlock,
+  );
 
   final FlutterSecureStorage _secureStorage;
 
   AuthUserLocalStore({FlutterSecureStorage? secureStorage})
-    : _secureStorage = secureStorage ?? const FlutterSecureStorage();
+    : _secureStorage =
+          secureStorage ??
+          const FlutterSecureStorage(
+            aOptions: _androidOptions,
+            iOptions: _iosOptions,
+          );
 
   Future<void> init() async {
-    const androidOptions = AndroidOptions(encryptedSharedPreferences: true);
-
     try {
       final containsKey = await _secureStorage.containsKey(
         key: 'hive_encryption_key',
-        aOptions: androidOptions,
+        aOptions: _androidOptions,
+        iOptions: _iosOptions,
       );
 
       Uint8List encryptionKey;
@@ -28,13 +40,15 @@ class AuthUserLocalStore {
         await _secureStorage.write(
           key: 'hive_encryption_key',
           value: base64UrlEncode(key),
-          aOptions: androidOptions,
+          aOptions: _androidOptions,
+          iOptions: _iosOptions,
         );
         encryptionKey = Uint8List.fromList(key);
       } else {
         final base64Key = await _secureStorage.read(
           key: 'hive_encryption_key',
-          aOptions: androidOptions,
+          aOptions: _androidOptions,
+          iOptions: _iosOptions,
         );
         if (base64Key == null) {
           throw StateError(
@@ -50,7 +64,13 @@ class AuthUserLocalStore {
           encryptionCipher: HiveAesCipher(encryptionKey),
           compactionStrategy: (entries, deletedEntries) => deletedEntries > 50,
         );
-      } catch (boxError) {
+      } catch (boxError, boxStackTrace) {
+        developer.log(
+          'Encrypted Hive box corrupted or unreadable. Evicting box.',
+          error: boxError,
+          stackTrace: boxStackTrace,
+          name: 'AuthUserLocalStore',
+        );
         // Safe eviction: delete potentially corrupted or plaintext box from disk
         await Hive.deleteBoxFromDisk(_boxName);
         await Hive.openBox(
@@ -59,7 +79,13 @@ class AuthUserLocalStore {
           compactionStrategy: (entries, deletedEntries) => deletedEntries > 50,
         );
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      developer.log(
+        'Failed to initialize AuthUserLocalStore secure key storage',
+        error: e,
+        stackTrace: stackTrace,
+        name: 'AuthUserLocalStore',
+      );
       // If secure storage or generation fails completely, open box as plaintext or rethrow.
       // To preserve safety and avoid lockouts, rethrow and let auth flow redirect to Login/Error.
       rethrow;
@@ -80,7 +106,13 @@ class AuthUserLocalStore {
     if (data == null) return null;
     try {
       return AuthUserModel.fromJson(jsonDecode(data as String)).toDomain();
-    } catch (_) {
+    } catch (e, stackTrace) {
+      developer.log(
+        'Failed to deserialize cached user JSON',
+        error: e,
+        stackTrace: stackTrace,
+        name: 'AuthUserLocalStore',
+      );
       return null;
     }
   }

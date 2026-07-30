@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:church_management_system/core/models/sync_entry.dart';
@@ -163,6 +164,34 @@ void main() {
 
       await syncBox.close();
       await flagsBox.close();
+    });
+
+    test('_extractCachedAt handles malformed JSON strings gracefully during pruneStringBox', () async {
+      final box = await Hive.openBox<String>('attendance_marks_cache');
+      await box.put('malformed', '{invalid json string}');
+      await box.put(
+        'valid_old',
+        '{"cachedAt":"2020-01-01T00:00:00.000Z"}',
+      );
+
+      final pruned = await pruner.pruneStringBox(
+        boxName: 'attendance_marks_cache',
+        timestampExtractor: (val) {
+          if (val is String) {
+            try {
+              final map = jsonDecode(val) as Map<String, Object?>;
+              final cachedAt = map['cachedAt'] as String?;
+              if (cachedAt != null) return DateTime.tryParse(cachedAt);
+            } catch (_) {}
+          }
+          return null;
+        },
+      );
+
+      expect(pruned, 1);
+      expect(box.containsKey('malformed'), isTrue);
+
+      await box.close();
     });
   });
 }

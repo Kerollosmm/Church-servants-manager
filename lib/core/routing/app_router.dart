@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-
 import 'package:church_management_system/core/constants/routes.dart';
 import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/routing/route_args.dart';
@@ -24,6 +22,7 @@ import 'package:church_management_system/features/student/presentation/screens/s
 import 'package:church_management_system/features/student/presentation/screens/student_management_screen.dart';
 import 'package:church_management_system/features/team/presentation/screens/team_management_screen.dart';
 import 'package:church_management_system/features/team/presentation/screens/team_members_screen.dart';
+import 'package:flutter/material.dart';
 
 class AppRouter {
   Route<Object?> _buildPageRoute({

@@ -954,38 +954,59 @@ class StudentDataRepository implements IStudentRepository {
     try {
       await chunkedBatch(firestore: _firestore, ops: ops);
 
-      for (final student in studentsToLocalCache) {
-        final localStudent = await _localDatasource.getStudent(student.docID);
-        if (localStudent != null) {
-          final localTime = localStudent.clientUpdatedAt;
-          final syncTime = student.clientUpdatedAt;
-          if (localTime == null ||
-              syncTime == null ||
-              !localTime.isAfter(syncTime)) {
-            final syncedStudent = student.copyWith(
-              syncStatus: SyncStatus.synced,
-            );
-            await _localDatasource.saveStudent(syncedStudent);
+      if (studentsToLocalCache.isNotEmpty) {
+        final docIds = studentsToLocalCache.map((s) => s.docID).toList();
+        final localStudents = await _localDatasource.getStudentsByIds(
+          docIds,
+          includeArchived: true,
+        );
+        final localMap = {for (final s in localStudents) s.docID: s};
+        final toSave = <StudentModel>[];
+
+        for (final student in studentsToLocalCache) {
+          final localStudent = localMap[student.docID];
+          if (localStudent != null) {
+            final localTime = localStudent.clientUpdatedAt;
+            final syncTime = student.clientUpdatedAt;
+            if (localTime == null ||
+                syncTime == null ||
+                !localTime.isAfter(syncTime)) {
+              toSave.add(student.copyWith(syncStatus: SyncStatus.synced));
+            }
+          } else {
+            toSave.add(student.copyWith(syncStatus: SyncStatus.synced));
           }
-        } else {
-          final syncedStudent = student.copyWith(syncStatus: SyncStatus.synced);
-          await _localDatasource.saveStudent(syncedStudent);
+        }
+        if (toSave.isNotEmpty) {
+          await _localDatasource.saveStudents(toSave);
         }
       }
 
-      for (final op in archiveRestoreCacheOps) {
-        final localStudent = await _localDatasource.getStudent(op.docId);
-        if (localStudent != null) {
-          final localTime = localStudent.clientUpdatedAt;
-          if (localTime == null ||
-              op.clientTime == null ||
-              !localTime.isAfter(op.clientTime!)) {
-            final syncedStudent = localStudent.copyWith(
-              isArchived: op.archive,
-              syncStatus: SyncStatus.synced,
-            );
-            await _localDatasource.saveStudent(syncedStudent);
+      if (archiveRestoreCacheOps.isNotEmpty) {
+        final docIds = archiveRestoreCacheOps.map((op) => op.docId).toList();
+        final localStudents = await _localDatasource.getStudentsByIds(
+          docIds,
+          includeArchived: true,
+        );
+        final localMap = {for (final s in localStudents) s.docID: s};
+        final toSave = <StudentModel>[];
+
+        for (final op in archiveRestoreCacheOps) {
+          final localStudent = localMap[op.docId];
+          if (localStudent != null) {
+            final localTime = localStudent.clientUpdatedAt;
+            if (localTime == null ||
+                op.clientTime == null ||
+                !localTime.isAfter(op.clientTime!)) {
+              toSave.add(localStudent.copyWith(
+                isArchived: op.archive,
+                syncStatus: SyncStatus.synced,
+              ));
+            }
           }
+        }
+        if (toSave.isNotEmpty) {
+          await _localDatasource.saveStudents(toSave);
         }
       }
     } catch (e) {

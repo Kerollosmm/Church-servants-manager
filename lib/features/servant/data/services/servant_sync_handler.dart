@@ -38,10 +38,7 @@ class ServantSyncHandler implements SyncHandler {
 
   @override
   Future<void> executeBatch(List<SyncEntry> entries) async {
-    // Servant mutations are not batched — each is an independent upsert.
-    for (final entry in entries) {
-      await execute(entry);
-    }
+    await Future.wait(entries.map(execute));
   }
 
   /// CREATE_SERVANT and UPDATE_SERVANT both use set(merge: true).

@@ -2,6 +2,7 @@ import 'package:church_management_system/core/constants/enums.dart';
 import 'package:church_management_system/core/utils/json_converters.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:hive/hive.dart';
+import 'package:uuid/uuid.dart';
 
 // ignore_for_file: invalid_annotation_target
 
@@ -16,7 +17,7 @@ typedef _TimestampConverter = FirestoreTimestampConverter;
 ///
 /// Rules:
 /// - Immutable after creation (delete/update only via Admin SDK).
-/// - [recordId] is deterministic: `{studentId}_{timestampMs}`.
+/// - [recordId] is composed of: `{studentId}_{timestampMs}_{uuid}`.
 /// - [type] must be one of: phoneCall, homeVisit, socialMedia.
 @freezed
 @HiveType(typeId: 35)
@@ -24,7 +25,7 @@ class PastoralRecordModel with _$PastoralRecordModel {
   const PastoralRecordModel._();
 
   const factory PastoralRecordModel({
-    /// Deterministic document ID: `{studentId}_{timestampMs}`.
+    /// Unguessable document ID: `{studentId}_{timestampMs}_{uuid}`.
     @HiveField(0) required String recordId,
 
     /// Student document ID (parent document).
@@ -67,8 +68,8 @@ class PastoralRecordModel with _$PastoralRecordModel {
 
   Map<String, dynamic> toMap() => toJson();
 
-  /// Generates a deterministic record ID from studentId and timestamp.
+  /// Generates an unguessable record ID from studentId, timestamp, and a secure UUID.
   static String generateRecordId(String studentId, DateTime timestamp) {
-    return '${studentId}_${timestamp.millisecondsSinceEpoch}';
+    return '${studentId}_${timestamp.millisecondsSinceEpoch}_${const Uuid().v4()}';
   }
 }

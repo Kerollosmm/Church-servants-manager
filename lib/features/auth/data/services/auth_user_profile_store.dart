@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/features/auth/data/models/auth_user.dart';
 import 'package:church_management_system/features/auth/data/services/auth_user_local_store.dart';
@@ -25,7 +26,14 @@ class AuthUserProfileStore {
     try {
       final cached = await ref.get(const GetOptions(source: Source.cache));
       if (cached.exists) return cached;
-    } catch (_) {}
+    } catch (e, stackTrace) {
+      developer.log(
+        'Cache miss or failure in _cachedGet for path: ${ref.path}',
+        error: e,
+        stackTrace: stackTrace,
+        name: 'AuthUserProfileStore',
+      );
+    }
     return ref.get(const GetOptions(source: Source.server));
   }
 
@@ -38,7 +46,15 @@ class AuthUserProfileStore {
         final lastFetch = _lastFetchTimestamps[uid];
         if (lastFetch == null || now.difference(lastFetch) > _profileTtl) {
           _lastFetchTimestamps[uid] = now;
-          unawaited(_refreshUserCache(uid));
+          unawaited(
+            _refreshUserCache(uid).catchError((e, st) {
+              developer.log(
+                'Failed background user profile refresh',
+                error: e,
+                stackTrace: st,
+              );
+            }),
+          );
         }
         return cached;
       }
@@ -69,8 +85,12 @@ class AuthUserProfileStore {
         ...data,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
-    } catch (e) {
-      throw GenericAuthException('Failed to update user data: $e');
+    } catch (e, stackTrace) {
+      throw GenericAuthException(
+        'Failed to update user data: $e',
+        e is Exception ? e : Exception(e.toString()),
+        stackTrace,
+      );
     }
   }
 
@@ -84,8 +104,12 @@ class AuthUserProfileStore {
         ...data,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
-    } catch (e) {
-      throw GenericAuthException('Failed to save user data: $e');
+    } catch (e, stackTrace) {
+      throw GenericAuthException(
+        'Failed to save user data: $e',
+        e is Exception ? e : Exception(e.toString()),
+        stackTrace,
+      );
     }
   }
 
@@ -104,8 +128,13 @@ class AuthUserProfileStore {
         final updatedUser = profile.copyWith(uid: uid);
         await _localStore.saveUser(updatedUser);
       }
-    } catch (_) {
-      // Fail silently in background
+    } catch (e, stackTrace) {
+      developer.log(
+        'Failed to refresh user profile cache in background for $uid',
+        error: e,
+        stackTrace: stackTrace,
+        name: 'AuthUserProfileStore',
+      );
     }
   }
 }

@@ -1,5 +1,5 @@
 import 'package:church_management_system/core/constants/enums.dart';
-import 'package:church_management_system/features/auth/data/models/auth_user.dart';
+import 'package:church_management_system/features/auth/domain/entities/auth_user.dart';
 
 /// Central place for admin authorization checks in the app.
 class AdminPolicy {

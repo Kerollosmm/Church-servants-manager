@@ -1,4 +1,4 @@
-import 'package:church_management_system/features/admin/data/models/analytics_summary_model.dart';
+import 'package:church_management_system/features/admin/domain/entities/analytics_summary.dart';
 
 /// Contract for fetching sector-level analytics.
 abstract class IAnalyticsRepository {
@@ -9,7 +9,7 @@ abstract class IAnalyticsRepository {
   ///
   /// Throws [FirebaseException] if Firestore is unreachable and no stale
   /// cache is available.
-  Future<AnalyticsSummaryModel> getSectorAnalytics(
+  Future<AnalyticsSummary> getSectorAnalytics(
     String sectorId, {
     bool forceRefresh = false,
   });

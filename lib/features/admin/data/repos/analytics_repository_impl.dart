@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/features/admin/data/datasources/analytics_local_datasource.dart';
 import 'package:church_management_system/features/admin/data/models/analytics_summary_model.dart';
+import 'package:church_management_system/features/admin/domain/entities/analytics_summary.dart';
 import 'package:church_management_system/features/admin/domain/repos/i_analytics_repository.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -23,7 +24,7 @@ class AnalyticsRepositoryImpl implements IAnalyticsRepository {
        _localDatasource = localDatasource;
 
   @override
-  Future<AnalyticsSummaryModel> getSectorAnalytics(
+  Future<AnalyticsSummary> getSectorAnalytics(
     String sectorId, {
     bool forceRefresh = false,
   }) async {
@@ -31,7 +32,7 @@ class AnalyticsRepositoryImpl implements IAnalyticsRepository {
     if (!forceRefresh) {
       final cached = await _localDatasource.getSummary(sectorId);
       if (cached != null && _isCacheFresh(cached.fetchedAt)) {
-        return cached;
+        return cached.toDomain();
       }
     }
 
@@ -45,7 +46,7 @@ class AnalyticsRepositoryImpl implements IAnalyticsRepository {
       if (!doc.exists || doc.data() == null) {
         // No server data — return stale cache if available, otherwise throw.
         final stale = await _localDatasource.getSummary(sectorId);
-        if (stale != null) return stale;
+        if (stale != null) return stale.toDomain();
         throw FirebaseException(
           plugin: 'cloud_firestore',
           message: 'SectorsAnalytics/$sectorId does not exist',
@@ -57,7 +58,7 @@ class AnalyticsRepositoryImpl implements IAnalyticsRepository {
       // 3. Persist to Hive with fetchedAt = now.
       await _localDatasource.saveSummary(model);
 
-      return model;
+      return model.toDomain();
     } on FirebaseException {
       // 4. Firestore failed — serve stale cache if we have it.
       final stale = await _localDatasource.getSummary(sectorId);
@@ -66,7 +67,7 @@ class AnalyticsRepositoryImpl implements IAnalyticsRepository {
           'Firestore unreachable, serving stale cache for $sectorId',
           name: 'AnalyticsRepository',
         );
-        return stale;
+        return stale.toDomain();
       }
       rethrow;
     }

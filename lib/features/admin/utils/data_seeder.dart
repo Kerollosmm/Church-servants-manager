@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'dart:math';
 
 import 'package:church_management_system/core/constants/enums.dart';
@@ -104,7 +105,7 @@ class DataSeeder {
 
   void _log(String message) {
     if (kDebugMode) {
-      debugPrint(message);
+      developer.log(message, name: 'DataSeeder');
     }
   }
 
@@ -297,12 +298,22 @@ class DataSeeder {
   Future<void> assignMeAsAdmin() async {
     assert(kDebugMode, 'assignMeAsAdmin must not be called in release builds');
     if (!kDebugMode) return;
-    final uid = _currentUid();
+    final user = _auth.currentUser;
+    if (user == null) throw StateError('Not signed in.');
+
+    final uid = user.uid;
+    final displayName =
+        user.displayName ?? user.email?.split('@').first ?? 'Admin';
+
     await _users.doc(uid).set({
       'uid': uid,
+      'email': user.email ?? '',
+      'name': displayName,
       'role': UserRole.admin.name,
+      'isEmailVerified': user.emailVerified,
     }, SetOptions(merge: true));
-    _log('DataSeeder: Set current user as admin.');
+
+    _log('DataSeeder: Set current user as admin ($uid).');
   }
 
   /// Sets current user role to teacher (servant) and assigns a groupId. Debug-only.
@@ -312,6 +323,13 @@ class DataSeeder {
       'assignMeAsTeacher must not be called in release builds',
     );
     if (!kDebugMode) return;
+    final user = _auth.currentUser;
+    if (user == null) throw StateError('Not signed in.');
+
+    final uid = user.uid;
+    final displayName =
+        user.displayName ?? user.email?.split('@').first ?? 'Teacher';
+
     // Assign to a random team in that group
     final teamsSnapshot = await _classes
         .where('groupId', isEqualTo: group.name)
@@ -323,15 +341,18 @@ class DataSeeder {
       assignedTeamId = teamsSnapshot.docs.first.id;
     }
 
-    final uid = _currentUid();
     final payload = <String, dynamic>{
       'uid': uid,
+      'email': user.email ?? '',
+      'name': displayName,
       'role': UserRole.servant.name,
+      'isEmailVerified': user.emailVerified,
       'group': group.name,
       'groupId': group.name,
     };
     if (assignedTeamId != null) {
       payload['assignedTeamId'] = assignedTeamId;
+      payload['assignedTeamIds'] = [assignedTeamId];
     }
     await _users.doc(uid).set(payload, SetOptions(merge: true));
 
@@ -341,7 +362,9 @@ class DataSeeder {
   }
 
   /// Sets current user role to student and creates/updates a StudentModel profile. Debug-only.
-  Future<void> assignMeAsStudentAndCreateProfile() async {
+  Future<void> assignMeAsStudentAndCreateProfile({
+    Group group = Group.year1,
+  }) async {
     assert(
       kDebugMode,
       'assignMeAsStudentAndCreateProfile must not be called in release builds',
@@ -363,9 +386,7 @@ class DataSeeder {
       'groupId': null,
     }, SetOptions(merge: true));
 
-    final group = Group.year1;
-
-    // Fetch a valid team for Year 1
+    // Fetch a valid team for group
     final teamsSnapshot = await _classes
         .where('groupId', isEqualTo: group.name)
         .limit(1)
@@ -380,6 +401,12 @@ class DataSeeder {
       teamName = teamData.name;
     }
 
+    final grade = switch (group) {
+      Group.year1 => 1,
+      Group.year2 => 2,
+      Group.year3 => 3,
+    };
+
     final student = StudentModel(
       uid: uid,
       docID: uid, // stable ID for self profile
@@ -391,7 +418,7 @@ class DataSeeder {
       teamName: teamName,
       motherPhone: _randomPhone(),
       fatherPhone: _randomPhone(),
-      grade: 1,
+      grade: grade,
       educationStage: EducationStage.preparatory,
       school: null,
       address: null,
@@ -406,12 +433,6 @@ class DataSeeder {
     _log('DataSeeder: Set current user as student and created profile.');
   }
 
-  String _currentUid() {
-    final user = _auth.currentUser;
-    if (user == null) throw StateError('Not signed in.');
-    return user.uid;
-  }
-
   String _randomPhone() {
     // Simple demo phone generator.
     final prefix = '01${_random.nextInt(3)}';
@@ -419,3 +440,4 @@ class DataSeeder {
     return '$prefix$number';
   }
 }
+

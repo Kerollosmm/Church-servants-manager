@@ -1,0 +1,53 @@
+name: Layer 3 - AI Code Review Safety Net
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [ main, master, develop, 'feature/**' ]
+
+jobs:
+  layer_1_checks:
+    name: Layer 1 Deterministic CI Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Java & Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Flutter Analyze
+        run: flutter analyze lib/
+
+      - name: Flutter Test
+        run: flutter test
+
+  layer_3_ai_pr_review:
+    name: Layer 3 AI PR Safety Net
+    needs: layer_1_checks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: CodeRabbit AI PR Reviewer
+        uses: coderabbitai/ai-pr-reviewer@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          debug: false
+          review_comment_lgtm: true
+          path_filters: |
+            !**/*.g.dart
+            !**/*.freezed.dart
