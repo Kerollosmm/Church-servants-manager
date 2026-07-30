@@ -82,7 +82,7 @@ void _registerCore() {
       () => StudentSyncHandler(getIt<IStudentRepository>()),
     )
     ..registerLazySingleton<AttendanceSyncHandler>(
-      () => AttendanceSyncHandler(getIt<IAttendanceRepository>()),
+      () => AttendanceSyncHandler(getIt<FirebaseFirestore>()),
     )
     ..registerLazySingleton<ResultsSyncHandler>(
       () => ResultsSyncHandler(getIt<IResultsRepository>()),

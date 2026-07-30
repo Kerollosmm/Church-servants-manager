@@ -1,9 +1,9 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:church_management_system/core/constants/firestore_collections.dart';
 import 'package:church_management_system/core/models/sync_entry.dart';
 import 'package:church_management_system/core/services/sync_handler.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-/// Handles synchronization of attendance mark mutations with idempotent recordId writes.
+/// Handles synchronization of attendance mark mutations with idempotent write operations.
 class AttendanceSyncHandler implements SyncHandler {
   final FirebaseFirestore _firestore;
 
@@ -14,16 +14,17 @@ class AttendanceSyncHandler implements SyncHandler {
     final collection = _firestore.collection(FirestoreCollections.attendanceMarks);
     final data = Map<String, dynamic>.from(entry.payload);
     data['lastModifiedAt'] = FieldValue.serverTimestamp();
+    final recordId = (data['recordId'] as String?) ?? entry.id;
 
     if (entry.actionType == 'MARK_ATTENDANCE' || entry.actionType == 'CREATE') {
-      await collection.doc(entry.recordId).set(
+      await collection.doc(recordId).set(
             data,
             SetOptions(merge: true),
           );
     } else if (entry.actionType == 'CLEAR_ATTENDANCE' || entry.actionType == 'DELETE') {
-      await collection.doc(entry.recordId).delete();
+      await collection.doc(recordId).delete();
     } else {
-      await collection.doc(entry.recordId).set(
+      await collection.doc(recordId).set(
             data,
             SetOptions(merge: true),
           );
@@ -38,12 +39,13 @@ class AttendanceSyncHandler implements SyncHandler {
     for (final entry in entries) {
       final data = Map<String, dynamic>.from(entry.payload);
       data['lastModifiedAt'] = FieldValue.serverTimestamp();
+      final recordId = (data['recordId'] as String?) ?? entry.id;
 
       if (entry.actionType == 'CLEAR_ATTENDANCE' || entry.actionType == 'DELETE') {
-        batch.delete(collection.doc(entry.recordId));
+        batch.delete(collection.doc(recordId));
       } else {
         batch.set(
-          collection.doc(entry.recordId),
+          collection.doc(recordId),
           data,
           SetOptions(merge: true),
         );
