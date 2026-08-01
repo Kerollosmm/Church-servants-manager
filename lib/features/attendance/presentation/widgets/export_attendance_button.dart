@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:church_management_system/core/di/injection.dart';
 import 'package:church_management_system/core/theme/app_colors.dart';
 import 'package:church_management_system/core/utils/data_export_service.dart';
+import 'package:church_management_system/core/utils/list_extensions.dart';
 import 'package:church_management_system/features/attendance/domain/entities/attendance_session.dart';
 import 'package:church_management_system/features/student/domain/repos/i_student_repository.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -46,15 +47,24 @@ class _ExportAttendanceButtonState extends State<ExportAttendanceButton> {
       final Map<String, List<String>> studentAttendanceMap = {};
       final closedSessions = widget.sessions.where((s) => s.isClosed).toList();
 
-      final marksSnapshots = await Future.wait(
-        closedSessions.map(
-          (session) => firestore
-              .collection('AttendanceSessions')
-              .doc(session.id)
-              .collection('records')
-              .get(),
-        ),
-      );
+      // Latency-only optimization: concurrent reads are bounded to chunks of
+      // 20 sessions to avoid issuing a burst of N simultaneous get() calls
+      // against Firestore (Spark plan reads/day unaffected; this caps peak
+      // concurrency only). See list_extensions.dart chunk().
+      final marksSnapshots = <QuerySnapshot<Map<String, dynamic>>>[];
+      for (final sessionChunk in closedSessions.chunk(20)) {
+        marksSnapshots.addAll(
+          await Future.wait(
+            sessionChunk.map(
+              (session) => firestore
+                  .collection('AttendanceSessions')
+                  .doc(session.id)
+                  .collection('records')
+                  .get(),
+            ),
+          ),
+        );
+      }
 
       for (int i = 0; i < closedSessions.length; i++) {
         final marksSnapshot = marksSnapshots[i];
