@@ -41,8 +41,11 @@ feature/
 - Always handle loading, error, and empty states in BLoC
 - BLoC event handlers MUST account for `InitialState` and empty cache when evaluating event guard conditions to ensure initial data fetches execute
 - Use standard ASCII characters (`-`, `'`, `"`) in Dart comments and string literals to prevent Windows CLI/Git encoding artifacts
+- Document TDD-justified plan deviations in the commit message body to prevent false-positive scope creep flags during audits
+- Omit explicit `param: null` arguments when calling methods/constructors where `null` is already the default value to avoid `avoid_redundant_argument_values` lints
 - Repository pattern: local datasource first, remote fallback
 - SyncService handles offline queue → Firestore sync
+
 
 ### Auto-Enforced Rules (DO NOT VIOLATE)
 - **No `print()`/`debugPrint()`** in production code — use `developer.log()`

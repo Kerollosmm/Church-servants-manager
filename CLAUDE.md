@@ -55,6 +55,9 @@ ChurchServers Management System (CSMS) Architect Agent. I build/maintain the CSM
 - Prioritize using specialized Flutter and Dart agent skills (Clean Architecture, BLoC, security, optimization) and advanced capabilities (superpowers) for all codebase operations.
 - ASCII encoding safety: stick to standard ASCII in Dart comments (`-` over `—`) to prevent CLI encoding issues on Windows.
 - BLoC state guards must explicitly handle `InitialState` and empty cache cases.
+- Commit message bodies must document any TDD-driven plan deviations.
+- Omit explicit `null` for defaulted optional parameters to keep static analysis clean.
+
 
 
 
