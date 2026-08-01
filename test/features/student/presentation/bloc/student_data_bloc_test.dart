@@ -496,4 +496,41 @@ void main() {
     ).called(1);
     await bloc.close();
   });
+
+  test(
+    'empty-query initial search emits same state shape as a load (currentQuery == null)',
+    () async {
+      final admin = actor(UserRole.admin);
+
+      when(
+        () => repository.getAllStudents(
+          limit: 50,
+          includeArchived: any(named: 'includeArchived'),
+        ),
+      ).thenAnswer((_) async => [student()]);
+
+      final bloc = StudentDataBloc(
+        studentRepository: repository,
+        getStudentsList: getStudentsList,
+        canMutateStudent: canMutateStudent,
+        provisionUseCase: provisionUseCase,
+      );
+
+      final expectation = expectLater(
+        bloc.stream,
+        emitsInOrder([
+          isA<StudentDataLoading>(),
+          isA<StudentDataLoaded>()
+              .having((s) => s.currentFilterTeamId, 'team', isNull)
+              .having((s) => s.currentQuery, 'currentQuery', isNull)
+              .having((s) => s.students.single.docID, 'student', 's1'),
+        ]),
+      );
+
+      bloc.add(StudentsSearchRequested(actor: admin, query: ''));
+      await expectation;
+      await bloc.close();
+    },
+  );
 }
+
