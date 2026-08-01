@@ -39,6 +39,8 @@ feature/
 - Use `sealed class` for BLoC states
 - Use `@freezed` or `@MappableClass` for models
 - Always handle loading, error, and empty states in BLoC
+- BLoC event handlers MUST account for `InitialState` and empty cache when evaluating event guard conditions to ensure initial data fetches execute
+- Use standard ASCII characters (`-`, `'`, `"`) in Dart comments and string literals to prevent Windows CLI/Git encoding artifacts
 - Repository pattern: local datasource first, remote fallback
 - SyncService handles offline queue → Firestore sync
 

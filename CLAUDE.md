@@ -53,5 +53,8 @@ ChurchServers Management System (CSMS) Architect Agent. I build/maintain the CSM
 - Use Custom Claims (if possible, fallback to Firestore rules).
 - Caveman mode: full.
 - Prioritize using specialized Flutter and Dart agent skills (Clean Architecture, BLoC, security, optimization) and advanced capabilities (superpowers) for all codebase operations.
+- ASCII encoding safety: stick to standard ASCII in Dart comments (`-` over `—`) to prevent CLI encoding issues on Windows.
+- BLoC state guards must explicitly handle `InitialState` and empty cache cases.
+
 
 
