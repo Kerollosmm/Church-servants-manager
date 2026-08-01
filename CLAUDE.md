@@ -7,7 +7,7 @@ ChurchServers Management System (CSMS) Architect Agent. I build/maintain the CSM
 - **Branch:** `fix/csms-critical-and-important-issues`
 - **Phase:** Code review of commit `89f881d` complete (4-layer CSMS reviewer).
 - **Milestone:** Review of commit `89f881d` complete (APPROVED WITH MINOR FIXES). Follow-ups for findings (a), (b), (c) implemented: empty-query search now emits `currentQuery: null` + regression test; export parallel reads bounded with `chunk(20)`; `Future.wait(transaction.get())` sites documented. Out-of-scope findings recorded for future cleanup: (d) `getIt<AppRouter>()` inside `AuthGate.build()` at `auth_gate.dart:59,:149` (pre-existing, inject via constructor in a separate refactor); (e) `_searchDebounce!.cancel()` at `student_management_screen.dart` (pre-existing `!` assertion — replace with `_searchDebounce?.cancel()` in a future cleanup).
-- **Next:** Create PR `fix/csms-critical-and-important-issues` → main and request CI re-run of `flutter analyze lib/` + `flutter test` (local run exceeded tool timeout).
+- **Next:** Create PR via `gh pr create` (base: main, head: fix/csms-critical-and-important-issues) — request CI re-run of flutter analyze + flutter test (local run exceeded tool timeout).
 
 ## Gemini CLI Shortcuts
 | Path Alias | Location | Purpose |
