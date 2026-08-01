@@ -717,6 +717,13 @@ class AttendanceCommandService {
           }
 
           if (markRefs.isNotEmpty) {
+            // Intentional: concurrent transaction.get() calls are supported
+            // by the Firestore mobile SDK — they're batched and read
+            // atomically within this transaction. Future.wait completes all
+            // reads BEFORE any write below (reads-before-writes invariant).
+            // Do NOT "fix" this back to sequential awaits or move gets
+            // outside the transaction — both regress latency and break
+            // the transaction's atomic read set.
             final snapshots = await Future.wait(
               markRefs.map((ref) => transaction.get(ref)),
             );
@@ -970,6 +977,9 @@ class AttendanceCommandService {
           }
 
           if (missingRefs.isNotEmpty) {
+            // Intentional concurrent gets inside the transaction — see the
+            // equivalent comment above in this file. Reads complete before
+            // the writes below; SDK-supported. Do not refactor to sequential.
             final missingSnapshots = await Future.wait(
               missingRefs.map((ref) => transaction.get(ref)),
             );
