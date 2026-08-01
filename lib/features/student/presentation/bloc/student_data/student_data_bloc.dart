@@ -452,7 +452,6 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
           includeArchived: nextIncludeArchived,
           currentFilterGroupId: event.actor.groupId,
           currentFilterTeamId: nextTeamId,
-          currentQuery: null,
         ),
       );
       if (event.actor.role == UserRole.admin &&
@@ -473,13 +472,11 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
             emit,
             students: _resolveVisibleStudents(
               allStudents: nextAllStudents,
-              query: null,
             ),
             allStudents: nextAllStudents,
             studentsByDocId: nextStudentsByDocId,
             groupId: event.actor.groupId,
             teamId: nextTeamId,
-            query: null,
             includeArchived: nextIncludeArchived,
           );
         } catch (e) {
@@ -498,7 +495,6 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
 
     final visibleStudents = _resolveVisibleStudents(
       allStudents: allStudents,
-      query: null,
     );
     _emitLoadedState(
       emit,
@@ -507,7 +503,6 @@ class StudentDataBloc extends Bloc<StudentDataEvent, StudentDataState> {
       studentsByDocId: studentsByDocId,
       groupId: event.actor.groupId,
       teamId: nextTeamId,
-      query: null,
       includeArchived: nextIncludeArchived,
     );
   }

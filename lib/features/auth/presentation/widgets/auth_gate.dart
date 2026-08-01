@@ -19,7 +19,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class AuthGate extends StatelessWidget {
-  const AuthGate({super.key});
+  final AppRouter _appRouter;
+
+  AuthGate({
+    super.key,
+    AppRouter? appRouter,
+  }) : _appRouter = appRouter ?? getIt<AppRouter>();
 
   bool _isAuthenticatedState(AuthState state) =>
       state is AuthAuthenticated || state is AuthDegraded;
@@ -56,7 +61,7 @@ class AuthGate extends StatelessWidget {
           theme: AppTheme.light(),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          onGenerateRoute: getIt<AppRouter>().onGenerateRoute,
+          onGenerateRoute: _appRouter.onGenerateRoute,
           home: homeWidget,
           builder: (context, child) {
             return Directionality(
@@ -146,7 +151,7 @@ class AuthGate extends StatelessWidget {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
           theme: AppTheme.light(),
-          onGenerateRoute: getIt<AppRouter>().onGenerateRoute,
+          onGenerateRoute: _appRouter.onGenerateRoute,
           home: const LoginScreen(),
         );
       },

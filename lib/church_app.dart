@@ -25,7 +25,7 @@ class ChurchApp extends StatelessWidget {
         BlocProvider(create: (context) => getIt<ConnectivityCubit>()),
       ],
       // AuthGate handles downstream routing, MaterialApps, and feature-scoped Blocs.
-      child: const AuthGate(),
+      child: AuthGate(),
     );
   }
 }

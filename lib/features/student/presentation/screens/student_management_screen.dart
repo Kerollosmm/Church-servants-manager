@@ -81,7 +81,7 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
   }
 
   void _onSearchChanged(AuthUser actor, String value) {
-    if (_searchDebounce?.isActive ?? false) _searchDebounce!.cancel();
+    _searchDebounce?.cancel();
     _searchDebounce = Timer(const Duration(milliseconds: 300), () {
       if (mounted) {
         _dispatchSearch(actor, value, teamId: _selectedTeamId);
